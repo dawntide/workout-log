@@ -24,18 +24,6 @@ export default function HomeLoading() {
         <div style={{ ...skeletonStyle, height: 28, width: "50%", borderRadius: 6 }} />
       </section>
 
-      {/* ── Momentum Banner ── */}
-      <section className="hd-banner" style={{ background: "var(--color-surface-container-low)" }}>
-        <div className="hd-banner__content flex-1">
-          <div style={{ ...skeletonStyle, height: 12, width: 40, marginBottom: "8px", borderRadius: 4 }} />
-          <div style={{ ...skeletonStyle, height: 20, width: "65%", marginBottom: "6px", borderRadius: 4 }} />
-          <div style={{ ...skeletonStyle, height: 14, width: "80%", borderRadius: 4 }} />
-        </div>
-        <div className="hd-banner__icon-wrap">
-          <div style={{ ...skeletonStyle, width: 44, height: 44, borderRadius: "50%" }} />
-        </div>
-      </section>
-
       {/* ── Today Protocol Card ── */}
       <section className="hd-section">
         <div className="hd-section__header">

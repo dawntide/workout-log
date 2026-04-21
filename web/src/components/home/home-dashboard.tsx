@@ -5,7 +5,6 @@ import { PageSection } from "@/components/ui/page-layout";
 import type {
   HomeData,
   HomeLastSession,
-  HomeQuickStats,
   HomePlanOverview,
   HomeTodaySummary,
   HomeWeeklySummary,
@@ -42,49 +41,7 @@ function WelcomeSection({ today, copy, locale }: { today: HomeTodaySummary; copy
   );
 }
 
-// ─── Section 2: Streak / Momentum Banner ─────────────────────────────
-
-function MomentumBanner({
-  quickStats,
-  today,
-  copy,
-}: {
-  quickStats: HomeQuickStats;
-  today: HomeTodaySummary;
-  copy: AppCopy;
-}) {
-  const streak = quickStats.currentStreak;
-  const hasStreak = streak > 0;
-
-  const mainExercises = today.plannedExercises.filter((e) => e.role === "MAIN");
-  const nextTarget = mainExercises.length > 0 ? mainExercises[0].name : today.programName;
-
-  return (
-    <section className="hd-banner">
-      <div className="hd-banner__content">
-        <p className="hd-banner__eyebrow">{copy.home.momentum.eyebrow}</p>
-        <h3 className="hd-banner__title">{hasStreak ? copy.home.momentum.streak(streak) : copy.home.momentum.empty}</h3>
-        {nextTarget && (
-          <p className="hd-banner__subtitle">
-            {copy.home.momentum.nextTarget}:{" "}
-            <span className="hd-banner__subtitle-highlight">{nextTarget}</span>
-          </p>
-        )}
-      </div>
-      <div className="hd-banner__icon-wrap">
-        <span
-          className="material-symbols-outlined hd-banner__icon"
-          style={{ fontVariationSettings: "'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24" }}
-        >
-          local_fire_department
-        </span>
-      </div>
-      <div className="hd-banner__glow" aria-hidden="true" />
-    </section>
-  );
-}
-
-// ─── Section 3: Today's Protocol Card ────────────────────────────────
+// ─── Section 2: Today's Protocol Card ────────────────────────────────
 
 function TodayProtocolCard({
   today,
@@ -317,7 +274,6 @@ export function HomeDashboard({ data, copy, locale }: { data: HomeData; copy: Ap
   return (
     <div className="hd-root">
       <WelcomeSection today={data.today} copy={copy} locale={locale} />
-      <MomentumBanner quickStats={data.quickStats} today={data.today} copy={copy} />
       <TodayProtocolCard
         today={data.today}
         planOverview={data.planOverview}
