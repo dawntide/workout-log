@@ -22,11 +22,20 @@ export type ParsedSessionKey =
       cycle: null;
       week: number;
       day: number;
+    }
+  | {
+      raw: string;
+      kind: "cycle-wave";
+      sessionDate: null;
+      cycle: number;
+      week: number;
+      day: number;
     };
 
 const DATE_ONLY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const WAVE_PATTERN = /^W(\d+)D(\d+)$/;
 const DATE_PROGRESSION_PATTERN = /^(\d{4}-\d{2}-\d{2})@C(\d+)W(\d+)D(\d+)$/;
+const CYCLE_WAVE_PATTERN = /^C(\d+)W(\d+)D(\d+)$/;
 
 function clampPositiveInt(value: number | null | undefined, fallback: number) {
   if (typeof value !== "number" || !Number.isFinite(value)) return fallback;
@@ -72,6 +81,18 @@ export function parseSessionKey(sessionKey: string): ParsedSessionKey | null {
     };
   }
 
+  const cycleWaveMatch = CYCLE_WAVE_PATTERN.exec(raw);
+  if (cycleWaveMatch) {
+    return {
+      raw,
+      kind: "cycle-wave",
+      sessionDate: null,
+      cycle: Number(cycleWaveMatch[1]),
+      week: Number(cycleWaveMatch[2]),
+      day: Number(cycleWaveMatch[3]),
+    };
+  }
+
   return null;
 }
 
@@ -85,6 +106,7 @@ export function formatSessionKeyLabel(sessionKey: string) {
   if (!parsed) return sessionKey;
   if (parsed.kind === "date") return parsed.sessionDate;
   if (parsed.kind === "wave") return `W${parsed.week}D${parsed.day}`;
+  if (parsed.kind === "cycle-wave") return `C${parsed.cycle} W${parsed.week}D${parsed.day}`;
   return `${parsed.sessionDate} · C${parsed.cycle} W${parsed.week}D${parsed.day}`;
 }
 
@@ -106,6 +128,10 @@ export function buildSessionKey(input: {
       return `${input.sessionDate}@C${cycle}W${week}D${day}`;
     }
     return input.sessionDate;
+  }
+
+  if (input.autoProgression === true) {
+    return `C${cycle}W${week}D${day}`;
   }
 
   return `W${week}D${day}`;
