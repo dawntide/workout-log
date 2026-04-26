@@ -201,6 +201,11 @@ export async function applyAutoProgressionFromLog(input: ApplyAutoProgressionInp
     let finalReason = reduced.reason;
 
     const sessionKeys = new Set(Object.keys(reduced.outcomes));
+    const prevWeek = Number((beforeState.week as number | undefined) ?? 1);
+    const prevDay = Number((beforeState.day as number | undefined) ?? 1);
+    const isOperatorBlockEnd = resolved.progressionProgram === "operator" && prevWeek === 6 && prevDay === 3;
+    const is531BlockEnd = resolved.progressionProgram === "wendler-531" && prevWeek === 4 && prevDay === 4;
+    const shouldApplyOverrideToAllTargets = isOperatorBlockEnd || is531BlockEnd;
     const prevTargets = ((beforeState as Record<string, unknown>).targets ?? {}) as Record<string, Record<string, unknown>>;
 
     if (input.progressionOverride === "hold") {
@@ -223,8 +228,8 @@ export async function applyAutoProgressionFromLog(input: ApplyAutoProgressionInp
     } else if (input.progressionOverride === "increase") {
       // 이전 상태(prevTargets) 기준으로 증량 적용 — 자동 증량 중복 방지
       const nextTargets = { ...reduced.nextState.targets };
-      for (const key of Object.keys(nextTargets)) {
-        if (!sessionKeys.has(key)) continue;
+      const keysToApply = shouldApplyOverrideToAllTargets ? Object.keys(nextTargets) : Array.from(sessionKeys);
+      for (const key of keysToApply) {
         const target = nextTargets[key];
         if (!target) continue;
         const prev = prevTargets[key];
@@ -243,8 +248,8 @@ export async function applyAutoProgressionFromLog(input: ApplyAutoProgressionInp
     } else if (input.progressionOverride === "reset") {
       // 이전 상태(prevTargets) 기준으로 감소 적용
       const nextTargets = { ...reduced.nextState.targets };
-      for (const key of Object.keys(nextTargets)) {
-        if (!sessionKeys.has(key)) continue;
+      const keysToApply = shouldApplyOverrideToAllTargets ? Object.keys(nextTargets) : Array.from(sessionKeys);
+      for (const key of keysToApply) {
         const target = nextTargets[key];
         if (!target) continue;
         const prev = prevTargets[key];
