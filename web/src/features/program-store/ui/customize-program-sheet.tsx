@@ -49,6 +49,7 @@ type CustomizeProgramSheetProps = {
   locale: "ko" | "en";
   draft: ProgramStoreCustomizeDraft | null;
   saving: boolean;
+  error: string | null;
   isOperatorCustomization: boolean;
   publicTemplates: ProgramTemplate[];
   exerciseOptions: ExerciseOption[];
@@ -79,6 +80,7 @@ export function CustomizeProgramSheet({
   locale,
   draft,
   saving,
+  error,
   isOperatorCustomization,
   publicTemplates,
   exerciseOptions,
@@ -128,6 +130,23 @@ export function CustomizeProgramSheet({
     >
       {draft ? (
         <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-lg)" }}>
+          {error ? (
+            <div
+              role="alert"
+              style={{
+                border: "1px solid color-mix(in srgb, var(--color-danger) 34%, var(--color-border))",
+                borderRadius: "8px",
+                background: "var(--color-danger-weak)",
+                color: "var(--color-danger-strong)",
+                padding: "var(--space-sm) var(--space-md)",
+                font: "var(--font-secondary)",
+                lineHeight: 1.5,
+              }}
+            >
+              {error}
+            </div>
+          ) : null}
+
           <label style={{ display: "flex", flexDirection: "column", gap: "var(--space-xs)" }}>
             <span style={{ color: "var(--text-session-context)", font: "var(--font-secondary)" }}>
               {locale === "ko" ? "프로그램 이름" : "Program Name"}

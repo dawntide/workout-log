@@ -125,6 +125,14 @@ const ProgramExerciseEditorRow = memo(function ProgramExerciseEditorRow({
     } satisfies ExerciseOption;
   }, [exercise.exerciseName, exerciseOptions]);
 
+  const hasExactExerciseOption = useMemo(() => {
+    const normalizedSelectedName = exercise.exerciseName.trim().toLowerCase();
+    if (!normalizedSelectedName) return false;
+    return exerciseOptions.some(
+      (option) => option.name.trim().toLowerCase() === normalizedSelectedName,
+    );
+  }, [exercise.exerciseName, exerciseOptions]);
+
   const filteredExerciseOptions = useMemo(() => {
     const normalizedQuery = deferredExerciseQuery.trim().toLowerCase();
     if (!normalizedQuery) return exerciseOptions.slice(0, 40);
@@ -144,9 +152,8 @@ const ProgramExerciseEditorRow = memo(function ProgramExerciseEditorRow({
     return resolveOperatorExerciseDefaults(exercise.exerciseName, exercise.rowType ?? "AUTO");
   }, [exercise.exerciseName, exercise.rowType, operatorAutoRow]);
 
-  const selectExerciseOption = useCallback(
-    (option: ExerciseOption | null) => {
-      const nextExerciseName = option?.name ?? "";
+  const patchExerciseName = useCallback(
+    (nextExerciseName: string) => {
       const inferredTarget = inferProgressionTargetFromExerciseName(nextExerciseName);
       onPatch(
         sessionId,
@@ -154,16 +161,28 @@ const ProgramExerciseEditorRow = memo(function ProgramExerciseEditorRow({
         operatorStyle && isOperatorAutoRowType(exercise.rowType ?? null)
           ? {
               exerciseName: nextExerciseName,
-              progressionTarget: inferredTarget ?? exercise.progressionTarget ?? null,
-              ...resolveOperatorExerciseDefaults(nextExerciseName, exercise.rowType ?? "AUTO"),
+              progressionTarget: nextExerciseName.trim()
+                ? inferredTarget ?? exercise.progressionTarget ?? null
+                : null,
+              ...(nextExerciseName.trim()
+                ? resolveOperatorExerciseDefaults(nextExerciseName, exercise.rowType ?? "AUTO")
+                : {}),
             }
           : { exerciseName: nextExerciseName },
       );
+    },
+    [exercise.id, exercise.progressionTarget, exercise.rowType, onPatch, operatorStyle, sessionId],
+  );
+
+  const selectExerciseOption = useCallback(
+    (option: ExerciseOption | null) => {
+      const nextExerciseName = option?.name ?? "";
+      patchExerciseName(nextExerciseName);
       setExerciseQuery(option?.name ?? "");
       exerciseInputRef.current?.blur();
       setExercisePickerOpen(!option);
     },
-    [exercise.id, exercise.progressionTarget, exercise.rowType, onPatch, operatorStyle, sessionId],
+    [patchExerciseName],
   );
 
   useEffect(() => {
@@ -175,9 +194,11 @@ const ProgramExerciseEditorRow = memo(function ProgramExerciseEditorRow({
     }
     if (lastResolvedExerciseNameRef.current !== normalizedExerciseName) {
       lastResolvedExerciseNameRef.current = normalizedExerciseName;
-      setExercisePickerOpen(false);
+      if (hasExactExerciseOption) {
+        setExercisePickerOpen(false);
+      }
     }
-  }, [exercise.exerciseName]);
+  }, [exercise.exerciseName, hasExactExerciseOption]);
 
   useEffect(() => {
     if (!exercisePickerOpen) return;
@@ -317,11 +338,8 @@ const ProgramExerciseEditorRow = memo(function ProgramExerciseEditorRow({
                   onChange={(event) => {
                     const nextQuery = event.target.value;
                     setExerciseQuery(nextQuery);
-                    const normalizedQuery = nextQuery.trim().toLowerCase();
-                    const normalizedSelectedName = exercise.exerciseName.trim().toLowerCase();
-                    if (!normalizedSelectedName) return;
-                    if (normalizedQuery === normalizedSelectedName) return;
-                    onPatch(sessionId, exercise.id, { exerciseName: "" });
+                    patchExerciseName(nextQuery);
+                    setExercisePickerOpen(true);
                   }}
                   onKeyDown={(event) => {
                     if (event.key !== "Enter") return;
@@ -355,7 +373,7 @@ const ProgramExerciseEditorRow = memo(function ProgramExerciseEditorRow({
                     }}
                     onClick={() => {
                       setExerciseQuery("");
-                      onPatch(sessionId, exercise.id, { exerciseName: "" });
+                      patchExerciseName("");
                       setExercisePickerOpen(true);
                     }}
                   >

@@ -23,6 +23,7 @@ type CreateProgramSheetProps = {
   locale: "ko" | "en";
   draft: ProgramStoreCreateDraft | null;
   saving: boolean;
+  error: string | null;
   publicTemplates: ProgramTemplate[];
   exerciseOptions: ExerciseOption[];
   exerciseOptionsLoading: boolean;
@@ -54,6 +55,7 @@ export function CreateProgramSheet({
   locale,
   draft,
   saving,
+  error,
   publicTemplates,
   exerciseOptions,
   exerciseOptionsLoading,
@@ -102,6 +104,23 @@ export function CreateProgramSheet({
     >
       {draft ? (
         <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-md)" }}>
+          {error ? (
+            <div
+              role="alert"
+              style={{
+                border: "1px solid color-mix(in srgb, var(--color-danger) 34%, var(--color-border))",
+                borderRadius: "8px",
+                background: "var(--color-danger-weak)",
+                color: "var(--color-danger-strong)",
+                padding: "var(--space-sm) var(--space-md)",
+                font: "var(--font-secondary)",
+                lineHeight: 1.5,
+              }}
+            >
+              {error}
+            </div>
+          ) : null}
+
           <label style={{ display: "flex", flexDirection: "column", gap: "var(--space-xs)" }}>
             <span
               style={{

@@ -250,6 +250,7 @@ export function ProgramStoreScreen({
         locale={locale}
         draft={customizeDraft}
         saving={saving}
+        error={error}
         isOperatorCustomization={isOperatorCustomization}
         publicTemplates={publicTemplates}
         exerciseOptions={exerciseOptions}
@@ -276,6 +277,7 @@ export function ProgramStoreScreen({
         locale={locale}
         draft={createDraft}
         saving={saving}
+        error={error}
         publicTemplates={publicTemplates}
         exerciseOptions={exerciseOptions}
         exerciseOptionsLoading={exerciseOptionsLoading}
