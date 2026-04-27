@@ -2,6 +2,7 @@
 
 import type { PointerEvent as ReactPointerEvent, ReactNode } from "react";
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { MINIMAL_COPY_MODE } from "@/lib/ui/minimal-copy";
 import { BottomSheetActionHeader, type BottomSheetPrimaryAction } from "./bottom-sheet-action-header";
 
@@ -90,6 +91,7 @@ export function BottomSheet({
   const sheetId = useId();
   const [present, setPresent] = useState(open);
   const [isTopSheet, setIsTopSheet] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const sheetRef = useRef<HTMLDivElement | null>(null);
   const panelRef = useRef<HTMLElement | null>(null);
   const contentRef = useRef<HTMLDivElement | null>(null);
@@ -100,6 +102,10 @@ export function BottomSheet({
   const lastTouchYRef = useRef<number | null>(null);
   const prevPresentRef = useRef(open); // initialized to open (= initial present value)
   const closeAnimationMs = 400;
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (open) {
@@ -531,6 +537,7 @@ export function BottomSheet({
   );
 
   if (!present) return null;
+  if (!mounted) return null;
 
-  return sheetElement;
+  return createPortal(sheetElement, document.body);
 }
