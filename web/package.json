@@ -32,7 +32,7 @@
     "test:settings:policy": "tsx --test src/lib/settings/update-setting.test.ts",
     "typecheck": "tsc --noEmit",
     "test:unit": "tsx --test src/server/progression/reducer.test.ts src/lib/settings/update-setting.test.ts src/lib/settings/settings-deeplink.test.ts src/lib/settings/settings-search.test.ts src/lib/navigation/view-transition.test.ts",
-    "test:progression": "tsx --test src/server/progression/reducer.test.ts src/server/progression/reducer.full-block.test.ts",
+    "test:progression": "tsx --test src/server/progression/reducer.test.ts src/server/progression/reducer.full-block.test.ts src/server/program-engine/generateSession.rounding.test.ts",
     "test:e2e": "bash scripts/playwright-wrapper.sh test",
     "test:e2e:dev": "PLAYWRIGHT_SERVER_MODE=dev bash scripts/playwright-wrapper.sh test",
     "test:e2e:prod": "PLAYWRIGHT_SERVER_MODE=prod bash scripts/playwright-wrapper.sh test",

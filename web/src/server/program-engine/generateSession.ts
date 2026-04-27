@@ -11,6 +11,7 @@ import {
   programVersion,
 } from "@/server/db/schema";
 import { extractTrainingMaxOverridesFromState } from "@/server/progression/reducer";
+import { roundUpToNearest2p5 } from "./round";
 
 type AccessoryPatch = {
   op: "ADD_ACCESSORY";
@@ -325,12 +326,17 @@ function resolveOperatorExerciseTrainingMax(input: {
     return effectiveFamilyTm;
   }
 
-  const baseFamilyTm = pickTrainingMaxKg(input.baseParams, input.defaults, input.fallbackTarget);
-  if (baseFamilyTm === null || effectiveFamilyTm === null) {
+  if (effectiveFamilyTm === null) {
     return exactTm;
   }
 
-  return roundToNearest2p5(exactTm + (effectiveFamilyTm - baseFamilyTm));
+  const baseFamilyTm = pickTrainingMaxKg(input.baseParams, input.defaults, input.fallbackTarget);
+  // No family-level baseline in plan params (older plans, or plans created
+  // without the start-program family fallback). Treat the per-exercise TM as
+  // the implicit family baseline so the runtime override delta still reaches
+  // the prescribed weight.
+  const familyBaseline = baseFamilyTm ?? exactTm;
+  return roundToNearest2p5(exactTm + (effectiveFamilyTm - familyBaseline));
 }
 
 function requireTrainingMaxKg(params: any, defaults: any, target: string) {
@@ -367,7 +373,7 @@ function buildPercentSets(
   return rows.map((row) => ({
     reps: row.reps,
     percent: row.percent,
-    targetWeightKg: roundToNearest2p5(tmKg * row.percent),
+    targetWeightKg: roundUpToNearest2p5(tmKg * row.percent),
     rpe: row.rpe,
     note: row.note,
   }));
@@ -381,7 +387,7 @@ function buildRepeatedSets(
   return Array.from({ length: count }, () => ({
     reps: row.reps,
     percent: row.percent,
-    targetWeightKg: roundToNearest2p5(tmKg * row.percent),
+    targetWeightKg: roundUpToNearest2p5(tmKg * row.percent),
     rpe: row.rpe,
     note: row.note,
   }));
@@ -480,7 +486,7 @@ function generate531(def: LogicDefinitionV1, ctx: GeneratorCtx): PlannedExercise
       sets: Array.from({ length: 5 }, () => ({
         reps: 5,
         percent: firstSetPercent,
-        targetWeightKg: roundToNearest2p5(tm * firstSetPercent),
+        targetWeightKg: roundUpToNearest2p5(tm * firstSetPercent),
         note: "FSL",
       })),
     });
@@ -494,7 +500,7 @@ function generate531(def: LogicDefinitionV1, ctx: GeneratorCtx): PlannedExercise
       sets: Array.from({ length: 5 }, () => ({
         reps: 10,
         percent: 0.50,
-        targetWeightKg: roundToNearest2p5(tm * 0.50),
+        targetWeightKg: roundUpToNearest2p5(tm * 0.50),
         note: "BBB",
       })),
     });
