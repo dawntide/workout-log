@@ -26,6 +26,7 @@ import type {
 } from "@/features/workout-log/model/types";
 import type { GeneratedSessionLike } from "@/entities/workout-record";
 import type { WorkoutLogInitialContext } from "./get-workout-log-page-bootstrap";
+import { shouldBlockAutoProgressionNewLog } from "./logging-policy";
 
 // ─── DB 헬퍼 ─────────────────────────────────────────────────────────────────
 
@@ -106,7 +107,7 @@ export async function fetchRecentLogsServer(
 }
 
 /** 특정 날짜의 기존 로그 ID 조회 (UTC 기준 date-only 비교) */
-async function findTodayLogId(
+async function findLogIdForDate(
   userId: string,
   planId: string,
   dateKey: string,
@@ -126,6 +127,25 @@ async function findTodayLogId(
     .orderBy(desc(workoutLog.performedAt))
     .limit(1);
   return rows[0]?.id ?? null;
+}
+
+async function hasLaterLog(
+  userId: string,
+  planId: string,
+  dateKey: string,
+): Promise<boolean> {
+  const rows = await db
+    .select({ id: workoutLog.id })
+    .from(workoutLog)
+    .where(
+      and(
+        eq(workoutLog.userId, userId),
+        eq(workoutLog.planId, planId),
+        sql`${workoutLog.performedAt} >= (${dateKey}::date + interval '1 day')`,
+      ),
+    )
+    .limit(1);
+  return rows.length > 0;
 }
 
 /** 로그 상세 정보 조회 (세트 + generatedSession 포함) */
@@ -289,27 +309,17 @@ export async function loadWorkoutContextServer(
       };
     }
 
-    // autoProgression 과거 날짜 차단
-    const todayKey = new Date().toISOString().slice(0, 10);
-    if (input.planAutoProgression === true && dateKey && dateKey < todayKey) {
-      return {
-        kind: "blocked",
-        matchKey,
-        message:
-          locale === "ko"
-            ? "자동 진행 플랜은 오늘 이전 날짜에 새 운동기록을 추가할 수 없습니다. 기존 기록만 수정할 수 있습니다."
-            : "Auto-progression plans cannot create new workout logs before today. You can only edit existing logs.",
-      };
-    }
-
-    // 오늘 기록 + 최근 로그 + (이미 generate된 세션) 병렬 조회
-    const [todayLogId, recentLogs] = await Promise.all([
-      findTodayLogId(userId, planId, dateKey),
+    // 선택 날짜 기록 + 최근 로그 + 이후 로그 존재 여부를 병렬 조회
+    const [existingLogIdForDate, recentLogs, hasLaterLogs] = await Promise.all([
+      findLogIdForDate(userId, planId, dateKey),
       fetchRecentLogsServer(userId, planId),
+      input.planAutoProgression === true && dateKey
+        ? hasLaterLog(userId, planId, dateKey)
+        : Promise.resolve(false),
     ]);
 
-    if (todayLogId) {
-      const logDetail = await fetchLogDetailServer(userId, todayLogId);
+    if (existingLogIdForDate) {
+      const logDetail = await fetchLogDetailServer(userId, existingLogIdForDate);
       if (!logDetail) return null;
 
       const selectedPlanId =
@@ -343,6 +353,23 @@ export async function loadWorkoutContextServer(
           preferences.bodyweightKg,
           locale,
         ),
+      };
+    }
+
+    if (
+      shouldBlockAutoProgressionNewLog({
+        planAutoProgression: input.planAutoProgression,
+        hasExistingLogForDate: Boolean(existingLogIdForDate),
+        hasLaterLogs,
+      })
+    ) {
+      return {
+        kind: "blocked",
+        matchKey,
+        message:
+          locale === "ko"
+            ? "선택한 날짜 이후에 운동기록이 있어 새 기록을 추가할 수 없습니다. 해당 기록을 먼저 삭제하거나 날짜를 조정해 주세요."
+            : "There are workout logs after the selected date. Delete those logs first or choose a later date before adding a new log.",
       };
     }
 
