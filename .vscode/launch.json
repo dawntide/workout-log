@@ -1,0 +1,50 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Workout Log: Docker dev stack",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "./dev up",
+      "cwd": "${workspaceFolder}",
+      "serverReadyAction": {
+        "pattern": "Local:\\s+https?://(?:localhost|127\\.0\\.0\\.1|0\\.0\\.0\\.0):([0-9]+)",
+        "uriFormat": "http://localhost:%s",
+        "action": "openExternally"
+      },
+      "presentation": {
+        "group": "dev",
+        "order": 1
+      }
+    },
+    {
+      "name": "Web: Next.js full stack debug",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "pnpm dev",
+      "cwd": "${workspaceFolder}/web",
+      "envFile": "${workspaceFolder}/web/.env.local",
+      "serverReadyAction": {
+        "pattern": "Local:\\s+https?://(?:localhost|127\\.0\\.0\\.1|0\\.0\\.0\\.0):([0-9]+)",
+        "uriFormat": "http://localhost:%s",
+        "action": "debugWithChrome",
+        "webRoot": "${workspaceFolder}/web"
+      },
+      "presentation": {
+        "group": "web",
+        "order": 2
+      }
+    },
+    {
+      "name": "Web: Chrome",
+      "type": "chrome",
+      "request": "launch",
+      "url": "http://localhost:3000",
+      "webRoot": "${workspaceFolder}/web",
+      "presentation": {
+        "group": "web",
+        "order": 3
+      }
+    }
+  ]
+}
