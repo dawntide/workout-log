@@ -37,8 +37,10 @@ export async function submitWorkoutLogDraft({
     throw new Error(result.error);
   }
 
+  // Draft cleanup 은 critical path 가 아니다 — IndexedDB 가 느리거나 hang 되어도
+  // 저장 완료 후 화면 전이를 막지 않도록 fire-and-forget 으로 둔다.
   if (persistenceKey) {
-    await clearWorkoutDraft(persistenceKey);
+    void clearWorkoutDraft(persistenceKey).catch(() => {});
   }
 
   return result.data;

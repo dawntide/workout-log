@@ -1,6 +1,7 @@
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
+import { redirect } from "next/navigation";
 import { db } from "@/server/db/client";
-import { plan, userSetting } from "@/server/db/schema";
+import { plan, userSetting, workoutLog } from "@/server/db/schema";
 import { getAuthenticatedUserId } from "@/server/auth/user";
 import { readWorkoutPreferences } from "@/lib/settings/workout-preferences";
 import { generateAndSaveSession } from "@/server/program-engine/generateSession";
@@ -98,6 +99,12 @@ export async function getWorkoutLogPageBootstrap(
     isArchived: entry.isArchived,
   }));
 
+  // ─── 기본 날짜 advance: ?date= 와 ?logId= 둘 다 없을 때만 적용.
+  // 가장 최근 로그가 today 이상이면 그 다음날로 redirect — URL 에 ?date= 를 박아
+  // client matchKey 와 일치시킨다. redirect 는 try 바깥에서 호출해야 NEXT_REDIRECT
+  // 에러가 catch 에 먹히지 않는다.
+  await maybeRedirectToNextSessionDate(userId, initialPlans, searchParams);
+
   // ─── SSR 컨텍스트 로딩 ───────────────────────────────────────────────────
   const initialContext = await resolveInitialContext(
     userId,
@@ -107,6 +114,51 @@ export async function getWorkoutLogPageBootstrap(
   );
 
   return { initialPlans, initialSettings, initialContext };
+}
+
+async function maybeRedirectToNextSessionDate(
+  userId: string,
+  plans: WorkoutLogPlanListItem[],
+  searchParams: RawSearchParams,
+): Promise<void> {
+  const rawPlanId = getString(searchParams, "planId");
+  const rawDate = getString(searchParams, "date");
+  const rawLogId = getString(searchParams, "logId");
+  if (rawDate || rawLogId) return;
+
+  const activePlans = plans.filter((p) => !p.isArchived);
+  const targetPlan =
+    (rawPlanId ? activePlans.find((p) => p.id === rawPlanId) : null) ??
+    activePlans[0] ??
+    null;
+  if (!targetPlan) return;
+
+  let latestKey: string | null = null;
+  try {
+    const latestRows = await db
+      .select({ performedAt: workoutLog.performedAt })
+      .from(workoutLog)
+      .where(and(eq(workoutLog.userId, userId), eq(workoutLog.planId, targetPlan.id)))
+      .orderBy(desc(workoutLog.performedAt))
+      .limit(1);
+    const latestPerformedAt = latestRows[0]?.performedAt;
+    if (latestPerformedAt) {
+      const asDate =
+        latestPerformedAt instanceof Date ? latestPerformedAt : new Date(latestPerformedAt as string);
+      latestKey = asDate.toISOString().slice(0, 10);
+    }
+  } catch {
+    return; // 쿼리 실패 시 평소처럼 today 로 진행
+  }
+
+  if (!latestKey) return;
+  const todayKey = new Date().toISOString().slice(0, 10);
+  if (latestKey < todayKey) return;
+
+  const next = new Date(`${latestKey}T00:00:00.000Z`);
+  next.setUTCDate(next.getUTCDate() + 1);
+  const advancedKey = next.toISOString().slice(0, 10);
+  redirect(`/workout/log?planId=${encodeURIComponent(targetPlan.id)}&date=${advancedKey}`);
 }
 
 async function resolveInitialContext(

@@ -139,9 +139,9 @@ export async function loadWorkoutDraft(key: string): Promise<WorkoutDraftData | 
  * Clears a workout record draft.
  */
 export async function clearWorkoutDraft(key: string): Promise<void> {
-  if (dbPromise) {
+  const db = await getDBWithTimeout(200);
+  if (db) {
     try {
-      const db = await dbPromise;
       await db.delete(STORE_NAME, key);
     } catch (error) {
       console.error("IndexedDB draft delete failed.", error);

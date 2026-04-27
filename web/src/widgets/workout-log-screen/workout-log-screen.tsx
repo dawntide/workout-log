@@ -189,7 +189,7 @@ function WorkoutLogScreenContent({
     bodyweightKg: null, // this gets pulled inside the controller via atom
     persistenceKey,
     onSaved: useCallback(() => {
-      router.push("/");
+      router.replace("/workout/log");
     }, [router]),
   });
 
