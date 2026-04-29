@@ -348,6 +348,10 @@
   min-height: 52px;
   padding: 12px 16px;
   border-radius: 18px;
+  /* iOS Safari는 입력 요소 font-size가 16px 미만이면 포커스 시 자동 확대됨.
+     `font: var(--font-body)` 단축형은 16px이지만 일부 iOS 버전이 zoom 판정에서
+     이를 안정적으로 인식하지 못하므로 명시적으로 선언해 확대를 차단. */
+  font-size: 16px;
 }
 
 .app-form-control--workout-number {
