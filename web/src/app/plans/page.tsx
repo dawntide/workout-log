@@ -32,39 +32,16 @@ export default async function PlansIndexPage() {
       iconSymbol: "history",
     },
   ];
-  const setupItems: NavItem[] = [
-    {
-      href: APP_ROUTES.programStore,
-      label: copy.plans.setupItems.store.label,
-      subtitle: copy.plans.setupItems.store.subtitle,
-      description: copy.plans.setupItems.store.description,
-      iconSymbol: "library_books",
-    },
-    {
-      href: APP_ROUTES.programCreate,
-      label: copy.plans.setupItems.custom.label,
-      subtitle: copy.plans.setupItems.custom.subtitle,
-      description: copy.plans.setupItems.custom.description,
-      iconSymbol: "add_circle",
-    },
-    {
-      href: APP_ROUTES.plansContext,
-      label: copy.plans.setupItems.advanced.label,
-      subtitle: copy.plans.setupItems.advanced.subtitle,
-      description: copy.plans.setupItems.advanced.description,
-      iconSymbol: "tune",
-    },
-  ];
 
   return (
     <AppPage>
       <PageHeader
         eyebrow={copy.plans.headerEyebrow}
         title={copy.plans.title}
-        description={locale === "ko" ? "활성 플랜 운영과 새 프로그램 준비를 한 화면에서 정리합니다." : "Manage active plans and prepare new programs from one shared control surface."}
+        description={locale === "ko" ? "지금 진행 중인 플랜과 누적 수행 기록을 한눈에 관리하세요." : "Manage your active plans and training history in one place."}
         actions={(
-          <Button as={Link} href={APP_ROUTES.plansManage} variant="secondary">
-            {copy.plans.manage}
+          <Button as={Link} href={APP_ROUTES.programStore} variant="secondary">
+            {locale === "ko" ? "프로그램 스토어" : "Program Store"}
           </Button>
         )}
       />
@@ -77,11 +54,20 @@ export default async function PlansIndexPage() {
         </div>
       </PageSection>
 
-      <PageSection title={copy.plans.setupSection}>
+      <PageSection title={locale === "ko" ? "빠른 이동" : "Quick Access"}>
         <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-xs)" }}>
-          {setupItems.map((item) => (
-            <NavRow key={item.href} item={item} />
-          ))}
+          <NavRow
+            item={{
+              href: APP_ROUTES.programStore,
+              label: locale === "ko" ? "프로그램 스토어" : "Program Store",
+              subtitle: locale === "ko" ? "시작" : "Start",
+              description:
+                locale === "ko"
+                  ? "새 플랜 시작, 커스텀 프로그램 생성은 프로그램 스토어에서 진행합니다."
+                  : "Start new plans and create custom programs directly from the Program Store.",
+              iconSymbol: "library_books",
+            }}
+          />
         </div>
       </PageSection>
     </AppPage>
