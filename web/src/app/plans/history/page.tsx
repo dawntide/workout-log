@@ -257,18 +257,22 @@ function HistorySummaryCard({
   );
 }
 
-function LogCard({
+function HistoryExpandableLogCard({
   log,
   locale,
   copy,
   onDelete,
   isDeleting,
+  isExpanded,
+  onToggleExpand,
 }: {
   log: LogItem;
   locale: "ko" | "en";
   copy: ReturnType<typeof useLocale>["copy"];
   onDelete: () => void;
   isDeleting: boolean;
+  isExpanded: boolean;
+  onToggleExpand: () => void;
 }) {
   const date = new Date(log.performedAt);
   const validDate = !Number.isNaN(date.getTime());
@@ -277,7 +281,6 @@ function LogCard({
   const monthLabel = locale === "ko" ? MONTH_ABBR_KO[monthIdx] : MONTH_ABBR_EN[monthIdx];
   const weekdayIdx = validDate ? date.getDay() : 0;
   const weekday = locale === "ko" ? WEEKDAY_KO[weekdayIdx] : WEEKDAY_EN[weekdayIdx];
-  const isWeekend = weekdayIdx === 0 || weekdayIdx === 6;
   const time = formatTimeOnly(log.performedAt);
 
   const workSetCount = countWorkSets(log.sets ?? []);
@@ -292,83 +295,55 @@ function LogCard({
   const duration = formatDuration(log.durationMinutes);
 
   return (
-    <article className="log-card-v2">
-      <div className="log-card-v2__date" data-weekend={isWeekend ? "true" : "false"}>
-        <span className="log-card-v2__date-month">{monthLabel}</span>
-        <span className="log-card-v2__date-day">{day}</span>
-        <span className="log-card-v2__date-weekday">{weekday}</span>
-      </div>
-
-      <div className="log-card-v2__body">
-        <div className="log-card-v2__head">
-          <div className="log-card-v2__title">{exerciseSummary}</div>
-          {time ? <div className="log-card-v2__time">{time}</div> : null}
-        </div>
-
-        {(sessionLabel || progressionText) ? (
-          <div className="log-card-v2__chips">
-            {sessionLabel ? (
-              <span className="label label-program label-sm">{sessionLabel}</span>
-            ) : null}
-            {progressionText ? (
-              <span className={progressionBadgeClass(progressionBadgeTone)}>
-                {progressionText}
-              </span>
-            ) : null}
+    <article style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+      <button
+        type="button"
+        onClick={onToggleExpand}
+        aria-expanded={isExpanded}
+        style={{
+          display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px",
+          background: "var(--color-surface-container-low)", border: "none", borderRadius: "20px", cursor: "pointer", textAlign: "left", width: "100%",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+          <div style={{ width: "36px", height: "36px", borderRadius: "50%", background: "var(--color-success-weak)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <span className="material-symbols-outlined" style={{ fontSize: "18px", color: "var(--color-success)", fontVariationSettings: "'FILL' 1" }}>check_circle</span>
           </div>
-        ) : null}
-
-        <div className="log-card-v2__stats">
-          <div className="log-card-v2__stat" data-kind="sets">
-            <span className="log-card-v2__stat-label">{copy.plansHistory.sets}</span>
-            <span className="log-card-v2__stat-value">{workSetCount}</span>
-          </div>
-          <div className="log-card-v2__stat" data-kind="time">
-            <span className="log-card-v2__stat-label">{copy.plansHistory.time}</span>
-            <span className="log-card-v2__stat-value">
-              {duration === null ? "-" : locale === "ko" ? `${duration}분` : `${duration}m`}
-            </span>
-          </div>
-          <div className="log-card-v2__stat" data-kind="volume">
-            <span className="log-card-v2__stat-label">{copy.plansHistory.volume}</span>
-            <span className="log-card-v2__stat-value">{formatVolumeShort(volumeKg, locale)}</span>
+          <div>
+            <div style={{ fontFamily: "var(--font-headline-family)", fontSize: "14px", fontWeight: 700, color: "var(--color-text)", display: "flex", alignItems: "center", gap: "6px" }}>
+              {exerciseSummary}
+              {sessionLabel ? <span className="label label-program label-sm">{sessionLabel}</span> : null}
+            </div>
+            <div style={{ fontFamily: "var(--font-label-family)", fontSize: "11px", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--color-text-muted)", marginTop: "2px" }}>
+              {validDate ? `${monthLabel} ${day} · ${weekday}${time ? ` · ${time}` : ""}` : "-"}
+            </div>
           </div>
         </div>
+        <span className="material-symbols-outlined" style={{ fontSize: "18px", color: "var(--color-text-subtle)", flexShrink: 0 }}>
+          {isExpanded ? "expand_less" : "chevron_right"}
+        </span>
+      </button>
 
-        {noteText ? (
-          <div className="log-card-v2__note">
-            <span className="material-symbols-outlined" aria-hidden="true">
-              format_quote
-            </span>
-            <span>{noteText}</span>
+      {isExpanded ? (
+        <div style={{ background: "var(--color-surface-container-low)", borderRadius: "24px", padding: "24px" }}>
+          <div style={{ display: "flex", gap: "8px", marginBottom: "10px", flexWrap: "wrap" }}>
+            {progressionText ? <span className={progressionBadgeClass(progressionBadgeTone)}>{progressionText}</span> : null}
           </div>
-        ) : null}
-
-        <div className="log-card-v2__actions">
-          <Link
-            className="log-card-v2__action log-card-v2__action--primary"
-            href={`/workout/session/${encodeURIComponent(log.id)}`}
-          >
-            <span className="material-symbols-outlined" aria-hidden="true">
-              fitness_center
-            </span>
-            {copy.plansHistory.sessionDetail}
-          </Link>
-          <button
-            type="button"
-            className="log-card-v2__action log-card-v2__action--danger"
-            disabled={isDeleting}
-            onClick={onDelete}
-          >
-            <span className="material-symbols-outlined" aria-hidden="true">
-              delete
-            </span>
-            {isDeleting ? copy.plansHistory.deleting : copy.plansHistory.deleteHistory}
-          </button>
+          <div className="log-card-v2__stats">
+            <div className="log-card-v2__stat" data-kind="sets"><span className="log-card-v2__stat-label">{copy.plansHistory.sets}</span><span className="log-card-v2__stat-value">{workSetCount}</span></div>
+            <div className="log-card-v2__stat" data-kind="time"><span className="log-card-v2__stat-label">{copy.plansHistory.time}</span><span className="log-card-v2__stat-value">{duration === null ? "-" : locale === "ko" ? `${duration}분` : `${duration}m`}</span></div>
+            <div className="log-card-v2__stat" data-kind="volume"><span className="log-card-v2__stat-label">{copy.plansHistory.volume}</span><span className="log-card-v2__stat-value">{formatVolumeShort(volumeKg, locale)}</span></div>
+          </div>
+          {noteText ? <div className="log-card-v2__note"><span className="material-symbols-outlined" aria-hidden="true">format_quote</span><span>{noteText}</span></div> : null}
+          <div className="log-card-v2__actions">
+            <Link className="log-card-v2__action log-card-v2__action--primary" href={`/workout/session/${encodeURIComponent(log.id)}`}><span className="material-symbols-outlined" aria-hidden="true">fitness_center</span>{copy.plansHistory.sessionDetail}</Link>
+            <button type="button" className="log-card-v2__action log-card-v2__action--danger" disabled={isDeleting} onClick={onDelete}><span className="material-symbols-outlined" aria-hidden="true">delete</span>{isDeleting ? copy.plansHistory.deleting : copy.plansHistory.deleteHistory}</button>
+          </div>
         </div>
-      </div>
+      ) : null}
     </article>
   );
+
 }
 
 function PlanHistoryPageContent() {
@@ -391,6 +366,7 @@ function PlanHistoryPageContent() {
   const [refreshTick] = useState(0);
   const [deletingLogId, setDeletingLogId] = useState<string | null>(null);
   const [logQuery, setLogQuery] = useState("");
+  const [expandedLogId, setExpandedLogId] = useState<string | null>(null);
 
   const selectedPlan = useMemo(
     () => plans.find((plan) => plan.id === selectedPlanId) ?? null,
@@ -498,6 +474,7 @@ function PlanHistoryPageContent() {
     }
     setLogs([]);
     setNextCursor(null);
+    setExpandedLogId(null);
     void loadLogs(selectedPlanId, null, false);
   }, [loadLogs, selectedPlanId, refreshTick]);
 
@@ -643,7 +620,7 @@ function PlanHistoryPageContent() {
                   <div className="log-timeline__group-label">{monthLabel}</div>
                   <div className="log-timeline__list">
                     {group.logs.map((log) => (
-                      <LogCard
+                      <HistoryExpandableLogCard
                         key={log.id}
                         log={log}
                         locale={locale}
@@ -652,6 +629,8 @@ function PlanHistoryPageContent() {
                         onDelete={() => {
                           void deleteLog(log);
                         }}
+                        isExpanded={expandedLogId === log.id}
+                        onToggleExpand={() => setExpandedLogId((prev) => (prev === log.id ? null : log.id))}
                       />
                     ))}
                   </div>
