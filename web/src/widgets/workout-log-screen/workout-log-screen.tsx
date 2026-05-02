@@ -8,6 +8,7 @@ import {
   ErrorStateRows,
   NoticeStateRows,
 } from "@/components/ui/settings-state";
+import { Toast } from "@/components/ui/toast";
 import { useLocale } from "@/components/locale-provider";
 import {
   useWorkoutLogAddExerciseController,
@@ -63,6 +64,11 @@ function WorkoutLogScreenContent({
   const setDraft = useSetAtom(draftAtom);
   const setProgramEntryState = useSetAtom(programEntryStateAtom);
   const [addSheetOpen, setAddSheetOpen] = useState(false);
+  const [showSaveSuccessToast, setShowSaveSuccessToast] = useState(false);
+  const dismissSaveSuccessToast = useCallback(
+    () => setShowSaveSuccessToast(false),
+    [],
+  );
 
   const persistenceKey =
     selectedPlanId && query.date ? `${selectedPlanId}:${query.date}` : null;
@@ -189,8 +195,11 @@ function WorkoutLogScreenContent({
     bodyweightKg: null, // this gets pulled inside the controller via atom
     persistenceKey,
     onSaved: useCallback(() => {
-      router.replace("/workout/log");
-      router.refresh();
+      setShowSaveSuccessToast(true);
+      window.setTimeout(() => {
+        router.replace("/workout/log");
+        router.refresh();
+      }, 900);
     }, [router]),
   });
 
@@ -218,6 +227,13 @@ function WorkoutLogScreenContent({
 
   return (
     <>
+      <Toast
+        show={showSaveSuccessToast}
+        message={copy.workoutLog.saveSuccess}
+        onDismiss={dismissSaveSuccessToast}
+        durationMs={2000}
+        ariaLabel={copy.workoutLog.saveSuccess}
+      />
       {loading && !isRestoreFlowActive && <WorkoutRecordLoading />}
       <ErrorStateRows
         message={error}

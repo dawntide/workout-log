@@ -220,6 +220,7 @@ export type AppCopy = {
     saveInProgress: string;
     saveEdited: string;
     saveCreate: string;
+    saveSuccess: string;
     planSheetTitle: string;
     planSheetDescription: string;
     close: string;
@@ -625,6 +626,7 @@ export const appCopyByLocale: Record<AppLocale, AppCopy> = {
       saveInProgress: "저장 중...",
       saveEdited: "운동기록 수정 완료",
       saveCreate: "운동기록 완료 및 저장",
+      saveSuccess: "운동기록이 저장되었습니다",
       planSheetTitle: "플랜 선택",
       planSheetDescription: "보유 플랜을 검색해 오늘 기록에 사용할 플랜으로 전환합니다.",
       close: "닫기",
@@ -1028,6 +1030,7 @@ export const appCopyByLocale: Record<AppLocale, AppCopy> = {
       saveInProgress: "Saving...",
       saveEdited: "Save Edited Workout",
       saveCreate: "Finish and Save Workout",
+      saveSuccess: "Workout log saved",
       planSheetTitle: "Select Plan",
       planSheetDescription: "Search your plans and switch the one used for today's log.",
       close: "Close",
