@@ -241,6 +241,25 @@
   transform: scale(0.98);
 }
 
+.hd-protocol__done-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: 8px 14px;
+  margin-bottom: var(--space-sm);
+  align-self: flex-start;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-success, #22c55e) 14%, transparent);
+  color: var(--color-success, #16a34a);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.hd-protocol__done-badge .material-symbols-outlined {
+  font-size: 18px;
+}
+
 /* ── Last Entry Bento grid ─────────────────────────────────── */
 
 .hd-bento-grid {

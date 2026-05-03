@@ -58,16 +58,23 @@ function TodayProtocolCard({
   const programName = planOverview.highlightedProgramName ?? planOverview.highlightedPlanName ?? null;
   const planName = planOverview.highlightedPlanName ?? today.programName;
   const hasTodayActivity = today.completedSets > 0;
+  const isTodayComplete =
+    hasTodayActivity &&
+    today.totalPlannedSets > 0 &&
+    today.completedSets >= today.totalPlannedSets;
 
   const completedDays = weeklySummary.days.filter((d) => d.hasWorkout).length;
   const totalDays = weeklySummary.days.length;
   const weekProgressPct = totalDays > 0 ? Math.round((completedDays / totalDays) * 100) : 0;
 
-  const ctaLabel = hasTodayActivity
-    ? copy.home.protocol.continue
-    : hasPlan
-      ? copy.home.protocol.start
-      : copy.home.protocol.chooseProgram;
+  const ctaLabel = isTodayComplete
+    ? copy.home.protocol.logMore
+    : hasTodayActivity
+      ? copy.home.protocol.continue
+      : hasPlan
+        ? copy.home.protocol.start
+        : copy.home.protocol.chooseProgram;
+  const ctaIcon = isTodayComplete ? "add" : "play_arrow";
   const ctaHref = today.href;
 
   if (!hasPlan) {
@@ -144,12 +151,24 @@ function TodayProtocolCard({
             ))}
           </div>
 
+          {isTodayComplete && (
+            <div className="hd-protocol__done-badge" role="status">
+              <span
+                className="material-symbols-outlined"
+                style={{ fontVariationSettings: "'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24" }}
+              >
+                check_circle
+              </span>
+              <span>{copy.home.protocol.doneToday}</span>
+            </div>
+          )}
+
           <Link href={ctaHref} className="hd-cta-btn">
             <span
               className="material-symbols-outlined"
               style={{ fontVariationSettings: "'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24" }}
             >
-              play_arrow
+              {ctaIcon}
             </span>
             <span>{ctaLabel}</span>
           </Link>

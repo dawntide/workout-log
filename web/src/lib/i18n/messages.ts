@@ -184,6 +184,8 @@ export type AppCopy = {
       continue: string;
       start: string;
       chooseProgram: string;
+      doneToday: string;
+      logMore: string;
     };
     lastSession: {
       title: string;
@@ -590,6 +592,8 @@ export const appCopyByLocale: Record<AppLocale, AppCopy> = {
         continue: "이어서 하기",
         start: "운동 시작",
         chooseProgram: "프로그램 선택",
+        doneToday: "오늘 완료",
+        logMore: "추가 기록",
       },
       lastSession: {
         title: "지난 세션",
@@ -994,6 +998,8 @@ export const appCopyByLocale: Record<AppLocale, AppCopy> = {
         continue: "Continue",
         start: "Start Workout",
         chooseProgram: "Choose Program",
+        doneToday: "Done Today",
+        logMore: "Log More",
       },
       lastSession: {
         title: "Last Session",
