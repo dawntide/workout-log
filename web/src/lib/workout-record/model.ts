@@ -6,6 +6,7 @@ export type WorkoutSetModel = {
   count: number;
   reps: number;
   repsPerSet: number[];
+  rpePerSet: number[];
   weightKg: number;
 };
 
@@ -91,6 +92,7 @@ export type ExistingWorkoutLogLike = {
     setNumber?: number | null;
     reps?: number | null;
     weightKg?: number | null;
+    rpe?: number | null;
     isExtra?: boolean | null;
     meta?: unknown;
   }>;
@@ -249,6 +251,12 @@ function normalizeRepsValue(value: unknown, fallback = 5) {
   return Math.min(100, Math.max(0, Math.round(parsed)));
 }
 
+function normalizeRpeValue(value: unknown, fallback = 0) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.min(10, Math.max(0, Math.round(parsed * 2) / 2));
+}
+
 function normalizeRepsPerSetArray(
   value: unknown,
   fallbackReps = 5,
@@ -265,6 +273,27 @@ function normalizeRepsPerSetArray(
   const count = Math.min(50, Math.max(1, Math.round(toNumber(fallbackCount, 1))));
   const reps = normalizeRepsValue(fallbackReps, 5);
   return Array.from({ length: count }, () => reps);
+}
+
+function normalizeRpePerSetArray(
+  value: unknown,
+  fallbackCount = 1,
+): number[] {
+  const count = Math.min(50, Math.max(1, Math.round(toNumber(fallbackCount, 1))));
+  if (Array.isArray(value)) {
+    const normalized = value
+      .map((entry) => normalizeRpeValue(entry, 0))
+      .filter((entry) => Number.isFinite(entry))
+      .slice(0, 50);
+    if (normalized.length > 0) {
+      const fallback = normalized[normalized.length - 1] ?? 0;
+      return Array.from({ length: count }, (_, index) =>
+        normalizeRpeValue(normalized[index], fallback),
+      );
+    }
+  }
+
+  return Array.from({ length: count }, () => 0);
 }
 
 function nonEmpty(value: string, fallback: string) {
@@ -464,6 +493,7 @@ function toSeedExercise(exercise: SnapshotExercise, index: number): WorkoutExerc
       count: repsPerSet.length,
       reps: repsPerSet[0] ?? 5,
       repsPerSet,
+      rpePerSet: normalizeRpePerSetArray(null, repsPerSet.length),
       weightKg: Math.max(0, toNumber(first.targetWeightKg ?? first.weightKg, 0)),
     },
     note: {
@@ -474,7 +504,9 @@ function toSeedExercise(exercise: SnapshotExercise, index: number): WorkoutExerc
 
 function mergeSetModel(base: WorkoutSetModel, patch?: Partial<WorkoutSetModel>): WorkoutSetModel {
   const baseRepsPerSet = normalizeRepsPerSetArray(base.repsPerSet, base.reps, base.count);
+  const baseRpePerSet = normalizeRpePerSetArray(base.rpePerSet, baseRepsPerSet.length);
   let nextRepsPerSet = baseRepsPerSet;
+  let nextRpePerSet = baseRpePerSet;
 
   if (patch?.repsPerSet !== undefined) {
     nextRepsPerSet = normalizeRepsPerSetArray(patch.repsPerSet, base.reps, base.count);
@@ -489,11 +521,20 @@ function mergeSetModel(base: WorkoutSetModel, patch?: Partial<WorkoutSetModel>):
       );
     }
   }
+  if (patch?.rpePerSet !== undefined) {
+    nextRpePerSet = normalizeRpePerSetArray(patch.rpePerSet, nextRepsPerSet.length);
+  } else if (nextRepsPerSet.length !== baseRpePerSet.length) {
+    nextRpePerSet = Array.from(
+      { length: nextRepsPerSet.length },
+      (_, index) => baseRpePerSet[index] ?? 0,
+    );
+  }
 
   return {
     count: nextRepsPerSet.length,
     reps: nextRepsPerSet[0] ?? 5,
     repsPerSet: nextRepsPerSet,
+    rpePerSet: nextRpePerSet,
     weightKg: patch?.weightKg !== undefined ? Math.max(0, Number(patch.weightKg)) : base.weightKg,
   };
 }
@@ -534,6 +575,7 @@ function groupLoggedExercises(
     exerciseName: string;
     isExtra: boolean;
     repsPerSet: number[];
+    rpePerSet: number[];
     weightKg: number;
     memo: string;
     plannedSetMeta: WorkoutPlannedSetMeta | null;
@@ -546,6 +588,7 @@ function groupLoggedExercises(
       typeof rawSet?.exerciseId === "string" && rawSet.exerciseId.trim() ? rawSet.exerciseId.trim() : null;
     const setNumber = Math.max(1, Math.round(toNumber(rawSet?.setNumber, 1)));
     const reps = normalizeRepsValue(rawSet?.reps, 5);
+    const rpe = normalizeRpeValue(rawSet?.rpe, 0);
     const weightKg = Math.max(0, toNumber(rawSet?.weightKg, 0));
     const memo = extractMemoFromMeta(rawSet?.meta);
     const isExtra = Boolean(rawSet?.isExtra);
@@ -558,6 +601,7 @@ function groupLoggedExercises(
 
     if (isContinuation && previous) {
       previous.repsPerSet.push(reps);
+      previous.rpePerSet.push(rpe);
       if (!previous.memo && memo) {
         previous.memo = memo;
       }
@@ -574,6 +618,7 @@ function groupLoggedExercises(
       exerciseName,
       isExtra,
       repsPerSet: [reps],
+      rpePerSet: [rpe],
       weightKg,
       memo,
       plannedSetMeta: snapshotExerciseEntry?.plannedSetMeta ?? null,
@@ -593,6 +638,10 @@ function groupLoggedExercises(
       count: exercise.repsPerSet.length,
       reps: exercise.repsPerSet[0] ?? 5,
       repsPerSet: exercise.repsPerSet,
+      rpePerSet: normalizeRpePerSetArray(
+        exercise.rpePerSet,
+        exercise.repsPerSet.length,
+      ),
       weightKg: exercise.weightKg,
     },
     note: {
@@ -731,6 +780,7 @@ export function hasWorkoutEdits(draft: WorkoutRecordDraft) {
         patch.set?.count !== undefined ||
         patch.set?.reps !== undefined ||
         patch.set?.repsPerSet !== undefined ||
+        patch.set?.rpePerSet !== undefined ||
         patch.set?.weightKg !== undefined ||
         patch.note?.memo !== undefined,
     );
@@ -792,6 +842,7 @@ export function addUserExercise(
       count: repsPerSet.length,
       reps: repsPerSet[0] ?? 5,
       repsPerSet,
+      rpePerSet: normalizeRpePerSetArray(null, repsPerSet.length),
       weightKg: Math.max(0, input.weightKg),
     },
     note: {
@@ -888,6 +939,10 @@ export function toWorkoutLogPayload(
 
   exercises.forEach((exercise) => {
     const repsPerSet = normalizeRepsPerSetArray(exercise.set.repsPerSet, exercise.set.reps, exercise.set.count);
+    const rpePerSet = normalizeRpePerSetArray(
+      exercise.set.rpePerSet,
+      repsPerSet.length,
+    );
     const weightKg = roundTo2(Math.max(0, Number(exercise.set.weightKg ?? 0)));
     const exerciseName = exercise.exerciseName.trim();
     const attachBodyweightMeta =
@@ -909,7 +964,7 @@ export function toWorkoutLogPayload(
         setNumber: index + 1,
         reps: Math.max(0, Math.round(repsValue)),
         weightKg,
-        rpe: 0,
+        rpe: rpePerSet[index] ?? 0,
         isExtra: exercise.badge === "ADDED",
         meta,
       });

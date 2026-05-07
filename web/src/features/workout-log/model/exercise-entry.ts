@@ -14,6 +14,17 @@ function normalizeRepsPerSet(value: number[], fallback = 5) {
   return value.map((entry) => clampReps(entry)).slice(0, 50);
 }
 
+function clampRpe(value: number) {
+  if (!Number.isFinite(value)) return 0;
+  return Math.min(10, Math.max(0, Math.round(value * 2) / 2));
+}
+
+function normalizeRpePerSet(value: number[] | undefined, length: number) {
+  const count = Math.max(1, Math.min(50, Math.round(length)));
+  const source = Array.isArray(value) ? value : [];
+  return Array.from({ length: count }, (_, index) => clampRpe(source[index] ?? 0));
+}
+
 export function patchSetRepsAtIndex(values: number[], index: number, nextReps: number) {
   const next = normalizeRepsPerSet(values);
   if (index < 0 || index >= next.length) return next;
@@ -30,6 +41,35 @@ export function appendSetReps(values: number[]) {
 
 export function removeSetRepsAtIndex(values: number[], index: number) {
   const next = normalizeRepsPerSet(values);
+  if (next.length <= 1) return next;
+  if (index < 0 || index >= next.length) return next;
+  return [...next.slice(0, index), ...next.slice(index + 1)];
+}
+
+export function patchSetRpeAtIndex(
+  values: number[] | undefined,
+  length: number,
+  index: number,
+  nextRpe: number,
+) {
+  const next = normalizeRpePerSet(values, length);
+  if (index < 0 || index >= next.length) return next;
+  next[index] = clampRpe(nextRpe);
+  return next;
+}
+
+export function appendSetRpe(values: number[] | undefined, length: number) {
+  const next = normalizeRpePerSet(values, length);
+  if (next.length >= 50) return next;
+  return [...next, 0];
+}
+
+export function removeSetRpeAtIndex(
+  values: number[] | undefined,
+  length: number,
+  index: number,
+) {
+  const next = normalizeRpePerSet(values, length);
   if (next.length <= 1) return next;
   if (index < 0 || index >= next.length) return next;
   return [...next.slice(0, index), ...next.slice(index + 1)];

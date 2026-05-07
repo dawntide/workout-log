@@ -36,6 +36,7 @@ function createDraft(): WorkoutRecordDraft {
           count: 3,
           reps: 5,
           repsPerSet: [5, 5, 5],
+          rpePerSet: [0, 0, 0],
           weightKg: 100,
         },
         note: {
@@ -60,6 +61,7 @@ function createVisibleProgramExercise(): WorkoutExerciseViewModel {
       count: 3,
       reps: 5,
       repsPerSet: [5, 5, 5],
+      rpePerSet: [0, 0, 0],
       weightKg: 100,
     },
     note: {

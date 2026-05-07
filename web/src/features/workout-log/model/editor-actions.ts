@@ -12,9 +12,12 @@ import {
 } from "@/entities/workout-record";
 import {
   appendSetReps,
+  appendSetRpe,
   createFallbackProgramEntryState,
+  patchSetRpeAtIndex,
   patchSetRepsAtIndex,
   removeSetRepsAtIndex,
+  removeSetRpeAtIndex,
 } from "./exercise-entry";
 import type {
   AddExerciseDraft,
@@ -25,6 +28,7 @@ import type {
 export type ExerciseRowAction =
   | { type: "CHANGE_WEIGHT"; value: number }
   | { type: "CHANGE_SET_REPS"; setIndex: number; value: number }
+  | { type: "CHANGE_SET_RPE"; setIndex: number; value: number }
   | { type: "ADD_SET" }
   | { type: "REMOVE_SET"; index: number }
   | { type: "CHANGE_MEMO"; value: string }
@@ -43,6 +47,17 @@ export type InlinePickerRequest =
     }
   | {
       type: "CHANGE_SET_REPS";
+      exerciseId: string;
+      setIndex: number;
+      title: string;
+      value: number;
+      min: number;
+      max: number;
+      step: number;
+      formatValue?: (value: number) => string;
+    }
+  | {
+      type: "CHANGE_SET_RPE";
       exerciseId: string;
       setIndex: number;
       title: string;
@@ -120,11 +135,27 @@ export function buildExerciseActionUpdate(
         draftUpdater: (prev) => updateUserExercise(prev, exerciseId, { set: { repsPerSet } }),
       };
     }
+    case "CHANGE_SET_RPE": {
+      const { setIndex, value } = action;
+      const rpePerSet = patchSetRpeAtIndex(
+        exercise.set.rpePerSet,
+        exercise.set.repsPerSet.length,
+        setIndex,
+        value,
+      );
+      return {
+        draftUpdater: (prev) =>
+          exercise.source === "PROGRAM"
+            ? patchSeedExercise(prev, exerciseId, { set: { rpePerSet } })
+            : updateUserExercise(prev, exerciseId, { set: { rpePerSet } }),
+      };
+    }
     case "ADD_SET": {
       const repsPerSet = appendSetReps(exercise.set.repsPerSet);
+      const rpePerSet = appendSetRpe(exercise.set.rpePerSet, exercise.set.repsPerSet.length);
       if (exercise.source === "PROGRAM") {
         return {
-          draftUpdater: (prev) => patchSeedExercise(prev, exerciseId, { set: { repsPerSet } }),
+          draftUpdater: (prev) => patchSeedExercise(prev, exerciseId, { set: { repsPerSet, rpePerSet } }),
           programEntryStateUpdater: (prev) => {
             const current = createFallbackProgramEntryState(exercise, prev[exerciseId]);
             return {
@@ -135,15 +166,20 @@ export function buildExerciseActionUpdate(
         };
       }
       return {
-        draftUpdater: (prev) => updateUserExercise(prev, exerciseId, { set: { repsPerSet } }),
+        draftUpdater: (prev) => updateUserExercise(prev, exerciseId, { set: { repsPerSet, rpePerSet } }),
       };
     }
     case "REMOVE_SET": {
       const { index } = action;
       const repsPerSet = removeSetRepsAtIndex(exercise.set.repsPerSet, index);
+      const rpePerSet = removeSetRpeAtIndex(
+        exercise.set.rpePerSet,
+        exercise.set.repsPerSet.length,
+        index,
+      );
       if (exercise.source === "PROGRAM") {
         return {
-          draftUpdater: (prev) => patchSeedExercise(prev, exerciseId, { set: { repsPerSet } }),
+          draftUpdater: (prev) => patchSeedExercise(prev, exerciseId, { set: { repsPerSet, rpePerSet } }),
           programEntryStateUpdater: (prev) => {
             const current = createFallbackProgramEntryState(exercise, prev[exerciseId]);
             return {
@@ -160,7 +196,7 @@ export function buildExerciseActionUpdate(
         };
       }
       return {
-        draftUpdater: (prev) => updateUserExercise(prev, exerciseId, { set: { repsPerSet } }),
+        draftUpdater: (prev) => updateUserExercise(prev, exerciseId, { set: { repsPerSet, rpePerSet } }),
       };
     }
     case "CHANGE_MEMO": {

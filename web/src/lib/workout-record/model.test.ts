@@ -1,11 +1,14 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  addUserExercise,
   createWorkoutRecordDraft,
   createWorkoutRecordDraftFromLog,
   type ExistingWorkoutLogLike,
   type GeneratedSessionLike,
   hasWorkoutEdits,
+  toWorkoutLogPayload,
+  updateUserExercise,
 } from "./model";
 
 test("createWorkoutRecordDraft labels operator logic sessions as D1/D2/D3", () => {
@@ -193,4 +196,44 @@ test("hasWorkoutEdits treats session memo as a user edit", () => {
   draft.session.note.memo = "session memo";
 
   assert.equal(hasWorkoutEdits(draft), true);
+});
+
+test("toWorkoutLogPayload maps per-set RPE values", () => {
+  const session: GeneratedSessionLike = {
+    id: "session-rpe-1",
+    planId: "plan-rpe",
+    sessionKey: "2026-03-15",
+    snapshot: {
+      sessionKey: "2026-03-15",
+      sessionDate: "2026-03-15",
+      week: 1,
+      day: 1,
+      exercises: [],
+    },
+  };
+
+  const draft = addUserExercise(
+    createWorkoutRecordDraft(session, "RPE Plan", {
+      sessionDate: "2026-03-15",
+      timezone: "Asia/Seoul",
+    }),
+    {
+      exerciseId: "exercise-bench",
+      exerciseName: "Bench Press",
+      weightKg: 100,
+      repsPerSet: [5, 4],
+      memo: "",
+    },
+  );
+
+  const userExerciseId = draft.userExercises[0]!.id;
+  const edited = updateUserExercise(draft, userExerciseId, {
+    set: { rpePerSet: [8, 8.5] },
+  });
+  const payload = toWorkoutLogPayload(edited);
+
+  assert.deepEqual(
+    payload.sets.map((set) => set.rpe),
+    [8, 8.5],
+  );
 });

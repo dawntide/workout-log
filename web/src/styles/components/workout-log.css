@@ -9,8 +9,9 @@
 .exercise-card {
   position: relative;
   margin-bottom: var(--space-lg);
-  border-radius: 16px;
-  background: var(--color-surface-container-low);
+  border-radius: var(--v2-r-1);
+  background: var(--v2-paper);
+  box-shadow: var(--v2-elev-1);
   overflow: hidden;
 }
 
@@ -18,8 +19,8 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 14px var(--space-md);
-  background: var(--color-surface-container);
+  padding: var(--v2-s-4);
+  background: var(--v2-paper-2);
   gap: var(--space-sm);
   min-height: 58px;
 }
@@ -37,8 +38,8 @@
   font-family: var(--font-headline-family);
   font-size: 17px;
   font-weight: 700;
-  letter-spacing: -0.3px;
-  color: var(--text-exercise-name);
+  letter-spacing: 0;
+  color: var(--v2-ink);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -73,14 +74,14 @@
   align-items: center;
   gap: 3px;
   padding: 3px 8px;
-  border-radius: 20px;
+  border-radius: var(--v2-r-pill);
   font-family: var(--font-label-family);
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.02em;
-  background: var(--color-surface-container-highest);
-  color: var(--color-text-muted);
-  border: 1px solid var(--color-outline-variant);
+  background: var(--v2-paper-3);
+  color: var(--v2-ink-3);
+  border: 1px solid var(--v2-hairline);
   white-space: nowrap;
   cursor: default;
   user-select: none;
@@ -89,12 +90,12 @@
 /* ── Set Table ─────────────────────────────────────── */
 
 .set-table {
-  padding: var(--space-sm) var(--space-md) var(--space-xs);
+  padding: var(--v2-s-3) var(--v2-s-4) var(--v2-s-2);
 }
 
 .set-table__header {
   display: grid;
-  grid-template-columns: 2.25rem 1fr 1fr 2.5rem;
+  grid-template-columns: 2.25rem minmax(0, 1.15fr) minmax(0, 1fr) minmax(0, 0.78fr) 2.5rem;
   gap: var(--space-xs);
   margin-bottom: 8px;
   text-align: center;
@@ -113,6 +114,7 @@
 
 .set-table__h-weight { color: var(--metric-weight-color); }
 .set-table__h-reps   { color: var(--metric-reps-color); }
+.set-table__h-rpe    { color: var(--v2-c-warning); }
 .set-table__h-done   { color: var(--color-text-muted); }
 
 /* ── Set Rows ──────────────────────────────────────── */
@@ -120,13 +122,13 @@
 .set-row {
   position: relative;
   display: grid;
-  grid-template-columns: 2.25rem 1fr 1fr 2.5rem;
+  grid-template-columns: 2.25rem minmax(0, 1.15fr) minmax(0, 1fr) minmax(0, 0.78fr) 2.5rem;
   gap: var(--space-xs);
   align-items: center;
   text-align: center;
   min-height: 54px;
   padding: 4px 0;
-  border-radius: 8px;
+  border-radius: var(--v2-r-1);
   /*
    * transition 제거 — 스크롤 중에도 모든 세트에 걸려 프레임 드롭 유발.
    * 세트 상태 변경은 사용자 입력 시점에만 일어나므로 transition 불필요.
@@ -155,7 +157,7 @@
 
 /* Pending sets — dimmed via token override (opacity would create GPU compositing layers) */
 .set-row--pending {
-  background: color-mix(in srgb, var(--color-surface-container-high) 92%, transparent);
+  background: var(--v2-paper-2);
   --text-metric-weight: var(--color-text-muted);
   --text-metric-reps: var(--color-text-muted);
 }
@@ -202,9 +204,9 @@
 /* Set row value cells — large, readable numeric values */
 .set-row .workout-record-picker-btn {
   font-family: var(--font-label-family) !important;
-  font-size: 22px !important;
+  font-size: 20px !important;
   font-weight: 700 !important;
-  letter-spacing: -0.5px;
+  letter-spacing: 0;
   min-height: 44px;
 }
 

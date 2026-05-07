@@ -32,6 +32,14 @@ export function useWorkoutLogInlinePickerController({
         });
         return;
       }
+      if (inlinePickerRequest.type === "CHANGE_SET_RPE") {
+        onExerciseAction(inlinePickerRequest.exerciseId, {
+          type: "CHANGE_SET_RPE",
+          setIndex: inlinePickerRequest.setIndex,
+          value,
+        });
+        return;
+      }
 
       onExerciseAction(inlinePickerRequest.exerciseId, {
         type: "CHANGE_SET_REPS",

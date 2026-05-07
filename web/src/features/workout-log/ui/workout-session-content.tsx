@@ -3,8 +3,8 @@
 import { memo } from "react";
 import { PlanSelectorButton } from "@/components/ui/plan-selector-button";
 import { AppTextarea } from "@/components/ui/form-controls";
-import { PrimaryButton } from "@/components/ui/primary-button";
 import { FieldLabel, StickyActionBar } from "@/components/ui/page-layout";
+import { V2PrimaryBtn } from "@/components/v2/primitives";
 import type {
   ExerciseRowAction,
   InlinePickerRequest,
@@ -305,11 +305,10 @@ export const WorkoutSessionContent = memo(function WorkoutSessionContent({
         </div>
 
         <StickyActionBar className="finish-workout-cta">
-          <PrimaryButton
+          <V2PrimaryBtn
             type="button"
-            variant="primary"
-            size="lg"
-            fullWidth
+            full
+            icon="done_all"
             onClick={onSave}
             disabled={workflowState === "saving"}
           >
@@ -318,7 +317,7 @@ export const WorkoutSessionContent = memo(function WorkoutSessionContent({
               : isEditingExistingLog
                 ? copy.saveEdited
                 : copy.saveCreate}
-          </PrimaryButton>
+          </V2PrimaryBtn>
         </StickyActionBar>
       </section>
     </>

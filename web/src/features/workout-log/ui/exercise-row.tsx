@@ -89,6 +89,7 @@ type ExerciseSetRowProps = {
   exerciseName: string;
   index: number;
   setReps: number;
+  rpeValue: number;
   resolvedRowWeightKg: number;
   minimumPlateIncrementKg: number;
   rowClass: string;
@@ -109,6 +110,7 @@ function areExerciseSetRowPropsEqual(
     previous.exerciseName === next.exerciseName &&
     previous.index === next.index &&
     previous.setReps === next.setReps &&
+    previous.rpeValue === next.rpeValue &&
     previous.resolvedRowWeightKg === next.resolvedRowWeightKg &&
     previous.minimumPlateIncrementKg === next.minimumPlateIncrementKg &&
     previous.rowClass === next.rowClass &&
@@ -126,6 +128,7 @@ const ExerciseSetRow = memo(function ExerciseSetRow({
   exerciseName,
   index,
   setReps,
+  rpeValue,
   resolvedRowWeightKg,
   minimumPlateIncrementKg,
   rowClass,
@@ -144,6 +147,10 @@ const ExerciseSetRow = memo(function ExerciseSetRow({
     (value: number) => String(Math.round(value)),
     [],
   );
+  const formatRpeValue = useCallback((value: number) => {
+    if (!Number.isFinite(value) || value <= 0) return "—";
+    return Number.isInteger(value) ? String(value) : value.toFixed(1);
+  }, []);
   const handleWeightChange = useCallback(
     (value: number) =>
       onOpenInlinePicker({
@@ -183,6 +190,24 @@ const ExerciseSetRow = memo(function ExerciseSetRow({
       }),
     [exerciseId, exerciseName, formatRepsValue, index, locale, onOpenInlinePicker],
   );
+  const handleRpeChange = useCallback(
+    (value: number) =>
+      onOpenInlinePicker({
+        type: "CHANGE_SET_RPE",
+        exerciseId,
+        setIndex: index,
+        title:
+          locale === "ko"
+            ? `${exerciseName} ${index + 1}세트 RPE`
+            : `${exerciseName} Set ${index + 1} RPE`,
+        value,
+        min: 0,
+        max: 10,
+        step: 0.5,
+        formatValue: formatRpeValue,
+      }),
+    [exerciseId, exerciseName, formatRpeValue, index, locale, onOpenInlinePicker],
+  );
 
   return (
     <SwipeableSetRow
@@ -211,6 +236,16 @@ const ExerciseSetRow = memo(function ExerciseSetRow({
           formatValue={formatRepsValue}
           color="var(--text-metric-reps)"
           onChange={handleRepsChange}
+        />
+        <WorkoutRecordInlinePicker
+          label={locale === "ko" ? `${index + 1}세트 RPE` : `Set ${index + 1} RPE`}
+          value={rpeValue}
+          useLocalSheet={false}
+          complete={rpeValue > 0}
+          failed={false}
+          formatValue={formatRpeValue}
+          color="var(--v2-c-warning)"
+          onChange={handleRpeChange}
         />
         <div className="set-row__done">
           {isFailure ? <FailureIcon /> : isSetComplete ? <CheckIcon /> : null}
@@ -302,6 +337,7 @@ export const ExerciseRow = memo(function ExerciseRow({
           <span className="set-table__h-set">Set</span>
           <span className="set-table__h-weight">Weight</span>
           <span className="set-table__h-reps">Reps</span>
+          <span className="set-table__h-rpe">RPE</span>
           <span className="set-table__h-done">✓</span>
         </div>
 
@@ -322,6 +358,11 @@ export const ExerciseRow = memo(function ExerciseRow({
               : hasReps;
             const isActive = !isSetComplete && !isFailure && index === firstIncompleteIndex;
             const isPending = !isSetComplete && !isFailure && index !== firstIncompleteIndex;
+            const rawRpeValue = exercise.set.rpePerSet?.[index] ?? 0;
+            const rpeValue =
+              Number.isFinite(rawRpeValue) && rawRpeValue > 0
+                ? Math.min(10, Math.max(0, Math.round(rawRpeValue * 2) / 2))
+                : 0;
 
             const rowClass = [
               "set-row",
@@ -358,6 +399,7 @@ export const ExerciseRow = memo(function ExerciseRow({
                 exerciseName={exercise.exerciseName}
                 index={index}
                 setReps={setReps}
+                rpeValue={rpeValue}
                 resolvedRowWeightKg={resolvedRowWeightKg}
                 minimumPlateIncrementKg={minimumPlateIncrementKg}
                 rowClass={rowClass}

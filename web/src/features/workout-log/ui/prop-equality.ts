@@ -67,6 +67,7 @@ export function areWorkoutExercisesEqual(
     left.set.reps === right.set.reps &&
     left.set.weightKg === right.set.weightKg &&
     areNumberArraysEqual(left.set.repsPerSet, right.set.repsPerSet) &&
+    areNumberArraysEqual(left.set.rpePerSet, right.set.rpePerSet) &&
     areNumberArraysEqual(
       left.plannedSetMeta?.repsPerSet,
       right.plannedSetMeta?.repsPerSet,

@@ -100,8 +100,12 @@ function areInlinePickerRequestsEqual(
     left.max === right.max &&
     left.step === right.step &&
     left.formatValue === right.formatValue &&
-    (left.type === "CHANGE_SET_REPS" ? left.setIndex : -1) ===
-      (right.type === "CHANGE_SET_REPS" ? right.setIndex : -1)
+    (left.type === "CHANGE_SET_REPS" || left.type === "CHANGE_SET_RPE"
+      ? left.setIndex
+      : -1) ===
+      (right.type === "CHANGE_SET_REPS" || right.type === "CHANGE_SET_RPE"
+        ? right.setIndex
+        : -1)
   );
 }
 
