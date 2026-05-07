@@ -48,6 +48,27 @@ test.describe("smoke — core pages render", () => {
     await expect(page.locator("body")).not.toBeEmpty();
     await expect(page.getByText("Application error")).not.toBeVisible({ timeout: 5_000 });
   });
+
+  test("계정 설정 페이지 정상 로드", async ({ page }) => {
+    const response = await page.goto("/settings/account", { timeout: NAV_TIMEOUT });
+    expect(response?.status()).not.toBe(500);
+    await expect(page.locator("body")).not.toBeEmpty();
+    await expect(page.getByText("Application error")).not.toBeVisible({ timeout: 5_000 });
+  });
+
+  test("PR 이력 페이지 정상 로드", async ({ page }) => {
+    const response = await page.goto("/stats/prs", { timeout: NAV_TIMEOUT });
+    expect(response?.status()).not.toBe(500);
+    await expect(page.locator("body")).not.toBeEmpty();
+    await expect(page.getByText("Application error")).not.toBeVisible({ timeout: 5_000 });
+  });
+
+  test("로그인 페이지 정상 로드", async ({ page }) => {
+    const response = await page.goto("/login", { timeout: NAV_TIMEOUT });
+    expect(response?.status()).not.toBe(500);
+    await expect(page.locator("body")).not.toBeEmpty();
+    await expect(page.getByText("Application error")).not.toBeVisible({ timeout: 5_000 });
+  });
 });
 
 test.describe("smoke — API health", () => {
