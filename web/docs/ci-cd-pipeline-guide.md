@@ -49,14 +49,13 @@ PR 열림 / 푸시
 
 별도 실행:
   e2e-preview.yml   Vercel Preview 배포 성공 시 자동 실행 (필수 아님)
-  web-e2e.yml       nightly 05:00 KST — iOS Settings 디자인 컴플라이언스
   db-backup.yml     nightly 04:00 KST — Supabase 백업
 ```
 
 ### 핵심 원칙
 
 - **main 진입 전 차단**: 배포 직전이 아니라 PR 단계에서 품질 문제를 막는다.
-- **smoke 우선**: PR 필수 체크는 핵심 페이지 렌더링 확인 수준으로 제한한다. 무거운 디자인/비주얼 회귀 테스트는 nightly로 분리한다.
+- **smoke 우선**: PR 필수 체크는 핵심 페이지 렌더링 확인 수준으로 제한한다. 레거시 디자인/비주얼 회귀 테스트는 v2 디자인 시스템 전환 이후 제거했다.
 - **Vercel은 배포에만 집중**: 테스트 순서와 게이트는 GitHub Actions가 통제한다.
 
 ---
@@ -82,12 +81,6 @@ PR 열림 / 푸시
 - Vercel Deployment Protection 우회를 위해 `x-vercel-protection-bypass` 헤더를 사용한다.
 - PR 필수 체크가 아니므로 실패해도 머지를 막지 않는다. 단, 운영 환경과 동일한 빌드에서 E2E를 검증하는 데 유용하다.
 
-### `web-e2e.yml` — 디자인 컴플라이언스 (nightly)
-
-- iOS Settings 디자인 컴플라이언스 게이트(`test:settings:compliance`)를 실행한다.
-- PR 필수 체크에서 제외됐다 — 디자인 전용 검증은 매일 05:00 KST에 자동 실행된다.
-- main 푸시 또는 수동 실행도 가능하다.
-
 ### `db-migrate.yml` — DB 마이그레이션 (main 머지 후)
 
 - `CI` 워크플로우가 main 브랜치에서 성공했을 때만 실행된다.
@@ -106,7 +99,6 @@ PR 열림 / 푸시
 .github/workflows/
   ci.yml                 신규 — 메인 CI 파이프라인
   e2e-preview.yml        신규 — Vercel Preview URL E2E
-  web-e2e.yml            수정 — PR 트리거 제거, nightly로 전환
   db-migrate.yml         수정 — 트리거 워크플로우를 CI로 변경
 
 web/
@@ -310,10 +302,10 @@ Vercel Dashboard → Deployments → 이전 production 배포 → `...` → Prom
 
 ### nightly 실패 대응
 
-`web-e2e.yml` (디자인 컴플라이언스) 또는 `db-backup.yml`이 nightly에 실패하면:
+`db-backup.yml`이 nightly에 실패하면:
 - GitHub → Actions 탭에서 실패 알림 이메일 수신
 - 단순 flaky라면 수동 재실행으로 확인
-- 지속 실패면 해당 디자인 변경이 컴플라이언스를 깨뜨린 것이므로 스펙 업데이트 또는 수정 필요
+- 지속 실패면 Supabase 연결/권한/스케줄 상태를 점검
 
 ### `e2e-preview.yml` 미동작 시 체크포인트
 
