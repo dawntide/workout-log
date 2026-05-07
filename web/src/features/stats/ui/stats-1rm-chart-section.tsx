@@ -25,20 +25,20 @@ export const Stats1RMChartSection = memo(function Stats1RMChartSection({
   chart: React.ReactNode;
 }) {
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-md)" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: "var(--v2-s-3)" }}>
       <div
         style={{
-          background: "var(--color-surface-container-low)",
-          borderRadius: "20px",
+          background: "var(--v2-paper)",
+          borderRadius: "var(--v2-r-1)",
           overflow: "hidden",
-          boxShadow: "0 1px 3px var(--shadow-color-soft)",
+          border: "1px solid var(--v2-hairline)",
+          boxShadow: "var(--v2-elev-1)",
         }}
       >
         <header
           style={{
-            padding: "var(--space-md)",
-            borderBottom:
-              "1px solid color-mix(in srgb, var(--color-outline-variant) 12%, transparent)",
+            padding: "var(--v2-s-4)",
+            borderBottom: "1px solid var(--v2-hairline)",
           }}
         >
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
@@ -47,15 +47,15 @@ export const Stats1RMChartSection = memo(function Stats1RMChartSection({
                 style={{
                   fontSize: "18px",
                   fontWeight: 700,
-                  letterSpacing: "-0.3px",
-                  color: "var(--color-text)",
+                  letterSpacing: 0,
+                  color: "var(--v2-ink)",
                   margin: "0 0 2px 0",
                 }}
               >
                 {locale === "ko" ? "e1RM 상세 추이" : "Detailed e1RM Trend"}
               </h2>
               {stats ? (
-                <div style={{ fontSize: "12px", color: "var(--color-text-muted)" }}>
+                <div style={{ fontSize: "12px", color: "var(--v2-ink-2)" }}>
                   {formatPointDate(stats.from, locale)} ~ {formatPointDate(stats.to, locale)}
                 </div>
               ) : null}
@@ -65,21 +65,21 @@ export const Stats1RMChartSection = memo(function Stats1RMChartSection({
                 {activePoint ? `${activePoint.e1rm.toFixed(1)}` : "-"}
                 <span style={{ fontSize: "14px", marginLeft: "2px", fontWeight: 400 }}>kg</span>
               </span>
-              <span style={{ font: "var(--font-secondary)", color: "var(--color-text-muted)" }}>
+              <span style={{ font: "var(--font-secondary)", color: "var(--v2-ink-2)" }}>
                 {activePoint ? formatPointDate(activePoint.date, locale) : "-"}
               </span>
             </div>
           </div>
         </header>
 
-        <div style={{ padding: "var(--space-md)" }}>{chart}</div>
+        <div style={{ padding: "var(--v2-s-4)" }}>{chart}</div>
 
         {activePoint ? (
           <div
             style={{
-              padding: "0 var(--space-md) var(--space-md) var(--space-md)",
+              padding: "0 var(--v2-s-4) var(--v2-s-4) var(--v2-s-4)",
               display: "flex",
-              gap: "var(--space-sm)",
+              gap: "var(--v2-s-2)",
             }}
           >
             <div className="label label-neutral label-sm">
@@ -92,10 +92,11 @@ export const Stats1RMChartSection = memo(function Stats1RMChartSection({
 
       <div
         style={{
-          background: "var(--color-surface-container-low)",
-          borderRadius: "20px",
-          padding: "var(--space-md)",
-          boxShadow: "0 1px 3px var(--shadow-color-soft)",
+          background: "var(--v2-paper)",
+          borderRadius: "var(--v2-r-1)",
+          padding: "var(--v2-s-4)",
+          border: "1px solid var(--v2-hairline)",
+          boxShadow: "var(--v2-elev-1)",
         }}
       >
         <div className="metric-1rm" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -103,7 +104,7 @@ export const Stats1RMChartSection = memo(function Stats1RMChartSection({
             <span className="metric-label" style={{ display: "block", marginBottom: "2px" }}>
               {locale === "ko" ? "최고 e1RM" : "Best e1RM"}
             </span>
-            <span style={{ font: "var(--font-secondary)", color: "var(--color-text-muted)", fontSize: "13px" }}>
+            <span style={{ font: "var(--font-secondary)", color: "var(--v2-ink-2)", fontSize: "13px" }}>
               {stats?.best ? formatPointDate(stats.best.date, locale) : "-"}
             </span>
           </div>

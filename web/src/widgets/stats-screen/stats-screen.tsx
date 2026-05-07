@@ -2,16 +2,14 @@
 
 import { useEffect, useRef } from "react";
 import dynamic from "next/dynamic";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import {
-  StatsPageHeader,
-  StatsPrSection,
-  StatsSectionHeading,
-} from "@/features/stats/ui/stats-overview-sections";
+import { V2Card, V2Chip, V2Hairline } from "@/components/v2/primitives";
 import { AppPage } from "@/components/ui/page-layout";
 import type { Stats1RMDetailedRef } from "@/features/stats/ui/stats-1rm-detailed";
 import type { StatsPageBootstrap } from "@/server/services/stats/get-stats-page-bootstrap";
 import { useLocale } from "@/components/locale-provider";
+import { APP_ROUTES } from "@/lib/app-routes";
 
 const Stats1RMDetailed = dynamic(
   () =>
@@ -22,6 +20,223 @@ const Stats1RMDetailed = dynamic(
 );
 
 type StatsScreenProps = StatsPageBootstrap;
+
+function formatKg(value: number) {
+  if (value >= 1000) return `${(value / 1000).toFixed(1)}t`;
+  return `${Math.round(value).toLocaleString()}kg`;
+}
+
+function formatDate(value: string | null | undefined, locale: "ko" | "en") {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat(locale === "ko" ? "ko-KR" : "en-US", {
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date);
+}
+
+function SectionTitle({
+  label,
+  title,
+  description,
+}: {
+  label: string;
+  title: string;
+  description?: string;
+}) {
+  return (
+    <div style={{ display: "grid", gap: 4 }}>
+      <p className="v2-label">{label}</p>
+      <h2 className="v2-h2" style={{ fontSize: 22, letterSpacing: 0 }}>
+        {title}
+      </h2>
+      {description ? (
+        <p className="v2-small" style={{ maxWidth: 560 }}>
+          {description}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+function MetricCard({
+  label,
+  value,
+  unit,
+  caption,
+  color,
+  icon,
+}: {
+  label: string;
+  value: string;
+  unit?: string;
+  caption: string;
+  color: string;
+  icon: string;
+}) {
+  return (
+    <V2Card
+      tone="paper"
+      padding="16px"
+      radius="var(--v2-r-1)"
+      style={{
+        minHeight: 132,
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "space-between",
+        border: "1px solid var(--v2-hairline)",
+      }}
+    >
+      <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+        <p className="v2-label" style={{ color: "var(--v2-ink-2)" }}>
+          {label}
+        </p>
+        <span
+          className="material-symbols-outlined"
+          style={{ fontSize: 18, color }}
+          aria-hidden="true"
+        >
+          {icon}
+        </span>
+      </div>
+      <div>
+        <div style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
+          <span
+            className="v2-num-md"
+            style={{ color: "var(--v2-ink)", letterSpacing: 0 }}
+          >
+            {value}
+          </span>
+          {unit ? (
+            <span
+              style={{
+                fontFamily: "var(--v2-f-display)",
+                fontSize: 13,
+                fontWeight: 700,
+                color: "var(--v2-ink-2)",
+              }}
+            >
+              {unit}
+            </span>
+          ) : null}
+        </div>
+        <p className="v2-small" style={{ marginTop: 6, color: "var(--v2-ink-2)" }}>
+          {caption}
+        </p>
+      </div>
+    </V2Card>
+  );
+}
+
+function PrList({
+  items,
+  locale,
+}: {
+  items: StatsScreenProps["initialBundle"]["prs90d"];
+  locale: "ko" | "en";
+}) {
+  if (items.length === 0) {
+    return (
+      <V2Card
+        tone="inset"
+        padding="18px"
+        radius="var(--v2-r-1)"
+        style={{ border: "1px solid var(--v2-hairline)" }}
+      >
+        <p className="v2-h3" style={{ fontSize: 16 }}>
+          {locale === "ko" ? "표시할 PR 데이터가 없습니다" : "No PR data yet"}
+        </p>
+        <p className="v2-small" style={{ marginTop: 6 }}>
+          {locale === "ko"
+            ? "운동 기록이 쌓이면 최근 90일 기준 최고 기록 변화를 보여줍니다."
+            : "Recent 90-day personal record changes appear here after more logs are added."}
+        </p>
+      </V2Card>
+    );
+  }
+
+  return (
+    <div style={{ display: "grid", gap: 8 }}>
+      {items.slice(0, 8).map((row) => {
+        const improvement = row.improvement;
+        const tone = improvement > 0 ? "success" : "neutral";
+        return (
+          <Link
+            key={row.exerciseId ?? row.exerciseName}
+            href={`${APP_ROUTES.statsHome}?exerciseId=${encodeURIComponent(row.exerciseId ?? "")}`}
+            style={{ textDecoration: "none", color: "inherit" }}
+          >
+            <V2Card
+              tone="paper"
+              padding="14px 16px"
+              radius="var(--v2-r-1)"
+              style={{
+                border: "1px solid var(--v2-hairline)",
+                display: "grid",
+                gridTemplateColumns: "minmax(0, 1fr) auto auto",
+                alignItems: "center",
+                gap: 12,
+              }}
+            >
+              <div style={{ minWidth: 0 }}>
+                <div
+                  style={{
+                    fontFamily: "var(--v2-f-display)",
+                    fontWeight: 800,
+                    fontSize: 15,
+                    color: "var(--v2-ink)",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {row.exerciseName}
+                </div>
+                <div
+                  style={{
+                    display: "flex",
+                    flexWrap: "wrap",
+                    gap: "4px 10px",
+                    marginTop: 4,
+                    fontSize: 12,
+                    color: "var(--v2-ink-2)",
+                    fontVariantNumeric: "tabular-nums",
+                  }}
+                >
+                  <span>
+                    {locale === "ko" ? "최신" : "Latest"}{" "}
+                    <strong style={{ color: "var(--v2-ink)" }}>
+                      {row.latest?.e1rm ?? "-"}kg
+                    </strong>
+                  </span>
+                  <span>
+                    {locale === "ko" ? "최고" : "Best"}{" "}
+                    <strong style={{ color: "var(--v2-ink)" }}>
+                      {row.best?.e1rm ?? "-"}kg
+                    </strong>
+                  </span>
+                </div>
+              </div>
+              <V2Chip tone={tone}>
+                {improvement > 0
+                  ? `+${improvement.toFixed(1)}`
+                  : improvement.toFixed(1)}
+              </V2Chip>
+              <span
+                className="material-symbols-outlined"
+                style={{ color: "var(--v2-ink-3)", fontSize: 18 }}
+                aria-hidden="true"
+              >
+                chevron_right
+              </span>
+            </V2Card>
+          </Link>
+        );
+      })}
+    </div>
+  );
+}
 
 export function StatsScreen({
   initialBundle,
@@ -36,6 +251,8 @@ export function StatsScreen({
   const detailedRef = useRef<Stats1RMDetailedRef>(null);
   const detailedSectionRef = useRef<HTMLDivElement>(null);
   const handledScrollRef = useRef<string | null>(null);
+  const latestPoint = initialE1rm?.series.at(-1) ?? null;
+  const improvedPrCount = initialBundle.prs90d.filter((item) => item.improvement > 0).length;
 
   useEffect(() => {
     const exerciseId = searchParams.get("exerciseId");
@@ -57,32 +274,143 @@ export function StatsScreen({
 
   return (
     <AppPage>
-      <StatsPageHeader />
+      <div
+        style={{
+          display: "grid",
+          gap: "var(--v2-s-5)",
+          paddingBottom: "var(--v2-s-8)",
+        }}
+      >
+        <header
+          style={{
+            display: "grid",
+            gap: "var(--v2-s-4)",
+            paddingTop: "var(--v2-s-2)",
+          }}
+        >
+          <div style={{ display: "grid", gap: 6 }}>
+            <p className="v2-label">{locale === "ko" ? "퍼포먼스" : "Performance"}</p>
+            <h1 className="v2-h1" style={{ letterSpacing: 0 }}>
+              {locale === "ko" ? "통계" : "Stats"}
+            </h1>
+            <p className="v2-body" style={{ maxWidth: 640, color: "var(--v2-ink-2)" }}>
+              {locale === "ko"
+                ? "최근 훈련 빈도, 볼륨, e1RM, PR 변화를 한 화면에서 확인합니다."
+                : "Review recent training frequency, volume, e1RM, and PR movement in one place."}
+            </p>
+          </div>
 
-      <div style={{ marginBottom: "var(--space-xl)" }} ref={detailedSectionRef}>
-        <StatsSectionHeading
-          label={locale === "ko" ? "추이 분석" : "Trend Analysis"}
-          title={locale === "ko" ? "상세 추이 분석" : "Detailed Trend Analysis"}
-          description={
-            locale === "ko"
-              ? "운동별 e1RM 변화와 전체 기간 최고 기록"
-              : "Track e1RM changes by exercise and best results across the selected range."
-          }
-        />
-        <div style={{ marginTop: "var(--space-sm)" }}>
-          <Stats1RMDetailed
-            ref={detailedRef}
-            refreshTick={0}
-            initialExercises={initialExercises}
-            initialPlans={initialPlans}
-            initialStats={initialE1rm}
-            initialSelectedExerciseId={initialSelectedExerciseId}
-            initialSelectedPlanId={initialSelectedPlanId}
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(144px, 1fr))",
+              gap: "var(--v2-s-3)",
+            }}
+          >
+            <MetricCard
+              label={locale === "ko" ? "30일 세션" : "30d sessions"}
+              value={initialBundle.sessions30d.toLocaleString()}
+              unit={locale === "ko" ? "회" : ""}
+              caption={locale === "ko" ? "최근 훈련 빈도" : "Recent training frequency"}
+              color="var(--v2-c-progress)"
+              icon="calendar_month"
+            />
+            <MetricCard
+              label={locale === "ko" ? "30일 볼륨" : "30d volume"}
+              value={formatKg(initialBundle.tonnage30d)}
+              caption={locale === "ko" ? "총 중량 합계" : "Total tonnage"}
+              color="var(--v2-c-volume)"
+              icon="fitness_center"
+            />
+            <MetricCard
+              label={locale === "ko" ? "최고 e1RM" : "Best e1RM"}
+              value={initialE1rm?.best ? initialE1rm.best.e1rm.toFixed(1) : "-"}
+              unit="kg"
+              caption={
+                initialE1rm?.best
+                  ? formatDate(initialE1rm.best.date, locale)
+                  : locale === "ko"
+                    ? "선택 운동 데이터 없음"
+                    : "No selected exercise data"
+              }
+              color="var(--v2-c-onerm)"
+              icon="show_chart"
+            />
+            <MetricCard
+              label={locale === "ko" ? "90일 PR" : "90d PRs"}
+              value={initialBundle.prs90d.length.toLocaleString()}
+              unit={locale === "ko" ? "개" : ""}
+              caption={
+                locale === "ko"
+                  ? `${improvedPrCount}개 종목 향상`
+                  : `${improvedPrCount} improved lifts`
+              }
+              color="var(--v2-c-pr)"
+              icon="workspace_premium"
+            />
+          </div>
+        </header>
+
+        <section
+          style={{ display: "grid", gap: "var(--v2-s-3)" }}
+          ref={detailedSectionRef}
+        >
+          <SectionTitle
+            label={locale === "ko" ? "추이 분석" : "Trend Analysis"}
+            title={locale === "ko" ? "상세 추이 분석" : "Detailed Trend Analysis"}
+            description={
+              locale === "ko"
+                ? "운동별 e1RM 변화와 전체 기간 최고 기록을 필터별로 확인합니다."
+                : "Track e1RM changes by exercise and best results across the selected range."
+            }
           />
-        </div>
-      </div>
+          <V2Card
+            tone="inset"
+            padding="var(--v2-s-3)"
+            radius="var(--v2-r-1)"
+            style={{ border: "1px solid var(--v2-hairline)" }}
+          >
+            <Stats1RMDetailed
+              ref={detailedRef}
+              refreshTick={0}
+              initialExercises={initialExercises}
+              initialPlans={initialPlans}
+              initialStats={initialE1rm}
+              initialSelectedExerciseId={initialSelectedExerciseId}
+              initialSelectedPlanId={initialSelectedPlanId}
+            />
+          </V2Card>
+        </section>
 
-      <StatsPrSection items={initialBundle.prs90d} />
+        <section style={{ display: "grid", gap: "var(--v2-s-3)" }}>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "minmax(0, 1fr) auto",
+              gap: 12,
+              alignItems: "end",
+            }}
+          >
+            <SectionTitle
+              label={locale === "ko" ? "개인 최고 기록" : "Personal Records"}
+              title={locale === "ko" ? "PR 기록 추적" : "PR Tracking"}
+              description={
+                locale === "ko"
+                  ? "최근 90일 기준 종목별 최고 기록과 향상도를 정리합니다."
+                  : "Review recent 90-day best lifts and improvement by exercise."
+              }
+            />
+            {latestPoint ? (
+              <V2Chip tone="accent" icon="bolt">
+                {locale === "ko" ? "최근 " : "Latest "}
+                {formatDate(latestPoint.date, locale)}
+              </V2Chip>
+            ) : null}
+          </div>
+          <V2Hairline />
+          <PrList items={initialBundle.prs90d} locale={locale} />
+        </section>
+      </div>
     </AppPage>
   );
 }
