@@ -20,11 +20,13 @@ export function E1RMInteractiveChart({
   activeIndex,
   onActiveIndexChange,
   locale,
+  prDates,
 }: {
   series: E1RMPoint[];
   activeIndex: number;
   onActiveIndexChange: (nextIndex: number) => void;
   locale: "ko" | "en";
+  prDates?: ReadonlySet<string>;
 }) {
   const width = 1000;
   const height = 400;
@@ -147,6 +149,40 @@ export function E1RMInteractiveChart({
             strokeLinejoin="round"
           />
         ) : null}
+
+        {prDates && prDates.size > 0
+          ? series.map((point, index) => {
+              if (!prDates.has(point.date)) return null;
+              const pos = chartGeometry.points[index];
+              if (!pos) return null;
+              return (
+                <g key={`pr-${point.date}`} aria-hidden>
+                  <circle
+                    cx={pos.x}
+                    cy={pos.y}
+                    r={9}
+                    fill="var(--v2-c-pr, var(--color-primary))"
+                    stroke="var(--color-bg)"
+                    strokeWidth={2}
+                    opacity={0.95}
+                  />
+                  <text
+                    x={pos.x}
+                    y={pos.y + 4.5}
+                    textAnchor="middle"
+                    style={{
+                      fontFamily: "var(--v2-f-display)",
+                      fontSize: 11,
+                      fontWeight: 800,
+                      fill: "var(--v2-ink-on-accent, white)",
+                    }}
+                  >
+                    PR
+                  </text>
+                </g>
+              );
+            })
+          : null}
 
         {selectedPoint && selectedData ? (
           <g>

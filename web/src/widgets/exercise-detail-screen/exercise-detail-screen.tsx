@@ -356,6 +356,10 @@ export function ExerciseDetailScreen({
     ? clampIndex(activeIndex, e1rmSeries.length)
     : 0;
   const activePoint = hasChartData ? e1rmSeries[resolvedActiveIndex] : null;
+  const prDateSet = useMemo(
+    () => new Set(prHistory.map((point) => point.date)),
+    [prHistory],
+  );
 
   const statsForChart: E1RMResponse | null = hasChartData
     ? {
@@ -493,6 +497,7 @@ export function ExerciseDetailScreen({
                   series={e1rmSeries}
                   activeIndex={resolvedActiveIndex}
                   onActiveIndexChange={setActiveIndex}
+                  prDates={prDateSet}
                   locale={locale}
                 />
               }
