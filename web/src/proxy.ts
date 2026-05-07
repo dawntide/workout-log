@@ -5,6 +5,8 @@ const SESSION_COOKIE = "wl_session";
 const PUBLIC_PATH_PREFIXES = [
   "/login",
   "/signup",
+  "/forgot-password",
+  "/reset-password",
   "/api/auth",
   "/api/health",
   "/api/ops",

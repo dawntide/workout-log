@@ -2,13 +2,13 @@ import { NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { db } from "@/server/db/client";
 import { appUser } from "@/server/db/schema";
-import { hashPassword, verifyPassword } from "@/server/auth/password";
+import { hashPassword } from "@/server/auth/password";
 import {
-  deleteSessionsForUser,
   createSession,
+  deleteSessionsForUser,
   SESSION_COOKIE_NAME,
 } from "@/server/auth/session";
-import { tryAuthenticatedUserId } from "@/server/auth/user";
+import { consumePasswordResetToken } from "@/server/auth/password-reset";
 import { assertSameOrigin } from "@/server/auth/origin";
 import { getClientIp, rateLimit } from "@/server/auth/rate-limit";
 import { logAuthEvent } from "@/server/auth/security-events";
@@ -17,33 +17,10 @@ export async function POST(req: Request) {
   const originErr = assertSameOrigin(req);
   if (originErr) return originErr;
 
-  const userId = await tryAuthenticatedUserId();
-  if (!userId) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  // env fallback 사용자(uuid 형식 아닌 단순 string)는 비밀번호 없음
-  const userRows = await db
-    .select({
-      id: appUser.id,
-      passwordHash: appUser.passwordHash,
-    })
-    .from(appUser)
-    .where(eq(appUser.id, userId))
-    .limit(1);
-  const user = userRows[0];
-  if (!user) {
-    return NextResponse.json(
-      { error: "Account does not support password change" },
-      { status: 400 },
-    );
-  }
-
-  // Rate limit: user당 분당 5회
   const ip = getClientIp(req);
   const limit = rateLimit({
-    key: `pw-change:user:${userId}:${ip}`,
-    max: 5,
+    key: `pw-reset-confirm:ip:${ip}`,
+    max: 10,
     windowMs: 60_000,
   });
   if (!limit.allowed) {
@@ -67,11 +44,12 @@ export async function POST(req: Request) {
       { status: 400 },
     );
   }
-  const currentPassword = String(body?.currentPassword ?? "");
+
+  const token = String(body?.token ?? "");
   const newPassword = String(body?.newPassword ?? "");
-  if (!currentPassword || !newPassword) {
+  if (!token || !newPassword) {
     return NextResponse.json(
-      { error: "Current and new password required" },
+      { error: "Token and new password required" },
       { status: 400 },
     );
   }
@@ -81,25 +59,18 @@ export async function POST(req: Request) {
       { status: 400 },
     );
   }
-  if (newPassword === currentPassword) {
-    return NextResponse.json(
-      { error: "New password must differ from current" },
-      { status: 400 },
-    );
-  }
 
-  const ok = await verifyPassword(currentPassword, user.passwordHash);
-  if (!ok) {
+  const consumed = await consumePasswordResetToken(token);
+  if (!consumed) {
     await logAuthEvent({
-      userId,
-      eventType: "PASSWORD_CHANGE",
+      eventType: "PASSWORD_RESET_CONFIRM",
       req,
       ip,
       success: false,
     }).catch(() => {});
     return NextResponse.json(
-      { error: "Current password is incorrect" },
-      { status: 401 },
+      { error: "Invalid or expired reset token" },
+      { status: 400 },
     );
   }
 
@@ -107,14 +78,13 @@ export async function POST(req: Request) {
   await db
     .update(appUser)
     .set({ passwordHash: newHash })
-    .where(eq(appUser.id, userId));
+    .where(eq(appUser.id, consumed.userId));
 
-  // 모든 세션 무효화 + 현재 요청에 새 세션 발급 (강제 로그아웃 방지)
-  await deleteSessionsForUser(userId);
-  const session = await createSession(userId);
+  await deleteSessionsForUser(consumed.userId);
+  const session = await createSession(consumed.userId);
   await logAuthEvent({
-    userId,
-    eventType: "PASSWORD_CHANGE",
+    userId: consumed.userId,
+    eventType: "PASSWORD_RESET_CONFIRM",
     req,
     ip,
     success: true,

@@ -13,7 +13,13 @@ export async function GET() {
   const user = await findUserById(userId).catch(() => null);
   if (!user) {
     return NextResponse.json({
-      user: { id: userId, email: null, displayName: null, fallback: true },
+      user: {
+        id: userId,
+        email: null,
+        displayName: null,
+        emailVerifiedAt: null,
+        fallback: true,
+      },
     });
   }
   return NextResponse.json({
@@ -21,6 +27,7 @@ export async function GET() {
       id: user.id,
       email: user.email,
       displayName: user.displayName,
+      emailVerifiedAt: user.emailVerifiedAt,
       fallback: false,
     },
   });

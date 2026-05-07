@@ -10,6 +10,10 @@ import {
 import { getClientIp, rateLimit } from "@/server/auth/rate-limit";
 import { assertSameOrigin } from "@/server/auth/origin";
 import { claimEnvFallbackData } from "@/server/auth/claim-fallback";
+import { createEmailVerificationToken } from "@/server/auth/email-verification";
+import { sendEmailVerificationEmail } from "@/server/auth/auth-email";
+import { logAuthEvent } from "@/server/auth/security-events";
+import { getRequestOrigin } from "@/server/email/sender";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -94,9 +98,31 @@ export async function POST(req: Request) {
   }
 
   const session = await createSession(user.id);
+  const emailVerification = await createEmailVerificationToken(user.id).catch(
+    () => null,
+  );
+  if (emailVerification) {
+    const origin = getRequestOrigin(req);
+    const verifyUrl = `${origin}/api/auth/email/verify?token=${encodeURIComponent(
+      emailVerification.token,
+    )}`;
+    await sendEmailVerificationEmail({ to: user.email, verifyUrl }).catch(
+      () => false,
+    );
+  }
+  await logAuthEvent({
+    userId: user.id,
+    eventType: "SIGNUP",
+    req,
+    ip,
+    success: true,
+    meta: claim?.claimed
+      ? { claimedDevData: true, fromUserId: claim.fromUserId }
+      : undefined,
+  }).catch(() => {});
 
   const res = NextResponse.json({
-    user: { id: user.id, email: user.email, displayName },
+    user: { id: user.id, email: user.email, displayName, emailVerifiedAt: null },
     claim: claim?.claimed
       ? {
           fromUserId: claim.fromUserId,

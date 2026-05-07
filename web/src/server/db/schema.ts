@@ -505,7 +505,7 @@ export const migrationRunLog = pgTable(
  * app_user: 인증된 사용자.
  *
  * 기존에는 WORKOUT_AUTH_USER_ID 환경변수로 단일 사용자였지만,
- * 이제 email + password (bcrypt) 기반 멀티유저 인증.
+ * 이제 email + password (PBKDF2) 기반 멀티유저 인증.
  *
  * 기존 모든 도메인 테이블의 user_id (text) 컬럼은 이 테이블의 id (uuid)를
  * 문자열로 저장한다. id는 string으로 select되어 호환됨.
@@ -517,6 +517,7 @@ export const appUser = pgTable(
     email: text("email").notNull(),
     passwordHash: text("password_hash").notNull(),
     displayName: text("display_name"),
+    emailVerifiedAt: timestamp("email_verified_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .defaultNow()
       .notNull(),
@@ -547,3 +548,56 @@ export const authSession = pgTable(
   ],
 );
 
+export const passwordResetToken = pgTable(
+  "password_reset_token",
+  {
+    tokenHash: text("token_hash").primaryKey(),
+    userId: text("user_id").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    usedAt: timestamp("used_at", { withTimezone: true }),
+  },
+  (t) => [
+    index("password_reset_token_user_idx").on(t.userId),
+    index("password_reset_token_expires_idx").on(t.expiresAt),
+  ],
+);
+
+export const emailVerificationToken = pgTable(
+  "email_verification_token",
+  {
+    tokenHash: text("token_hash").primaryKey(),
+    userId: text("user_id").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    usedAt: timestamp("used_at", { withTimezone: true }),
+  },
+  (t) => [
+    index("email_verification_token_user_idx").on(t.userId),
+    index("email_verification_token_expires_idx").on(t.expiresAt),
+  ],
+);
+
+export const authEventLog = pgTable(
+  "auth_event_log",
+  {
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    userId: text("user_id"),
+    eventType: text("event_type").notNull(),
+    ip: text("ip"),
+    userAgent: text("user_agent"),
+    success: boolean("success").notNull(),
+    meta: jsonb("meta"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => [
+    index("auth_event_log_user_created_idx").on(t.userId, t.createdAt),
+    index("auth_event_log_type_created_idx").on(t.eventType, t.createdAt),
+  ],
+);

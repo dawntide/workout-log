@@ -113,6 +113,13 @@
       "when": 1778116688397,
       "tag": "0015_sturdy_daimon_hellstrom",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1778120793105,
+      "tag": "0016_lucky_millenium_guard",
+      "breakpoints": true
     }
   ]
 }

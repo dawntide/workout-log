@@ -2,7 +2,7 @@
 
 ## 프로젝트 개요
 
-싱글 유저 근력 운동 기록 앱. Next.js 16 + React 19, TypeScript, Drizzle ORM + PostgreSQL, PWA.
+멀티유저 근력 운동 기록 앱. Next.js 16 + React 19, TypeScript, Drizzle ORM + PostgreSQL, PWA.
 
 - **앱 코드**: `web/` 디렉터리 (Next.js App Router)
 - **인프라**: `infra/` 디렉터리
@@ -24,6 +24,10 @@
 web/src/
 ├── app/                    # Next.js App Router 페이지
 │   ├── workout/log/        # 운동 기록 메인 (/workout/log)
+│   ├── login/ signup/      # 이메일/비밀번호 인증
+│   ├── forgot-password/    # 비밀번호 재설정 요청
+│   ├── reset-password/     # 토큰 기반 새 비밀번호 설정
+│   ├── onboarding/         # v2 온보딩
 │   ├── stats/              # 통계 + 1RM 추이 (/stats)
 │   ├── program-store/      # 프로그램 스토어
 │   ├── plans/              # 플랜 관리
@@ -31,7 +35,9 @@ web/src/
 │   └── api/                # API Routes
 ├── components/ui/          # 공유 UI 컴포넌트
 ├── server/
-│   ├── db/schema.ts        # Drizzle 스키마 (15개 테이블)
+│   ├── auth/               # PBKDF2, cookie session, reset/verify token, event log
+│   ├── email/              # Resend fetch 기반 발송 헬퍼
+│   ├── db/schema.ts        # Drizzle 스키마
 │   └── progression/        # 자동 진행 비즈니스 로직
 └── lib/
     ├── api.ts              # SWR 캐시 HTTP 클라이언트
@@ -63,5 +69,7 @@ pnpm build
 - **터치 영역**: 모든 인터랙티브 요소 최소 44×44px
 - **표면 토큰**: `bg-white` 직접 사용 금지 → `--token-card-surface` 등 공유 토큰 사용
 - **SWR 캐시**: 데이터 fetch는 `apiGet`/`apiPost` (lib/api.ts) 사용
-- **Auth**: 싱글 유저, `WORKOUT_AUTH_USER_ID` 환경변수로 식별 (OAuth 없음)
+- **Auth**: 이메일/비밀번호 + PBKDF2 해시 + `wl_session` httpOnly cookie 세션. `WORKOUT_AUTH_USER_ID`는 로컬/dev fallback으로만 유지.
+- **Auth recovery**: `RESEND_API_KEY`, `RESEND_FROM`, `WORKOUT_APP_URL`로 비밀번호 재설정/이메일 인증 링크 발송. dev에서 Resend 미설정 시 서버 로그에 링크 출력.
+- **Auth API**: `/api/auth/{signup,login,logout,me,password}`, `/api/auth/password/reset/{request,confirm}`, `/api/auth/email/verification/request`, `/api/auth/email/verify`, `/api/me/security/events`.
 - **라우트 네이밍**: 설계 문서의 `/workout-record` → 실제 구현 `/workout/log`, `/stats-1rm` → `/stats`

@@ -9,6 +9,7 @@ import {
 } from "@/server/auth/session";
 import { getClientIp, rateLimit } from "@/server/auth/rate-limit";
 import { assertSameOrigin } from "@/server/auth/origin";
+import { logAuthEvent } from "@/server/auth/security-events";
 
 export async function POST(req: Request) {
   const originErr = assertSameOrigin(req);
@@ -74,6 +75,7 @@ export async function POST(req: Request) {
       email: appUser.email,
       passwordHash: appUser.passwordHash,
       displayName: appUser.displayName,
+      emailVerifiedAt: appUser.emailVerifiedAt,
     })
     .from(appUser)
     .where(eq(appUser.email, email))
@@ -83,6 +85,14 @@ export async function POST(req: Request) {
   // 동일 에러 메시지로 enumeration 방지
   const ok = user && (await verifyPassword(password, user.passwordHash));
   if (!ok || !user) {
+    await logAuthEvent({
+      userId: user?.id ?? null,
+      eventType: "LOGIN_FAIL",
+      req,
+      ip,
+      success: false,
+      meta: { email },
+    }).catch(() => {});
     return NextResponse.json(
       { error: "Invalid email or password" },
       { status: 401 },
@@ -90,12 +100,20 @@ export async function POST(req: Request) {
   }
 
   const session = await createSession(user.id);
+  await logAuthEvent({
+    userId: user.id,
+    eventType: "LOGIN",
+    req,
+    ip,
+    success: true,
+  }).catch(() => {});
 
   const res = NextResponse.json({
     user: {
       id: user.id,
       email: user.email,
       displayName: user.displayName,
+      emailVerifiedAt: user.emailVerifiedAt,
     },
   });
   res.cookies.set({

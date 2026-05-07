@@ -4,11 +4,18 @@ import { useEffect, type ReactNode } from "react";
 import { V2BottomNav } from "@/components/v2/v2-bottom-nav";
 import { AppDialogProvider } from "@/components/ui/app-dialog-provider";
 import { ApiCacheWarmer } from "@/components/api-cache-warmer";
+import { V2EmailVerificationBanner } from "@/components/v2/auth/v2-email-verification-banner";
 import type { AppLocale } from "@/lib/i18n/messages";
 import { shouldUseViewTransition } from "@/lib/navigation/view-transition";
 import { usePathname, useRouter } from "next/navigation";
 
-const NAV_HIDDEN_PATH_PREFIXES = ["/login", "/signup", "/onboarding"];
+const NAV_HIDDEN_PATH_PREFIXES = [
+  "/login",
+  "/signup",
+  "/onboarding",
+  "/forgot-password",
+  "/reset-password",
+];
 
 // PERF: 앱 시작 시 즉시 prefetch할 주요 네비게이션 경로
 // 사용자가 탭을 클릭하기 전에 미리 JS 청크를 다운로드 → 네비게이션 체감 속도 향상
@@ -79,6 +86,7 @@ export function AppShell({
     <AppDialogProvider>
       <ApiCacheWarmer />
       <div className="app-shell v2-frame flex flex-col min-h-screen">
+        {!hideNav && <V2EmailVerificationBanner />}
         <main className="app-main flex-1 flex flex-col overflow-x-hidden">
           <div className="container app-shell__content">
             <div className="app-shell__page">

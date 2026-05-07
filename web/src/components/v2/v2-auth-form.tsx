@@ -242,6 +242,23 @@ export function V2AuthForm({ mode }: { mode: Mode }) {
             </div>
           )}
 
+          {!isSignup && (
+            <Link
+              href="/forgot-password"
+              style={{
+                alignSelf: "flex-end",
+                color: "var(--v2-accent)",
+                fontFamily: "var(--v2-f-display)",
+                fontSize: 13,
+                fontWeight: 700,
+                textDecoration: "none",
+                marginTop: 4,
+              }}
+            >
+              {locale === "ko" ? "비밀번호를 잊으셨나요?" : "Forgot password?"}
+            </Link>
+          )}
+
           <div style={{ marginTop: 18 }}>
             <V2PrimaryBtn
               full

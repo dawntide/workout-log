@@ -63,6 +63,7 @@ export type AuthUserSummary = {
   id: string;
   email: string;
   displayName: string | null;
+  emailVerifiedAt: Date | null;
 };
 
 export async function findUserById(
@@ -73,6 +74,7 @@ export async function findUserById(
       id: appUser.id,
       email: appUser.email,
       displayName: appUser.displayName,
+      emailVerifiedAt: appUser.emailVerifiedAt,
     })
     .from(appUser)
     .where(eq(appUser.id, id))
