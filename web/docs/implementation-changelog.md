@@ -497,15 +497,12 @@ A=자동, S=반자동(상호작용 포함)
 
 ```bash
 pnpm --dir web run build
-pnpm --dir web run test:settings:compliance
+pnpm --dir web run test:a11y:contrast
 ```
 
 구성:
 - `test:a11y:contrast` — 색상 대비 토큰 점검
-- `ios-settings-compliance.spec.ts` — 구조/간격/타이포/터치/상태
-- `ios-settings-a11y.spec.ts` — 접근성 자동 점검 (axe `wcag2a`, `wcag2aa`)
-- `ios-settings-visual.spec.ts` — 시각 캡처
-- `IOS_SETTINGS_VISUAL_STRICT=1` — 시각 회귀 엄격 모드
+- iOS Settings 전용 compliance E2E는 v2 디자인 시스템 전환 후 제거됨
 
 #### 반자동 확인 항목
 
@@ -824,14 +821,6 @@ pnpm --dir web lint
 
 # 접근성 대비 점검
 pnpm --dir web run test:a11y:contrast
-
-# iOS Settings 전체 준수 게이트
-pnpm --dir web run test:settings:compliance
-pnpm --dir web run test:settings:compliance:structure
-pnpm --dir web run test:settings:compliance:a11y
-pnpm --dir web run test:settings:compliance:visual
-IOS_SETTINGS_VISUAL_STRICT=1 pnpm --dir web run test:settings:compliance:visual:strict
-pnpm --dir web run test:settings:compliance:visual:update  # 기준선 갱신
 
 # 저장 정책 테스트
 pnpm --dir web run test:settings:policy
