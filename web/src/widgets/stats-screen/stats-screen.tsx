@@ -10,6 +10,7 @@ import type { Stats1RMDetailedRef } from "@/features/stats/ui/stats-1rm-detailed
 import type { StatsPageBootstrap } from "@/server/services/stats/get-stats-page-bootstrap";
 import { useLocale } from "@/components/locale-provider";
 import { APP_ROUTES } from "@/lib/app-routes";
+import { WeeklyVolumeSection } from "./weekly-volume-section";
 
 const Stats1RMDetailed = dynamic(
   () =>
@@ -258,6 +259,7 @@ export function StatsScreen({
   initialExercises,
   initialPlans,
   initialE1rm,
+  initialVolumeWeekly,
   initialSelectedExerciseId,
   initialSelectedPlanId,
 }: StatsScreenProps) {
@@ -365,6 +367,8 @@ export function StatsScreen({
             />
           </div>
         </header>
+
+        <WeeklyVolumeSection data={initialVolumeWeekly} locale={locale} />
 
         <section
           style={{ display: "grid", gap: "var(--v2-s-3)" }}

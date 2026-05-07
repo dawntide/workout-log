@@ -1,24 +1,20 @@
-import { NextResponse, after } from "next/server";
-import { db } from "@/server/db/client";
-import { exercise, workoutLog, workoutSet } from "@/server/db/schema";
-import { and, eq, gte, lte, or, sql } from "drizzle-orm";
-import { getExerciseById, resolveExerciseByName } from "@/server/exercise/resolve";
-import { getStatsCache, setStatsCache } from "@/server/stats/cache";
+import { NextResponse } from "next/server";
 import { parseDateRangeFromSearchParams } from "@/server/stats/range";
 import { withApiLogging } from "@/server/observability/apiRoute";
 import { logError } from "@/server/observability/logger";
 import { getAuthenticatedUserId } from "@/server/auth/user";
-import { resolveRequestLocale } from "@/lib/i18n/messages";
+import { fetchVolumeSeries, type VolumeBucket } from "@/server/stats/volume-series-service";
 import { apiErrorResponse } from "@/app/api/_utils/error-response";
 
 async function GETImpl(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
     const userId = getAuthenticatedUserId();
-    const locale = await resolveRequestLocale();
     const exerciseId = searchParams.get("exerciseId")?.trim() ?? "";
     const exerciseName = searchParams.get("exercise") ?? searchParams.get("exerciseName");
-    const bucket = (searchParams.get("bucket") ?? "week").toLowerCase(); // day|week|month
+    const bucketRaw = (searchParams.get("bucket") ?? "week").toLowerCase();
+    const bucket: VolumeBucket =
+      bucketRaw === "day" ? "day" : bucketRaw === "month" ? "month" : "week";
     const perExercise = searchParams.get("perExercise") === "1";
     const maxExercisesRaw = Number(searchParams.get("maxExercises") ?? "12");
     const maxExercises = Number.isFinite(maxExercisesRaw)
@@ -27,194 +23,19 @@ async function GETImpl(req: Request) {
 
     const { from, to, rangeDays } = parseDateRangeFromSearchParams(searchParams, 180);
 
-    let resolvedExerciseId: string | null = null;
-    let resolvedExerciseName: string | null = null;
-    if (exerciseId) {
-      const byId = await getExerciseById(exerciseId);
-      if (byId) {
-        resolvedExerciseId = byId.id;
-        resolvedExerciseName = byId.name;
-      } else {
-        resolvedExerciseId = exerciseId;
-      }
-    } else if (exerciseName) {
-      const resolved = await resolveExerciseByName(exerciseName);
-      if (resolved) {
-        resolvedExerciseId = resolved.id;
-        resolvedExerciseName = resolved.name;
-      } else {
-        resolvedExerciseName = exerciseName;
-      }
-    }
-
-    const unit = bucket === "day" ? "day" : bucket === "month" ? "month" : "week";
-
-    // PERF: 날짜를 일 단위로 잘라 동일 날짜 내 반복 요청에서 캐시 히트율 향상
-    const cacheParams = {
-      from: from.toISOString().slice(0, 10),
-      to: to.toISOString().slice(0, 10),
-      bucket: unit,
-      exerciseId: resolvedExerciseId,
-      exerciseName: resolvedExerciseName ?? exerciseName ?? null,
+    const result = await fetchVolumeSeries({
+      userId,
+      from,
+      to,
+      rangeDays,
+      bucket,
+      exerciseId,
+      exerciseName,
       perExercise,
       maxExercises,
-    };
-
-    const cached = await getStatsCache<{
-      from: string;
-      to: string;
-      rangeDays: number;
-      bucket: "day" | "week" | "month";
-      exerciseId: string | null;
-      exercise: string | null;
-      series: Array<{ period: string; tonnage: number; reps: number; sets: number }>;
-      byExercise?: Array<{
-        exerciseId: string | null;
-        exerciseName: string;
-        totals: { tonnage: number; reps: number; sets: number };
-        series: Array<{ period: string; tonnage: number; reps: number; sets: number }>;
-      }>;
-    }>({
-      userId,
-      metric: "volume_series",
-      params: cacheParams,
-      maxAgeSeconds: 300,
     });
-    if (cached) return NextResponse.json(cached);
 
-    const filterByExercise = resolvedExerciseId
-      ? resolvedExerciseName
-        ? or(
-            eq(workoutSet.exerciseId, resolvedExerciseId),
-            and(
-              sql`${workoutSet.exerciseId} is null`,
-              sql`lower(${workoutSet.exerciseName}) = lower(${resolvedExerciseName})`,
-            ),
-          )
-        : eq(workoutSet.exerciseId, resolvedExerciseId)
-      : resolvedExerciseName
-        ? sql`lower(${workoutSet.exerciseName}) = lower(${resolvedExerciseName})`
-        : undefined;
-
-    const unitSql = sql.raw(`'${unit}'`); // safe: controlled above
-    const periodExpr = sql`date_trunc(${unitSql}, ${workoutLog.performedAt} at time zone 'UTC')`;
-
-    const baseWhere = and(
-      eq(workoutLog.userId, userId),
-      gte(workoutLog.performedAt, from),
-      lte(workoutLog.performedAt, to),
-    );
-    const where = filterByExercise ? and(baseWhere, filterByExercise) : baseWhere;
-
-    const rows = await db
-      .select({
-        period: sql<string>`to_char(${periodExpr}, 'YYYY-MM-DD')`,
-        tonnage: sql<number>`coalesce(sum(${workoutSet.weightKg} * ${workoutSet.reps}), 0)`,
-        reps: sql<number>`coalesce(sum(${workoutSet.reps}), 0)`,
-        sets: sql<number>`count(*)`,
-      })
-      .from(workoutLog)
-      .innerJoin(workoutSet, eq(workoutSet.logId, workoutLog.id))
-      .where(where)
-      .groupBy(periodExpr)
-      .orderBy(periodExpr);
-
-    const series = rows.map((r) => ({
-      period: r.period,
-      tonnage: Number(r.tonnage ?? 0),
-      reps: Number(r.reps ?? 0),
-      sets: Number(r.sets ?? 0),
-    }));
-
-    let byExercise:
-      | Array<{
-          exerciseId: string | null;
-          exerciseName: string;
-          totals: { tonnage: number; reps: number; sets: number };
-          series: Array<{ period: string; tonnage: number; reps: number; sets: number }>;
-        }>
-      | undefined;
-
-    if (perExercise) {
-      const keyExpr = sql<string>`coalesce(${workoutSet.exerciseId}::text, lower(${workoutSet.exerciseName}))`;
-      const idExpr = workoutSet.exerciseId;
-      const nameExpr = sql<string>`coalesce(${exercise.name}, ${workoutSet.exerciseName})`;
-
-      const perRows = await db
-        .select({
-          exerciseKey: keyExpr,
-          exerciseId: idExpr,
-          exerciseName: nameExpr,
-          period: sql<string>`to_char(${periodExpr}, 'YYYY-MM-DD')`,
-          tonnage: sql<number>`coalesce(sum(${workoutSet.weightKg} * ${workoutSet.reps}), 0)`,
-          reps: sql<number>`coalesce(sum(${workoutSet.reps}), 0)`,
-          sets: sql<number>`count(*)`,
-        })
-        .from(workoutLog)
-        .innerJoin(workoutSet, eq(workoutSet.logId, workoutLog.id))
-        .leftJoin(exercise, eq(exercise.id, workoutSet.exerciseId))
-        .where(where)
-        .groupBy(keyExpr, idExpr, nameExpr, periodExpr)
-        .orderBy(periodExpr);
-
-      const grouped = new Map<
-        string,
-        {
-          exerciseId: string | null;
-          exerciseName: string;
-          totals: { tonnage: number; reps: number; sets: number };
-          series: Array<{ period: string; tonnage: number; reps: number; sets: number }>;
-        }
-      >();
-
-      for (const r of perRows) {
-        const key = String(r.exerciseKey ?? "unknown");
-        if (!grouped.has(key)) {
-          grouped.set(key, {
-            exerciseId: r.exerciseId ?? null,
-            exerciseName: String(r.exerciseName ?? (locale === "ko" ? "알 수 없는 운동" : "Unknown Exercise")),
-            totals: { tonnage: 0, reps: 0, sets: 0 },
-            series: [],
-          });
-        }
-        const bucketRow = {
-          period: String(r.period),
-          tonnage: Number(r.tonnage ?? 0),
-          reps: Number(r.reps ?? 0),
-          sets: Number(r.sets ?? 0),
-        };
-        const g = grouped.get(key)!;
-        g.series.push(bucketRow);
-        g.totals.tonnage += bucketRow.tonnage;
-        g.totals.reps += bucketRow.reps;
-        g.totals.sets += bucketRow.sets;
-      }
-
-      byExercise = Array.from(grouped.values())
-        .sort((a, b) => b.totals.tonnage - a.totals.tonnage)
-        .slice(0, maxExercises);
-    }
-
-    const payload = {
-      from: from.toISOString(),
-      to: to.toISOString(),
-      rangeDays,
-      bucket: unit as "day" | "week" | "month",
-      exerciseId: resolvedExerciseId,
-      exercise: resolvedExerciseName ?? exerciseName ?? null,
-      series,
-      byExercise,
-    };
-
-    // PERF: after()로 캐시 쓰기를 응답 전송 후 처리 → API 응답 지연 제거
-    after(() => setStatsCache({
-      userId,
-      metric: "volume_series",
-      params: cacheParams,
-      payload,
-    }));
-
-    return NextResponse.json(payload);
+    return NextResponse.json(result);
   } catch (e: any) {
     logError("api.handler_error", { error: e });
     return apiErrorResponse(e);

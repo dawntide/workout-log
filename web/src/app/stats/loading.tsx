@@ -59,6 +59,25 @@ export default function StatsLoading() {
 
         <section style={{ display: "grid", gap: "var(--v2-s-3)" }}>
           <div style={{ display: "grid", gap: 6 }}>
+            <div style={{ ...skeletonStyle, height: 12, width: "20%", borderRadius: 4 }} />
+            <div style={{ ...skeletonStyle, height: 24, width: "55%", borderRadius: 6 }} />
+            <div style={{ ...skeletonStyle, height: 16, width: "75%", borderRadius: 4 }} />
+          </div>
+          <div
+            style={{
+              borderRadius: "var(--v2-r-1)",
+              padding: "var(--v2-s-4)",
+              background: "var(--v2-paper)",
+              border: "1px solid var(--v2-hairline)",
+              boxShadow: "var(--v2-elev-1)",
+            }}
+          >
+            <div style={{ ...skeletonStyle, height: 220, width: "100%", borderRadius: 8 }} />
+          </div>
+        </section>
+
+        <section style={{ display: "grid", gap: "var(--v2-s-3)" }}>
+          <div style={{ display: "grid", gap: 6 }}>
             <div style={{ ...skeletonStyle, height: 12, width: "25%", borderRadius: 4 }} />
             <div style={{ ...skeletonStyle, height: 24, width: "45%", borderRadius: 6 }} />
             <div style={{ ...skeletonStyle, height: 16, width: "65%", borderRadius: 4 }} />
