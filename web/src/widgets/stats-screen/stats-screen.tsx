@@ -161,12 +161,7 @@ function PrList({
       {items.slice(0, 8).map((row) => {
         const improvement = row.improvement;
         const tone = improvement > 0 ? "success" : "neutral";
-        return (
-          <Link
-            key={row.exerciseId ?? row.exerciseName}
-            href={`${APP_ROUTES.statsHome}?exerciseId=${encodeURIComponent(row.exerciseId ?? "")}`}
-            style={{ textDecoration: "none", color: "inherit" }}
-          >
+        const card = (
             <V2Card
               tone="paper"
               padding="14px 16px"
@@ -231,6 +226,26 @@ function PrList({
                 chevron_right
               </span>
             </V2Card>
+        );
+
+        if (!row.exerciseId) {
+          return (
+            <div
+              key={row.exerciseName}
+              style={{ textDecoration: "none", color: "inherit" }}
+            >
+              {card}
+            </div>
+          );
+        }
+
+        return (
+          <Link
+            key={row.exerciseId}
+            href={APP_ROUTES.exerciseDetail(row.exerciseId)}
+            style={{ textDecoration: "none", color: "inherit" }}
+          >
+            {card}
           </Link>
         );
       })}

@@ -14,5 +14,6 @@ export const APP_ROUTES = {
   todayOverrides: "/workout/today/overrides",
   workoutRecord: "/workout/log",
   statsHome: "/stats",
+  exerciseDetail: (exerciseId: string) => `/exercises/${encodeURIComponent(exerciseId)}`,
   systemStats: "/settings/system-stats",
 } as const;
