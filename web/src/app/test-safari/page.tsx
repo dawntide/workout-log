@@ -1,4 +1,12 @@
+import { notFound } from "next/navigation";
+
 export default function TestSafariPage() {
+  // /test-safari 는 개발 전용. 프로덕션 응답은 next.config.ts redirects 가
+  // 막지만, 빌드 산출물이 만에 하나 직접 노출돼도 404로 떨어지도록 이중 방어.
+  if (process.env.NODE_ENV === "production") {
+    notFound();
+  }
+
   // 30개의 카드 생성
   const cards = Array.from({ length: 30 }, (_, i) => i + 1);
 

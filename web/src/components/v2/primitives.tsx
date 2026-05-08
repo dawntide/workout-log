@@ -336,12 +336,16 @@ export function V2Sheet({
   children,
   height = "85%",
   ariaLabel,
+  ariaLabelledBy,
+  id,
 }: {
   open: boolean;
   onClose: () => void;
   children: ReactNode;
   height?: string;
   ariaLabel?: string;
+  ariaLabelledBy?: string;
+  id?: string;
 }) {
   // ESC dismiss
   useEffect(() => {
@@ -369,9 +373,11 @@ export function V2Sheet({
         aria-hidden={!open}
       />
       <div
+        id={id}
         role="dialog"
         aria-modal="true"
-        aria-label={ariaLabel}
+        aria-labelledby={ariaLabelledBy}
+        aria-label={ariaLabelledBy ? undefined : ariaLabel}
         aria-hidden={!open}
         style={{
           position: "fixed",
@@ -430,6 +436,10 @@ export type V2ActionDockItem = {
   onClick?: () => void;
   primary?: boolean;
   active?: boolean;
+  /** 시트 트리거인 경우, 시트의 열림 상태 (aria-expanded용) */
+  expanded?: boolean;
+  /** 시트 트리거인 경우, 컨트롤되는 시트의 id (aria-controls용) */
+  controls?: string;
 };
 
 export function V2ActionDock({
@@ -526,6 +536,12 @@ export function V2ActionDock({
             onClick={it.onClick}
             aria-label={it.label}
             aria-current={it.active ? "page" : undefined}
+            aria-expanded={
+              it.controls != null || it.expanded != null
+                ? Boolean(it.expanded)
+                : undefined
+            }
+            aria-controls={it.controls}
             style={styleCommon}
           >
             {inner}

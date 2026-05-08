@@ -24,7 +24,7 @@ export const settingsSearchIndex: SettingsSearchEntry[] = [
     key: "workout.today.overrides",
     title: "세션 오버라이드",
     titleEn: "Session Overrides",
-    path: "/workout/today/overrides",
+    path: "/workout/log/overrides",
     section: "훈련",
     keywords: ["오버라이드", "교체", "보조 운동", "override"],
     description: "교체/보조 운동 규칙 설정",

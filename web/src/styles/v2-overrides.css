@@ -163,10 +163,40 @@
   --color-action-weak: var(--v2-accent-weak);
 }
 
-/* 본문 한글 줄바꿈 — v2 접근성 */
+/*
+  본문 한글 줄바꿈 — v2 접근성
+  v2/tokens.css 하단 규칙을 본 프로젝트로 이식 (migration A11Y-2).
+  body 전역으로 word-break: keep-all, 본문/제목별 text-wrap 분기.
+*/
 body {
   word-break: keep-all;
   overflow-wrap: break-word;
+}
+
+/* 본문 흐름: 균형보다 가독성 우선 (text-wrap: pretty) */
+.t-body,
+.t-small,
+.v2-body,
+.v2-small,
+p {
+  word-break: keep-all;
+  overflow-wrap: break-word;
+  text-wrap: pretty;
+}
+
+/* 디스플레이/타이틀: 시각적 균형 우선 (text-wrap: balance) */
+.t-display,
+.t-h1,
+.t-h2,
+.t-h3,
+.v2-h1,
+.v2-h2,
+.v2-h3,
+h1,
+h2,
+h3 {
+  word-break: keep-all;
+  text-wrap: balance;
 }
 
 /* v2 frame 안의 페이지에서는 카드 등이 v2 paper를 inheritance via mapped tokens */

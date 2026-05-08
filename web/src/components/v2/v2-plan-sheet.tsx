@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useLocale } from "@/components/locale-provider";
@@ -184,12 +184,15 @@ function MiniCalendar({
 export function V2PlanSheet({
   open,
   onClose,
+  controlsId,
 }: {
   open: boolean;
   onClose: () => void;
+  controlsId?: string;
 }) {
   const router = useRouter();
   const { locale } = useLocale();
+  const headingId = useId();
   const now = useMemo(() => new Date(), []);
   const todayYear = now.getFullYear();
   const todayMonth = now.getMonth(); // 0-indexed
@@ -353,7 +356,13 @@ export function V2PlanSheet({
   const plansLoading = plans === null;
 
   return (
-    <V2Sheet open={open} onClose={onClose} ariaLabel={locale === "ko" ? "계획" : "Plan"}>
+    <V2Sheet
+      open={open}
+      onClose={onClose}
+      ariaLabelledBy={headingId}
+      ariaLabel={locale === "ko" ? "계획" : "Plan"}
+      id={controlsId}
+    >
       <div style={{ padding: "8px 24px 16px" }}>
         <p className="v2-eyebrow">
           {locale === "ko" ? "계획" : "PLAN"}
@@ -392,7 +401,7 @@ export function V2PlanSheet({
               chevron_left
             </span>
           </button>
-          <h1 className="v2-h1" style={{ flex: 1 }}>
+          <h1 id={headingId} className="v2-h1" style={{ flex: 1 }}>
             {monthLabel}
           </h1>
           <button

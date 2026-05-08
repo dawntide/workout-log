@@ -99,6 +99,19 @@ export async function getWorkoutLogPageBootstrap(
     isArchived: entry.isArchived,
   }));
 
+  // 활성 플랜이 없는 상태로 /workout/log 에 진입하면 빈 페이지를 띄우지 않고
+  // 프로그램 스토어로 안내한다 — 홈/dock "시작" 핸들러가 동일하게 귀결되도록 (P0-2).
+  // 이미 ?planId= 등 명시적 컨텍스트를 들고 들어온 경우엔 그쪽 분기에서 처리.
+  const hasActivePlan = initialPlans.some((p) => !p.isArchived);
+  const hasExplicitContext =
+    getString(searchParams, "planId") !== null ||
+    getString(searchParams, "logId") !== null ||
+    getString(searchParams, "date") !== null ||
+    getString(searchParams, "context") !== null;
+  if (!hasActivePlan && !hasExplicitContext) {
+    redirect("/program-store");
+  }
+
   // ─── 기본 날짜 advance: ?date= 와 ?logId= 둘 다 없을 때만 적용.
   // 가장 최근 로그가 today 이상이면 그 다음날로 redirect — URL 에 ?date= 를 박아
   // client matchKey 와 일치시킨다. redirect 는 try 바깥에서 호출해야 NEXT_REDIRECT

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import Link from "next/link";
 import { useLocale } from "@/components/locale-provider";
 import { APP_ROUTES } from "@/lib/app-routes";
@@ -35,11 +35,14 @@ type MeResponse = {
 export function V2MoreSheet({
   open,
   onClose,
+  controlsId,
 }: {
   open: boolean;
   onClose: () => void;
+  controlsId?: string;
 }) {
   const { locale } = useLocale();
+  const headingId = useId();
   const [me, setMe] = useState<MeResponse["user"] | null>(null);
   const [pwOpen, setPwOpen] = useState(false);
 
@@ -218,11 +221,13 @@ export function V2MoreSheet({
       open={open}
       onClose={onClose}
       height="80%"
+      ariaLabelledBy={headingId}
       ariaLabel={locale === "ko" ? "더보기" : "More"}
+      id={controlsId}
     >
       <div style={{ padding: "8px 24px 12px" }}>
         <p className="v2-eyebrow">{locale === "ko" ? "더보기" : "MORE"}</p>
-        <h1 className="v2-h1" style={{ marginTop: 6 }}>
+        <h1 id={headingId} className="v2-h1" style={{ marginTop: 6 }}>
           {locale === "ko" ? "라이브러리 · 설정" : "Library · Settings"}
         </h1>
         <p

@@ -55,6 +55,25 @@ const nextConfig: NextConfig = {
   // production 빌드(Turbopack)에서만 React Compiler 활성화.
   // dev + Turbopack에서는 HMR 그래프 오류가 간헐적으로 발생할 수 있어 비활성화.
   reactCompiler: process.env.NODE_ENV === "production",
+  async redirects() {
+    const isProd = process.env.NODE_ENV === "production";
+    return [
+      // /workout/today 폐기 → 홈으로 영구 이동 (migration RM-1)
+      { source: "/workout/today", destination: "/", permanent: true },
+      // /workout/today/overrides → /workout/log/overrides 로 이전 (migration MV-2)
+      { source: "/workout/today/overrides", destination: "/workout/log/overrides", permanent: true },
+      // /workout/log/exercise-catalog → /exercises 단일화 (migration MV-1)
+      {
+        source: "/workout/log/exercise-catalog",
+        destination: "/exercises?context=session",
+        permanent: true,
+      },
+      // /test-safari 는 개발 전용 — 프로덕션에서는 홈으로 (migration RM-2)
+      ...(isProd
+        ? [{ source: "/test-safari", destination: "/", permanent: false }]
+        : []),
+    ];
+  },
   async headers() {
     const isProd = process.env.NODE_ENV === "production";
     return [

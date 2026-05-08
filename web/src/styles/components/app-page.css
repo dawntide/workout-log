@@ -1,3 +1,15 @@
+/*
+  DEPRECATED (migration DS-2): legacy .app-page / .page-header / .app-action-row.
+  v2-overrides.css가 --color-* 토큰을 v2 paper/violet 으로 remap 하므로 색감은 일치하지만,
+  새 화면에서는 components/v2/primitives.tsx 의 V2Card / V2PrimaryBtn / v2-h1 등을 사용해야 합니다.
+  남은 consumer (확인 시점):
+    - app/plans/page.tsx, app/plans/context/page.tsx
+    - features/program-store/ui/program-store-browse-content.tsx
+    - features/stats/ui/stats-overview-sections.tsx (PageHeader)
+    - widgets/{stats,calendar,exercise-detail,pr-history}-screen
+    - components/settings/settings-home-content.tsx
+  /workout/today 가 삭제되며 가장 큰 사용처가 정리되었습니다.
+*/
 .app-page {
   display: flex;
   flex-direction: column;

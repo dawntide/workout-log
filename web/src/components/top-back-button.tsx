@@ -8,8 +8,9 @@ import { useLocale } from "@/components/locale-provider";
 function titleFromPathname(pathname: string, locale: "ko" | "en") {
   if (pathname === "/") return locale === "ko" ? "홈" : "Home";
   if (pathname.startsWith("/workout/log/add-exercise")) return locale === "ko" ? "운동 추가" : "Add Exercise";
-  if (pathname.startsWith("/workout/log/exercise-catalog")) return locale === "ko" ? "운동 카탈로그" : "Exercise Catalog";
+  if (pathname.startsWith("/workout/log/overrides")) return locale === "ko" ? "세션 조정" : "Session Overrides";
   if (pathname.startsWith("/workout/log")) return locale === "ko" ? "기록" : "Log";
+  if (pathname.startsWith("/exercises")) return locale === "ko" ? "운동" : "Exercises";
   if (pathname.startsWith("/program-store/create")) return locale === "ko" ? "프로그램 만들기" : "Create Program";
   if (pathname.startsWith("/program-store/customize")) return locale === "ko" ? "프로그램 수정" : "Edit Program";
   if (pathname.startsWith("/program-store/detail")) return locale === "ko" ? "프로그램 상세" : "Program Details";

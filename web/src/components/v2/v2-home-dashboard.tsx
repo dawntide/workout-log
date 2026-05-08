@@ -9,6 +9,7 @@ import {
 } from "react";
 import Link from "next/link";
 import { APP_ROUTES } from "@/lib/app-routes";
+import { resolveStartHref } from "@/lib/workout/start-href";
 import { useLocale } from "@/components/locale-provider";
 import type { AppCopy, AppLocale } from "@/lib/i18n/messages";
 import type {
@@ -212,10 +213,10 @@ function TodayDeck({
             </div>
           )}
 
-          {/* CTA */}
+          {/* CTA — bottom-nav "시작" 버튼과 동일한 핸들러를 공유 */}
           <div style={{ padding: "14px 16px 16px" }}>
             <Link
-              href={hasPlan ? today.href : APP_ROUTES.programStore}
+              href={resolveStartHref({ hasPlan, todayHref: today.href })}
               style={{ textDecoration: "none", display: "block" }}
             >
               <V2PrimaryBtn full icon={isComplete ? "add" : "play_arrow"}>

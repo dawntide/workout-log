@@ -488,7 +488,7 @@ export const AddExerciseSheet = memo(function AddExerciseSheet({
         </label>
 
         <Link
-          href="/workout/log/exercise-catalog"
+          href="/exercises?context=session"
           onClick={onClose}
           style={{
             display: "flex",
