@@ -6,7 +6,6 @@ import { useLocale } from "@/components/locale-provider";
 import { APP_ROUTES } from "@/lib/app-routes";
 import { useV2BottomDockRegistration } from "./v2-bottom-dock-context";
 import { V2ActionDock, type V2ActionDockItem } from "./primitives";
-import { V2MoreSheet } from "./v2-more-sheet";
 import { V2LibrarySheet, type LibraryTab } from "./v2-library-sheet";
 
 function isActive(pathname: string, href: string): boolean {
@@ -14,10 +13,9 @@ function isActive(pathname: string, href: string): boolean {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-type SheetKey = "library" | "more" | null;
+type SheetKey = "library" | null;
 
 const LIBRARY_SHEET_ID = "v2-sheet-library";
-const MORE_SHEET_ID = "v2-sheet-more";
 
 function libraryTabForPath(pathname: string): LibraryTab {
   if (isActive(pathname, "/plans")) return "plans";
@@ -104,13 +102,8 @@ export function V2BottomNav() {
         key: "more",
         icon: "more_horiz",
         label: locale === "ko" ? "더보기" : "More",
-        onClick: () => setSheet(sheet === "more" ? null : "more"),
-        active:
-          sheet === "more" ||
-          isActive(pathname, "/settings") ||
-          isActive(pathname, "/stats"),
-        expanded: sheet === "more",
-        controls: MORE_SHEET_ID,
+        href: "/settings",
+        active: isActive(pathname, "/settings") || isActive(pathname, "/stats"),
       },
     ];
   }, [bottomDockRegistration, homeDeckParam, locale, pathname, sheet]);
@@ -199,11 +192,6 @@ export function V2BottomNav() {
         onClose={close}
         defaultTab={libraryTab}
         controlsId={LIBRARY_SHEET_ID}
-      />
-      <V2MoreSheet
-        open={sheet === "more"}
-        onClose={close}
-        controlsId={MORE_SHEET_ID}
       />
     </>
   );
