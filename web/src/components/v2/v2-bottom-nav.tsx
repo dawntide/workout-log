@@ -39,15 +39,16 @@ export function V2BottomNav() {
         : fallbackHomeDeckItems;
 
     return [
+      homeDeckItems[0],
       {
         key: "start",
         icon: "play_arrow",
-        label: locale === "ko" ? "시작" : "Start",
+        label: locale === "ko" ? "기록" : "Log",
         href: "/workout/log",
         primary: true,
         active: isActive(pathname, "/workout/log"),
       },
-      ...homeDeckItems,
+      ...homeDeckItems.slice(1),
       {
         key: "plan",
         icon: "event_note",
