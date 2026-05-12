@@ -106,8 +106,8 @@ export function formatSessionKeyLabel(sessionKey: string) {
   if (!parsed) return sessionKey;
   if (parsed.kind === "date") return parsed.sessionDate;
   if (parsed.kind === "wave") return `W${parsed.week}D${parsed.day}`;
-  if (parsed.kind === "cycle-wave") return `C${parsed.cycle} W${parsed.week}D${parsed.day}`;
-  return `${parsed.sessionDate} · C${parsed.cycle} W${parsed.week}D${parsed.day}`;
+  if (parsed.kind === "cycle-wave") return `C${parsed.cycle}W${parsed.week}D${parsed.day}`;
+  return `${parsed.sessionDate} · C${parsed.cycle}W${parsed.week}D${parsed.day}`;
 }
 
 export function buildSessionKey(input: {

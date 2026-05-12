@@ -45,5 +45,8 @@ export function formatVolume(kg: number) {
 export function sessionKeyToWDLabel(sessionKey: string): string | null {
   const parsed = parseSessionKey(sessionKey);
   if (!parsed || parsed.week === null || parsed.day === null) return null;
+  if (parsed.cycle != null) {
+    return `C${parsed.cycle}W${parsed.week}D${parsed.day}`;
+  }
   return `W${parsed.week}D${parsed.day}`;
 }

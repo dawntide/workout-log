@@ -88,7 +88,7 @@ test("parseSessionKey supports legacy and progression-aware formats", () => {
 
 test("session key helpers expose readable labels and session dates", () => {
   assert.equal(extractSessionDate("2026-03-06@C1W2D1"), "2026-03-06");
-  assert.equal(formatSessionKeyLabel("2026-03-06@C1W2D1"), "2026-03-06 · C1 W2D1");
+  assert.equal(formatSessionKeyLabel("2026-03-06@C1W2D1"), "2026-03-06 · C1W2D1");
   assert.equal(formatSessionKeyLabel("W4D2"), "W4D2");
-  assert.equal(formatSessionKeyLabel("C2W1D1"), "C2 W1D1");
+  assert.equal(formatSessionKeyLabel("C2W1D1"), "C2W1D1");
 });

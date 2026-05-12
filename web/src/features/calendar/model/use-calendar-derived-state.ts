@@ -158,6 +158,9 @@ function getNextSessionLabel(sessionKey: string, sessionsPerWeek: number): strin
   if (!parsed || parsed.week === null || parsed.day === null) return null;
   const nextDay = parsed.day < sessionsPerWeek ? parsed.day + 1 : 1;
   const nextWeek = parsed.day < sessionsPerWeek ? parsed.week : parsed.week + 1;
+  if (parsed.cycle != null) {
+    return `C${parsed.cycle}W${nextWeek}D${nextDay}`;
+  }
   return `W${nextWeek}D${nextDay}`;
 }
 
@@ -293,8 +296,12 @@ export function useCalendarDerivedState({
     if (selectedPlan?.type === "MANUAL" && selectedCtx.scheduleKey) {
       return selectedCtx.scheduleKey;
     }
+    const lastCycle = lastLogSessionKey ? parseSessionKey(lastLogSessionKey)?.cycle ?? null : null;
+    if (lastCycle != null) {
+      return `C${lastCycle}W${selectedCtx.week}D${selectedCtx.day}`;
+    }
     return `W${selectedCtx.week}D${selectedCtx.day}`;
-  }, [selectedCtx, selectedPlan?.type]);
+  }, [selectedCtx, selectedPlan?.type, lastLogSessionKey]);
 
   const nextSessionLabel = useMemo(() => {
     if (!lastLogSessionKey || !selectedPlan) return null;
