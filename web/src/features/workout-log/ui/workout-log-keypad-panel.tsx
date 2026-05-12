@@ -115,17 +115,6 @@ export function WorkoutLogKeypadPanel({
     initializedRef.current = true;
   }, [allExercises, programEntryState]);
 
-  // 휴식 타이머
-  const [restingFrom, setRestingFrom] = useState<number | null>(null);
-  const [restElapsed, setRestElapsed] = useState(0);
-  useEffect(() => {
-    if (restingFrom == null) return;
-    const id = window.setInterval(() => {
-      setRestElapsed(Math.floor((Date.now() - restingFrom) / 1000));
-    }, 1000);
-    return () => window.clearInterval(id);
-  }, [restingFrom]);
-
   const activeExercise = useMemo(
     () => allExercises.find((ex) => ex.id === activeExerciseId) ?? null,
     [allExercises, activeExerciseId],
@@ -297,19 +286,9 @@ export function WorkoutLogKeypadPanel({
     writeActive(next);
   };
 
-  const startRest = () => {
-    setRestingFrom(Date.now());
-    setRestElapsed(0);
-  };
-  const stopRest = () => {
-    setRestingFrom(null);
-    setRestElapsed(0);
-  };
-
   const advanceToNextEmpty = () => {
     if (!activeExercise || !activeExerciseId) return;
     const totalSets = activeExercise.set.repsPerSet.length;
-    startRest();
     if (activeSetIndex < totalSets - 1) {
       setActiveSetIndex(activeSetIndex + 1);
       setActiveField("reps");
@@ -329,7 +308,6 @@ export function WorkoutLogKeypadPanel({
       setActiveField("reps");
       return;
     }
-    stopRest();
   };
 
   const advance = () => {
@@ -850,7 +828,7 @@ export function WorkoutLogKeypadPanel({
         </V2Card>
       </div>
 
-      {/* 휴식 / 권장 무게 / 메모 토글 */}
+      {/* 권장 무게 / 메모 토글 */}
       <div
         style={{
           padding: "6px 12px 0",
@@ -860,92 +838,6 @@ export function WorkoutLogKeypadPanel({
           flexShrink: 0,
         }}
       >
-        {restingFrom != null ? (
-          <V2Card
-            tone="accent"
-            style={{
-              flex: 1,
-              padding: "12px 14px",
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-            }}
-          >
-            <span
-              className="material-symbols-outlined"
-              style={{ fontSize: 20, color: "var(--v2-accent-ink)" }}
-              aria-hidden
-            >
-              timer
-            </span>
-            <div style={{ flex: 1 }}>
-              <div
-                className="v2-label"
-                style={{ color: "var(--v2-accent-ink)", fontSize: 9 }}
-              >
-                {locale === "ko" ? "휴식" : "REST"}
-              </div>
-              <div
-                className="v2-num-md"
-                style={{ fontSize: 22, color: "var(--v2-accent-ink)" }}
-              >
-                {String(Math.floor(restElapsed / 60)).padStart(2, "0")}:
-                {String(restElapsed % 60).padStart(2, "0")}
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={stopRest}
-              aria-label={locale === "ko" ? "휴식 중지" : "Stop rest"}
-              style={{
-                padding: "8px 12px",
-                borderRadius: 10,
-                border: "none",
-                background: "var(--v2-accent)",
-                color: "var(--v2-ink-on-accent)",
-                fontFamily: "var(--v2-f-display)",
-                fontWeight: 700,
-                fontSize: 11,
-                cursor: "pointer",
-                textTransform: "uppercase",
-                letterSpacing: "0.06em",
-              }}
-            >
-              {locale === "ko" ? "끝" : "Stop"}
-            </button>
-          </V2Card>
-        ) : (
-          <button
-            type="button"
-            onClick={startRest}
-            style={{
-              flex: 1,
-              padding: "12px 14px",
-              borderRadius: 16,
-              background: "var(--v2-paper-2)",
-              color: "var(--v2-ink-2)",
-              border: "none",
-              cursor: "pointer",
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 6,
-              fontFamily: "var(--v2-f-display)",
-              fontWeight: 600,
-              fontSize: 13,
-              minHeight: 38,
-            }}
-          >
-            <span
-              className="material-symbols-outlined"
-              style={{ fontSize: 18 }}
-              aria-hidden
-            >
-              timer
-            </span>
-            {locale === "ko" ? "휴식 시작" : "Start rest"}
-          </button>
-        )}
 
         {recommendedWeightKg != null && !memoMode && (
           <button
