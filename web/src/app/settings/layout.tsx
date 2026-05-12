@@ -8,7 +8,7 @@ import {
   useSettingsModalHeaderActionState,
 } from "@/components/settings/settings-modal-header-action";
 import { useLocale } from "@/components/locale-provider";
-import { SettingsHomeContent } from "@/components/settings/settings-home-content";
+import { V2MorePage } from "@/components/v2/v2-more-page";
 import { BottomSheet } from "@/components/ui/bottom-sheet";
 
 function modalTitleFromPathname(
@@ -83,11 +83,11 @@ export default function SettingsLayout({ children }: { children: ReactNode }) {
   return (
     <SettingsModalHeaderActionProvider>
       {/*
-       * SettingsHomeContent는 항상 이 위치(첫 번째 자식)에 렌더링됩니다.
+       * V2MorePage는 항상 이 위치(첫 번째 자식)에 렌더링됩니다.
        * isRoot 조건에 따라 최상위 컴포넌트 타입이 바뀌었던 기존 구조와 달리,
        * 동일한 React 트리 위치를 유지하므로 라우트 이동 시 remount가 발생하지 않습니다.
        */}
-      <SettingsHomeContent />
+      <V2MorePage />
       {!isRoot && (
         <SettingsSheetOverlay pathname={pathname} sheetOpen={sheetOpen} onClose={handleClose}>
           {children}
