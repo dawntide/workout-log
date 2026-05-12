@@ -562,77 +562,6 @@ export function WorkoutLogKeypadPanel({
         )}
       </div>
 
-      {/* 세트 컨트롤 */}
-      {activeExercise && onExerciseAction && (
-        <div
-          style={{
-            padding: "0 16px 4px",
-            display: "flex",
-            gap: 6,
-            justifyContent: "flex-end",
-            flexShrink: 0,
-          }}
-        >
-          <button
-            type="button"
-            onClick={handleRemoveSet}
-            disabled={!canRemoveSet}
-            style={{
-              padding: "6px 10px",
-              borderRadius: 10,
-              border: "none",
-              background: "transparent",
-              color: canRemoveSet ? "var(--v2-ink-3)" : "var(--v2-paper-3)",
-              fontFamily: "var(--v2-f-display)",
-              fontWeight: 600,
-              fontSize: 11,
-              cursor: canRemoveSet ? "pointer" : "not-allowed",
-              minHeight: 32,
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 4,
-            }}
-          >
-            <span
-              className="material-symbols-outlined"
-              style={{ fontSize: 14 }}
-              aria-hidden
-            >
-              remove
-            </span>
-            {locale === "ko" ? "현재 세트 삭제" : "Remove set"}
-          </button>
-          <button
-            type="button"
-            onClick={handleAddSet}
-            style={{
-              padding: "6px 10px",
-              borderRadius: 10,
-              border: "none",
-              background: "var(--v2-paper-2)",
-              color: "var(--v2-ink)",
-              fontFamily: "var(--v2-f-display)",
-              fontWeight: 700,
-              fontSize: 11,
-              cursor: "pointer",
-              minHeight: 32,
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 4,
-            }}
-          >
-            <span
-              className="material-symbols-outlined"
-              style={{ fontSize: 14 }}
-              aria-hidden
-            >
-              add
-            </span>
-            {locale === "ko" ? "세트 추가" : "Add set"}
-          </button>
-        </div>
-      )}
-
       {/* 세트 진행 dot */}
       {activeExercise && (
         <div style={{ padding: "0 16px 6px", flexShrink: 0 }}>
@@ -828,69 +757,132 @@ export function WorkoutLogKeypadPanel({
         </V2Card>
       </div>
 
-      {/* 권장 무게 / 메모 토글 */}
-      <div
-        style={{
-          padding: "6px 12px 0",
-          display: "flex",
-          gap: 6,
-          alignItems: "stretch",
-          flexShrink: 0,
-        }}
-      >
-
-        {recommendedWeightKg != null && !memoMode && (
+      {/* 세트 컨트롤 / 권장 무게 / 메모 토글 */}
+      {activeExercise && onExerciseAction && (
+        <div
+          style={{
+            padding: "6px 12px 0",
+            display: "flex",
+            gap: 6,
+            alignItems: "stretch",
+            flexWrap: "wrap",
+            flexShrink: 0,
+          }}
+        >
           <button
             type="button"
-            onClick={applyRecommendedWeight}
-            aria-label={
-              locale === "ko"
-                ? `권장 무게 ${recommendedWeightKg}kg 적용`
-                : `Apply recommended ${recommendedWeightKg}kg`
-            }
+            onClick={handleRemoveSet}
+            disabled={!canRemoveSet}
+            aria-label={locale === "ko" ? "현재 세트 삭제" : "Remove set"}
             style={{
-              padding: "12px 12px",
-              borderRadius: 16,
-              background: "var(--v2-paper-2)",
-              color: "var(--v2-ink)",
+              padding: "8px 10px",
+              borderRadius: 12,
               border: "none",
-              cursor: "pointer",
+              background: "var(--v2-paper-2)",
+              color: canRemoveSet ? "var(--v2-ink-2)" : "var(--v2-paper-3)",
+              fontFamily: "var(--v2-f-display)",
+              fontWeight: 600,
+              fontSize: 12,
+              cursor: canRemoveSet ? "pointer" : "not-allowed",
+              minHeight: 38,
               display: "inline-flex",
               alignItems: "center",
               justifyContent: "center",
               gap: 4,
-              fontFamily: "var(--v2-f-display)",
-              fontWeight: 700,
-              fontSize: 13,
-              minHeight: 38,
             }}
           >
             <span
               className="material-symbols-outlined"
-              style={{ fontSize: 18, color: "var(--v2-accent)" }}
+              style={{ fontSize: 16 }}
               aria-hidden
             >
-              restart_alt
+              remove
             </span>
-            {recommendedWeightKg}
-            <span
-              className="v2-mono-label"
-              style={{ color: "var(--v2-ink-3)" }}
-            >
-              kg
-            </span>
+            {locale === "ko" ? "세트 삭제" : "Remove set"}
           </button>
-        )}
 
-        {onExerciseAction && activeExercise && (
+          <button
+            type="button"
+            onClick={handleAddSet}
+            aria-label={locale === "ko" ? "세트 추가" : "Add set"}
+            style={{
+              padding: "8px 10px",
+              borderRadius: 12,
+              border: "none",
+              background: "var(--v2-paper-2)",
+              color: "var(--v2-ink)",
+              fontFamily: "var(--v2-f-display)",
+              fontWeight: 700,
+              fontSize: 12,
+              cursor: "pointer",
+              minHeight: 38,
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 4,
+            }}
+          >
+            <span
+              className="material-symbols-outlined"
+              style={{ fontSize: 16 }}
+              aria-hidden
+            >
+              add
+            </span>
+            {locale === "ko" ? "세트 추가" : "Add set"}
+          </button>
+
+          {recommendedWeightKg != null && !memoMode && (
+            <button
+              type="button"
+              onClick={applyRecommendedWeight}
+              aria-label={
+                locale === "ko"
+                  ? `계획 무게 ${recommendedWeightKg}kg 복원`
+                  : `Restore planned ${recommendedWeightKg}kg`
+              }
+              style={{
+                padding: "8px 10px",
+                borderRadius: 12,
+                background: "var(--v2-paper-2)",
+                color: "var(--v2-ink)",
+                border: "none",
+                cursor: "pointer",
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 4,
+                fontFamily: "var(--v2-f-display)",
+                fontWeight: 700,
+                fontSize: 12,
+                minHeight: 38,
+              }}
+            >
+              <span
+                className="material-symbols-outlined"
+                style={{ fontSize: 16, color: "var(--v2-accent)" }}
+                aria-hidden
+              >
+                restart_alt
+              </span>
+              {recommendedWeightKg}
+              <span
+                className="v2-mono-label"
+                style={{ color: "var(--v2-ink-3)" }}
+              >
+                kg
+              </span>
+            </button>
+          )}
+
           <button
             type="button"
             onClick={() => setMemoMode((v) => !v)}
             aria-pressed={memoMode}
             aria-label={locale === "ko" ? "메모" : "Memo"}
             style={{
-              padding: "12px 14px",
-              borderRadius: 16,
+              padding: "8px 10px",
+              borderRadius: 12,
               background: memoMode ? "var(--v2-accent)" : "var(--v2-paper-2)",
               color: memoMode
                 ? "var(--v2-ink-on-accent)"
@@ -900,24 +892,24 @@ export function WorkoutLogKeypadPanel({
               display: "inline-flex",
               alignItems: "center",
               justifyContent: "center",
-              gap: 6,
+              gap: 4,
               fontFamily: "var(--v2-f-display)",
               fontWeight: 700,
-              fontSize: 13,
+              fontSize: 12,
               minHeight: 38,
             }}
           >
             <span
               className="material-symbols-outlined"
-              style={{ fontSize: 18 }}
+              style={{ fontSize: 16 }}
               aria-hidden
             >
               edit_note
             </span>
             {locale === "ko" ? "메모" : "Memo"}
           </button>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* 키패드 또는 메모 */}
       <div style={{ flex: 1, minHeight: 0 }} />
