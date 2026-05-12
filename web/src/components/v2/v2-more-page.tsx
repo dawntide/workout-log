@@ -3,7 +3,6 @@
 import { useEffect, useId, useState } from "react";
 import Link from "next/link";
 import { useLocale } from "@/components/locale-provider";
-import { V2Sheet } from "./primitives";
 import { V2PasswordSheet } from "./v2-password-sheet";
 
 type ShortcutItem = {
@@ -31,22 +30,13 @@ type MeResponse = {
       };
 };
 
-export function V2MoreSheet({
-  open,
-  onClose,
-  controlsId,
-}: {
-  open: boolean;
-  onClose: () => void;
-  controlsId?: string;
-}) {
+export function V2MorePage() {
   const { locale } = useLocale();
   const headingId = useId();
   const [me, setMe] = useState<MeResponse["user"] | null>(null);
   const [pwOpen, setPwOpen] = useState(false);
 
   useEffect(() => {
-    if (!open || me) return;
     let cancelled = false;
     (async () => {
       try {
@@ -61,7 +51,7 @@ export function V2MoreSheet({
     return () => {
       cancelled = true;
     };
-  }, [open, me]);
+  }, []);
 
   const sections: Section[] = [
     {
@@ -87,7 +77,8 @@ export function V2MoreSheet({
           icon: "manage_accounts",
           href: "/settings/account",
           title: locale === "ko" ? "계정 설정" : "Account Settings",
-          subtitle: locale === "ko" ? "이메일 · 연결 계정" : "Email · linked accounts",
+          subtitle:
+            locale === "ko" ? "이메일 · 연결 계정" : "Email · linked accounts",
         },
         {
           key: "data",
@@ -95,7 +86,15 @@ export function V2MoreSheet({
           href: "/settings/data",
           title: locale === "ko" ? "데이터" : "Data",
           subtitle:
-            locale === "ko" ? "내보내기 / 동기화" : "Export / sync",
+            locale === "ko" ? "동기화 · 초기화" : "Sync · reset",
+        },
+        {
+          key: "data-export",
+          icon: "cloud_upload",
+          href: "/settings/data-export",
+          title: locale === "ko" ? "데이터 내보내기" : "Export Data",
+          subtitle:
+            locale === "ko" ? "JSON · CSV 다운로드" : "JSON · CSV download",
         },
       ],
     },
@@ -129,9 +128,7 @@ export function V2MoreSheet({
           href: "/settings/bodyweight",
           title: locale === "ko" ? "체중" : "Bodyweight",
           subtitle:
-            locale === "ko"
-              ? "체중 기반 운동 계산용"
-              : "Used for BW exercises",
+            locale === "ko" ? "체중 기반 운동 계산용" : "Used for BW exercises",
         },
       ],
     },
@@ -165,7 +162,8 @@ export function V2MoreSheet({
           key: "onboarding",
           icon: "rocket_launch",
           href: "/onboarding",
-          title: locale === "ko" ? "환영 투어 다시 보기" : "Replay Welcome Tour",
+          title:
+            locale === "ko" ? "환영 투어 다시 보기" : "Replay Welcome Tour",
           subtitle:
             locale === "ko"
               ? "단위·목표·프로그램 추천"
@@ -176,13 +174,13 @@ export function V2MoreSheet({
   ];
 
   return (
-    <V2Sheet
-      open={open}
-      onClose={onClose}
-      height="80%"
-      ariaLabelledBy={headingId}
-      ariaLabel={locale === "ko" ? "더보기" : "More"}
-      id={controlsId}
+    <div
+      style={{
+        paddingTop: 16,
+        paddingBottom: 24,
+        background: "var(--v2-paper)",
+        minHeight: "100%",
+      }}
     >
       <div style={{ padding: "8px 24px 12px" }}>
         <p className="v2-eyebrow">{locale === "ko" ? "더보기" : "MORE"}</p>
@@ -199,7 +197,6 @@ export function V2MoreSheet({
         </p>
       </div>
 
-      {/* 현재 사용자 카드 */}
       {me && (
         <div style={{ padding: "0 16px 4px" }}>
           <div
@@ -298,10 +295,7 @@ export function V2MoreSheet({
 
       {sections.map((sec) => (
         <div key={sec.key} style={{ padding: "12px 16px 0" }}>
-          <div
-            className="v2-label"
-            style={{ padding: "0 8px 6px" }}
-          >
+          <div className="v2-label" style={{ padding: "0 8px 6px" }}>
             {sec.title}
           </div>
           <div
@@ -315,7 +309,6 @@ export function V2MoreSheet({
               <Link
                 key={it.key}
                 href={it.href}
-                onClick={onClose}
                 style={{
                   display: "flex",
                   alignItems: "center",
@@ -380,7 +373,6 @@ export function V2MoreSheet({
         </div>
       ))}
 
-      {/* 직접 설정 페이지로 가는 링크 + 로그아웃 */}
       <div
         style={{
           padding: "20px 16px 24px",
@@ -389,33 +381,6 @@ export function V2MoreSheet({
           gap: 8,
         }}
       >
-        <Link
-          href="/settings"
-          onClick={onClose}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 6,
-            padding: "12px 18px",
-            background: "var(--v2-paper-3)",
-            color: "var(--v2-ink-2)",
-            borderRadius: 12,
-            textDecoration: "none",
-            fontFamily: "var(--v2-f-display)",
-            fontWeight: 600,
-            fontSize: 13,
-          }}
-        >
-          <span
-            className="material-symbols-outlined"
-            style={{ fontSize: 18 }}
-            aria-hidden
-          >
-            settings
-          </span>
-          {locale === "ko" ? "전체 설정 보기" : "All settings"}
-        </Link>
         <button
           type="button"
           onClick={async () => {
@@ -454,6 +419,6 @@ export function V2MoreSheet({
       </div>
 
       <V2PasswordSheet open={pwOpen} onClose={() => setPwOpen(false)} />
-    </V2Sheet>
+    </div>
   );
 }

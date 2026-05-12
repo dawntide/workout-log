@@ -1,23 +1,36 @@
 "use client";
 
 import { memo } from "react";
-import { dateOnlyToUtcDate } from "@/lib/date-utils";
+import Link from "next/link";
+import { APP_ROUTES } from "@/lib/app-routes";
 
 type CalendarFilterBarProps = {
   locale: "ko" | "en";
-  anchorDate: string;
-  monthPickerOpen: boolean;
   selectedPlanName: string | null;
-  onOpenMonthPicker: () => void;
   onOpenPlanPicker: () => void;
 };
 
+const PILL_STYLE = {
+  display: "flex",
+  alignItems: "center",
+  gap: "6px",
+  background: "var(--color-surface-container-low)",
+  border: "none",
+  borderRadius: "12px",
+  padding: "8px 14px",
+  cursor: "pointer",
+  fontFamily: "var(--font-label-family)",
+  fontSize: "12px",
+  fontWeight: 700,
+  letterSpacing: "0.06em",
+  textTransform: "uppercase",
+  color: "var(--color-text-muted)",
+  textDecoration: "none",
+} as const;
+
 export const CalendarFilterBar = memo(function CalendarFilterBar({
   locale,
-  anchorDate,
-  monthPickerOpen,
   selectedPlanName,
-  onOpenMonthPicker,
   onOpenPlanPicker,
 }: CalendarFilterBarProps) {
   return (
@@ -30,68 +43,37 @@ export const CalendarFilterBar = memo(function CalendarFilterBar({
     >
       <button
         type="button"
-        onClick={onOpenMonthPicker}
-        aria-label={locale === "ko" ? "연월 선택 열기" : "Open year and month picker"}
-        aria-haspopup="dialog"
-        aria-expanded={monthPickerOpen}
+        onClick={onOpenPlanPicker}
+        aria-label={
+          selectedPlanName
+            ? locale === "ko" ? "플랜 변경" : "Change plan"
+            : locale === "ko" ? "플랜 선택" : "Select plan"
+        }
         style={{
-          display: "flex",
-          alignItems: "center",
-          gap: "6px",
-          flexShrink: 0,
-          background: "var(--color-surface-container-low)",
-          border: "none",
-          borderRadius: "12px",
-          padding: "8px 14px",
-          cursor: "pointer",
-          fontFamily: "var(--font-label-family)",
-          fontSize: "12px",
-          fontWeight: 700,
-          letterSpacing: "0.06em",
-          textTransform: "uppercase",
-          color: "var(--color-text-muted)",
+          ...PILL_STYLE,
+          justifyContent: "space-between",
+          flex: 1,
+          minWidth: 0,
+          overflow: "hidden",
         }}
       >
-        <span>
-          {new Intl.DateTimeFormat(locale === "ko" ? "ko-KR" : "en-US", {
-            year: "numeric",
-            month: "long",
-            timeZone: "UTC",
-          }).format(dateOnlyToUtcDate(anchorDate))}
+        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          {selectedPlanName ?? (locale === "ko" ? "플랜 선택" : "Select plan")}
         </span>
-        <span className="material-symbols-outlined" style={{ fontSize: "16px" }}>expand_more</span>
+        <span className="material-symbols-outlined" style={{ fontSize: "16px", flexShrink: 0 }}>filter_list</span>
       </button>
 
-      {selectedPlanName ? (
-        <button
-          type="button"
-          onClick={onOpenPlanPicker}
-          aria-label={locale === "ko" ? "플랜 변경" : "Change plan"}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: "6px",
-            flex: 1,
-            minWidth: 0,
-            background: "var(--color-surface-container-low)",
-            border: "none",
-            borderRadius: "12px",
-            padding: "8px 14px",
-            cursor: "pointer",
-            fontFamily: "var(--font-label-family)",
-            fontSize: "12px",
-            fontWeight: 700,
-            letterSpacing: "0.06em",
-            textTransform: "uppercase",
-            color: "var(--color-text-muted)",
-            overflow: "hidden",
-          }}
-        >
-          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{selectedPlanName}</span>
-          <span className="material-symbols-outlined" style={{ fontSize: "16px", flexShrink: 0 }}>filter_list</span>
-        </button>
-      ) : null}
+      <Link
+        href={APP_ROUTES.plansManage}
+        aria-label={locale === "ko" ? "플랜 관리 열기" : "Open plan management"}
+        style={{
+          ...PILL_STYLE,
+          flexShrink: 0,
+        }}
+      >
+        <span className="material-symbols-outlined" style={{ fontSize: "16px" }}>tune</span>
+        <span>{locale === "ko" ? "관리" : "Manage"}</span>
+      </Link>
     </div>
   );
 });

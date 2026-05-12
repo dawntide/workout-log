@@ -7,6 +7,7 @@ import {
   WEEKDAY_SHORT_KO,
 } from "@/features/calendar/lib/format";
 import {
+  dateOnlyToUtcDate,
   dayOfMonth,
   monthGrid,
   monthStart,
@@ -20,10 +21,26 @@ type CalendarMonthCardProps = {
   hasSelectedPlan: boolean;
   logDates: Set<string>;
   monthNavFeedback: "" | "prev" | "next";
+  monthPickerOpen: boolean;
   onSelectDate: (dateOnly: string) => void;
   onShiftPrevMonth: () => void;
   onShiftNextMonth: () => void;
+  onOpenMonthPicker: () => void;
 };
+
+const NAV_BUTTON_STYLE = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  width: "30px",
+  height: "30px",
+  background: "var(--color-surface-container-high)",
+  border: "none",
+  borderRadius: "50%",
+  cursor: "pointer",
+  color: "var(--color-text-muted)",
+  flexShrink: 0,
+} as const;
 
 export const CalendarMonthCard = memo(function CalendarMonthCard({
   locale,
@@ -33,22 +50,84 @@ export const CalendarMonthCard = memo(function CalendarMonthCard({
   hasSelectedPlan,
   logDates,
   monthNavFeedback,
+  monthPickerOpen,
   onSelectDate,
   onShiftPrevMonth,
   onShiftNextMonth,
+  onOpenMonthPicker,
 }: CalendarMonthCardProps) {
   const baseMonthKey = monthStart(anchorDate).slice(0, 7);
   const cells = monthGrid(anchorDate);
+  const monthLabel = new Intl.DateTimeFormat(locale === "ko" ? "ko-KR" : "en-US", {
+    year: "numeric",
+    month: "long",
+    timeZone: "UTC",
+  }).format(dateOnlyToUtcDate(anchorDate));
 
   return (
     <div
       style={{
         background: "var(--color-surface-container-low)",
         borderRadius: "24px",
-        padding: "20px 16px",
+        padding: "16px 16px 20px",
         marginBottom: "var(--space-lg)",
       }}
     >
+      <div
+        className={monthNavFeedback ? `calendar-month-feedback-${monthNavFeedback}` : undefined}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: "8px",
+          marginBottom: "12px",
+        }}
+      >
+        <button
+          type="button"
+          onClick={onOpenMonthPicker}
+          aria-label={locale === "ko" ? "연월 선택 열기" : "Open year and month picker"}
+          aria-haspopup="dialog"
+          aria-expanded={monthPickerOpen}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "6px",
+            background: "transparent",
+            border: "none",
+            padding: "4px 6px",
+            cursor: "pointer",
+            fontFamily: "var(--font-headline-family)",
+            fontSize: "16px",
+            fontWeight: 700,
+            color: "var(--color-text)",
+            letterSpacing: "-0.01em",
+          }}
+        >
+          <span>{monthLabel}</span>
+          <span className="material-symbols-outlined" style={{ fontSize: "18px", color: "var(--color-text-muted)" }}>expand_more</span>
+        </button>
+
+        <div style={{ display: "flex", gap: "4px" }}>
+          <button
+            type="button"
+            onClick={onShiftPrevMonth}
+            aria-label={locale === "ko" ? "이전 달" : "Previous month"}
+            style={NAV_BUTTON_STYLE}
+          >
+            <span className="material-symbols-outlined" style={{ fontSize: "18px" }}>chevron_left</span>
+          </button>
+          <button
+            type="button"
+            onClick={onShiftNextMonth}
+            aria-label={locale === "ko" ? "다음 달" : "Next month"}
+            style={NAV_BUTTON_STYLE}
+          >
+            <span className="material-symbols-outlined" style={{ fontSize: "18px" }}>chevron_right</span>
+          </button>
+        </div>
+      </div>
+
       <div
         aria-hidden="true"
         style={{
@@ -157,52 +236,6 @@ export const CalendarMonthCard = memo(function CalendarMonthCard({
         ))}
       </div>
 
-      <div
-        className={monthNavFeedback ? `calendar-month-feedback-${monthNavFeedback}` : undefined}
-        style={{
-          display: "flex",
-          justifyContent: "flex-end",
-          gap: "4px",
-          marginTop: "12px",
-        }}
-      >
-        <button
-          onClick={onShiftPrevMonth}
-          aria-label={locale === "ko" ? "이전 달" : "Previous month"}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            width: "30px",
-            height: "30px",
-            background: "var(--color-surface-container-high)",
-            border: "none",
-            borderRadius: "50%",
-            cursor: "pointer",
-            color: "var(--color-text-muted)",
-          }}
-        >
-          <span className="material-symbols-outlined" style={{ fontSize: "18px" }}>chevron_left</span>
-        </button>
-        <button
-          onClick={onShiftNextMonth}
-          aria-label={locale === "ko" ? "다음 달" : "Next month"}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            width: "30px",
-            height: "30px",
-            background: "var(--color-surface-container-high)",
-            border: "none",
-            borderRadius: "50%",
-            cursor: "pointer",
-            color: "var(--color-text-muted)",
-          }}
-        >
-          <span className="material-symbols-outlined" style={{ fontSize: "18px" }}>chevron_right</span>
-        </button>
-      </div>
     </div>
   );
 });
