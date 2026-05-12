@@ -12,7 +12,7 @@ export const APP_ROUTES = {
   todayOverrides: "/workout/log/overrides",
   workoutRecord: "/workout/log",
   exercisesHome: "/exercises",
-  statsHome: "/stats",
+  statsHome: "/?deck=stats",
   prHistory: "/stats/prs",
   exerciseDetail: (exerciseId: string) => `/exercises/${encodeURIComponent(exerciseId)}`,
   systemStats: "/settings/system-stats",

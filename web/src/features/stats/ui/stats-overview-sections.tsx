@@ -55,7 +55,7 @@ const PrRow = memo(function PrRow({
 
   return (
     <Link
-      href={`${APP_ROUTES.statsHome}?exerciseId=${encodeURIComponent(row.exerciseId ?? "")}`}
+      href={`${APP_ROUTES.statsHome}&exerciseId=${encodeURIComponent(row.exerciseId ?? "")}`}
       style={{
         display: "flex",
         alignItems: "center",
