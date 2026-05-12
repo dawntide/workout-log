@@ -6,7 +6,7 @@ import { useWorkoutSession, useWorkoutActions, useCurrentExerciseIndex } from "@
 /**
  * WorkoutActions Component
  * PERF: Renders the end-session and next-exercise buttons.
- * Memoized to prevent re-renders when inputs or timer changes.
+ * Memoized to prevent re-renders when other session data changes.
  */
 export const WorkoutActions = memo(function WorkoutActions() {
   const session = useWorkoutSession();

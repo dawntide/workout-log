@@ -2,7 +2,6 @@
 
 import { useWorkoutSession, useIsRestoring, useWorkoutActions, useCurrentExerciseIndex } from "@/store/workoutStore";
 import { useWorkoutPersistence } from "@/lib/workout/useWorkoutPersistence";
-import { ResilientTimer } from "@/components/workout/resilient-timer";
 import { ExerciseItem } from "@/components/workout/exercise-item";
 import { WorkoutActions } from "@/components/workout/workout-actions";
 import { useEffect, memo } from "react";
@@ -31,7 +30,6 @@ const createNewSession = (sessionId: string): WorkoutSession => ({
       ],
     },
   ],
-  restTimer: { startedAt: null, durationSec: 60 },
   updatedAt: Date.now(),
 });
 
@@ -120,10 +118,8 @@ export default function WorkoutPage({ params }: { params: { sessionId: string } 
       </div>
 
       <ExerciseItem exerciseIndex={currentExerciseIndex} />
-      
-      <WorkoutActions />
 
-      <ResilientTimer />
+      <WorkoutActions />
     </div>
   );
 }

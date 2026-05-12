@@ -22,10 +22,7 @@ interface WorkoutState {
     updateSet: (exerciseIndex: number, setIndex: number, setData: Partial<WorkoutSet>) => void;
     toggleSetCompletion: (exerciseIndex: number, setIndex: number) => void;
     goToNextExercise: () => void;
-    
-    // Timer management
-    startRestTimer: (durationSec: number) => void;
-    clearRestTimer: () => void;
+
     setRestoring: (isRestoring: boolean) => void;
 
     // Direct state manipulation for persistence
@@ -82,21 +79,6 @@ const useWorkoutStore = create<WorkoutState>((set, get) => {
                 state.session.currentSetIndex = 0;
             }
         }),
-      startRestTimer: (durationSec) =>
-        setStateAndPersist((state) => {
-          if (state.session) {
-            state.session.restTimer = {
-              startedAt: Date.now(),
-              durationSec,
-            };
-          }
-        }),
-      clearRestTimer: () =>
-        setStateAndPersist((state) => {
-          if (state.session) {
-            state.session.restTimer.startedAt = null;
-          }
-        }),
       setRestoring: (isRestoring) =>
         set(produce((state) => {
             state.isRestoring = isRestoring;
@@ -117,7 +99,6 @@ export const useWorkoutActions = () => useWorkoutStore((state) => state.actions)
 
 // Atomic Selectors for better performance
 export const useCurrentExerciseIndex = () => useWorkoutStore((state) => state.session?.currentExerciseIndex ?? 0);
-export const useRestTimer = () => useWorkoutStore((state) => state.session?.restTimer);
 export const useExercise = (index: number) => useWorkoutStore((state) => state.session?.exercises[index]);
 export const useSet = (exerciseIndex: number, setIndex: number) => 
   useWorkoutStore((state) => state.session?.exercises[exerciseIndex]?.sets[setIndex]);

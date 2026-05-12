@@ -52,10 +52,6 @@ export const SetItem = memo(function SetItem({ exerciseIndex, setIndex }: SetIte
     handleRepsBlur();
     
     actions.toggleSetCompletion(exerciseIndex, setIndex);
-    // Auto-start rest timer on completion
-    if (!set.completed) {
-      actions.startRestTimer(60); // Default 60s, could be from program
-    }
   };
 
   return (

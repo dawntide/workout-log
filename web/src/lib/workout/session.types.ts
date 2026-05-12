@@ -9,11 +9,6 @@ export type WorkoutExercise = {
   sets: WorkoutSet[];
 };
 
-export type WorkoutRestTimer = {
-  startedAt: number | null;
-  durationSec: number;
-};
-
 export type WorkoutSession = {
   sessionId: string;
   programId: string;
@@ -22,7 +17,6 @@ export type WorkoutSession = {
   currentSetIndex: number;
 
   exercises: WorkoutExercise[];
-  restTimer: WorkoutRestTimer;
 
   updatedAt: number;
 };
