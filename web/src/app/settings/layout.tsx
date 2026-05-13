@@ -15,19 +15,13 @@ function modalTitleFromPathname(
   pathname: string,
   titles: ReturnType<typeof useLocale>["copy"]["settings"]["modalTitles"],
   detailTitle: string,
+  debugTitle: string,
 ) {
-  if (pathname.startsWith("/settings/language")) return titles.language;
-  if (pathname.startsWith("/settings/theme")) return titles.theme;
   if (pathname.startsWith("/settings/minimum-plate")) return titles.minimumPlate;
-  if (pathname.startsWith("/settings/bodyweight")) return titles.bodyweight;
-  if (pathname.startsWith("/settings/exercise-management")) return titles.exerciseManagement;
   if (pathname.startsWith("/settings/data-export")) return titles.dataExport;
   if (pathname.startsWith("/settings/data")) return titles.data;
   if (pathname.startsWith("/settings/account")) return titles.account;
-  if (pathname.startsWith("/settings/about")) return titles.about;
-  if (pathname.startsWith("/settings/save-policy")) return titles.savePolicy;
-  if (pathname.startsWith("/settings/selection-template")) return titles.selectionTemplate;
-  if (pathname.startsWith("/settings/ux-thresholds")) return titles.uxThresholds;
+  if (pathname.startsWith("/settings/debug")) return debugTitle;
   return detailTitle;
 }
 
@@ -35,14 +29,8 @@ function modalDescriptionFromPathname(
   pathname: string,
   descriptions: ReturnType<typeof useLocale>["copy"]["settings"]["modalDescriptions"],
 ) {
-  if (pathname.startsWith("/settings/language")) {
-    return descriptions.language;
-  }
   if (pathname.startsWith("/settings/data")) {
     return descriptions.data;
-  }
-  if (pathname.startsWith("/settings/exercise-management")) {
-    return descriptions.exerciseManagement;
   }
   return descriptions.default;
 }
@@ -109,15 +97,15 @@ function SettingsSheetOverlay({
   children: ReactNode;
 }) {
   const headerAction = useSettingsModalHeaderActionState();
-  const { copy } = useLocale();
-  const isExerciseManagement = pathname.startsWith("/settings/exercise-management");
-  const panelClassName = `settings-child-modal-panel${isExerciseManagement ? " settings-child-modal-panel--fixed-height" : ""}`;
+  const { copy, locale } = useLocale();
+  const panelClassName = "settings-child-modal-panel";
+  const debugTitle = locale === "ko" ? "디버그 도구" : "Debug Tools";
 
   return (
     <BottomSheet
       open={sheetOpen}
       onClose={onClose}
-      title={modalTitleFromPathname(pathname, copy.settings.modalTitles, copy.settings.detailTitle)}
+      title={modalTitleFromPathname(pathname, copy.settings.modalTitles, copy.settings.detailTitle, debugTitle)}
       description={modalDescriptionFromPathname(pathname, copy.settings.modalDescriptions)}
       closeLabel={copy.settings.close}
       panelClassName={panelClassName}

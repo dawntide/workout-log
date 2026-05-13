@@ -221,18 +221,18 @@ const ProgramExerciseEditorRow = memo(function ProgramExerciseEditorRow({
         onDrop(sessionId, exercise.id);
       }}
       style={{
-        border: highlighted ? "1px solid var(--color-selected-border)" : "1px solid var(--color-border)",
+        border: highlighted ? "1px solid var(--v2-accent)" : "1px solid var(--v2-hairline)",
         borderRadius: "10px",
-        padding: "var(--space-sm)",
-        background: highlighted ? "var(--color-selected-bg)" : "var(--color-surface-container-low)",
+        padding: "var(--v2-s-2)",
+        background: highlighted ? "var(--v2-accent-weak)" : "var(--v2-paper)",
         display: "flex",
         flexDirection: "column",
-        gap: "var(--space-md)",
+        gap: "var(--v2-s-4)",
         transition: "border-color 200ms ease, background-color 200ms ease",
       }}
     >
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "var(--space-sm)" }}>
-        <div style={{ display: "flex", gap: "var(--space-xs)", flexWrap: "wrap" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "var(--v2-s-2)" }}>
+        <div style={{ display: "flex", gap: "var(--v2-s-1)", flexWrap: "wrap" }}>
           {operatorStyle ? (
             <>
               <span className={operatorRowTypeTone(exercise.rowType)}>
@@ -244,7 +244,7 @@ const ProgramExerciseEditorRow = memo(function ProgramExerciseEditorRow({
             </>
           ) : null}
         </div>
-        <div style={{ display: "flex", gap: "var(--space-xs)" }}>
+        <div style={{ display: "flex", gap: "var(--v2-s-1)" }}>
           <button
             type="button"
             className="btn btn-icon"
@@ -278,7 +278,7 @@ const ProgramExerciseEditorRow = memo(function ProgramExerciseEditorRow({
       </div>
 
       <div>
-        <span style={{ display: "block", marginBottom: "var(--space-sm)", color: "var(--color-text-muted)", font: "var(--font-secondary)" }}>
+        <span style={{ display: "block", marginBottom: "var(--v2-s-2)", color: "var(--v2-ink-2)", font: "var(--font-secondary)" }}>
           {locale === "ko" ? "운동종목" : "Exercise"}
         </span>
         <div data-no-swipe="true">
@@ -317,7 +317,7 @@ const ProgramExerciseEditorRow = memo(function ProgramExerciseEditorRow({
                     transform: "translateY(-50%)",
                     width: "0.9rem",
                     height: "0.9rem",
-                    color: "var(--color-text-subtle)",
+                    color: "var(--v2-ink-3)",
                     pointerEvents: "none",
                     display: "inline-flex",
                     alignItems: "center",
@@ -333,7 +333,7 @@ const ProgramExerciseEditorRow = memo(function ProgramExerciseEditorRow({
                   inputMode="search"
                   autoComplete="off"
                   value={exerciseQuery}
-                  style={{ paddingInlineStart: "2.15rem", paddingInlineEnd: exerciseQuery.trim().length > 0 ? "2.25rem" : "var(--space-md)" }}
+                  style={{ paddingInlineStart: "2.15rem", paddingInlineEnd: exerciseQuery.trim().length > 0 ? "2.25rem" : "var(--v2-s-4)" }}
                   placeholder={exerciseOptionsLoading && exerciseOptions.length === 0 ? copy.programExerciseEditor.loadingExercises : copy.programExerciseEditor.searchExercises}
                   onChange={(event) => {
                     const nextQuery = event.target.value;
@@ -362,9 +362,9 @@ const ProgramExerciseEditorRow = memo(function ProgramExerciseEditorRow({
                       height: "24px",
                       minHeight: "24px",
                       borderRadius: "999px",
-                      border: "1px solid var(--color-border)",
-                      background: "var(--color-surface-secondary)",
-                      color: "var(--color-text-muted)",
+                      border: "1px solid var(--v2-hairline)",
+                      background: "var(--v2-paper-2)",
+                      color: "var(--v2-ink-2)",
                       display: "inline-flex",
                       alignItems: "center",
                       justifyContent: "center",
@@ -388,16 +388,16 @@ const ProgramExerciseEditorRow = memo(function ProgramExerciseEditorRow({
                 style={{
                   display: "flex",
                   flexDirection: "column",
-                  gap: "var(--space-xs)",
+                  gap: "var(--v2-s-1)",
                   maxHeight: "200px",
                   overflowY: "auto",
-                  paddingTop: "var(--space-sm)",
+                  paddingTop: "var(--v2-s-2)",
                 }}
               >
                 {exerciseOptionsLoading ? (
-                  <span style={{ color: "var(--color-text-muted)", font: "var(--font-secondary)" }}>{copy.programExerciseEditor.searching}</span>
+                  <span style={{ color: "var(--v2-ink-2)", font: "var(--font-secondary)" }}>{copy.programExerciseEditor.searching}</span>
                 ) : filteredExerciseOptions.length === 0 ? (
-                  <span style={{ color: "var(--color-text-muted)", font: "var(--font-secondary)" }}>{copy.programExerciseEditor.noMatchingExercises}</span>
+                  <span style={{ color: "var(--v2-ink-2)", font: "var(--font-secondary)" }}>{copy.programExerciseEditor.noMatchingExercises}</span>
                 ) : (
                   filteredExerciseOptions.map((option) => (
                     <button
@@ -423,9 +423,9 @@ const ProgramExerciseEditorRow = memo(function ProgramExerciseEditorRow({
       </div>
 
       {!operatorStyle ? (
-        <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-sm)" }}>
-          <label style={{ display: "flex", flexDirection: "column", gap: "var(--space-xs)" }}>
-            <span style={{ color: "var(--color-text-muted)", font: "var(--font-secondary)" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "var(--v2-s-2)" }}>
+          <label style={{ display: "flex", flexDirection: "column", gap: "var(--v2-s-1)" }}>
+            <span style={{ color: "var(--v2-ink-2)", font: "var(--font-secondary)" }}>
               {locale === "ko" ? "수행 방식" : "Execution Mode"}
             </span>
             <AppSelect
@@ -443,8 +443,8 @@ const ProgramExerciseEditorRow = memo(function ProgramExerciseEditorRow({
           </label>
 
           {exercise.mode === "MARKET" && (
-            <label style={{ display: "flex", flexDirection: "column", gap: "var(--space-xs)" }}>
-              <span style={{ color: "var(--color-text-muted)", font: "var(--font-secondary)" }}>
+            <label style={{ display: "flex", flexDirection: "column", gap: "var(--v2-s-1)" }}>
+              <span style={{ color: "var(--v2-ink-2)", font: "var(--font-secondary)" }}>
                 {locale === "ko" ? "기반 프로그램" : "Base Program"}
               </span>
               <AppSelect
@@ -462,9 +462,9 @@ const ProgramExerciseEditorRow = memo(function ProgramExerciseEditorRow({
           )}
         </div>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-sm)" }}>
-          <label style={{ display: "flex", flexDirection: "column", gap: "var(--space-xs)" }}>
-            <span style={{ color: "var(--color-text-muted)", font: "var(--font-secondary)" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "var(--v2-s-2)" }}>
+          <label style={{ display: "flex", flexDirection: "column", gap: "var(--v2-s-1)" }}>
+            <span style={{ color: "var(--v2-ink-2)", font: "var(--font-secondary)" }}>
               {locale === "ko" ? "행 타입" : "Row Type"}
             </span>
             <AppSelect
@@ -492,8 +492,8 @@ const ProgramExerciseEditorRow = memo(function ProgramExerciseEditorRow({
             </AppSelect>
           </label>
           {operatorAutoRow ? (
-            <label style={{ display: "flex", flexDirection: "column", gap: "var(--space-xs)" }}>
-              <span style={{ color: "var(--color-text-muted)", font: "var(--font-secondary)" }}>
+            <label style={{ display: "flex", flexDirection: "column", gap: "var(--v2-s-1)" }}>
+              <span style={{ color: "var(--v2-ink-2)", font: "var(--font-secondary)" }}>
                 {locale === "ko" ? "진행 타겟" : "Progression Target"}
               </span>
               <AppSelect
@@ -513,11 +513,11 @@ const ProgramExerciseEditorRow = memo(function ProgramExerciseEditorRow({
               </AppSelect>
             </label>
           ) : null}
-          <div style={{ color: "var(--color-text-muted)", font: "var(--font-secondary)" }}>
+          <div style={{ color: "var(--v2-ink-2)", font: "var(--font-secondary)" }}>
             {operatorRowTypeHelp(exercise.rowType, locale)}
           </div>
           {operatorAutoDefaults ? (
-            <div style={{ color: "var(--color-text-muted)", font: "var(--font-secondary)" }}>
+            <div style={{ color: "var(--v2-ink-2)", font: "var(--font-secondary)" }}>
               {locale === "ko" ? "Operator 자동 설정:" : "Operator defaults:"}{" "}
               <strong>
                 {operatorAutoDefaults.sets}
@@ -531,14 +531,14 @@ const ProgramExerciseEditorRow = memo(function ProgramExerciseEditorRow({
       )}
 
       {!operatorAutoRow ? (
-        <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-sm)" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "var(--v2-s-2)" }}>
           <AppNumberStepper label={locale === "ko" ? "세트" : "Sets"} value={exercise.sets} min={1} max={50} step={1} onChange={(next) => onPatch(sessionId, exercise.id, { sets: next })} />
           <AppNumberStepper label={locale === "ko" ? "횟수" : "Reps"} value={exercise.reps} min={1} max={100} step={1} onChange={(next) => onPatch(sessionId, exercise.id, { reps: next })} />
         </div>
       ) : null}
 
       <label>
-        <span style={{ display: "block", marginBottom: "var(--space-sm)", color: "var(--color-text-muted)", font: "var(--font-secondary)" }}>
+        <span style={{ display: "block", marginBottom: "var(--v2-s-2)", color: "var(--v2-ink-2)", font: "var(--font-secondary)" }}>
           {locale === "ko" ? "메모" : "Note"}
         </span>
         <AppTextInput

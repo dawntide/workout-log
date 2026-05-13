@@ -2,7 +2,7 @@
 
 import { memo } from "react";
 import dynamic from "next/dynamic";
-import { Card } from "@/components/ui/card";
+import { V2Card } from "@/components/v2/primitives";
 import { NumberPickerField } from "@/components/ui/number-picker-sheet";
 import { formatProgramDisplayName } from "@/features/program-store/model/view";
 import type { StartProgramDraft } from "@/features/program-store/model/use-program-store-start-program-controller";
@@ -68,16 +68,16 @@ export const StartProgramSheet = memo(function StartProgramSheet({
           style={{
             display: "flex",
             flexDirection: "column",
-            gap: "var(--space-md)",
+            gap: "var(--v2-s-4)",
           }}
         >
-          <Card padding="md" tone="accent" elevated={false}>
+          <V2Card padding="var(--v2-s-4)" tone="accent">
             <div
               style={{
                 display: "flex",
                 justifyContent: "space-between",
                 alignItems: "center",
-                gap: "var(--space-sm)",
+                gap: "var(--v2-s-2)",
               }}
             >
               <strong
@@ -85,7 +85,7 @@ export const StartProgramSheet = memo(function StartProgramSheet({
                   fontFamily: "var(--font-headline-family)",
                   fontSize: "15px",
                   fontWeight: 700,
-                  color: "var(--color-text)",
+                  color: "var(--v2-ink)",
                 }}
               >
                 {formatProgramDisplayName(draft.template.name)}
@@ -94,12 +94,12 @@ export const StartProgramSheet = memo(function StartProgramSheet({
                 TM {Math.round(draft.tmPercent * 100)}%
               </span>
             </div>
-          </Card>
+          </V2Card>
           {draft.recommendationStatus === "loading" ? (
             <p
               style={{
                 fontSize: "13px",
-                color: "var(--color-text-muted)",
+                color: "var(--v2-ink-2)",
                 margin: 0,
               }}
             >
@@ -112,7 +112,7 @@ export const StartProgramSheet = memo(function StartProgramSheet({
             <p
               style={{
                 fontSize: "13px",
-                color: "var(--color-text-muted)",
+                color: "var(--v2-ink-2)",
                 margin: 0,
               }}
             >
@@ -122,7 +122,7 @@ export const StartProgramSheet = memo(function StartProgramSheet({
           {draft.targets.map((target) => (
             <div
               key={target.key}
-              style={{ display: "flex", flexDirection: "column", gap: "var(--space-xs)" }}
+              style={{ display: "flex", flexDirection: "column", gap: "var(--v2-s-1)" }}
             >
               <span
                 style={{
@@ -131,7 +131,7 @@ export const StartProgramSheet = memo(function StartProgramSheet({
                   fontWeight: 700,
                   letterSpacing: "0.08em",
                   textTransform: "uppercase",
-                  color: "var(--color-text-muted)",
+                  color: "var(--v2-ink-2)",
                 }}
               >
                 {target.label} 1RM (kg)
@@ -157,7 +157,7 @@ export const StartProgramSheet = memo(function StartProgramSheet({
                     marginTop: "6px",
                   }}
                 >
-                  <span style={{ fontSize: "0.85rem", color: "var(--color-text-muted)" }}>
+                  <span style={{ fontSize: "0.85rem", color: "var(--v2-ink-2)" }}>
                     {locale === "ko" ? "추천" : "Recommended"}{" "}
                     {formatKg(draft.recommendations[target.key].recommendedKg)}kg
                     {" · "}

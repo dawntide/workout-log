@@ -2,11 +2,27 @@
 
 import dynamic from "next/dynamic";
 import { memo } from "react";
+import { V2PrimaryBtn, V2SecondaryBtn } from "@/components/v2/primitives";
 import { getMonth, getYear } from "@/lib/date-utils";
 
-const MonthYearPickerSheet = dynamic(() => import("@/components/ui/month-year-picker-sheet").then(mod => mod.MonthYearPickerSheet), { ssr: false });
-const SearchSelectSheet = dynamic(() => import("@/components/ui/search-select-sheet").then(mod => mod.SearchSelectSheet), { ssr: false });
-const BottomSheet = dynamic(() => import("@/components/ui/bottom-sheet").then(mod => mod.BottomSheet), { ssr: false });
+const MonthYearPickerSheet = dynamic(
+  () =>
+    import("@/components/ui/month-year-picker-sheet").then(
+      (mod) => mod.MonthYearPickerSheet,
+    ),
+  { ssr: false },
+);
+const SearchSelectSheet = dynamic(
+  () =>
+    import("@/components/ui/search-select-sheet").then(
+      (mod) => mod.SearchSelectSheet,
+    ),
+  { ssr: false },
+);
+const BottomSheet = dynamic(
+  () => import("@/components/ui/bottom-sheet").then((mod) => mod.BottomSheet),
+  { ssr: false },
+);
 
 type CalendarPlanOption = {
   id: string;
@@ -69,41 +85,43 @@ const MoveDateConflictSheet = memo(function MoveDateConflictSheet({
   onClose: () => void;
 }) {
   return (
-    <BottomSheet
-      open={open}
-      title={copy.title}
-      onClose={onClose}
-    >
-      <div style={{ padding: "0 20px 24px", display: "flex", flexDirection: "column", gap: "16px" }}>
-        <div style={{ display: "flex", alignItems: "flex-start", gap: "10px" }}>
+    <BottomSheet open={open} title={copy.title} onClose={onClose}>
+      <div
+        style={{
+          padding: "0 var(--v2-s-5) var(--v2-s-6)",
+          display: "flex",
+          flexDirection: "column",
+          gap: "var(--v2-s-4)",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            alignItems: "flex-start",
+            gap: "var(--v2-s-2)",
+          }}
+        >
           <span
             className="material-symbols-outlined"
-            style={{ fontSize: "20px", color: "var(--color-danger)", flexShrink: 0, marginTop: "1px" }}
+            style={{
+              fontSize: 20,
+              color: "var(--v2-c-danger)",
+              flexShrink: 0,
+              marginTop: 1,
+            }}
           >
             warning
           </span>
-          <p style={{ fontFamily: "var(--font-label-family)", fontSize: "14px", color: "var(--color-text)", lineHeight: 1.6, margin: 0 }}>
+          <p
+            className="v2-body"
+            style={{ color: "var(--v2-ink)", lineHeight: 1.6, margin: 0 }}
+          >
             {copy.description}
           </p>
         </div>
-        <button
-          type="button"
-          onClick={onClose}
-          style={{
-            width: "100%",
-            padding: "15px",
-            borderRadius: "14px",
-            border: "none",
-            background: "var(--color-surface-container)",
-            color: "var(--color-text)",
-            fontFamily: "var(--font-headline-family)",
-            fontSize: "15px",
-            fontWeight: 700,
-            cursor: "pointer",
-          }}
-        >
+        <V2SecondaryBtn full onClick={onClose}>
           {copy.close}
-        </button>
+        </V2SecondaryBtn>
       </div>
     </BottomSheet>
   );
@@ -121,48 +139,28 @@ const DeleteConfirmSheet = memo(function DeleteConfirmSheet({
   onConfirm: () => void;
 }) {
   return (
-    <BottomSheet
-      open={open}
-      title={deleteCopy.title}
-      onClose={onClose}
-    >
-      <div style={{ padding: "0 20px 20px", display: "flex", flexDirection: "column", gap: "10px" }}>
-        <button
-          type="button"
+    <BottomSheet open={open} title={deleteCopy.title} onClose={onClose}>
+      <div
+        style={{
+          padding: "0 var(--v2-s-5) var(--v2-s-5)",
+          display: "flex",
+          flexDirection: "column",
+          gap: "var(--v2-s-2)",
+        }}
+      >
+        <V2PrimaryBtn
+          full
           onClick={onConfirm}
           style={{
-            width: "100%",
-            padding: "15px",
-            borderRadius: "14px",
-            border: "none",
-            background: "var(--color-danger)",
-            color: "#fff",
-            fontFamily: "var(--font-headline-family)",
-            fontSize: "15px",
-            fontWeight: 700,
-            cursor: "pointer",
+            background: "var(--v2-c-danger)",
+            color: "var(--v2-ink-on-accent)",
           }}
         >
           {deleteCopy.confirm}
-        </button>
-        <button
-          type="button"
-          onClick={onClose}
-          style={{
-            width: "100%",
-            padding: "15px",
-            borderRadius: "14px",
-            border: "none",
-            background: "var(--color-surface-container)",
-            color: "var(--color-text)",
-            fontFamily: "var(--font-headline-family)",
-            fontSize: "15px",
-            fontWeight: 700,
-            cursor: "pointer",
-          }}
-        >
+        </V2PrimaryBtn>
+        <V2SecondaryBtn full onClick={onClose}>
           {deleteCopy.cancel}
-        </button>
+        </V2SecondaryBtn>
       </div>
     </BottomSheet>
   );

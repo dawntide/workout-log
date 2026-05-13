@@ -1,6 +1,14 @@
 "use client";
 
 import { memo, useCallback, useRef } from "react";
+import {
+  V2Card,
+  V2Chip,
+  V2EmptyState,
+  V2Hairline,
+  V2PrimaryBtn,
+  V2SecondaryBtn,
+} from "@/components/v2/primitives";
 import { formatCalendarDay, formatVolume } from "@/features/calendar/lib/format";
 import type {
   CalendarExercisePreviewItem,
@@ -58,479 +66,554 @@ type CalendarSelectedDateSectionProps = {
   onDeleteLog: () => void;
 };
 
-export const CalendarSelectedDateSection = memo(function CalendarSelectedDateSection({
-  locale,
-  copy,
-  selectedDate,
-  today,
-  selectedPlanName,
-  error,
-  isLoading,
-  currentSelectedLog,
-  loggedSummary,
-  workoutHref,
-  selectedSession,
-  selectedSessionWDLabel,
-  plannedExercises,
-  isPastDateCreationBlocked,
-  selectedCtx,
-  nextSessionLabel,
-  loggedDayLabel,
-  onMoveDateCommit,
-  onDeleteLog,
-}: CalendarSelectedDateSectionProps) {
-  const moveDateOpenValueRef = useRef(selectedDate);
-  const moveDatePendingValueRef = useRef(selectedDate);
+export const CalendarSelectedDateSection = memo(
+  function CalendarSelectedDateSection({
+    locale,
+    copy,
+    selectedDate,
+    today,
+    selectedPlanName,
+    error,
+    isLoading,
+    currentSelectedLog,
+    loggedSummary,
+    workoutHref,
+    selectedSession,
+    selectedSessionWDLabel,
+    plannedExercises,
+    isPastDateCreationBlocked,
+    selectedCtx,
+    nextSessionLabel,
+    loggedDayLabel,
+    onMoveDateCommit,
+    onDeleteLog,
+  }: CalendarSelectedDateSectionProps) {
+    const moveDateOpenValueRef = useRef(selectedDate);
+    const moveDatePendingValueRef = useRef(selectedDate);
 
-  const handleMoveDateFocus = useCallback(
-    (event: React.FocusEvent<HTMLInputElement>) => {
-      const currentValue = event.currentTarget.value || selectedDate;
-      moveDateOpenValueRef.current = currentValue;
-      moveDatePendingValueRef.current = currentValue;
-    },
-    [selectedDate],
-  );
+    const handleMoveDateFocus = useCallback(
+      (event: React.FocusEvent<HTMLInputElement>) => {
+        const currentValue = event.currentTarget.value || selectedDate;
+        moveDateOpenValueRef.current = currentValue;
+        moveDatePendingValueRef.current = currentValue;
+      },
+      [selectedDate],
+    );
 
-  const handleMoveDateChange = useCallback(
-    (event: React.ChangeEvent<HTMLInputElement>) => {
-      moveDatePendingValueRef.current = event.currentTarget.value;
-    },
-    [],
-  );
+    const handleMoveDateChange = useCallback(
+      (event: React.ChangeEvent<HTMLInputElement>) => {
+        moveDatePendingValueRef.current = event.currentTarget.value;
+      },
+      [],
+    );
 
-  const handleMoveDateBlur = useCallback(
-    (event: React.FocusEvent<HTMLInputElement>) => {
-      const nextDate = moveDatePendingValueRef.current || event.currentTarget.value;
-      const previousDate = moveDateOpenValueRef.current;
-      moveDatePendingValueRef.current = previousDate;
-      if (!nextDate || nextDate === previousDate) return;
-      onMoveDateCommit(nextDate);
-    },
-    [onMoveDateCommit],
-  );
+    const handleMoveDateBlur = useCallback(
+      (event: React.FocusEvent<HTMLInputElement>) => {
+        const nextDate =
+          moveDatePendingValueRef.current || event.currentTarget.value;
+        const previousDate = moveDateOpenValueRef.current;
+        moveDatePendingValueRef.current = previousDate;
+        if (!nextDate || nextDate === previousDate) return;
+        onMoveDateCommit(nextDate);
+      },
+      [onMoveDateCommit],
+    );
 
-  return (
-    <section style={{ marginBottom: "var(--space-xl)" }}>
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          marginBottom: "var(--space-md)",
-        }}
-      >
-        <h2
-          style={{
-            fontFamily: "var(--font-headline-family)",
-            fontSize: "18px",
-            fontWeight: 700,
-            color: "var(--color-text)",
-            margin: 0,
-          }}
-        >
-          {selectedDate === today ? (locale === "ko" ? "오늘" : "Today") : formatCalendarDay(selectedDate, locale)}
-        </h2>
-        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          {selectedPlanName && selectedDate !== today ? (
-            <span
-              style={{
-                fontFamily: "var(--font-label-family)",
-                fontSize: "11px",
-                color: "var(--color-text-muted)",
-                maxWidth: "120px",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-              }}
-            >
-              {selectedPlanName}
-            </span>
-          ) : null}
-          {selectedDate === today ? (
-            <span
-              style={{
-                fontFamily: "var(--font-label-family)",
-                fontSize: "11px",
-                fontWeight: 700,
-                color: "var(--color-text-on-primary)",
-                background: "var(--color-primary)",
-                padding: "4px 12px",
-                borderRadius: "20px",
-                letterSpacing: "0.04em",
-              }}
-            >
-              {locale === "ko" ? "오늘" : "Today"}
-            </span>
-          ) : null}
-        </div>
-      </div>
+    const isToday = selectedDate === today;
+    const headerLabel = isToday
+      ? locale === "ko"
+        ? "오늘"
+        : "Today"
+      : formatCalendarDay(selectedDate, locale);
 
-      {error ? (
-        <div
-          style={{
-            color: "var(--color-danger)",
-            marginBottom: "var(--space-sm)",
-            fontFamily: "var(--font-label-family)",
-            fontSize: "13px",
-          }}
-        >
-          {error}
-        </div>
-      ) : null}
-
-      {isLoading ? (
+    return (
+      <section style={{ marginBottom: "var(--v2-s-7)" }}>
         <div
           style={{
             display: "flex",
-            gap: "6px",
-            justifyContent: "center",
-            padding: "var(--space-xl)",
+            alignItems: "center",
+            justifyContent: "space-between",
+            marginBottom: "var(--v2-s-3)",
           }}
         >
-          <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "var(--color-outline-variant)", display: "inline-block" }} />
-          <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "var(--color-outline-variant)", display: "inline-block" }} />
-          <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "var(--color-outline-variant)", display: "inline-block" }} />
-        </div>
-      ) : !selectedPlanName ? (
-        <div
-          style={{
-            padding: "var(--space-xl)",
-            textAlign: "center",
-            background: "var(--color-surface-container-low)",
-            borderRadius: "20px",
-          }}
-        >
-          <span className="material-symbols-outlined" style={{ fontSize: "32px", color: "var(--color-text-muted)", display: "block", marginBottom: "8px" }}>calendar_month</span>
-          <p
-            style={{
-              fontFamily: "var(--font-label-family)",
-              fontSize: "13px",
-              color: "var(--color-text-muted)",
-              margin: 0,
-            }}
-          >
-            {copy.noPlanSelected}
-          </p>
-        </div>
-      ) : currentSelectedLog ? (
-        <div style={{ background: "var(--color-surface-container-low)", borderRadius: "24px", padding: "24px" }}>
-          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "16px" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-              <div
-                style={{
-                  width: "40px",
-                  height: "40px",
-                  borderRadius: "50%",
-                  background: "var(--color-success-weak)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  flexShrink: 0,
-                }}
-              >
-                <span className="material-symbols-outlined" style={{ fontSize: "20px", color: "var(--color-success)", fontVariationSettings: "'FILL' 1" }}>check_circle</span>
-              </div>
-              <div>
-                <div style={{ fontFamily: "var(--font-headline-family)", fontSize: "15px", fontWeight: 700, color: "var(--color-text)" }}>
-                  {selectedPlanName}
-                </div>
-                <div style={{ fontFamily: "var(--font-label-family)", fontSize: "10px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--color-text-muted)", marginTop: "2px" }}>
-                  {copy.completed}
-                </div>
-              </div>
-            </div>
-            {loggedDayLabel ? (
-              <span
-                style={{
-                  fontFamily: "var(--font-label-family)",
-                  fontSize: "11px",
-                  fontWeight: 700,
-                  color: "var(--color-primary)",
-                  background: "var(--color-primary-weak)",
-                  padding: "4px 10px",
-                  borderRadius: "20px",
-                  flexShrink: 0,
-                  border: "1px solid color-mix(in srgb, var(--color-primary) 28%, transparent)",
-                }}
-              >
-                {loggedDayLabel}
-              </span>
-            ) : null}
-          </div>
-
-          {loggedSummary.exercises.length > 0 ? (
-            <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginBottom: "16px" }}>
-              {loggedSummary.exercises.map((exercise) => (
-                <div key={exercise.name} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <span style={{ fontFamily: "var(--font-headline-family)", fontSize: "14px", fontWeight: 700, color: "var(--color-text)" }}>{exercise.name}</span>
-                  <span style={{ fontFamily: "var(--font-label-family)", fontSize: "13px", color: "var(--color-text-muted)", fontVariantNumeric: "tabular-nums" }}>{exercise.summary}</span>
-                </div>
-              ))}
-            </div>
-          ) : null}
-
-          <div style={{ display: "flex", gap: "32px", borderTop: "1px solid var(--color-outline-variant)", paddingTop: "16px", marginBottom: "16px" }}>
-            <div style={{ display: "flex", flexDirection: "column" }}>
-              <span style={{ fontFamily: "var(--font-label-family)", fontSize: "10px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--color-text-muted)", marginBottom: "4px" }}>{copy.sets}</span>
-              <span style={{ fontFamily: "var(--font-label-family)", fontSize: "18px", fontWeight: 700, color: "var(--color-text)" }}>{loggedSummary.totalSets}</span>
-            </div>
-            <div style={{ display: "flex", flexDirection: "column" }}>
-              <span style={{ fontFamily: "var(--font-label-family)", fontSize: "10px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--color-text-muted)", marginBottom: "4px" }}>{copy.volume}</span>
-              <span style={{ fontFamily: "var(--font-label-family)", fontSize: "18px", fontWeight: 700, color: "var(--color-text)" }}>{formatVolume(loggedSummary.totalVolume)}</span>
-            </div>
-          </div>
-
-          <a
-            href={workoutHref}
+          <h2 className="v2-h3">{headerLabel}</h2>
+          <div
             style={{
               display: "flex",
               alignItems: "center",
-              justifyContent: "center",
-              gap: "6px",
-              padding: "14px 20px",
-              borderRadius: "14px",
-              background: "var(--color-primary)",
-              color: "var(--color-text-on-primary)",
-              textDecoration: "none",
-              fontFamily: "var(--font-headline-family)",
-              fontSize: "15px",
-              fontWeight: 700,
-              marginBottom: "10px",
+              gap: "var(--v2-s-2)",
             }}
           >
-            {copy.editLog}
-            <span className="material-symbols-outlined" style={{ fontSize: "18px" }}>chevron_right</span>
-          </a>
-
-          <div style={{ display: "flex", gap: "10px" }}>
-            <label
-              style={{
-                flex: 1,
-                position: "relative",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: "6px",
-                padding: "11px 16px",
-                borderRadius: "12px",
-                background: "var(--color-surface-container)",
-                color: "var(--color-text)",
-                cursor: "pointer",
-                fontFamily: "var(--font-label-family)",
-                fontSize: "13px",
-                fontWeight: 700,
-              }}
-            >
-              <span className="material-symbols-outlined" style={{ fontSize: "16px" }}>calendar_clock</span>
-              {copy.moveDate}
-              <input
-                key={selectedDate}
-                type="date"
-                defaultValue={selectedDate}
-                onFocus={handleMoveDateFocus}
-                onChange={handleMoveDateChange}
-                onBlur={handleMoveDateBlur}
-                style={{ position: "absolute", inset: 0, opacity: 0, width: "100%", height: "100%", cursor: "pointer" }}
-              />
-            </label>
-            <button
-              type="button"
-              onClick={onDeleteLog}
-              style={{
-                flex: 1,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: "6px",
-                padding: "11px 16px",
-                borderRadius: "12px",
-                background: "color-mix(in srgb, var(--color-danger) 10%, var(--color-surface-container-low))",
-                color: "var(--color-danger)",
-                border: "none",
-                cursor: "pointer",
-                fontFamily: "var(--font-label-family)",
-                fontSize: "13px",
-                fontWeight: 700,
-              }}
-            >
-              <span className="material-symbols-outlined" style={{ fontSize: "16px" }}>delete</span>
-              {copy.deleteLog}
-            </button>
+            {selectedPlanName && !isToday ? (
+              <span
+                className="v2-small"
+                style={{
+                  color: "var(--v2-ink-3)",
+                  maxWidth: 120,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {selectedPlanName}
+              </span>
+            ) : null}
+            {isToday ? (
+              <V2Chip tone="accent">
+                {locale === "ko" ? "오늘" : "Today"}
+              </V2Chip>
+            ) : null}
           </div>
         </div>
-      ) : selectedSession ? (
-        isPastDateCreationBlocked ? (
-          <div style={{ padding: "24px 20px", borderRadius: "20px", background: "var(--color-surface-container-low)", textAlign: "center" }}>
-            <span className="material-symbols-outlined" style={{ fontSize: "32px", color: "var(--color-text-muted)", display: "block", marginBottom: "10px" }}>block</span>
-            <div style={{ fontFamily: "var(--font-headline-family)", fontSize: "14px", fontWeight: 700, color: "var(--color-text)", marginBottom: "6px" }}>{copy.blockedTitle}</div>
-            <div style={{ fontFamily: "var(--font-label-family)", fontSize: "12px", color: "var(--color-text-muted)", lineHeight: 1.5 }}>
-              {copy.blockedHasLaterLogs}
-            </div>
+
+        {error ? (
+          <p
+            className="v2-small"
+            style={{
+              color: "var(--v2-c-danger)",
+              marginBottom: "var(--v2-s-2)",
+            }}
+          >
+            {error}
+          </p>
+        ) : null}
+
+        {isLoading ? (
+          <div
+            style={{
+              display: "flex",
+              gap: 6,
+              justifyContent: "center",
+              padding: "var(--v2-s-7)",
+            }}
+          >
+            <Dot />
+            <Dot />
+            <Dot />
           </div>
-        ) : (
-          <div style={{ background: "var(--color-surface-container-low)", borderRadius: "24px", padding: "24px" }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: plannedExercises.length > 0 ? "16px" : "0" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "12px", flex: 1, minWidth: 0 }}>
-                <div
+        ) : !selectedPlanName ? (
+          <V2EmptyState icon="calendar_month" title={copy.noPlanSelected} />
+        ) : currentSelectedLog ? (
+          <V2Card tone="paper" padding="var(--v2-s-6)" radius="var(--v2-r-4)">
+            <div
+              style={{
+                display: "flex",
+                alignItems: "flex-start",
+                justifyContent: "space-between",
+                marginBottom: "var(--v2-s-4)",
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "var(--v2-s-3)",
+                }}
+              >
+                <span
                   style={{
-                    width: "40px",
-                    height: "40px",
+                    width: 40,
+                    height: 40,
                     borderRadius: "50%",
-                    background: "var(--color-primary-weak)",
+                    background:
+                      "color-mix(in srgb, var(--v2-c-success) 14%, var(--v2-paper))",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
                     flexShrink: 0,
                   }}
                 >
-                  <span className="material-symbols-outlined" style={{ fontSize: "20px", color: "var(--color-primary)" }}>fitness_center</span>
-                </div>
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ fontFamily: "var(--font-headline-family)", fontSize: "15px", fontWeight: 700, color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  <span
+                    className="material-symbols-outlined"
+                    style={{
+                      fontSize: 20,
+                      color: "var(--v2-c-success)",
+                      fontVariationSettings: "'FILL' 1",
+                    }}
+                    aria-hidden
+                  >
+                    check_circle
+                  </span>
+                </span>
+                <div>
+                  <p
+                    className="v2-h3"
+                    style={{ fontSize: 15, fontWeight: 700 }}
+                  >
                     {selectedPlanName}
-                  </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "2px" }}>
-                    <span style={{ fontFamily: "var(--font-label-family)", fontSize: "10px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--color-text-muted)" }}>{copy.beforeStart}</span>
-                    {selectedSessionWDLabel ? (
-                      <span style={{ fontFamily: "var(--font-label-family)", fontSize: "11px", fontWeight: 700, color: "var(--color-primary)", background: "var(--color-primary-weak)", padding: "2px 8px", borderRadius: "20px" }}>
-                        {selectedSessionWDLabel}
-                      </span>
-                    ) : null}
-                  </div>
+                  </p>
+                  <p className="v2-eyebrow" style={{ marginTop: 2 }}>
+                    {copy.completed}
+                  </p>
                 </div>
               </div>
-              <a
-                href={workoutHref}
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  padding: "10px 18px",
-                  borderRadius: "12px",
-                  flexShrink: 0,
-                  marginLeft: "12px",
-                  background: "var(--color-primary)",
-                  color: "var(--color-text-on-primary)",
-                  textDecoration: "none",
-                  fontFamily: "var(--font-headline-family)",
-                  fontSize: "14px",
-                  fontWeight: 700,
-                }}
-              >
-                {copy.startLogging}
-              </a>
+              {loggedDayLabel ? (
+                <V2Chip tone="accent">{loggedDayLabel}</V2Chip>
+              ) : null}
             </div>
 
-            {plannedExercises.length > 0 ? (
-              <div style={{ borderTop: "1px solid var(--color-outline-variant)", paddingTop: "16px", display: "flex", flexDirection: "column", gap: "8px" }}>
-                {plannedExercises
-                  .filter((exercise) => exercise.role === "MAIN")
-                  .map((exercise) => (
-                    <div key={exercise.name} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <span style={{ fontFamily: "var(--font-headline-family)", fontSize: "14px", fontWeight: 700, color: "var(--color-text)" }}>{exercise.name}</span>
-                      <span style={{ fontFamily: "var(--font-label-family)", fontSize: "13px", color: "var(--color-text-muted)", fontVariantNumeric: "tabular-nums" }}>{exercise.summary}</span>
-                    </div>
-                  ))}
-                {plannedExercises.some((exercise) => exercise.role !== "MAIN") ? (
-                  <div style={{ borderTop: "1px dashed var(--color-outline-variant)", paddingTop: "8px", marginTop: "4px", display: "flex", flexDirection: "column", gap: "6px" }}>
-                    {plannedExercises
-                      .filter((exercise) => exercise.role !== "MAIN")
-                      .slice(0, 3)
-                      .map((exercise) => (
-                        <div key={exercise.name} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                          <span style={{ fontFamily: "var(--font-label-family)", fontSize: "13px", color: "var(--color-text-muted)" }}>{exercise.name}</span>
-                          <span style={{ fontFamily: "var(--font-label-family)", fontSize: "13px", color: "var(--color-text-subtle)", fontVariantNumeric: "tabular-nums" }}>{exercise.summary}</span>
-                        </div>
-                      ))}
+            {loggedSummary.exercises.length > 0 ? (
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "var(--v2-s-2)",
+                  marginBottom: "var(--v2-s-4)",
+                }}
+              >
+                {loggedSummary.exercises.map((exercise) => (
+                  <div
+                    key={exercise.name}
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                    }}
+                  >
+                    <span
+                      className="v2-body"
+                      style={{ fontSize: 14, fontWeight: 700 }}
+                    >
+                      {exercise.name}
+                    </span>
+                    <span
+                      className="v2-small"
+                      style={{
+                        color: "var(--v2-ink-3)",
+                        fontVariantNumeric: "tabular-nums",
+                      }}
+                    >
+                      {exercise.summary}
+                    </span>
                   </div>
-                ) : null}
+                ))}
               </div>
             ) : null}
-          </div>
-        )
-      ) : (
-        <div
-          style={{
-            padding: "24px 20px",
-            borderRadius: "20px",
-            background: "var(--color-surface-container-low)",
-            textAlign: "center",
-          }}
-        >
-          {isPastDateCreationBlocked ? (
-            <>
-              <span className="material-symbols-outlined" style={{ fontSize: "32px", color: "var(--color-text-muted)", display: "block", marginBottom: "10px" }}>block</span>
-              <div
+
+            <V2Hairline />
+            <div
+              style={{
+                display: "flex",
+                gap: "var(--v2-s-7)",
+                paddingTop: "var(--v2-s-4)",
+                marginBottom: "var(--v2-s-4)",
+              }}
+            >
+              <Metric label={copy.sets} value={String(loggedSummary.totalSets)} />
+              <Metric
+                label={copy.volume}
+                value={formatVolume(loggedSummary.totalVolume)}
+              />
+            </div>
+
+            <V2PrimaryBtn
+              as="a"
+              href={workoutHref}
+              icon="chevron_right"
+              full
+              style={{ marginBottom: "var(--v2-s-2)" }}
+            >
+              {copy.editLog}
+            </V2PrimaryBtn>
+
+            <div
+              style={{
+                display: "flex",
+                gap: "var(--v2-s-2)",
+              }}
+            >
+              <label
+                className="v2-pressable"
                 style={{
-                  fontFamily: "var(--font-headline-family)",
-                  fontSize: "14px",
-                  fontWeight: 700,
-                  color: "var(--color-text)",
-                  marginBottom: "6px",
-                }}
-              >
-                {copy.blockedTitle}
-              </div>
-              <div
-                style={{
-                  fontFamily: "var(--font-label-family)",
-                  fontSize: "12px",
-                  color: "var(--color-text-muted)",
-                  lineHeight: 1.5,
-                }}
-              >
-                {copy.blockedHasLaterLogs}
-              </div>
-            </>
-          ) : (
-            <>
-              <span className="material-symbols-outlined" style={{ fontSize: "32px", color: "var(--color-primary)", display: "block", marginBottom: "10px" }}>fitness_center</span>
-              <div
-                style={{
-                  fontFamily: "var(--font-headline-family)",
-                  fontSize: "14px",
-                  fontWeight: 700,
-                  color: "var(--color-text)",
-                  marginBottom: "6px",
-                }}
-              >
-                {selectedCtx?.planned ? (nextSessionLabel ?? copy.noSession) : copy.canLogImmediately}
-              </div>
-              <div
-                style={{
-                  fontFamily: "var(--font-label-family)",
-                  fontSize: "12px",
-                  color: "var(--color-text-muted)",
-                  marginBottom: "18px",
-                  lineHeight: 1.5,
-                }}
-              >
-                {selectedCtx?.planned ? copy.plannedDescription : copy.immediateDescription}
-              </div>
-              <a
-                href={workoutHref}
-                style={{
-                  display: "inline-flex",
+                  flex: 1,
+                  position: "relative",
+                  display: "flex",
                   alignItems: "center",
-                  gap: "6px",
-                  padding: "10px 22px",
-                  borderRadius: "12px",
-                  background: "var(--color-primary)",
-                  color: "var(--color-text-on-primary)",
-                  textDecoration: "none",
-                  fontFamily: "var(--font-label-family)",
-                  fontSize: "13px",
+                  justifyContent: "center",
+                  gap: "var(--v2-s-2)",
+                  padding: "var(--v2-s-3) var(--v2-s-4)",
+                  borderRadius: "var(--v2-r-2)",
+                  background: "var(--v2-paper-2)",
+                  color: "var(--v2-ink)",
+                  cursor: "pointer",
+                  fontFamily: "var(--v2-f-display)",
+                  fontSize: 13,
                   fontWeight: 700,
-                  letterSpacing: "0.02em",
                 }}
               >
-                <span className="material-symbols-outlined" style={{ fontSize: "16px" }}>add</span>
+                <span
+                  className="material-symbols-outlined"
+                  style={{ fontSize: 16 }}
+                  aria-hidden
+                >
+                  calendar_clock
+                </span>
+                {copy.moveDate}
+                <input
+                  key={selectedDate}
+                  type="date"
+                  defaultValue={selectedDate}
+                  onFocus={handleMoveDateFocus}
+                  onChange={handleMoveDateChange}
+                  onBlur={handleMoveDateBlur}
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    opacity: 0,
+                    width: "100%",
+                    height: "100%",
+                    cursor: "pointer",
+                  }}
+                />
+              </label>
+              <V2SecondaryBtn
+                tone="danger"
+                icon="delete"
+                onClick={onDeleteLog}
+                full
+                style={{ flex: 1 }}
+              >
+                {copy.deleteLog}
+              </V2SecondaryBtn>
+            </div>
+          </V2Card>
+        ) : selectedSession ? (
+          isPastDateCreationBlocked ? (
+            <V2EmptyState
+              icon="block"
+              title={copy.blockedTitle}
+              description={copy.blockedHasLaterLogs}
+            />
+          ) : (
+            <V2Card tone="paper" padding="var(--v2-s-6)" radius="var(--v2-r-4)">
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  marginBottom:
+                    plannedExercises.length > 0 ? "var(--v2-s-4)" : 0,
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "var(--v2-s-3)",
+                    flex: 1,
+                    minWidth: 0,
+                  }}
+                >
+                  <span
+                    style={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: "50%",
+                      background: "var(--v2-accent-weak)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      flexShrink: 0,
+                    }}
+                  >
+                    <span
+                      className="material-symbols-outlined"
+                      style={{
+                        fontSize: 20,
+                        color: "var(--v2-accent)",
+                      }}
+                      aria-hidden
+                    >
+                      fitness_center
+                    </span>
+                  </span>
+                  <div style={{ minWidth: 0 }}>
+                    <p
+                      className="v2-h3"
+                      style={{
+                        fontSize: 15,
+                        fontWeight: 700,
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {selectedPlanName}
+                    </p>
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "var(--v2-s-2)",
+                        marginTop: 2,
+                      }}
+                    >
+                      <span className="v2-eyebrow">{copy.beforeStart}</span>
+                      {selectedSessionWDLabel ? (
+                        <V2Chip tone="accent">{selectedSessionWDLabel}</V2Chip>
+                      ) : null}
+                    </div>
+                  </div>
+                </div>
+                <V2PrimaryBtn
+                  as="a"
+                  href={workoutHref}
+                  style={{
+                    marginLeft: "var(--v2-s-3)",
+                    padding: "10px 18px",
+                    minHeight: 44,
+                    fontSize: 14,
+                  }}
+                >
+                  {copy.startLogging}
+                </V2PrimaryBtn>
+              </div>
+
+              {plannedExercises.length > 0 ? (
+                <>
+                  <V2Hairline />
+                  <div
+                    style={{
+                      paddingTop: "var(--v2-s-4)",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "var(--v2-s-2)",
+                    }}
+                  >
+                    {plannedExercises
+                      .filter((exercise) => exercise.role === "MAIN")
+                      .map((exercise) => (
+                        <ExerciseLine key={exercise.name} exercise={exercise} />
+                      ))}
+                    {plannedExercises.some((ex) => ex.role !== "MAIN") ? (
+                      <>
+                        <V2Hairline />
+                        <div
+                          style={{
+                            paddingTop: "var(--v2-s-2)",
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: "var(--v2-s-1)",
+                          }}
+                        >
+                          {plannedExercises
+                            .filter((exercise) => exercise.role !== "MAIN")
+                            .slice(0, 3)
+                            .map((exercise) => (
+                              <ExerciseLine
+                                key={exercise.name}
+                                exercise={exercise}
+                                muted
+                              />
+                            ))}
+                        </div>
+                      </>
+                    ) : null}
+                  </div>
+                </>
+              ) : null}
+            </V2Card>
+          )
+        ) : isPastDateCreationBlocked ? (
+          <V2EmptyState
+            icon="block"
+            title={copy.blockedTitle}
+            description={copy.blockedHasLaterLogs}
+          />
+        ) : (
+          <V2EmptyState
+            icon="fitness_center"
+            title={
+              selectedCtx?.planned
+                ? (nextSessionLabel ?? copy.noSession)
+                : copy.canLogImmediately
+            }
+            description={
+              selectedCtx?.planned
+                ? copy.plannedDescription
+                : copy.immediateDescription
+            }
+            action={
+              <V2PrimaryBtn
+                as="a"
+                href={workoutHref}
+                icon="add"
+                style={{
+                  minHeight: 44,
+                  padding: "10px 22px",
+                  borderRadius: "var(--v2-r-2)",
+                  fontSize: 13,
+                }}
+              >
                 {copy.startLogging}
-              </a>
-            </>
-          )}
-        </div>
-      )}
-    </section>
+              </V2PrimaryBtn>
+            }
+          />
+        )}
+      </section>
+    );
+  },
+);
+
+function Dot() {
+  return (
+    <span
+      style={{
+        width: 6,
+        height: 6,
+        borderRadius: "50%",
+        background: "var(--v2-paper-4)",
+        display: "inline-block",
+      }}
+    />
   );
-});
+}
+
+function Metric({ label, value }: { label: string; value: string }) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+      <span className="v2-eyebrow">{label}</span>
+      <span className="v2-num-sm" style={{ color: "var(--v2-ink)" }}>
+        {value}
+      </span>
+    </div>
+  );
+}
+
+function ExerciseLine({
+  exercise,
+  muted = false,
+}: {
+  exercise: CalendarExercisePreviewItem;
+  muted?: boolean;
+}) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+      }}
+    >
+      <span
+        className={muted ? "v2-small" : "v2-body"}
+        style={{
+          fontSize: muted ? 13 : 14,
+          fontWeight: muted ? 400 : 700,
+          color: muted ? "var(--v2-ink-2)" : "var(--v2-ink)",
+        }}
+      >
+        {exercise.name}
+      </span>
+      <span
+        className="v2-small"
+        style={{
+          color: muted ? "var(--v2-ink-3)" : "var(--v2-ink-3)",
+          fontVariantNumeric: "tabular-nums",
+        }}
+      >
+        {exercise.summary}
+      </span>
+    </div>
+  );
+}

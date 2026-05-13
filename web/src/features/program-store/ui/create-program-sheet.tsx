@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import ExerciseEditorRow from "@/features/program-store/ui/program-exercise-editor-row";
-import { Card } from "@/components/ui/card";
+import { V2Card } from "@/components/v2/primitives";
 import { AppSelect, AppTextInput } from "@/components/ui/form-controls";
 import { NumberPickerField } from "@/components/ui/number-picker-sheet";
 import { formatProgramDisplayName } from "@/features/program-store/model/view";
@@ -103,16 +103,16 @@ export function CreateProgramSheet({
       footer={null}
     >
       {draft ? (
-        <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-md)" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "var(--v2-s-4)" }}>
           {error ? (
             <div
               role="alert"
               style={{
-                border: "1px solid color-mix(in srgb, var(--color-danger) 34%, var(--color-border))",
+                border: "1px solid color-mix(in srgb, var(--v2-c-danger) 34%, var(--v2-hairline))",
                 borderRadius: "8px",
-                background: "var(--color-danger-weak)",
-                color: "var(--color-danger-strong)",
-                padding: "var(--space-sm) var(--space-md)",
+                background: "color-mix(in srgb, var(--v2-c-danger) 14%, var(--v2-paper))",
+                color: "var(--v2-c-danger)",
+                padding: "var(--v2-s-2) var(--v2-s-4)",
                 font: "var(--font-secondary)",
                 lineHeight: 1.5,
               }}
@@ -121,7 +121,7 @@ export function CreateProgramSheet({
             </div>
           ) : null}
 
-          <label style={{ display: "flex", flexDirection: "column", gap: "var(--space-xs)" }}>
+          <label style={{ display: "flex", flexDirection: "column", gap: "var(--v2-s-1)" }}>
             <span
               style={{
                 fontFamily: "var(--font-label-family)",
@@ -129,7 +129,7 @@ export function CreateProgramSheet({
                 fontWeight: 700,
                 letterSpacing: "0.08em",
                 textTransform: "uppercase",
-                color: "var(--color-text-muted)",
+                color: "var(--v2-ink-2)",
               }}
             >
               {locale === "ko" ? "프로그램 이름" : "Program Name"}
@@ -146,7 +146,7 @@ export function CreateProgramSheet({
             />
           </label>
 
-          <div style={{ display: "flex", gap: "var(--space-xs)" }}>
+          <div style={{ display: "flex", gap: "var(--v2-s-1)" }}>
             <button
               type="button"
               className={`btn btn-inline-action${draft.mode === "MARKET_BASED" ? " btn-inline-action-primary" : ""}`}
@@ -178,7 +178,7 @@ export function CreateProgramSheet({
             </AppSelect>
           ) : null}
 
-          <Card padding="md" elevated={false} tone="subtle">
+          <V2Card padding="var(--v2-s-4)" tone="inset">
             <h2
               style={{
                 fontFamily: "var(--font-headline-family)",
@@ -186,13 +186,13 @@ export function CreateProgramSheet({
                 fontWeight: 700,
                 letterSpacing: "0.06em",
                 textTransform: "uppercase",
-                color: "var(--color-text-muted)",
-                margin: "0 0 var(--space-sm)",
+                color: "var(--v2-ink-2)",
+                margin: "0 0 var(--v2-s-2)",
               }}
             >
               {locale === "ko" ? "세션 규칙" : "Session Rules"}
             </h2>
-            <div style={{ display: "flex", gap: "var(--space-xs)", marginBottom: "var(--space-sm)" }}>
+            <div style={{ display: "flex", gap: "var(--v2-s-1)", marginBottom: "var(--v2-s-2)" }}>
               <button
                 type="button"
                 className={`btn btn-inline-action${draft.rule.type === "AB" ? " btn-inline-action-primary" : ""}`}
@@ -209,7 +209,7 @@ export function CreateProgramSheet({
               </button>
             </div>
             {draft.rule.type === "NUMERIC" ? (
-              <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-xs)" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: "var(--v2-s-1)" }}>
                 <span
                   style={{
                     fontFamily: "var(--font-label-family)",
@@ -217,7 +217,7 @@ export function CreateProgramSheet({
                     fontWeight: 700,
                     letterSpacing: "0.08em",
                     textTransform: "uppercase",
-                    color: "var(--color-text-muted)",
+                    color: "var(--v2-ink-2)",
                   }}
                 >
                   {locale === "ko" ? "세션 개수 (1~4)" : "Session Count (1-4)"}
@@ -233,9 +233,9 @@ export function CreateProgramSheet({
                 />
               </div>
             ) : null}
-          </Card>
+          </V2Card>
 
-          <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-md)" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: "var(--v2-s-4)" }}>
             <h2
               style={{
                 fontFamily: "var(--font-headline-family)",
@@ -243,18 +243,20 @@ export function CreateProgramSheet({
                 fontWeight: 700,
                 letterSpacing: "0.06em",
                 textTransform: "uppercase",
-                color: "var(--color-text-muted)",
+                color: "var(--v2-ink-2)",
                 margin: 0,
               }}
             >
               {locale === "ko" ? "세션별 운동 배치" : "Exercise Layout by Session"}
             </h2>
             {draft.sessions.map((session) => (
-              <Card
+              <div
                 key={session.id}
-                padding="sm"
-                tone="inset"
-                elevated={false}
+                style={{
+                  padding: "var(--v2-s-2)",
+                  background: "var(--v2-paper-2)",
+                  borderRadius: "var(--v2-r-3)",
+                }}
                 onDragOver={(event) => {
                   event.preventDefault();
                 }}
@@ -263,14 +265,14 @@ export function CreateProgramSheet({
                   onSessionDrop(session.id, session.exercises.length);
                 }}
               >
-                <header style={{ marginBottom: "var(--space-sm)" }}>
+                <header style={{ marginBottom: "var(--v2-s-2)" }}>
                   <span className="label label-program label-sm">
                     {locale === "ko" ? `세션 ${session.key}` : `Session ${session.key}`}
                   </span>
                 </header>
 
                 {session.exercises.length === 0 ? (
-                  <p style={{ fontSize: "13px", color: "var(--color-text-muted)", margin: "var(--space-xs) 0" }}>
+                  <p style={{ fontSize: "13px", color: "var(--v2-ink-2)", margin: "var(--v2-s-1) 0" }}>
                     {locale === "ko" ? "아직 추가된 운동이 없습니다." : "No exercises added yet."}
                   </p>
                 ) : null}
@@ -296,7 +298,7 @@ export function CreateProgramSheet({
                 <button
                   type="button"
                   className="btn btn-secondary btn-full"
-                  style={{ marginTop: "var(--space-sm)" }}
+                  style={{ marginTop: "var(--v2-s-2)" }}
                   onClick={() => onAddExercise(session.id)}
                 >
                   <span
@@ -308,7 +310,7 @@ export function CreateProgramSheet({
                   </span>
                   <span>{locale === "ko" ? "운동 추가" : "Add Exercise"}</span>
                 </button>
-              </Card>
+              </div>
             ))}
           </div>
         </div>

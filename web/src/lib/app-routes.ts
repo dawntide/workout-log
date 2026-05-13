@@ -15,5 +15,5 @@ export const APP_ROUTES = {
   statsHome: "/?deck=stats",
   prHistory: "/stats/prs",
   exerciseDetail: (exerciseId: string) => `/exercises/${encodeURIComponent(exerciseId)}`,
-  systemStats: "/settings/system-stats",
+  systemStats: "/settings/debug",
 } as const;

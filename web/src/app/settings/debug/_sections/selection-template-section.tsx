@@ -5,7 +5,7 @@ import { MultiSelectionScreen, PickerSelectionScreen, SingleSelectionScreen } fr
 import { useLocale } from "@/components/locale-provider";
 import { commonExerciseOptions, statsMetricOptions } from "@/lib/selection-options";
 
-export default function SelectionTemplatePage() {
+export function SelectionTemplateSection() {
   const { locale } = useLocale();
   const [singleValue, setSingleValue] = useState("DATE");
   const [multiValues, setMultiValues] = useState<string[]>(["e1rm", "volume"]);

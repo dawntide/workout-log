@@ -81,7 +81,7 @@ export function E1RMInteractiveChart({
           width: "100%",
           height: "auto",
           display: "block",
-          color: "var(--metric-1rm-color)",
+          color: "var(--v2-c-onerm)",
         }}
         role="img"
         aria-label={locale === "ko" ? "1RM 추이 차트" : "1RM trend chart"}
@@ -109,7 +109,7 @@ export function E1RMInteractiveChart({
           const y = padY + drawHeight * ratio;
           const value = chartGeometry.max - chartGeometry.span * ratio;
           return (
-            <g key={ratio} style={{ color: "var(--color-border)" }}>
+            <g key={ratio} style={{ color: "var(--v2-hairline)" }}>
               <line
                 x1={padX}
                 y1={y}
@@ -125,9 +125,10 @@ export function E1RMInteractiveChart({
                 textAnchor="end"
                 dominantBaseline="middle"
                 style={{
-                  fill: "var(--color-text-muted)",
-                  fontSize: "14px",
+                  fill: "var(--v2-ink-3)",
+                  fontSize: 14,
                   fontVariantNumeric: "tabular-nums",
+                  fontFamily: "var(--v2-f-num)",
                 }}
               >
                 {value.toFixed(0)}
@@ -161,8 +162,8 @@ export function E1RMInteractiveChart({
                     cx={pos.x}
                     cy={pos.y}
                     r={9}
-                    fill="var(--v2-c-pr, var(--color-primary))"
-                    stroke="var(--color-bg)"
+                    fill="var(--v2-c-pr)"
+                    stroke="var(--v2-bg)"
                     strokeWidth={2}
                     opacity={0.95}
                   />
@@ -174,7 +175,7 @@ export function E1RMInteractiveChart({
                       fontFamily: "var(--v2-f-display)",
                       fontSize: 11,
                       fontWeight: 800,
-                      fill: "var(--v2-ink-on-accent, white)",
+                      fill: "var(--v2-ink-on-accent)",
                     }}
                   >
                     PR
@@ -191,7 +192,7 @@ export function E1RMInteractiveChart({
               y1={padY}
               x2={selectedPoint.x}
               y2={height - padY}
-              stroke="var(--color-primary)"
+              stroke="var(--v2-accent)"
               strokeWidth="2"
               strokeDasharray="2 2"
             />
@@ -199,8 +200,8 @@ export function E1RMInteractiveChart({
               cx={selectedPoint.x}
               cy={selectedPoint.y}
               r={7}
-              fill="var(--color-bg)"
-              stroke="var(--color-primary)"
+              fill="var(--v2-bg)"
+              stroke="var(--v2-accent)"
               strokeWidth="3"
             />
           </g>

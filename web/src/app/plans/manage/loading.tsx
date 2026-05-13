@@ -1,7 +1,7 @@
 // PERF: 플랜 관리 라우트 loading.tsx — 새 hero + plan-card-v2 형태에 맞춘 스켈레톤
 const skeletonStyle: React.CSSProperties = {
   background:
-    "linear-gradient(90deg, var(--color-surface-container-low) 0%, var(--color-surface-container-high) 50%, var(--color-surface-container-low) 100%)",
+    "linear-gradient(90deg, var(--v2-paper) 0%, var(--v2-paper-3) 50%, var(--v2-paper) 100%)",
   backgroundSize: "200% 100%",
   animation: "skeleton-shimmer 1.4s ease infinite",
   borderRadius: 8,
@@ -23,8 +23,8 @@ export default function PlansManageLoading() {
           style={{
             padding: "22px 22px 24px",
             borderRadius: 24,
-            background: "var(--color-surface-container-low)",
-            marginBottom: "var(--space-md)",
+            background: "var(--v2-paper)",
+            marginBottom: "var(--v2-s-4)",
           }}
         >
           <div style={{ ...skeletonStyle, height: 12, width: 120, marginBottom: 8, borderRadius: 4 }} />
@@ -32,7 +32,7 @@ export default function PlansManageLoading() {
           <div style={{ ...skeletonStyle, height: 13, width: "70%", marginBottom: 18, borderRadius: 4 }} />
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 8 }}>
             {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} style={{ background: "var(--color-surface-container)", borderRadius: 14, padding: "12px 12px 14px" }}>
+              <div key={i} style={{ background: "var(--v2-paper-2)", borderRadius: 14, padding: "12px 12px 14px" }}>
                 <div style={{ ...skeletonStyle, height: 10, width: "70%", marginBottom: 6, borderRadius: 4 }} />
                 <div style={{ ...skeletonStyle, height: 22, width: "50%", borderRadius: 4 }} />
               </div>
@@ -43,17 +43,17 @@ export default function PlansManageLoading() {
 
       <section>
         {/* ── Search ── */}
-        <div style={{ marginBottom: "var(--space-md)" }}>
+        <div style={{ marginBottom: "var(--v2-s-4)" }}>
           <div style={{ ...skeletonStyle, height: 48, borderRadius: 12 }} />
         </div>
 
         {/* ── Plan Cards ── */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-sm)" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "var(--v2-s-2)" }}>
           {Array.from({ length: 2 }).map((_, i) => (
             <div
               key={i}
               style={{
-                background: "var(--color-surface-container-low)",
+                background: "var(--v2-paper)",
                 borderRadius: 18,
                 padding: "18px 18px 16px",
                 display: "flex",
@@ -79,11 +79,11 @@ export default function PlansManageLoading() {
                   gap: 6,
                   padding: 10,
                   borderRadius: 12,
-                  background: "var(--color-surface-container)",
+                  background: "var(--v2-paper-2)",
                 }}
               >
                 {Array.from({ length: 4 }).map((_, j) => (
-                  <div key={j} style={{ padding: "6px 8px", background: "var(--color-surface-container-low)", borderRadius: 10 }}>
+                  <div key={j} style={{ padding: "6px 8px", background: "var(--v2-paper)", borderRadius: 10 }}>
                     <div style={{ ...skeletonStyle, height: 10, width: "70%", marginBottom: 4, borderRadius: 4 }} />
                     <div style={{ ...skeletonStyle, height: 14, width: "60%", borderRadius: 4 }} />
                   </div>

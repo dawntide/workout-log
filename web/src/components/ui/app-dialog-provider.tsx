@@ -3,7 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useLocale } from "@/components/locale-provider";
 import { BottomSheet } from "@/components/ui/bottom-sheet";
-import { Card, CardContent } from "@/components/ui/card";
+import { V2Card } from "@/components/v2/primitives";
 
 type DialogTone = "default" | "danger";
 
@@ -213,7 +213,7 @@ export function AppDialogProvider({ children }: { children: ReactNode }) {
               style={{
                 display: "flex",
                 flexDirection: "column",
-                gap: "var(--space-xs)",
+                gap: "var(--v2-s-1)",
                 width: "100%",
               }}
             >
@@ -238,11 +238,17 @@ export function AppDialogProvider({ children }: { children: ReactNode }) {
         }
       >
         {active ? (
-          <Card tone={active.tone === "danger" ? "danger" : "subtle"} padding="md" elevated={false}>
-            <CardContent>
-              <p style={{ whiteSpace: "pre-line" }}>{active.message}</p>
-            </CardContent>
-          </Card>
+          <V2Card
+            tone={active.tone === "danger" ? "danger" : "inset"}
+            padding="var(--v2-s-4)"
+          >
+            <p
+              className="v2-body"
+              style={{ whiteSpace: "pre-line", margin: 0 }}
+            >
+              {active.message}
+            </p>
+          </V2Card>
         ) : null}
       </BottomSheet>
     </AppDialogContext.Provider>

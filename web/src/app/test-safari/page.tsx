@@ -17,7 +17,7 @@ export default function TestSafariPage() {
           <div className="card-header">
             <h3 className="card-title">스크롤 테스트 카드 {num}</h3>
           </div>
-          <p style={{ font: 'var(--font-secondary)', color: 'var(--color-text-muted)' }}>
+          <p style={{ fontFamily: 'var(--v2-f-text)', fontSize: 13, color: 'var(--v2-ink-2)' }}>
             Safari 상/하단 바 뒤로 넘어가는지 관찰하세요. (Safe area 패딩이 미적용된 상태입니다.)
           </p>
         </div>

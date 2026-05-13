@@ -267,8 +267,8 @@ export default function SettingsDataExportPage() {
 
       {exportingLabel ? (
         <section>
-          <div style={{ background: "var(--color-surface-container-low)", borderRadius: 20, padding: "var(--space-md)", boxShadow: "0 1px 3px var(--shadow-color-soft)" }}>
-            <p style={{ margin: 0, fontFamily: "var(--font-label-family)", fontSize: 13, color: "var(--color-text-muted)" }}>{exportingLabel}</p>
+          <div style={{ background: "var(--v2-paper)", borderRadius: 20, padding: "var(--v2-s-4)", boxShadow: "0 1px 3px var(--shadow-color-soft)" }}>
+            <p style={{ margin: 0, fontFamily: "var(--v2-f-display)", fontSize: 13, color: "var(--v2-ink-2)" }}>{exportingLabel}</p>
           </div>
         </section>
       ) : null}
@@ -392,7 +392,7 @@ export default function SettingsDataExportPage() {
           <button
             type="button"
             className="btn btn-danger btn-full"
-            style={{ marginTop: "var(--space-sm)" }}
+            style={{ marginTop: "var(--v2-s-2)" }}
             onClick={() => {
               void runReplace();
             }}

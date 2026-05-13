@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { V2Hairline, V2NavRow, V2PrimaryBtn } from "@/components/v2/primitives";
 import { APP_ROUTES } from "@/lib/app-routes";
 import { getAppCopy, resolveRequestLocale } from "@/lib/i18n/messages";
 
@@ -23,85 +23,6 @@ type SettingItem = {
   currentValue: string;
   iconSymbol: string;
 };
-
-function SettingRow({ item }: { item: SettingItem }) {
-  return (
-    <Link
-      href={item.href}
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: "var(--space-md)",
-        padding: "14px 16px",
-        borderRadius: "14px",
-        background: "var(--color-surface-container-low)",
-        textDecoration: "none",
-        transition: "background 0.12s ease",
-        minHeight: "60px",
-      }}
-    >
-      <span
-        className="material-symbols-outlined"
-        style={{
-          fontSize: 20,
-          color: "var(--color-primary)",
-          flexShrink: 0,
-          fontVariationSettings: "'FILL' 0, 'wght' 300",
-        }}
-        aria-hidden="true"
-      >
-        {item.iconSymbol}
-      </span>
-
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div
-          style={{
-            fontFamily: "var(--font-headline-family)",
-            fontSize: "15px",
-            fontWeight: 600,
-            color: "var(--color-text)",
-            letterSpacing: "-0.1px",
-            marginBottom: "2px",
-          }}
-        >
-          {item.label}
-        </div>
-        <div style={{ fontSize: "12px", color: "var(--color-text-muted)", lineHeight: 1.3 }}>
-          {item.description}
-        </div>
-      </div>
-
-      <div style={{ flexShrink: 0, display: "flex", alignItems: "center", gap: "6px" }}>
-        <span
-          style={{
-            fontFamily: "var(--font-label-family)",
-            fontSize: "12px",
-            fontWeight: 600,
-            color: "var(--color-text-muted)",
-            maxWidth: "80px",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
-          }}
-        >
-          {item.currentValue}
-        </span>
-        <span
-          className="material-symbols-outlined"
-          style={{
-            fontSize: 16,
-            color: "var(--color-text-muted)",
-            opacity: 0.5,
-            fontVariationSettings: "'FILL' 0, 'wght' 300",
-          }}
-          aria-hidden="true"
-        >
-          chevron_right
-        </span>
-      </div>
-    </Link>
-  );
-}
 
 export default async function CalendarOptionsPage({
   searchParams,
@@ -142,7 +63,10 @@ export default async function CalendarOptionsPage({
       href: toSelectionHref("/calendar/options/select/auto-open", returnTo),
       label: copy.calendarOptions.fields.autoOpen.label,
       description: copy.calendarOptions.fields.autoOpen.description,
-      currentValue: autoOpenMode === "AUTO_GENERATE" ? copy.calendarOptions.fields.autoOpen.autoGenerate : copy.calendarOptions.fields.autoOpen.openOnly,
+      currentValue:
+        autoOpenMode === "AUTO_GENERATE"
+          ? copy.calendarOptions.fields.autoOpen.autoGenerate
+          : copy.calendarOptions.fields.autoOpen.openOnly,
       iconSymbol: "touch_app",
     },
     {
@@ -156,86 +80,69 @@ export default async function CalendarOptionsPage({
 
   return (
     <div>
-      {/* Header */}
       <div
         style={{
-          marginBottom: "var(--space-xl)",
-          paddingBottom: "var(--space-md)",
-          borderBottom: "1px solid var(--color-border)",
+          paddingBottom: "var(--v2-s-4)",
+          marginBottom: "var(--v2-s-7)",
         }}
       >
-        <div
-          style={{
-            fontFamily: "var(--font-label-family)",
-            fontSize: "10px",
-            fontWeight: 700,
-            letterSpacing: "0.12em",
-            textTransform: "uppercase",
-            color: "var(--color-primary)",
-            marginBottom: "4px",
-          }}
+        <p
+          className="v2-eyebrow"
+          style={{ color: "var(--v2-accent)", marginBottom: 4 }}
         >
           {copy.calendarOptions.eyebrow}
-        </div>
-        <h1
-          style={{
-            fontFamily: "var(--font-headline-family)",
-            fontSize: "28px",
-            fontWeight: 800,
-            letterSpacing: "-0.5px",
-            color: "var(--color-text)",
-            margin: "0 0 var(--space-sm)",
-          }}
-        >
+        </p>
+        <h1 className="v2-h1" style={{ margin: "0 0 var(--v2-s-2)" }}>
           {copy.calendarOptions.title}
         </h1>
-        <p style={{ fontSize: "13px", color: "var(--color-text-muted)", margin: "0 0 var(--space-md)", lineHeight: 1.5 }}>
-          {copy.calendarOptions.description}
-        </p>
-        <Link
-          href={APP_ROUTES.calendarHome}
+        <p
+          className="v2-small"
           style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: "6px",
-            padding: "9px 18px",
-            borderRadius: "22px",
-            background: "var(--color-primary)",
-            color: "var(--color-text-on-primary)",
-            fontFamily: "var(--font-label-family)",
-            fontSize: "13px",
-            fontWeight: 700,
-            textDecoration: "none",
+            color: "var(--v2-ink-2)",
+            margin: "0 0 var(--v2-s-4)",
+            lineHeight: 1.5,
           }}
         >
-          <span
-            className="material-symbols-outlined"
-            style={{ fontSize: 16, fontVariationSettings: "'FILL' 1, 'wght' 500" }}
-            aria-hidden="true"
-          >
-            arrow_back
-          </span>
+          {copy.calendarOptions.description}
+        </p>
+        <V2PrimaryBtn
+          as="a"
+          href={APP_ROUTES.calendarHome}
+          icon="arrow_back"
+          style={{
+            minHeight: 44,
+            padding: "9px 18px",
+            borderRadius: "var(--v2-r-pill)",
+            fontSize: 13,
+          }}
+        >
           {copy.calendarOptions.backToCalendar}
-        </Link>
+        </V2PrimaryBtn>
+        <div style={{ marginTop: "var(--v2-s-4)" }}>
+          <V2Hairline />
+        </div>
       </div>
 
-      {/* Option Items */}
-      <h2
-        style={{
-          fontFamily: "var(--font-headline-family)",
-          fontSize: "13px",
-          fontWeight: 700,
-          letterSpacing: "0.06em",
-          textTransform: "uppercase",
-          color: "var(--color-text-muted)",
-          margin: "0 0 var(--space-sm)",
-        }}
-      >
+      <h2 className="v2-label" style={{ margin: "0 0 var(--v2-s-2)" }}>
         {copy.calendarOptions.sectionTitle}
       </h2>
-      <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-xs)" }}>
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: "var(--v2-s-1)",
+        }}
+      >
         {optionItems.map((item) => (
-          <SettingRow key={item.href} item={item} />
+          <V2NavRow
+            key={item.href}
+            as="a"
+            href={item.href}
+            icon={item.iconSymbol}
+            label={item.label}
+            description={item.description}
+            value={item.currentValue}
+          />
         ))}
       </div>
     </div>

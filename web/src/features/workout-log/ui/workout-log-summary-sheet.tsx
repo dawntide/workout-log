@@ -3,7 +3,12 @@
 import { useMemo } from "react";
 import { useAtomValue } from "jotai";
 import { useLocale } from "@/components/locale-provider";
-import { V2Hairline, V2Sheet } from "@/components/v2/primitives";
+import {
+  V2Chip,
+  V2Hairline,
+  V2IconBtn,
+  V2Sheet,
+} from "@/components/v2/primitives";
 import {
   draftAtom,
   programEntryStateAtom,
@@ -172,20 +177,7 @@ export function WorkoutLogSummarySheet({
                       >
                         {ex.exerciseName}
                       </span>
-                      {isUser && (
-                        <span
-                          style={{
-                            fontSize: 8,
-                            padding: "1px 4px",
-                            borderRadius: 4,
-                            background: "var(--v2-paper-3)",
-                            color: "var(--v2-ink-3)",
-                            flexShrink: 0,
-                          }}
-                        >
-                          USER
-                        </span>
-                      )}
+                      {isUser && <V2Chip tone="neutral">USER</V2Chip>}
                     </div>
                     <div
                       className="v2-mono-label"
@@ -202,8 +194,15 @@ export function WorkoutLogSummarySheet({
                     filled={filledCount}
                     total={totalSetsExercise}
                   />
-                  <button
-                    type="button"
+                  <V2IconBtn
+                    icon="dialpad"
+                    size={36}
+                    tone="accent"
+                    label={
+                      locale === "ko"
+                        ? `${ex.exerciseName} 키패드 입력`
+                        : `Enter ${ex.exerciseName}`
+                    }
                     onClick={() => {
                       const empty = repsInputs.findIndex(
                         (v) =>
@@ -218,33 +217,8 @@ export function WorkoutLogSummarySheet({
                       });
                       onClose();
                     }}
-                    aria-label={
-                      locale === "ko"
-                        ? `${ex.exerciseName} 키패드 입력`
-                        : `Enter ${ex.exerciseName}`
-                    }
-                    style={{
-                      width: 36,
-                      height: 36,
-                      borderRadius: 10,
-                      border: "none",
-                      background: "var(--v2-accent)",
-                      color: "var(--v2-ink-on-accent)",
-                      cursor: "pointer",
-                      display: "inline-flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      flexShrink: 0,
-                    }}
-                  >
-                    <span
-                      className="material-symbols-outlined"
-                      style={{ fontSize: 18 }}
-                      aria-hidden
-                    >
-                      dialpad
-                    </span>
-                  </button>
+                    style={{ borderRadius: "var(--v2-r-2)", flexShrink: 0 }}
+                  />
                 </header>
                 <div style={{ padding: "0 14px 14px" }}>
                   <V2Hairline />

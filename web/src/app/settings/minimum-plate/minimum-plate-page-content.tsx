@@ -243,7 +243,7 @@ export function MinimumPlatePageContent({ initialSnapshot, initialExercises }: M
 
       <section>
         <SectionHeader title={locale === "ko" ? "기본값 조절" : "Adjust Default"} description={locale === "ko" ? "스테퍼로 조절한 뒤 저장 버튼으로 반영합니다." : "Adjust it with the stepper, then save the change."} />
-        <div style={{ background: "var(--color-surface-container-low)", borderRadius: 20, padding: "var(--space-md)", display: "flex", flexDirection: "column", gap: "var(--space-sm)" }}>
+        <div style={{ background: "var(--v2-paper)", borderRadius: 20, padding: "var(--v2-s-4)", display: "flex", flexDirection: "column", gap: "var(--v2-s-2)" }}>
           <AppNumberStepper
             label={locale === "ko" ? "기본 최소 원판 (kg)" : "Default Minimum Plate (kg)"}
             value={defaultDraftKg}
@@ -326,10 +326,10 @@ export function MinimumPlatePageContent({ initialSnapshot, initialExercises }: M
           ) : null
         }
       >
-        <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-md)" }}>
-          <div style={{ background: "var(--color-surface-container-low)", borderRadius: 20, padding: "var(--space-md)", display: "flex", flexDirection: "column", gap: "var(--space-sm)" }}>
-            <label style={{ display: "flex", flexDirection: "column", gap: "var(--space-xs)" }}>
-              <span style={{ color: "var(--color-text-muted)", font: "var(--font-secondary)" }}>{locale === "ko" ? "운동종목 드롭다운 검색/선택" : "Search and select an exercise"}</span>
+        <div style={{ display: "flex", flexDirection: "column", gap: "var(--v2-s-4)" }}>
+          <div style={{ background: "var(--v2-paper)", borderRadius: 20, padding: "var(--v2-s-4)", display: "flex", flexDirection: "column", gap: "var(--v2-s-2)" }}>
+            <label style={{ display: "flex", flexDirection: "column", gap: "var(--v2-s-1)" }}>
+              <span style={{ color: "var(--v2-ink-2)", fontFamily: "var(--v2-f-text)", fontSize: 13 }}>{locale === "ko" ? "운동종목 드롭다운 검색/선택" : "Search and select an exercise"}</span>
               <div data-no-swipe="true">
                 <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
                   <span
@@ -341,7 +341,7 @@ export function MinimumPlatePageContent({ initialSnapshot, initialExercises }: M
                       transform: "translateY(-50%)",
                       width: "0.9rem",
                       height: "0.9rem",
-                      color: "var(--color-text-subtle)",
+                      color: "var(--v2-ink-3)",
                       pointerEvents: "none",
                       display: "inline-flex",
                       alignItems: "center",
@@ -355,7 +355,7 @@ export function MinimumPlatePageContent({ initialSnapshot, initialExercises }: M
                     inputMode="search"
                     autoComplete="off"
                     value={exerciseQuery}
-                    style={{ paddingInlineStart: "2.15rem", paddingInlineEnd: exerciseQuery.trim().length > 0 ? "2.25rem" : "var(--space-md)" }}
+                    style={{ paddingInlineStart: "2.15rem", paddingInlineEnd: exerciseQuery.trim().length > 0 ? "2.25rem" : "var(--v2-s-4)" }}
                     placeholder={locale === "ko" ? "예: Pull-up" : "e.g. Pull-Up"}
                     onChange={(event) => {
                       const nextQuery = event.target.value;
@@ -388,9 +388,9 @@ export function MinimumPlatePageContent({ initialSnapshot, initialExercises }: M
                         height: "24px",
                         minHeight: "24px",
                         borderRadius: "999px",
-                        border: "1px solid var(--color-border)",
-                        background: "var(--color-surface-secondary)",
-                        color: "var(--color-text-muted)",
+                        border: "1px solid var(--v2-hairline)",
+                        background: "var(--v2-paper-2)",
+                        color: "var(--v2-ink-2)",
                         display: "inline-flex",
                         alignItems: "center",
                         justifyContent: "center",
@@ -412,15 +412,15 @@ export function MinimumPlatePageContent({ initialSnapshot, initialExercises }: M
                     role="status"
                     aria-live="polite"
                     style={{
-                      marginTop: "var(--space-sm)",
-                      padding: "var(--space-sm)",
-                      border: "1px solid var(--color-selected-border)",
+                      marginTop: "var(--v2-s-2)",
+                      padding: "var(--v2-s-2)",
+                      border: "1px solid var(--v2-accent)",
                       borderRadius: "8px",
-                      background: "var(--color-selected-weak)",
+                      background: "color-mix(in srgb, var(--v2-accent) 14%, var(--v2-paper))",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "space-between",
-                      gap: "var(--space-sm)",
+                      gap: "var(--v2-s-2)",
                     }}
                   >
                     <strong style={{ minWidth: 0 }}>
@@ -445,14 +445,14 @@ export function MinimumPlatePageContent({ initialSnapshot, initialExercises }: M
                     style={{
                       display: "flex",
                       flexDirection: "column",
-                      gap: "var(--space-xs)",
+                      gap: "var(--v2-s-1)",
                       maxHeight: "240px",
                       overflowY: "auto",
-                      paddingTop: "var(--space-sm)",
+                      paddingTop: "var(--v2-s-2)",
                     }}
                   >
                     {visibleExercises.length === 0 ? (
-                      <span style={{ color: "var(--color-text-muted)", font: "var(--font-secondary)" }}>{locale === "ko" ? "검색 조건에 맞는 운동종목이 없습니다." : "No exercises match the current search."}</span>
+                      <span style={{ color: "var(--v2-ink-2)", fontFamily: "var(--v2-f-text)", fontSize: 13 }}>{locale === "ko" ? "검색 조건에 맞는 운동종목이 없습니다." : "No exercises match the current search."}</span>
                     ) : (
                       visibleExercises.map((exercise) => (
                         <button
@@ -464,13 +464,13 @@ export function MinimumPlatePageContent({ initialSnapshot, initialExercises }: M
                             width: "100%",
                             minHeight: "44px",
                             padding: "10px 14px",
-                            background: "var(--color-surface-container)",
+                            background: "var(--v2-paper-2)",
                             border: "none",
                             borderRadius: 12,
                             textAlign: "left",
-                            fontFamily: "var(--font-headline-family)",
+                            fontFamily: "var(--v2-f-display)",
                             fontSize: 14,
-                            color: "var(--color-text)",
+                            color: "var(--v2-ink)",
                             cursor: "pointer",
                             WebkitTapHighlightColor: "transparent",
                           }}
@@ -488,7 +488,7 @@ export function MinimumPlatePageContent({ initialSnapshot, initialExercises }: M
             </label>
           </div>
 
-          <div style={{ background: "var(--color-surface-container-low)", borderRadius: 20, padding: "var(--space-md)" }}>
+          <div style={{ background: "var(--v2-paper)", borderRadius: 20, padding: "var(--v2-s-4)" }}>
             <AppNumberStepper
               label={locale === "ko" ? "최소 원판 Increment (kg)" : "Minimum Plate Increment (kg)"}
               value={ruleDraft.incrementKg}
@@ -505,7 +505,7 @@ export function MinimumPlatePageContent({ initialSnapshot, initialExercises }: M
             />
           </div>
 
-          {sheetError ? <p style={{ margin: 0, color: "var(--color-danger)", font: "var(--font-secondary)" }}>{sheetError}</p> : null}
+          {sheetError ? <p style={{ margin: 0, color: "var(--v2-c-danger)", fontFamily: "var(--v2-f-text)", fontSize: 13 }}>{sheetError}</p> : null}
         </div>
       </BottomSheet>
     </div>

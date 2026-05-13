@@ -1,6 +1,6 @@
 import type { ChangeEvent } from "react";
 import { useLocale } from "@/components/locale-provider";
-import { Card } from "@/components/ui/card";
+import { V2Card } from "@/components/v2/primitives";
 
 type SearchInputRowProps = {
   value: string;
@@ -31,7 +31,7 @@ export function SearchInputRow({
   const hasQuery = value.trim().length > 0;
 
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: "var(--space-sm)" }}>
+    <div style={{ display: "flex", alignItems: "center", gap: "var(--v2-s-2)" }}>
       {/* magnifier icon */}
       <span
         aria-hidden="true"
@@ -43,7 +43,7 @@ export function SearchInputRow({
           width: 18,
           height: 18,
           flexShrink: 0,
-          color: "var(--color-text-muted)",
+          color: "var(--v2-ink-2)",
         }}
       >
         <span className="material-symbols-outlined" style={{ fontSize: 18, fontVariationSettings: "'wght' 400" }}>search</span>
@@ -65,7 +65,7 @@ export function SearchInputRow({
           outline: "none",
           background: "transparent",
           font: "var(--font-body)",
-          color: "var(--color-text)",
+          color: "var(--v2-ink)",
           minWidth: 0,
         }}
       />
@@ -84,7 +84,7 @@ export function SearchInputRow({
             border: "none",
             cursor: "pointer",
             padding: 4,
-            color: "var(--color-text-muted)",
+            color: "var(--v2-ink-2)",
             flexShrink: 0,
           }}
         >
@@ -146,10 +146,10 @@ export function SearchInput({
           display: "flex",
           alignItems: "center",
           width: "100%",
-          padding: "var(--space-sm) var(--space-md)",
-          border: "1px solid var(--color-border)",
+          padding: "var(--v2-s-2) var(--v2-s-4)",
+          border: "1px solid var(--v2-hairline)",
           borderRadius: "8px",
-          backgroundColor: "var(--color-surface-container-low)",
+          backgroundColor: "var(--v2-paper)",
           boxSizing: "border-box",
         }}
       >
@@ -160,9 +160,9 @@ export function SearchInput({
 
   return (
     <div className="search-card-focus-ring">
-      <Card padding="sm" tone="inset" elevated={false}>
+      <V2Card padding="var(--v2-s-2)" tone="inset">
         {row}
-      </Card>
+      </V2Card>
     </div>
   );
 }

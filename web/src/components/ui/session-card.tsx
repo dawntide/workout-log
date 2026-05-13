@@ -4,8 +4,7 @@ import Link from "next/link";
 import { memo } from "react";
 import type { ReactNode } from "react";
 import { useLocale } from "@/components/locale-provider";
-import { Card } from "./card";
-import { PrimaryButton } from "./primary-button";
+import { V2Card, V2PrimaryBtn } from "@/components/v2/primitives";
 
 export type SessionCardExercise = {
   name: string;
@@ -36,25 +35,25 @@ const ExerciseGroupedList = memo(function ExerciseGroupedList({ exercises }: { e
       {main.length > 0 && (
         <div>
           {main.map((ex) => (
-            <div key={ex.name} style={{ display: "flex", justifyContent: "space-between", marginBottom: "var(--space-xs)" }}>
+            <div key={ex.name} style={{ display: "flex", justifyContent: "space-between", marginBottom: "var(--v2-s-1)" }}>
               {/* INFO COLOR: exercise-name — 주 운동명은 즉시 식별 가능한 강조톤 */}
-              <span style={{ font: "var(--font-card-title)", color: "var(--text-exercise-name)", fontWeight: "var(--font-weight-exercise-name)" }}>{ex.name}</span>
-              <span style={{ font: "var(--font-secondary)", color: "var(--text-meta)", fontVariantNumeric: "tabular-nums" }}>{ex.summary}</span>
+              <span style={{ font: "var(--font-card-title)", color: "var(--v2-ink)", fontWeight: "var(--font-weight-exercise-name)" }}>{ex.name}</span>
+              <span style={{ font: "var(--font-secondary)", color: "var(--v2-ink-3)", fontVariantNumeric: "tabular-nums" }}>{ex.summary}</span>
             </div>
           ))}
         </div>
       )}
       {assist.length > 0 && (
-        <div style={{ marginTop: "var(--space-sm)", paddingTop: "var(--space-sm)", borderTop: "1px dashed var(--color-border)" }}>
+        <div style={{ marginTop: "var(--v2-s-2)", paddingTop: "var(--v2-s-2)", borderTop: "1px dashed var(--v2-hairline)" }}>
           {assist.slice(0, 3).map((ex) => (
-            <div key={ex.name} style={{ display: "flex", justifyContent: "space-between", marginBottom: "var(--space-xs)" }}>
+            <div key={ex.name} style={{ display: "flex", justifyContent: "space-between", marginBottom: "var(--v2-s-1)" }}>
               {/* INFO COLOR: exercise-name (assist) — 보조 운동은 muted 컨텍스트톤으로 위계 조정 */}
-              <span style={{ font: "var(--font-secondary)", color: "var(--text-session-context)" }}>{ex.name}</span>
-              <span style={{ font: "var(--font-secondary)", color: "var(--text-hint)", fontVariantNumeric: "tabular-nums" }}>{ex.summary}</span>
+              <span style={{ font: "var(--font-secondary)", color: "var(--v2-ink-2)" }}>{ex.name}</span>
+              <span style={{ font: "var(--font-secondary)", color: "var(--v2-ink-3)", fontVariantNumeric: "tabular-nums" }}>{ex.summary}</span>
             </div>
           ))}
           {assist.length > 3 && (
-            <div style={{ font: "var(--font-secondary)", color: "var(--text-hint)", textAlign: "right", marginTop: "var(--space-xs)" }}>
+            <div style={{ font: "var(--font-secondary)", color: "var(--v2-ink-3)", textAlign: "right", marginTop: "var(--v2-s-1)" }}>
               {locale === "ko" ? `+보조 ${assist.length - 3}개 더` : `+${assist.length - 3} more assist`}
             </div>
           )}
@@ -67,14 +66,14 @@ const ExerciseGroupedList = memo(function ExerciseGroupedList({ exercises }: { e
 const ExerciseFlatList = memo(function ExerciseFlatList({ exercises }: { exercises: SessionCardExercise[] }) {
   if (exercises.length === 0) return null;
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-xs)" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: "var(--v2-s-1)" }}>
       {exercises.map((ex) => (
         <div key={ex.name} style={{ display: "flex", justifyContent: "space-between" }}>
           {/* INFO COLOR: exercise-name — 운동명은 700 weight와 강조톤으로 요약보다 먼저 읽힘 */}
-          <span style={{ font: "var(--font-card-title)", color: "var(--text-exercise-name)", fontWeight: "var(--font-weight-exercise-name)" }}>{ex.name}</span>
-          <span style={{ font: "var(--font-secondary)", color: "var(--text-meta)", fontVariantNumeric: "tabular-nums" }}>
+          <span style={{ font: "var(--font-card-title)", color: "var(--v2-ink)", fontWeight: "var(--font-weight-exercise-name)" }}>{ex.name}</span>
+          <span style={{ font: "var(--font-secondary)", color: "var(--v2-ink-3)", fontVariantNumeric: "tabular-nums" }}>
             {ex.weightDelta != null && ex.weightDelta !== 0 && (
-              <span className={`metric-trend ${ex.weightDelta > 0 ? "metric-trend--up" : "metric-trend--down"}`} style={{ marginRight: "var(--space-xs)" }}>
+              <span className={`metric-trend ${ex.weightDelta > 0 ? "metric-trend--up" : "metric-trend--down"}`} style={{ marginRight: "var(--v2-s-1)" }}>
                 {ex.weightDelta > 0 ? "+" : ""}{ex.weightDelta}kg
               </span>
             )}
@@ -126,7 +125,7 @@ function TodayCard({
         <div>
           {/* INFO COLOR: session-name — 오늘 세션 제목은 plan/program identity */}
           <div className="card-title" style={{ color: "var(--text-session-name)", font: "var(--font-card-title)", fontWeight: 700 }}>{title}</div>
-          {meta && <p style={{ font: "var(--font-secondary)", color: "var(--text-session-context)", margin: 0, marginTop: "2px" }}>{meta}</p>}
+          {meta && <p style={{ font: "var(--font-secondary)", color: "var(--v2-ink-2)", margin: 0, marginTop: "2px" }}>{meta}</p>}
         </div>
         {badge && <span className="label label-tag-session">{badge}</span>}
       </div>
@@ -143,22 +142,54 @@ function TodayCard({
 
       {ctaLabel && (
         href ? (
-          <PrimaryButton as="div" variant="primary" size="lg" fullWidth interactive={false} className="btn btn-primary" style={{ marginTop: "var(--space-md)" }}>
+          // Parent <Link> wraps the card; CTA is decorative div styled as primary button.
+          <div
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "var(--v2-s-2)",
+              width: "100%",
+              minHeight: 52,
+              padding: "14px 24px",
+              borderRadius: "var(--v2-r-3)",
+              background: "var(--v2-accent)",
+              color: "var(--v2-ink-on-accent)",
+              fontFamily: "var(--v2-f-display)",
+              fontWeight: 700,
+              fontSize: 16,
+              letterSpacing: "-0.01em",
+              boxShadow: "var(--v2-elev-2)",
+              marginTop: "var(--v2-s-4)",
+            }}
+          >
             <span>{ctaLabel}</span>
-            <span className="material-symbols-outlined" style={{ fontSize: 20, fontVariationSettings: "'wght' 400", marginLeft: "var(--space-xs)" }}>chevron_right</span>
-          </PrimaryButton>
-        ) : (
-          <PrimaryButton as="a" href={ctaHref} variant="primary" size="lg" fullWidth className="btn btn-primary" style={{ marginTop: "var(--space-md)" }}>
-            <span>{ctaLabel}</span>
-            <span className="material-symbols-outlined" style={{ fontSize: 20, fontVariationSettings: "'wght' 400", marginLeft: "var(--space-xs)" }}>chevron_right</span>
-          </PrimaryButton>
-        )
+            <span className="material-symbols-outlined" style={{ fontSize: 20, fontVariationSettings: "'wght' 400" }} aria-hidden>chevron_right</span>
+          </div>
+        ) : ctaHref ? (
+          <V2PrimaryBtn as="a" href={ctaHref} icon="chevron_right" full style={{ marginTop: "var(--v2-s-4)" }}>
+            {ctaLabel}
+          </V2PrimaryBtn>
+        ) : null
       )}
     </>
   );
 
-  if (href) return <Card as={Link} href={href} padding="md" className={className}>{inner}</Card>;
-  return <Card padding="md" className={className}>{inner}</Card>;
+  if (href)
+    return (
+      <Link
+        href={href}
+        className={className}
+        style={{ display: "block", textDecoration: "none", color: "inherit" }}
+      >
+        <V2Card padding="var(--v2-s-4)">{inner}</V2Card>
+      </Link>
+    );
+  return (
+    <V2Card padding="var(--v2-s-4)" className={className}>
+      {inner}
+    </V2Card>
+  );
 }
 
 // ─── "last" variant ────────────────────────────────────────────────────────────
@@ -195,12 +226,12 @@ function LastCard({
       <div className="card-header">
         <div>
           {/* INFO COLOR: plan-name — 지난 세션 제목은 program/plan identity */}
-          <div className="card-title" style={{ color: "var(--text-plan-name)", font: "var(--font-card-title)", fontWeight: 600 }}>{title}</div>
+          <div className="card-title" style={{ color: "var(--v2-ink)", font: "var(--font-card-title)", fontWeight: 600 }}>{title}</div>
           {/* INFO COLOR: session-context — 날짜는 계획/컨텍스트 정보이므로 강조톤 */}
           <div style={{ font: "var(--font-secondary)", color: "var(--text-session-date)" }}>{date}</div>
         </div>
         {/* INFO COLOR: meta-muted — 총 세트/볼륨은 참고 통계로 muted */}
-        <div style={{ font: "var(--font-secondary)", color: "var(--text-meta)", display: "flex", gap: "var(--space-xs)", fontVariantNumeric: "tabular-nums" }}>
+        <div style={{ font: "var(--font-secondary)", color: "var(--v2-ink-3)", display: "flex", gap: "var(--v2-s-1)", fontVariantNumeric: "tabular-nums" }}>
           {totalSets !== undefined && (
             <span>{locale === "ko" ? `${totalSets}세트` : `${totalSets} sets`}</span>
           )}
@@ -213,7 +244,7 @@ function LastCard({
           {bodyweightKg != null && (
             <>
               <span>·</span>
-              <span style={{ color: "var(--text-session-context)" }}>{locale === "ko" ? `체중 ${bodyweightKg.toFixed(1)}kg` : `BW ${bodyweightKg.toFixed(1)}kg`}</span>
+              <span style={{ color: "var(--v2-ink-2)" }}>{locale === "ko" ? `체중 ${bodyweightKg.toFixed(1)}kg` : `BW ${bodyweightKg.toFixed(1)}kg`}</span>
             </>
           )}
         </div>
@@ -224,8 +255,16 @@ function LastCard({
     <div>{resolvedEmptyMessage}</div>
   );
 
-  if (href) return <Card as={Link} href={href} padding="md">{inner}</Card>;
-  return <Card padding="md">{inner}</Card>;
+  if (href)
+    return (
+      <Link
+        href={href}
+        style={{ display: "block", textDecoration: "none", color: "inherit" }}
+      >
+        <V2Card padding="var(--v2-s-4)">{inner}</V2Card>
+      </Link>
+    );
+  return <V2Card padding="var(--v2-s-4)">{inner}</V2Card>;
 }
 
 // ─── Unified export ────────────────────────────────────────────────────────────

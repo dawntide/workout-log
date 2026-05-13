@@ -2,7 +2,7 @@ import Link from "next/link";
 import { APP_ROUTES } from "@/lib/app-routes";
 import { getAppCopy, resolveRequestLocale } from "@/lib/i18n/messages";
 import { AppPage, PageHeader, PageSection } from "@/components/ui/page-layout";
-import { Button } from "@/components/ui/button";
+import { V2SecondaryBtn } from "@/components/v2/primitives";
 
 type SearchParams = Record<string, string | string[] | undefined>;
 
@@ -39,19 +39,19 @@ function SettingRow({ item }: { item: SettingItem }) {
       style={{
         display: "flex",
         alignItems: "center",
-        gap: "var(--space-md)",
+        gap: "var(--v2-s-4)",
         padding: "14px 16px",
         borderRadius: "14px",
-        background: "var(--color-surface-container-low)",
+        background: "var(--v2-paper)",
         textDecoration: "none",
       }}
     >
       <span className="material-symbols-outlined" aria-hidden="true">{item.iconSymbol}</span>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontWeight: 700, fontSize: 14 }}>{item.label}</div>
-        <div style={{ fontSize: 12, color: "var(--color-text-muted)" }}>{item.description}</div>
+        <div style={{ fontSize: 12, color: "var(--v2-ink-2)" }}>{item.description}</div>
       </div>
-      <div style={{ fontSize: 12, color: "var(--color-text-muted)", whiteSpace: "nowrap" }}>{item.currentValue}</div>
+      <div style={{ fontSize: 12, color: "var(--v2-ink-2)", whiteSpace: "nowrap" }}>{item.currentValue}</div>
     </Link>
   );
 }
@@ -87,9 +87,9 @@ export default async function PlanContextPage({ searchParams }: { searchParams?:
 
   return (
     <AppPage>
-      <PageHeader eyebrow={copy.plansContext.eyebrow} title={copy.plansContext.title} description={copy.plansContext.description} actions={<Button as={Link} href={APP_ROUTES.plansManage} variant="secondary">{copy.plans.manage}</Button>} />
+      <PageHeader eyebrow={copy.plansContext.eyebrow} title={copy.plansContext.title} description={copy.plansContext.description} actions={<V2SecondaryBtn as="a" href={APP_ROUTES.plansManage}>{copy.plans.manage}</V2SecondaryBtn>} />
       <PageSection title={copy.plansContext.sectionTitle}>
-        <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-xs)" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "var(--v2-s-1)" }}>
           {contextItems.map((item) => <SettingRow key={item.href} item={item} />)}
         </div>
       </PageSection>

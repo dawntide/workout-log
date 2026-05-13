@@ -69,8 +69,8 @@ export function NumberPickerSheet({
       }}
       footer={null}
     >
-      <div style={{ padding: "var(--space-md) 0 var(--space-xl)" }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "var(--space-md)" }}>
+      <div style={{ padding: "var(--v2-s-4) 0 var(--v2-s-7)" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "var(--v2-s-4)" }}>
           <WheelPicker
             ref={pickerRef}
             values={values}
@@ -80,7 +80,7 @@ export function NumberPickerSheet({
             visibleCount={7}
             formatValue={formatValue}
           />
-          {unit ? <span style={{ fontSize: "1.25rem", color: "var(--color-text-muted)" }}>{unit}</span> : null}
+          {unit ? <span style={{ fontSize: "1.25rem", color: "var(--v2-ink-2)" }}>{unit}</span> : null}
         </div>
       </div>
     </BottomSheet>
@@ -140,8 +140,8 @@ export function NumberPickerField({
         borderRadius: "8px",
         minHeight: "44px",
         padding: "8px 12px",
-        backgroundColor: complete ? "var(--color-surface-hover)" : "var(--color-surface-container-low)",
-        color: complete ? "var(--color-text)" : "var(--color-text-muted)",
+        backgroundColor: complete ? "var(--v2-paper-2)" : "var(--v2-paper)",
+        color: complete ? "var(--v2-ink)" : "var(--v2-ink-2)",
         font: "var(--font-body)",
       };
     }
@@ -154,16 +154,16 @@ export function NumberPickerField({
         padding: "4px 8px",
         backgroundColor: complete
           ? isReps
-            ? "var(--color-success-weak)"
-            : "var(--color-surface-hover)"
+            ? "color-mix(in srgb, var(--v2-c-success) 14%, var(--v2-paper))"
+            : "var(--v2-paper-2)"
           : "transparent",
         color: complete
           ? isReps
-            ? "var(--color-success-strong)"
-            : "var(--color-text)"
-          : "var(--color-text-muted)",
+            ? "var(--v2-c-success)"
+            : "var(--v2-ink)"
+          : "var(--v2-ink-2)",
         border: complete && isReps
-          ? "1px solid color-mix(in srgb, var(--color-success) 35%, var(--color-border))"
+          ? "1px solid color-mix(in srgb, var(--v2-c-success) 35%, var(--v2-hairline))"
           : undefined,
         fontWeight: complete && isReps ? "600" : undefined,
         font: "var(--font-secondary)",
@@ -174,8 +174,8 @@ export function NumberPickerField({
       borderRadius: "8px",
       minHeight: "44px",
       padding: "10px 12px",
-      backgroundColor: complete ? "var(--color-surface-hover)" : "var(--color-surface-container-low)",
-      color: complete ? "var(--color-text)" : "var(--color-text)",
+      backgroundColor: complete ? "var(--v2-paper-2)" : "var(--v2-paper)",
+      color: complete ? "var(--v2-ink)" : "var(--v2-ink)",
       font: "var(--font-body)",
     };
   })();
@@ -189,7 +189,7 @@ export function NumberPickerField({
         className={[className, isCompletedReps ? "reps-complete" : ""].join(" ").trim()}
         style={{
           width: "100%",
-          border: "1px solid var(--color-border)",
+          border: "1px solid var(--v2-hairline)",
           display: "inline-flex",
           alignItems: "center",
           gap: "6px",
@@ -199,7 +199,7 @@ export function NumberPickerField({
         }}
       >
         <span style={{ fontVariantNumeric: "tabular-nums" }}>{displayText}</span>
-        {unit ? <span style={{ color: isCompletedReps ? "var(--color-action-strong)" : "var(--color-text-muted)", font: "var(--font-secondary)", fontWeight: isCompletedReps ? 600 : undefined }}>{unit}</span> : null}
+        {unit ? <span style={{ color: isCompletedReps ? "var(--v2-accent-ink)" : "var(--v2-ink-2)", font: "var(--font-secondary)", fontWeight: isCompletedReps ? 600 : undefined }}>{unit}</span> : null}
       </button>
       <NumberPickerSheet
         open={open}

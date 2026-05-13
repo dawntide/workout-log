@@ -170,28 +170,28 @@ export function SectionFootnote({ children }: SectionFootnoteProps) {
 // PERF: RowIcon 렌더마다 switch 실행 → 모듈 레벨 상수 룩업으로 교체
 const ROW_ICON_TONE_STYLES: Record<RowIconTone, CSSProperties> = {
   primary: {
-    backgroundColor: "var(--color-selected-weak)",
-    color: "var(--color-action-strong)",
+    backgroundColor: "color-mix(in srgb, var(--v2-accent) 14%, var(--v2-paper))",
+    color: "var(--v2-accent-ink)",
   },
   info: {
-    backgroundColor: "var(--color-info-weak)",
-    color: "var(--color-info)",
+    backgroundColor: "color-mix(in srgb, var(--v2-c-info) 14%, var(--v2-paper))",
+    color: "var(--v2-c-info)",
   },
   success: {
-    backgroundColor: "var(--color-success-weak)",
-    color: "var(--color-success)",
+    backgroundColor: "color-mix(in srgb, var(--v2-c-success) 14%, var(--v2-paper))",
+    color: "var(--v2-c-success)",
   },
   warning: {
-    backgroundColor: "var(--color-warning-weak)",
-    color: "var(--color-warning)",
+    backgroundColor: "color-mix(in srgb, var(--v2-c-warning) 14%, var(--v2-paper))",
+    color: "var(--v2-c-warning)",
   },
   surface: {
-    backgroundColor: "var(--color-surface-container)",
-    color: "var(--color-text)",
+    backgroundColor: "var(--v2-paper-2)",
+    color: "var(--v2-ink)",
   },
   neutral: {
-    backgroundColor: "var(--color-surface-container-high)",
-    color: "var(--color-text-muted)",
+    backgroundColor: "var(--v2-paper-3)",
+    color: "var(--v2-ink-2)",
   },
 };
 

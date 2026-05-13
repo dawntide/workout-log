@@ -22,7 +22,7 @@ function nextTimezone(current: string) {
   return TIMEZONE_OPTIONS[(currentIndex + 1) % TIMEZONE_OPTIONS.length];
 }
 
-export default function SettingsSavePolicyPage() {
+export function SavePolicySection() {
   const { copy } = useLocale();
   const [simulateFailureOnNextSave, setSimulateFailureOnNextSave] = useState(false);
 

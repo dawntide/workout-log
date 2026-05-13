@@ -479,7 +479,7 @@ export default function SettingsAccountPage() {
             <button
               type="button"
               className="btn btn-secondary btn-full"
-              style={{ marginTop: "var(--space-sm)" }}
+              style={{ marginTop: "var(--v2-s-2)" }}
               onClick={() => {
                 void runResendVerification();
               }}
@@ -568,7 +568,7 @@ export default function SettingsAccountPage() {
         <button
           type="button"
           className="btn btn-secondary btn-full"
-          style={{ marginTop: "var(--space-sm)" }}
+          style={{ marginTop: "var(--v2-s-2)" }}
           onClick={() => {
             void runRevokeOthers();
           }}
@@ -613,9 +613,9 @@ export default function SettingsAccountPage() {
             <label
               style={{
                 display: "block",
-                fontFamily: "var(--font-label-family)",
+                fontFamily: "var(--v2-f-display)",
                 fontSize: 13,
-                color: "var(--color-text-muted)",
+                color: "var(--v2-ink-2)",
               }}
             >
               {locale === "ko" ? "새 비밀번호 (최소 8자)" : "New password (min 8 chars)"}
@@ -632,9 +632,9 @@ export default function SettingsAccountPage() {
                   marginTop: 6,
                   padding: "10px 12px",
                   borderRadius: 12,
-                  border: "1px solid var(--color-border)",
-                  background: "var(--color-surface-container)",
-                  color: "var(--color-text)",
+                  border: "1px solid var(--v2-hairline)",
+                  background: "var(--v2-paper-2)",
+                  color: "var(--v2-ink)",
                   font: "inherit",
                   boxSizing: "border-box",
                 }}
@@ -643,9 +643,9 @@ export default function SettingsAccountPage() {
             <label
               style={{
                 display: "block",
-                fontFamily: "var(--font-label-family)",
+                fontFamily: "var(--v2-f-display)",
                 fontSize: 13,
-                color: "var(--color-text-muted)",
+                color: "var(--v2-ink-2)",
               }}
             >
               {locale === "ko" ? "비밀번호 확인" : "Confirm password"}
@@ -662,9 +662,9 @@ export default function SettingsAccountPage() {
                   marginTop: 6,
                   padding: "10px 12px",
                   borderRadius: 12,
-                  border: "1px solid var(--color-border)",
-                  background: "var(--color-surface-container)",
-                  color: "var(--color-text)",
+                  border: "1px solid var(--v2-hairline)",
+                  background: "var(--v2-paper-2)",
+                  color: "var(--v2-ink)",
                   font: "inherit",
                   boxSizing: "border-box",
                 }}
@@ -797,10 +797,10 @@ export default function SettingsAccountPage() {
         <label
           style={{
             display: "block",
-            marginTop: "var(--space-sm)",
-            fontFamily: "var(--font-label-family)",
+            marginTop: "var(--v2-s-2)",
+            fontFamily: "var(--v2-f-display)",
             fontSize: 13,
-            color: "var(--color-text-muted)",
+            color: "var(--v2-ink-2)",
           }}
         >
           {locale === "ko"
@@ -818,9 +818,9 @@ export default function SettingsAccountPage() {
               marginTop: 6,
               padding: "10px 12px",
               borderRadius: 12,
-              border: "1px solid var(--color-border)",
-              background: "var(--color-surface-container)",
-              color: "var(--color-text)",
+              border: "1px solid var(--v2-hairline)",
+              background: "var(--v2-paper-2)",
+              color: "var(--v2-ink)",
               font: "inherit",
               boxSizing: "border-box",
             }}
@@ -829,7 +829,7 @@ export default function SettingsAccountPage() {
         <button
           type="button"
           className="btn btn-danger btn-full"
-          style={{ marginTop: "var(--space-sm)" }}
+          style={{ marginTop: "var(--v2-s-2)" }}
           onClick={() => {
             void runDeleteAccount();
           }}
