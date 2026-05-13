@@ -1,5 +1,6 @@
 "use client";
 
+import type { CSSProperties } from "react";
 import { useCallback, useEffect, useId, useMemo, useState } from "react";
 import { useLocale } from "@/components/locale-provider";
 import { AppNumberStepper } from "@/components/ui/form-controls";
@@ -355,12 +356,13 @@ function Section({
       </div>
       <div
         style={{
-          background: "var(--v2-paper-2)",
+          background: "var(--v2-paper)",
           borderRadius: 16,
           overflow: "hidden",
           display: "flex",
           flexDirection: "column",
-        }}
+          ["--v2-nav-row-radius" as string]: "0",
+        } as CSSProperties}
       >
         {children}
       </div>
