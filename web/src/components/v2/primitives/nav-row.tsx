@@ -91,7 +91,7 @@ export function V2NavRow(
     cursor: interactive ? "pointer" : "default",
     textDecoration: "none",
     textAlign: "left",
-    borderRadius: "var(--v2-r-2)",
+    borderRadius: "var(--v2-nav-row-radius, var(--v2-r-2))",
     transition: "background var(--v2-d-1) var(--v2-e-out)",
     ...style,
   };
