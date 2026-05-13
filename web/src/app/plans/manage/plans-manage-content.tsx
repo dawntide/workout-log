@@ -8,7 +8,7 @@ import { BottomSheet } from "@/components/ui/bottom-sheet";
 import { useAppDialog } from "@/components/ui/app-dialog-provider";
 import { AppTextInput } from "@/components/ui/form-controls";
 import { NumberPickerField } from "@/components/ui/number-picker-sheet";
-import { PrimaryButton } from "@/components/ui/primary-button";
+import { V2PrimaryBtn, V2SecondaryBtn } from "@/components/v2/primitives";
 import { SearchInput } from "@/components/ui/search-input";
 import { EmptyStateRows, ErrorStateRows, LoadingStateRows } from "@/components/ui/settings-state";
 import { apiDelete, apiGet, apiPatch } from "@/lib/api";
@@ -551,7 +551,7 @@ export function PlansManageContent({ initialPlans }: { initialPlans: Plan[] }) {
             ))}
           </div>
 
-            <div style={{ marginBottom: "var(--space-md)" }}>
+            <div style={{ marginBottom: "var(--v2-s-4)" }}>
             <SearchInput
               value={searchQuery}
               onChange={setSearchQuery}
@@ -708,52 +708,39 @@ export function PlansManageContent({ initialPlans }: { initialPlans: Plan[] }) {
             </div>
 
             <div className="plan-manage-sheet__stack">
-              <PrimaryButton
-                type="button"
-                variant="primary"
-                size="lg"
-                fullWidth
+              <V2PrimaryBtn
+                full
                 disabled={saving || deleting}
                 onClick={() => {
                   void savePlanChanges();
                 }}
               >
-                {saving ? copy.plansManage.saveInProgress : copy.plansManage.saveChanges}
-              </PrimaryButton>
-              <PrimaryButton
-                type="button"
-                variant="secondary"
-                size="md"
-                className="btn-danger"
-                fullWidth
+                {saving
+                  ? copy.plansManage.saveInProgress
+                  : copy.plansManage.saveChanges}
+              </V2PrimaryBtn>
+              <V2SecondaryBtn
+                full
+                tone="danger"
+                icon="delete"
                 disabled={saving || deleting}
                 onClick={() => {
                   void deletePlan();
                 }}
               >
-                <span
-                  className="material-symbols-outlined"
-                  style={{
-                    fontSize: 15,
-                    fontVariationSettings: "'FILL' 0, 'wght' 300",
-                    verticalAlign: "middle",
-                    marginRight: "4px",
-                  }}
-                  aria-hidden="true"
-                >
-                  delete
-                </span>
-                {deleting ? copy.plansManage.deleteInProgress : copy.plansManage.deletePlan}
-              </PrimaryButton>
+                {deleting
+                  ? copy.plansManage.deleteInProgress
+                  : copy.plansManage.deletePlan}
+              </V2SecondaryBtn>
             </div>
           </div>
         ) : (
           <div
             style={{
-              background: "var(--color-surface-container-low)",
+              background: "var(--v2-paper)",
               borderRadius: "12px",
-              padding: "var(--space-md)",
-              color: "var(--color-text-muted)",
+              padding: "var(--v2-s-4)",
+              color: "var(--v2-ink-2)",
               fontSize: "14px",
             }}
           >

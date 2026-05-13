@@ -105,29 +105,29 @@ export const AppSelect = forwardRef<
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          gap: "var(--space-sm)",
+          gap: "var(--v2-s-2)",
           width: "100%",
           minHeight: "44px",
-          border: "1px solid var(--color-border)",
+          border: "1px solid var(--v2-hairline)",
           borderRadius: "8px",
-          padding: "var(--space-sm) var(--space-md)",
-          backgroundColor: "var(--color-surface-container-low)",
+          padding: "var(--v2-s-2) var(--v2-s-4)",
+          backgroundColor: "var(--v2-paper)",
           boxSizing: "border-box",
         }}
       >
         {label ? (
-          <span style={{ color: "var(--color-text-muted)", font: "var(--font-secondary)", whiteSpace: "nowrap" }}>
+          <span style={{ color: "var(--v2-ink-2)", font: "var(--font-secondary)", whiteSpace: "nowrap" }}>
             {label}
           </span>
         ) : null}
-        <span style={{ display: "inline-flex", alignItems: "center", gap: "var(--space-xs)", minWidth: 0 }}>
+        <span style={{ display: "inline-flex", alignItems: "center", gap: "var(--v2-s-1)", minWidth: 0 }}>
           <select
             ref={ref}
             className={className}
             style={{
               border: "none",
               background: "transparent",
-              color: "var(--color-text)",
+              color: "var(--v2-ink)",
               font: "var(--font-body)",
               outline: "none",
               appearance: "none",
@@ -146,7 +146,7 @@ export const AppSelect = forwardRef<
           <span
             aria-hidden="true"
             style={{
-              color: "var(--color-text-subtle)",
+              color: "var(--v2-ink-3)",
               display: "inline-flex",
               alignItems: "center",
               justifyContent: "center",

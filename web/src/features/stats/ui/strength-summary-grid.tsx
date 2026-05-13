@@ -3,6 +3,7 @@
 import { memo, useCallback, useEffect, useState } from "react";
 import { useLocale } from "@/components/locale-provider";
 import { ErrorStateRows, EmptyStateRows } from "@/components/ui/settings-state";
+import { V2Chip } from "@/components/v2/primitives";
 import { apiGet } from "@/lib/api";
 
 type StrengthSummaryItem = {
@@ -66,7 +67,9 @@ export const StrengthSummaryGrid = memo(function StrengthSummaryGrid({
     return (
       <EmptyStateRows
         when={true}
-        label={locale === "ko" ? "기록된 운동이 없습니다." : "No recorded exercises."}
+        label={
+          locale === "ko" ? "기록된 운동이 없습니다." : "No recorded exercises."
+        }
         description={
           locale === "ko"
             ? "무거운 중량으로 운동을 기록하면 여기에 나타납니다."
@@ -81,7 +84,7 @@ export const StrengthSummaryGrid = memo(function StrengthSummaryGrid({
       style={{
         display: "grid",
         gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))",
-        gap: "var(--space-md)",
+        gap: "var(--v2-s-4)",
       }}
     >
       {data.map((item) => (
@@ -90,7 +93,8 @@ export const StrengthSummaryGrid = memo(function StrengthSummaryGrid({
           item={item}
           locale={locale}
           onClick={() =>
-            item.exerciseId && onExerciseSelect?.(item.exerciseId, item.exerciseName)
+            item.exerciseId &&
+            onExerciseSelect?.(item.exerciseId, item.exerciseName)
           }
         />
       ))}
@@ -108,70 +112,112 @@ function StrengthCard({
   onClick?: () => void;
 }) {
   const isPr = item.current.e1rm >= item.best.e1rm;
+  const trendColor =
+    item.improvement > 0
+      ? "var(--v2-c-success)"
+      : item.improvement < 0
+        ? "var(--v2-c-danger)"
+        : "var(--v2-ink-3)";
 
   return (
     <div
       onClick={onClick}
-      className="metric-badge metric-1rm"
+      className={onClick ? "v2-pressable" : undefined}
       style={{
         display: "flex",
         flexDirection: "column",
-        gap: "var(--space-xs)",
+        gap: "var(--v2-s-1)",
         cursor: onClick ? "pointer" : "default",
-        minHeight: "124px",
-        padding: "var(--space-md)",
-        background: "var(--color-surface-container-low)",
-        borderRadius: "20px",
-        boxShadow: "0 1px 3px var(--shadow-color-soft)",
+        minHeight: 124,
+        padding: "var(--v2-s-4)",
+        background: "var(--v2-paper)",
+        borderRadius: "var(--v2-r-4)",
+        boxShadow: "var(--v2-elev-1)",
+        color: "var(--v2-c-onerm)",
       }}
     >
-      <header style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-        <div
+      <header
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "flex-start",
+        }}
+      >
+        <p
+          className="v2-small"
           style={{
-            font: "var(--font-secondary)",
-            color: "var(--color-text-muted)",
+            color: "var(--v2-ink-2)",
             fontWeight: 500,
-            fontSize: "12px",
+            fontSize: 12,
           }}
         >
           {item.exerciseName}
-        </div>
+        </p>
         {isPr ? (
-          <span className="label label-pr label-sm" style={{ fontSize: "10px", padding: "1px 6px" }}>
-            PR
-          </span>
+          <V2Chip tone="pr">PR</V2Chip>
         ) : (
-          <span className="label label-neutral label-sm" style={{ opacity: 0.6, fontSize: "10px", padding: "1px 6px" }}>
-            e1RM
-          </span>
+          <V2Chip tone="neutral">e1RM</V2Chip>
         )}
       </header>
 
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center" }}>
-        <div className="metric-value" style={{ fontSize: "32px", lineHeight: 1, marginBottom: "2px" }}>
+      <div
+        style={{
+          flex: 1,
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "center",
+        }}
+      >
+        <p
+          className="v2-num-md"
+          style={{
+            color: "var(--v2-c-onerm)",
+            marginBottom: 2,
+          }}
+        >
           {item.current.e1rm.toFixed(1)}
-          <span style={{ fontSize: "14px", marginLeft: "2px", color: "var(--color-text-muted)", fontWeight: 400 }}>
+          <span
+            style={{
+              fontSize: 14,
+              marginLeft: 2,
+              color: "var(--v2-ink-3)",
+              fontWeight: 400,
+            }}
+          >
             kg
           </span>
-        </div>
+        </p>
       </div>
 
       <footer style={{ marginTop: "auto" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
-          <span style={{ fontSize: "11px", color: "var(--color-text-muted)" }}>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: 4,
+          }}
+        >
+          <span
+            className="v2-mono-label"
+            style={{ color: "var(--v2-ink-3)", fontSize: 11 }}
+          >
             {locale === "ko" ? "최고" : "Best"}: {item.best.e1rm.toFixed(1)}kg
           </span>
           {item.improvement !== 0 ? (
             <span
-              className={`metric-trend ${item.improvement > 0 ? "metric-trend--up" : "metric-trend--down"}`}
-              style={{ marginTop: 0, fontSize: "11px" }}
+              className="v2-mono-label"
+              style={{
+                color: trendColor,
+                fontSize: 11,
+              }}
             >
               {item.improvement > 0 ? "+" : ""}
               {item.improvement.toFixed(1)}%
             </span>
           ) : null}
         </div>
-        <div style={{ height: "16px", width: "100%", opacity: 0.8 }}>
+        <div style={{ height: 16, width: "100%", opacity: 0.8 }}>
           <MiniSparkline points={item.recentSeries} />
         </div>
       </footer>
@@ -184,10 +230,9 @@ function MiniSparkline({ points }: { points: number[] }) {
     return (
       <div
         style={{
-          height: "1px",
-          background: "var(--color-border)",
+          height: 1,
+          background: "var(--v2-hairline)",
           width: "100%",
-          opacity: 0.3,
         }}
       />
     );

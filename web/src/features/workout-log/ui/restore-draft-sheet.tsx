@@ -8,7 +8,7 @@ import {
   useState,
   type PointerEvent as ReactPointerEvent,
 } from "react";
-import { PrimaryButton } from "@/components/ui/primary-button";
+import { V2PrimaryBtn, V2SecondaryBtn } from "@/components/v2/primitives";
 import type { PendingRestorePrompt } from "@/features/workout-log/model/editor-actions";
 
 type RestoreDraftSheetProps = {
@@ -43,19 +43,22 @@ export const RestoreDraftSheet = memo(function RestoreDraftSheet({
     setOpen(false);
   }, [request]);
 
-  const beginClose = useCallback((keep: boolean) => {
-    if (!request || closingRef.current) return;
-    closingRef.current = true;
-    setOpen(false);
-    if (closeTimerRef.current !== null) {
-      window.clearTimeout(closeTimerRef.current);
-    }
-    closeTimerRef.current = window.setTimeout(() => {
-      closeTimerRef.current = null;
-      closingRef.current = false;
-      onResolve(keep);
-    }, 420);
-  }, [onResolve, request]);
+  const beginClose = useCallback(
+    (keep: boolean) => {
+      if (!request || closingRef.current) return;
+      closingRef.current = true;
+      setOpen(false);
+      if (closeTimerRef.current !== null) {
+        window.clearTimeout(closeTimerRef.current);
+      }
+      closeTimerRef.current = window.setTimeout(() => {
+        closeTimerRef.current = null;
+        closingRef.current = false;
+        onResolve(keep);
+      }, 420);
+    },
+    [onResolve, request],
+  );
 
   useEffect(() => {
     return () => {
@@ -93,8 +96,14 @@ export const RestoreDraftSheet = memo(function RestoreDraftSheet({
       event.preventDefault();
     };
 
-    document.addEventListener("touchmove", stopBackgroundScroll, { capture: true, passive: false });
-    document.addEventListener("wheel", stopBackgroundScroll, { capture: true, passive: false });
+    document.addEventListener("touchmove", stopBackgroundScroll, {
+      capture: true,
+      passive: false,
+    });
+    document.addEventListener("wheel", stopBackgroundScroll, {
+      capture: true,
+      passive: false,
+    });
 
     return () => {
       document.removeEventListener("touchmove", stopBackgroundScroll, true);
@@ -102,74 +111,81 @@ export const RestoreDraftSheet = memo(function RestoreDraftSheet({
     };
   }, [open, request]);
 
-  const onHandlePointerDown = useCallback((event: ReactPointerEvent<HTMLElement>) => {
-    if (!open || !request || closingRef.current) return;
-    if (event.pointerType === "mouse" && event.button !== 0) return;
+  const onHandlePointerDown = useCallback(
+    (event: ReactPointerEvent<HTMLElement>) => {
+      if (!open || !request || closingRef.current) return;
+      if (event.pointerType === "mouse" && event.button !== 0) return;
 
-    const panel = panelRef.current;
-    if (!panel) return;
+      const panel = panelRef.current;
+      if (!panel) return;
 
-    event.preventDefault();
-    dragCleanupRef.current?.();
-
-    const panelHeight = panel.getBoundingClientRect().height;
-    const closeThresholdPx = Math.min(Math.max(panelHeight * 0.22, 88), 180);
-    const pointerId = event.pointerId;
-    const startY = event.clientY;
-    let dragOffset = 0;
-    let lastY = startY;
-    let lastTime = event.timeStamp;
-    let velocityY = 0;
-
-    panel.style.transition = "none";
-    panel.style.willChange = "transform";
-
-    const finish = (shouldClose: boolean) => {
+      event.preventDefault();
       dragCleanupRef.current?.();
-      dragCleanupRef.current = null;
-      panel.style.willChange = "";
-      if (shouldClose) {
-        panel.style.transition = "transform 0.35s cubic-bezier(0.4, 0, 1, 1)";
-        panel.style.transform = "translateY(100%)";
-        beginClose(true);
-        return;
-      }
-      panel.style.transition = "transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)";
-      panel.style.transform = "translateY(0)";
-    };
 
-    const onPointerMove = (moveEvent: PointerEvent) => {
-      if (moveEvent.pointerId !== pointerId) return;
-      dragOffset = Math.max(0, moveEvent.clientY - startY);
-      panel.style.transform = `translateY(${dragOffset}px)`;
-      if (dragOffset > 0) moveEvent.preventDefault();
+      const panelHeight = panel.getBoundingClientRect().height;
+      const closeThresholdPx = Math.min(Math.max(panelHeight * 0.22, 88), 180);
+      const pointerId = event.pointerId;
+      const startY = event.clientY;
+      let dragOffset = 0;
+      let lastY = startY;
+      let lastTime = event.timeStamp;
+      let velocityY = 0;
 
-      const dt = moveEvent.timeStamp - lastTime;
-      if (dt > 0) velocityY = (moveEvent.clientY - lastY) / dt;
-      lastY = moveEvent.clientY;
-      lastTime = moveEvent.timeStamp;
-    };
+      panel.style.transition = "none";
+      panel.style.willChange = "transform";
 
-    const onPointerUp = (upEvent: PointerEvent) => {
-      if (upEvent.pointerId !== pointerId) return;
-      finish(dragOffset >= closeThresholdPx || (velocityY > 0.5 && dragOffset > 20));
-    };
+      const finish = (shouldClose: boolean) => {
+        dragCleanupRef.current?.();
+        dragCleanupRef.current = null;
+        panel.style.willChange = "";
+        if (shouldClose) {
+          panel.style.transition = "transform 0.35s cubic-bezier(0.4, 0, 1, 1)";
+          panel.style.transform = "translateY(100%)";
+          beginClose(true);
+          return;
+        }
+        panel.style.transition =
+          "transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)";
+        panel.style.transform = "translateY(0)";
+      };
 
-    const onPointerCancel = (cancelEvent: PointerEvent) => {
-      if (cancelEvent.pointerId !== pointerId) return;
-      finish(false);
-    };
+      const onPointerMove = (moveEvent: PointerEvent) => {
+        if (moveEvent.pointerId !== pointerId) return;
+        dragOffset = Math.max(0, moveEvent.clientY - startY);
+        panel.style.transform = `translateY(${dragOffset}px)`;
+        if (dragOffset > 0) moveEvent.preventDefault();
 
-    dragCleanupRef.current = () => {
-      window.removeEventListener("pointermove", onPointerMove);
-      window.removeEventListener("pointerup", onPointerUp);
-      window.removeEventListener("pointercancel", onPointerCancel);
-    };
+        const dt = moveEvent.timeStamp - lastTime;
+        if (dt > 0) velocityY = (moveEvent.clientY - lastY) / dt;
+        lastY = moveEvent.clientY;
+        lastTime = moveEvent.timeStamp;
+      };
 
-    window.addEventListener("pointermove", onPointerMove, { passive: false });
-    window.addEventListener("pointerup", onPointerUp);
-    window.addEventListener("pointercancel", onPointerCancel);
-  }, [beginClose, open, request]);
+      const onPointerUp = (upEvent: PointerEvent) => {
+        if (upEvent.pointerId !== pointerId) return;
+        finish(
+          dragOffset >= closeThresholdPx ||
+            (velocityY > 0.5 && dragOffset > 20),
+        );
+      };
+
+      const onPointerCancel = (cancelEvent: PointerEvent) => {
+        if (cancelEvent.pointerId !== pointerId) return;
+        finish(false);
+      };
+
+      dragCleanupRef.current = () => {
+        window.removeEventListener("pointermove", onPointerMove);
+        window.removeEventListener("pointerup", onPointerUp);
+        window.removeEventListener("pointercancel", onPointerCancel);
+      };
+
+      window.addEventListener("pointermove", onPointerMove, { passive: false });
+      window.addEventListener("pointerup", onPointerUp);
+      window.addEventListener("pointercancel", onPointerCancel);
+    },
+    [beginClose, open, request],
+  );
 
   if (!request) return null;
 
@@ -202,7 +218,7 @@ export const RestoreDraftSheet = memo(function RestoreDraftSheet({
           bottom: 0,
           top: 0,
           border: "none",
-          background: "transparent",
+          background: "var(--v2-overlay)",
           cursor: "pointer",
           opacity: open ? 1 : 0,
           transition: "opacity 0.28s ease",
@@ -216,13 +232,13 @@ export const RestoreDraftSheet = memo(function RestoreDraftSheet({
         style={{
           position: "relative",
           width: "100%",
-          background: "var(--color-surface-container-low)",
-          borderTopLeftRadius: 32,
-          borderTopRightRadius: 32,
-          border: "1px solid color-mix(in srgb, var(--color-outline-variant) 15%, transparent)",
-          boxShadow: "0 -12px 48px var(--shadow-color-strong), 0 -2px 8px var(--shadow-color-soft)",
-          padding: "var(--space-md)",
-          paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + var(--space-md))",
+          background: "var(--v2-paper)",
+          borderTopLeftRadius: "var(--v2-r-5)",
+          borderTopRightRadius: "var(--v2-r-5)",
+          boxShadow: "var(--v2-elev-sheet)",
+          padding: "var(--v2-s-4)",
+          paddingBottom:
+            "calc(env(safe-area-inset-bottom, 0px) + var(--v2-s-4))",
           maxHeight: "92vh",
           transform: open ? "translateY(0)" : "translateY(100%)",
           transition: "transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)",
@@ -235,7 +251,7 @@ export const RestoreDraftSheet = memo(function RestoreDraftSheet({
             justifyContent: "center",
             alignItems: "center",
             padding: "12px 0 8px",
-            margin: "-4px calc(-1 * var(--space-md)) 0",
+            margin: "-4px calc(-1 * var(--v2-s-4)) 0",
             cursor: "grab",
             userSelect: "none",
             touchAction: "none",
@@ -248,28 +264,26 @@ export const RestoreDraftSheet = memo(function RestoreDraftSheet({
               width: 48,
               height: 4,
               borderRadius: 2,
-              background: "var(--color-outline-variant)",
-              opacity: 0.3,
+              background: "var(--v2-paper-4)",
             }}
           />
         </div>
-        <div style={{ textAlign: "center", marginBottom: "var(--space-md)" }}>
-          <h2
-            style={{
-              margin: 0,
-              fontFamily: "var(--font-headline-family)",
-              fontSize: "16px",
-              fontWeight: 800,
-              letterSpacing: "-0.3px",
-              color: "var(--color-text)",
-              lineHeight: 1.2,
-            }}
-          >
+        <div
+          style={{ textAlign: "center", marginBottom: "var(--v2-s-4)" }}
+        >
+          <h2 className="v2-h3" style={{ lineHeight: 1.3 }}>
             {title}
           </h2>
         </div>
-        <div style={{ paddingBottom: "var(--space-md)" }}>
-          <p style={{ margin: 0, whiteSpace: "pre-line", color: "var(--color-text-muted)", textAlign: "center" }}>
+        <div style={{ paddingBottom: "var(--v2-s-4)" }}>
+          <p
+            className="v2-body"
+            style={{
+              whiteSpace: "pre-line",
+              color: "var(--v2-ink-2)",
+              textAlign: "center",
+            }}
+          >
             {message}
           </p>
         </div>
@@ -277,25 +291,16 @@ export const RestoreDraftSheet = memo(function RestoreDraftSheet({
           style={{
             display: "flex",
             flexDirection: "column",
-            gap: "var(--space-xs)",
+            gap: "var(--v2-s-2)",
             width: "100%",
           }}
         >
-          <PrimaryButton
-            type="button"
-            variant="primary"
-            fullWidth
-            onClick={() => beginClose(true)}
-          >
+          <V2PrimaryBtn full onClick={() => beginClose(true)}>
             {confirmText}
-          </PrimaryButton>
-          <button
-            type="button"
-            className="btn btn-secondary btn-full"
-            onClick={() => beginClose(false)}
-          >
+          </V2PrimaryBtn>
+          <V2SecondaryBtn full onClick={() => beginClose(false)}>
             {cancelText}
-          </button>
+          </V2SecondaryBtn>
         </div>
       </section>
     </div>

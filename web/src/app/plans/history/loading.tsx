@@ -1,7 +1,7 @@
 // PERF: 플랜 히스토리 라우트 loading.tsx — 새 hero + tab strip + log timeline 형태에 맞춘 스켈레톤
 const skeletonStyle: React.CSSProperties = {
   background:
-    "linear-gradient(90deg, var(--color-surface-container) 0%, var(--color-surface-container-high) 50%, var(--color-surface-container) 100%)",
+    "linear-gradient(90deg, var(--v2-paper-2) 0%, var(--v2-paper-3) 50%, var(--v2-paper-2) 100%)",
   backgroundSize: "200% 100%",
   animation: "skeleton-shimmer 1.4s ease infinite",
   borderRadius: 8,
@@ -23,8 +23,8 @@ export default function PlanHistoryLoading() {
           style={{
             padding: "22px 22px 24px",
             borderRadius: 24,
-            background: "var(--color-surface-container-low)",
-            marginBottom: "var(--space-md)",
+            background: "var(--v2-paper)",
+            marginBottom: "var(--v2-s-4)",
           }}
         >
           <div style={{ ...skeletonStyle, height: 12, width: 100, marginBottom: 8, borderRadius: 4 }} />
@@ -41,7 +41,7 @@ export default function PlanHistoryLoading() {
                 flex: "0 0 auto",
                 padding: "10px 16px",
                 borderRadius: 14,
-                background: "var(--color-surface-container-low)",
+                background: "var(--v2-paper)",
                 minHeight: 52,
                 display: "flex",
                 flexDirection: "column",
@@ -61,7 +61,7 @@ export default function PlanHistoryLoading() {
             gridTemplateColumns: "1.4fr 1fr 1fr 1fr",
             padding: "16px 18px",
             borderRadius: 24,
-            background: "var(--color-surface-container-low)",
+            background: "var(--v2-paper)",
           }}
         >
           {Array.from({ length: 4 }).map((_, i) => (
@@ -74,7 +74,7 @@ export default function PlanHistoryLoading() {
       </section>
 
       {/* ── Logs Section ── */}
-      <section style={{ marginTop: "var(--space-lg)" }}>
+      <section style={{ marginTop: "var(--v2-s-5)" }}>
         <div style={{ ...skeletonStyle, height: 24, width: 110, marginBottom: 14, borderRadius: 999 }} />
 
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -87,7 +87,7 @@ export default function PlanHistoryLoading() {
                 gap: 14,
                 padding: 14,
                 borderRadius: 16,
-                background: "var(--color-surface-container-low)",
+                background: "var(--v2-paper)",
               }}
             >
               {/* date box */}
@@ -96,7 +96,7 @@ export default function PlanHistoryLoading() {
                   width: 56,
                   height: 56,
                   borderRadius: 14,
-                  background: "var(--color-surface-container)",
+                  background: "var(--v2-paper-2)",
                   display: "flex",
                   flexDirection: "column",
                   alignItems: "center",
@@ -123,7 +123,7 @@ export default function PlanHistoryLoading() {
                     gap: 8,
                     padding: "8px 10px",
                     borderRadius: 12,
-                    background: "var(--color-surface-container)",
+                    background: "var(--v2-paper-2)",
                   }}
                 >
                   {Array.from({ length: 3 }).map((_, j) => (

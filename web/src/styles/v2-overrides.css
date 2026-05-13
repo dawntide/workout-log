@@ -4,6 +4,53 @@
   이 파일은 v2-tokens.css 로드 이후 마지막에 임포트되어야 합니다.
 
   목적: 페이지/컴포넌트 코드를 건드리지 않고 전체 앱이 v2 색감을 입도록.
+
+  ─────────────────────────────────────────────────────────────────────────
+  Legacy → V2 매핑 매트릭스 (요약)
+  ─────────────────────────────────────────────────────────────────────────
+  새 코드는 반드시 --v2-* 직접 사용. 아래 alias는 미마이그레이션 화면이 깨지지
+  않도록 유지되는 것이며, 의도적으로 추가하지 않습니다.
+
+  Surface
+    --color-bg                          → --v2-bg
+    --color-surface                     → --v2-paper
+    --color-surface-2                   → --v2-paper-2
+    --color-surface-container-low(est)  → --v2-paper
+    --color-surface-container           → --v2-paper-2
+    --color-surface-container-high(est) → --v2-paper-3 / --v2-paper-4
+    --color-outline-variant             → --v2-paper-4
+
+  Text / ink
+    --color-text                        → --v2-ink
+    --color-text-muted                  → --v2-ink-2
+    --color-text-subtle                 → --v2-ink-3
+    --color-text-on-primary             → --v2-ink-on-accent
+
+  Accent / CTA
+    --color-cta / --color-primary       → --v2-accent
+    --color-cta-strong                  → --v2-accent-2
+    --color-cta-weak / --color-primary-weak
+                                        → --v2-accent-weak
+    --color-cta-on                      → --v2-ink-on-accent
+
+  Metric / domain
+    --metric-weight, --color-weight     → --v2-c-weight
+    --metric-reps,   --color-reps       → --v2-c-reps
+    --metric-volume, --color-volume     → --v2-c-volume
+    --metric-onerm,  --color-onerm      → --v2-c-onerm
+    --metric-pr,     --color-pr         → --v2-c-pr
+    --color-success                     → --v2-c-success
+    --color-warning                     → --v2-c-warning
+    --color-danger                      → --v2-c-danger
+    --color-info                        → --v2-c-info
+
+  Type / motion / radius
+    --font-headline-family              → use class .v2-h1/.v2-h2/.v2-h3 instead
+    --font-label-family                 → use class .v2-label/.v2-eyebrow/.v2-small
+    --space-{sm,md,lg,xl}               → use --v2-s-{1..9}
+    --radius-{sm,md,lg}                 → use --v2-r-{1..5} or --v2-r-pill
+
+  Full mapping below. 새 토큰 추가는 v2-tokens.css에 정의하고 이 파일에서 alias만.
 */
 
 :root {

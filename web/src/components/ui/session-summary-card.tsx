@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { useLocale } from "@/components/locale-provider";
-import { Card } from "./card";
+import { V2Card } from "@/components/v2/primitives";
 
 export type SessionSummaryExercise = {
   name: string;
@@ -112,15 +112,18 @@ export function SessionSummaryCard({
 
   if (data?.href) {
     return (
-      <Card as={Link} href={data.href} padding="md" interactive>
-        {inner}
-      </Card>
+      <Link
+        href={data.href}
+        style={{ display: "block", textDecoration: "none", color: "inherit" }}
+      >
+        <V2Card padding="var(--v2-s-4)">{inner}</V2Card>
+      </Link>
     );
   }
 
   return (
-    <Card as="article" padding="md">
+    <V2Card padding="var(--v2-s-4)">
       {inner}
-    </Card>
+    </V2Card>
   );
 }

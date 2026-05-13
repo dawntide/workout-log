@@ -1,8 +1,8 @@
 "use client";
 
 import { useLocale } from "@/components/locale-provider";
+import { V2Card } from "@/components/v2/primitives";
 import { BottomSheet } from "./bottom-sheet";
-import { Card, CardContent } from "./card";
 
 export type FailureProtocolChoice = "cancel" | "hold" | "reset" | "increase";
 
@@ -72,11 +72,14 @@ export function FailureProtocolSheet({
         </div>
       }
     >
-      <Card tone={mode === "greyskull-reset" ? "danger" : "subtle"} padding="md" elevated={false}>
-        <CardContent>
-          <p style={{ whiteSpace: "pre-line" }}>{message}</p>
-        </CardContent>
-      </Card>
+      <V2Card
+        tone={mode === "greyskull-reset" ? "danger" : "inset"}
+        padding="var(--v2-s-4)"
+      >
+        <p className="v2-body" style={{ whiteSpace: "pre-line", margin: 0 }}>
+          {message}
+        </p>
+      </V2Card>
     </BottomSheet>
   );
 }

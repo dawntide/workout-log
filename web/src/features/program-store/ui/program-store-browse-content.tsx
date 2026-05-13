@@ -1,7 +1,7 @@
 "use client";
 
 import { SearchInput } from "@/components/ui/search-input";
-import { Button } from "@/components/ui/button";
+import { V2PrimaryBtn, V2SecondaryBtn } from "@/components/v2/primitives";
 import { AppPage, PageHeader, PageSection, StateBlock } from "@/components/ui/page-layout";
 import type { ProgramListItem } from "@/lib/program-store/model";
 import { ProgramListCard } from "./program-list-card";
@@ -79,9 +79,9 @@ export function ProgramStoreBrowseContent({
           title={copy.loadError}
           description={error}
           action={(
-            <Button variant="secondary" onClick={onRetry}>
+            <V2SecondaryBtn onClick={onRetry}>
               {locale === "ko" ? "다시 시도" : "Retry"}
-            </Button>
+            </V2SecondaryBtn>
           )}
         />
       ) : null}
@@ -108,9 +108,9 @@ export function ProgramStoreBrowseContent({
         <div
           style={{
             display: "flex",
-            gap: "var(--space-sm)",
+            gap: "var(--v2-s-2)",
             overflowX: "auto",
-            paddingBottom: "var(--space-xs)",
+            paddingBottom: "var(--v2-s-1)",
             scrollbarWidth: "none",
             msOverflowStyle: "none",
           }}
@@ -134,12 +134,12 @@ export function ProgramStoreBrowseContent({
                 flexShrink: 0,
                 background:
                   categoryFilter === category.key
-                    ? "var(--color-primary-container)"
-                    : "var(--color-surface-container-low)",
+                    ? "var(--v2-accent-weak)"
+                    : "var(--v2-paper)",
                 color:
                   categoryFilter === category.key
-                    ? "var(--color-on-primary)"
-                    : "var(--color-text-muted)",
+                    ? "var(--v2-ink-on-accent)"
+                    : "var(--v2-ink-2)",
                 boxShadow:
                   categoryFilter === category.key
                     ? "0 10px 20px color-mix(in srgb, var(--shadow-color-soft) 68%, transparent)"
@@ -238,9 +238,9 @@ export function ProgramStoreBrowseContent({
               : "Start from an existing program or build a fresh structure from scratch."
           }
           action={(
-            <Button fullWidth onClick={onOpenCreateSheet}>
+            <V2PrimaryBtn full onClick={onOpenCreateSheet}>
               {locale === "ko" ? "프로그램 만들기" : "Create Program"}
-            </Button>
+            </V2PrimaryBtn>
           )}
         />
       </PageSection>

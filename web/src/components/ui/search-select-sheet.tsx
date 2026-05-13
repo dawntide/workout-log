@@ -82,12 +82,12 @@ export function SearchSelectCombobox({
           <div
             role="listbox"
             aria-label={resultsAriaLabel}
-            style={{ display: "flex", flexDirection: "column", gap: "2px", height: "300px", overflowY: "auto", marginTop: "var(--space-sm)" }}
+            style={{ display: "flex", flexDirection: "column", gap: "2px", height: "300px", overflowY: "auto", marginTop: "var(--v2-s-2)" }}
           >
             {loading ? (
-              <span style={{ padding: "var(--space-md)", textAlign: "center", color: "var(--color-text-muted)", fontSize: "13px" }}>{resolvedLoadingText}</span>
+              <span style={{ padding: "var(--v2-s-4)", textAlign: "center", color: "var(--v2-ink-2)", fontSize: "13px" }}>{resolvedLoadingText}</span>
             ) : options.length === 0 ? (
-              <span style={{ padding: "var(--space-md)", textAlign: "center", color: "var(--color-text-muted)", fontSize: "13px" }}>{emptyText}</span>
+              <span style={{ padding: "var(--v2-s-4)", textAlign: "center", color: "var(--v2-ink-2)", fontSize: "13px" }}>{emptyText}</span>
             ) : (
               options.map((option) => (
                 <button
@@ -100,10 +100,10 @@ export function SearchSelectCombobox({
                     alignItems: "center",
                     width: "100%",
                     padding: "11px 12px",
-                    border: option.active ? "1px solid var(--color-selected-border)" : "1px solid transparent",
+                    border: option.active ? "1px solid var(--v2-accent)" : "1px solid transparent",
                     borderRadius: "10px",
-                    backgroundColor: option.active ? "var(--color-action-weak)" : "transparent",
-                    color: option.active ? "var(--color-action-strong)" : "var(--color-text)",
+                    backgroundColor: option.active ? "var(--v2-accent-weak)" : "transparent",
+                    color: option.active ? "var(--v2-accent-ink)" : "var(--v2-ink)",
                     cursor: "pointer",
                     textAlign: "left",
                     fontSize: "14px",
@@ -114,7 +114,7 @@ export function SearchSelectCombobox({
                 >
                   <span style={{ flex: 1 }}>{option.label}</span>
                   {option.active && (
-                    <span className="material-symbols-outlined" style={{ fontSize: 18, fontVariationSettings: "'FILL' 1, 'wght' 500", flexShrink: 0, color: "var(--color-primary)" }}>check</span>
+                    <span className="material-symbols-outlined" style={{ fontSize: 18, fontVariationSettings: "'FILL' 1, 'wght' 500", flexShrink: 0, color: "var(--v2-accent)" }}>check</span>
                   )}
                 </button>
               ))

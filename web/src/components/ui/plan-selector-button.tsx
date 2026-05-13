@@ -20,7 +20,7 @@ export function PlanSelectorButton({ planName, disabled, ...props }: PlanSelecto
         alignItems: "center",
         textAlign: "left",
         padding: "14px 18px",
-        background: "var(--color-surface-container-low)",
+        background: "var(--v2-paper)",
         border: "none",
         borderRadius: "20px",
         cursor: disabled ? "default" : "pointer",
@@ -35,7 +35,7 @@ export function PlanSelectorButton({ planName, disabled, ...props }: PlanSelecto
           fontWeight: 700,
           letterSpacing: "0.08em",
           textTransform: "uppercase",
-          color: "var(--color-text-muted)",
+          color: "var(--v2-ink-2)",
           marginBottom: "4px",
         }}>
           {copy.workoutLog.activePlanLabel}
@@ -44,13 +44,13 @@ export function PlanSelectorButton({ planName, disabled, ...props }: PlanSelecto
           fontFamily: "var(--font-headline-family)",
           fontSize: "15px",
           fontWeight: 700,
-          color: "var(--color-text)",
+          color: "var(--v2-ink)",
         }}>
           {planName}
         </div>
       </div>
       {!disabled && (
-        <span aria-hidden="true" style={{ color: "var(--color-text-muted)", flexShrink: 0 }}>
+        <span aria-hidden="true" style={{ color: "var(--v2-ink-2)", flexShrink: 0 }}>
           <span className="material-symbols-outlined" style={{ fontSize: 18, fontVariationSettings: "'wght' 400" }}>unfold_more</span>
         </span>
       )}

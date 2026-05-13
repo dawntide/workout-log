@@ -3,7 +3,7 @@ import { db } from "@/server/db/client";
 import { plan } from "@/server/db/schema";
 import { getAuthenticatedUserId } from "@/server/auth/user";
 import { getSettingsSnapshot } from "@/server/services/settings/get-settings-snapshot";
-import { UxThresholdsPageContent } from "./ux-thresholds-page-content";
+import { DebugContent } from "./debug-content";
 
 async function fetchPlansForThresholds() {
   const userId = getAuthenticatedUserId();
@@ -19,10 +19,10 @@ async function fetchPlansForThresholds() {
   }));
 }
 
-export default async function SettingsUxThresholdsPage() {
+export default async function SettingsDebugPage() {
   const [snapshot, plans] = await Promise.all([
     getSettingsSnapshot(),
     fetchPlansForThresholds(),
   ]);
-  return <UxThresholdsPageContent initialSnapshot={snapshot} initialPlans={plans} />;
+  return <DebugContent initialSnapshot={snapshot} initialPlans={plans} />;
 }

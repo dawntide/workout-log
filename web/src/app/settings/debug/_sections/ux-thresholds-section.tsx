@@ -57,12 +57,15 @@ function planThresholdKey(planId: string, field: ThresholdField) {
   return `prefs.uxThreshold.plan.${planId}.${field}`;
 }
 
-type UxThresholdsPageContentProps = {
+type UxThresholdsSectionProps = {
   initialSnapshot: SettingsSnapshot;
   initialPlans: Plan[];
 };
 
-export function UxThresholdsPageContent({ initialSnapshot, initialPlans }: UxThresholdsPageContentProps) {
+export function UxThresholdsSection({
+  initialSnapshot,
+  initialPlans,
+}: UxThresholdsSectionProps) {
   const { locale } = useLocale();
   const persistNumberSetting = useMemo(() => createPersistServerSetting<number>(), []);
   const persistNullableNumberSetting = useMemo(() => createPersistServerSetting<number | null>(), []);
@@ -264,8 +267,8 @@ export function UxThresholdsPageContent({ initialSnapshot, initialPlans }: UxThr
 
       <section>
         <SectionHeader title={locale === "ko" ? "플랜별 기준치 프로필(선택)" : "Plan-Specific Threshold Profile (Optional)"} />
-        <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-sm)" }}>
-          <div style={{ background: "var(--color-surface-container-low)", borderRadius: 20, padding: "var(--space-md)", boxShadow: "0 1px 3px var(--shadow-color-soft)" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "var(--v2-s-2)" }}>
+          <div style={{ background: "var(--v2-paper)", borderRadius: 20, padding: "var(--v2-s-4)", boxShadow: "0 1px 3px var(--shadow-color-soft)" }}>
             <AppSelect
               label={locale === "ko" ? "플랜 선택" : "Select Plan"}
               value={selectedPlanId}
@@ -316,7 +319,7 @@ export function UxThresholdsPageContent({ initialSnapshot, initialPlans }: UxThr
           </BaseGroupedList>
 
           {selectedPlan && (
-            <div style={{ padding: "10px 6px 2px", fontFamily: "var(--font-label-family)", fontSize: 11, color: "var(--color-text-subtle)" }}>
+            <div style={{ padding: "10px 6px 2px", fontFamily: "var(--v2-f-display)", fontSize: 11, color: "var(--v2-ink-3)" }}>
               {locale === "ko" ? "현재 플랜" : "Current Plan"}: {selectedPlan.name} [{selectedPlan.type}]
             </div>
           )}

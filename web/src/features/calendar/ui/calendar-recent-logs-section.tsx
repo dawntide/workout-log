@@ -1,7 +1,12 @@
 "use client";
 
 import { memo } from "react";
-import { dateOnlyInTimezone, formatCalendarDay, sessionKeyToWDLabel } from "@/features/calendar/lib/format";
+import { V2Chip } from "@/components/v2/primitives";
+import {
+  dateOnlyInTimezone,
+  formatCalendarDay,
+  sessionKeyToWDLabel,
+} from "@/features/calendar/lib/format";
 import type {
   CalendarRecentGeneratedSession,
   CalendarWorkoutLogSummary,
@@ -29,24 +34,26 @@ export const CalendarRecentLogsSection = memo(function CalendarRecentLogsSection
   if (recentPastLogs.length === 0) return null;
 
   return (
-    <section style={{ marginBottom: "var(--space-xl)" }}>
-      <h2
-        style={{
-          fontFamily: "var(--font-headline-family)",
-          fontSize: "18px",
-          fontWeight: 700,
-          color: "var(--color-text)",
-          margin: 0,
-          marginBottom: "var(--space-md)",
-        }}
-      >
+    <section style={{ marginBottom: "var(--v2-s-7)" }}>
+      <h2 className="v2-h3" style={{ marginBottom: "var(--v2-s-3)" }}>
         {title}
       </h2>
-      <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-sm)" }}>
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: "var(--v2-s-2)",
+        }}
+      >
         {recentPastLogs.map((log) => {
-          const logDate = dateOnlyInTimezone(new Date(log.performedAt), timezone);
+          const logDate = dateOnlyInTimezone(
+            new Date(log.performedAt),
+            timezone,
+          );
           const sessionLabel = log.generatedSessionId
-            ? (sessionKeyToWDLabel(generatedById.get(log.generatedSessionId)?.sessionKey ?? "") ?? null)
+            ? (sessionKeyToWDLabel(
+                generatedById.get(log.generatedSessionId)?.sessionKey ?? "",
+              ) ?? null)
             : null;
 
           return (
@@ -54,26 +61,35 @@ export const CalendarRecentLogsSection = memo(function CalendarRecentLogsSection
               key={log.id}
               type="button"
               onClick={() => onSelectDate(logDate)}
+              className="v2-pressable"
               style={{
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "space-between",
-                padding: "16px 20px",
-                background: "var(--color-surface-container-low)",
+                padding: "var(--v2-s-4) var(--v2-s-5)",
+                background: "var(--v2-paper)",
                 border: "none",
-                borderRadius: "20px",
+                borderRadius: "var(--v2-r-4)",
                 cursor: "pointer",
                 textAlign: "left",
                 width: "100%",
+                boxShadow: "var(--v2-elev-1)",
               }}
             >
-              <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "var(--v2-s-3)",
+                }}
+              >
                 <div
                   style={{
-                    width: "36px",
-                    height: "36px",
+                    width: 36,
+                    height: 36,
                     borderRadius: "50%",
-                    background: "var(--color-success-weak)",
+                    background:
+                      "color-mix(in srgb, var(--v2-c-success) 14%, var(--v2-paper))",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
@@ -82,56 +98,47 @@ export const CalendarRecentLogsSection = memo(function CalendarRecentLogsSection
                 >
                   <span
                     className="material-symbols-outlined"
-                    style={{ fontSize: "18px", color: "var(--color-success)", fontVariationSettings: "'FILL' 1" }}
+                    style={{
+                      fontSize: 18,
+                      color: "var(--v2-c-success)",
+                      fontVariationSettings: "'FILL' 1",
+                    }}
                   >
                     check_circle
                   </span>
                 </div>
                 <div>
                   <div
+                    className="v2-body"
                     style={{
-                      fontFamily: "var(--font-headline-family)",
-                      fontSize: "14px",
+                      fontSize: 14,
                       fontWeight: 700,
-                      color: "var(--color-text)",
                       display: "flex",
                       alignItems: "center",
-                      gap: "6px",
+                      gap: "var(--v2-s-2)",
                     }}
                   >
                     {selectedPlanName ?? (locale === "ko" ? "기록" : "Log")}
                     {sessionLabel ? (
-                      <span
-                        style={{
-                          fontFamily: "var(--font-label-family)",
-                          fontSize: "11px",
-                          fontWeight: 700,
-                          color: "var(--color-text-muted)",
-                          background: "var(--color-surface-container-high)",
-                          padding: "2px 8px",
-                          borderRadius: "20px",
-                        }}
-                      >
-                        {sessionLabel}
-                      </span>
+                      <V2Chip tone="neutral">{sessionLabel}</V2Chip>
                     ) : null}
                   </div>
-                  <div
-                    style={{
-                      fontFamily: "var(--font-label-family)",
-                      fontSize: "11px",
-                      fontWeight: 700,
-                      letterSpacing: "0.06em",
-                      textTransform: "uppercase",
-                      color: "var(--color-text-muted)",
-                      marginTop: "2px",
-                    }}
+                  <p
+                    className="v2-eyebrow"
+                    style={{ marginTop: 2, letterSpacing: "0.06em" }}
                   >
                     {formatCalendarDay(logDate, locale)}
-                  </div>
+                  </p>
                 </div>
               </div>
-              <span className="material-symbols-outlined" style={{ fontSize: "18px", color: "var(--color-text-subtle)", flexShrink: 0 }}>
+              <span
+                className="material-symbols-outlined"
+                style={{
+                  fontSize: 18,
+                  color: "var(--v2-ink-3)",
+                  flexShrink: 0,
+                }}
+              >
                 chevron_right
               </span>
             </button>

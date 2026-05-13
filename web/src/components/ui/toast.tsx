@@ -35,9 +35,9 @@ export const Toast = memo(function Toast({
   if (!show) return null;
 
   const background =
-    tone === "success" ? "var(--color-success)" : "var(--color-surface-container-high)";
+    tone === "success" ? "var(--v2-c-success)" : "var(--v2-paper-3)";
   const foreground =
-    tone === "success" ? "#ffffff" : "var(--color-text-primary)";
+    tone === "success" ? "var(--v2-ink-on-accent)" : "var(--v2-ink)";
 
   return (
     <div

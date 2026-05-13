@@ -63,12 +63,12 @@ export function AppLaunchSplash() {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        backgroundColor: "var(--color-bg)",
+        backgroundColor: "var(--v2-bg)",
         transition: "opacity 0.2s ease",
         opacity: phase === "hiding" ? 0 : 1,
       }}
     >
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "var(--space-md)" }}>
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "var(--v2-s-4)" }}>
         <Image
           src="/icons/icon-192.png"
           width={76}
@@ -77,10 +77,10 @@ export function AppLaunchSplash() {
           style={{ borderRadius: "20%" }}
           priority
         />
-        <p style={{ font: "var(--font-section-title)", color: "var(--color-text)", margin: 0 }}>
+        <p style={{ fontFamily: "var(--v2-f-display)", fontSize: 22, fontWeight: 700, color: "var(--v2-ink)", margin: 0 }}>
           Workout Log
         </p>
-        <div aria-hidden="true" style={{ display: "flex", alignItems: "center", gap: "var(--space-sm)", color: "var(--color-text-muted)" }}>
+        <div aria-hidden="true" style={{ display: "flex", alignItems: "center", gap: "var(--v2-s-2)", color: "var(--v2-ink-2)" }}>
           <span style={{ font: "var(--font-secondary)" }}>{locale === "ko" ? "로딩 중..." : "Loading..."}</span>
         </div>
       </div>

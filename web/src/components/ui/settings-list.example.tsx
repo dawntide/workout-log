@@ -58,7 +58,7 @@ export function SettingsListExample() {
         ariaLabel={locale === "ko" ? "상태 설정 예시" : "Status settings example"}
         tokens={{
           ...settingsListTokenDefaults,
-          "--settings-group-background": "color-mix(in srgb, var(--color-surface) 90%, transparent)",
+          "--settings-group-background": "color-mix(in srgb, var(--v2-paper) 90%, transparent)",
         }}
       >
         <InfoRow

@@ -1,6 +1,25 @@
+/*
+  ===========================================================================
+  @deprecated  Legacy `--color-*` tokens (Solarized-inspired palette).
+  ===========================================================================
+
+  이 파일의 모든 토큰은 v2-overrides.css가 마지막에 로드되어 `var(--v2-*)`로
+  alias됩니다. 따라서 시각적으로는 IronGraph V2 "Quiet Premium" 톤이 적용되며,
+  여기 정의된 hex 값은 fallback일 뿐 실제 렌더링에는 영향을 주지 않습니다.
+
+  **새 코드는 반드시 `--v2-*` 토큰을 직접 사용하세요.** (`styles/v2-tokens.css`)
+
+  Migration 완료 (Phase D-1~F-1): web/src 전체 TypeScript 파일에서
+  var(--color-*) 직접 참조는 0건입니다. 잔존 사용처는 styles/components 디렉터리의
+  CSS 파일들이며, v2-overrides.css의 alias를 통해 V2 톤이 자동 적용됩니다.
+
+  자세한 매핑 매트릭스: `styles/v2-overrides.css` 상단 주석.
+  ===========================================================================
+*/
+
 :root {
   /* ============================
-     THEME: Solarized Light (default)
+     THEME: Solarized Light (default) — @deprecated, aliased by v2-overrides.css
      ============================ */
   --color-bg: #fdf6e3;
   --color-surface: #eee8d5;

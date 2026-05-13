@@ -7,14 +7,6 @@ import { PageHeader, SectionHeading, StateBlock } from "@/components/ui/page-lay
 import { APP_ROUTES } from "@/lib/app-routes";
 import type { StatsBundleResult } from "@/server/stats/bundle-service";
 
-const CAPS_LABEL_STYLE = {
-  fontFamily: "var(--font-label-family)",
-  fontSize: "10px",
-  fontWeight: 700,
-  letterSpacing: "0.12em",
-  textTransform: "uppercase",
-} as const;
-
 export function StatsPageHeader() {
   const { locale } = useLocale();
 
@@ -40,7 +32,9 @@ export function StatsSectionHeading({
   title: string;
   description?: string;
 }) {
-  return <SectionHeading eyebrow={label} title={title} description={description} />;
+  return (
+    <SectionHeading eyebrow={label} title={title} description={description} />
+  );
 }
 
 const PrRow = memo(function PrRow({
@@ -51,86 +45,100 @@ const PrRow = memo(function PrRow({
   const { locale } = useLocale();
   const improvement = row.improvement;
   const improvementColor =
-    improvement > 0 ? "var(--color-success)" : "var(--color-text-muted)";
+    improvement > 0 ? "var(--v2-c-success)" : "var(--v2-ink-3)";
 
   return (
     <Link
       href={`${APP_ROUTES.statsHome}&exerciseId=${encodeURIComponent(row.exerciseId ?? "")}`}
+      className="v2-pressable"
       style={{
         display: "flex",
         alignItems: "center",
-        gap: "var(--space-sm)",
-        padding: "12px 14px",
-        borderRadius: "10px",
-        background: "var(--color-surface-container-low)",
-        boxShadow: "0 1px 3px var(--shadow-color-soft)",
+        gap: "var(--v2-s-2)",
+        padding: "var(--v2-s-3) var(--v2-s-3)",
+        borderRadius: "var(--v2-r-2)",
+        background: "var(--v2-paper)",
+        boxShadow: "var(--v2-elev-1)",
         textDecoration: "none",
         transition: "background 0.12s ease",
       }}
     >
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div
+        <p
+          className="v2-body"
           style={{
-            fontSize: "13px",
+            fontSize: 13,
             fontWeight: 700,
-            color: "var(--color-text)",
-            marginBottom: "3px",
+            marginBottom: 3,
             overflow: "hidden",
             textOverflow: "ellipsis",
             whiteSpace: "nowrap",
           }}
         >
           {row.exerciseName}
-        </div>
+        </p>
         <div
           style={{
             display: "flex",
-            gap: "10px",
-            fontSize: "11px",
-            color: "var(--color-text-muted)",
+            gap: "var(--v2-s-3)",
+            fontSize: 11,
+            color: "var(--v2-ink-3)",
+            fontFamily: "var(--v2-f-num)",
+            fontVariantNumeric: "tabular-nums",
           }}
         >
           <span>
             {locale === "ko" ? "최신" : "Latest"}{" "}
-            <span style={{ color: "var(--color-text)", fontWeight: 600 }}>
+            <span
+              style={{
+                color: "var(--v2-ink)",
+                fontWeight: 600,
+              }}
+            >
               {row.latest?.e1rm ?? "—"}kg
             </span>
           </span>
           <span>
             {locale === "ko" ? "최고" : "Best"}{" "}
-            <span style={{ color: "var(--color-text)", fontWeight: 600 }}>
+            <span
+              style={{
+                color: "var(--v2-ink)",
+                fontWeight: 600,
+              }}
+            >
               {row.best?.e1rm ?? "—"}kg
             </span>
           </span>
         </div>
       </div>
       <div style={{ textAlign: "right", flexShrink: 0 }}>
-        <div
+        <p
+          className="v2-num-sm"
           style={{
-            fontSize: "15px",
-            fontWeight: 800,
             color: improvementColor,
             letterSpacing: "-0.3px",
           }}
         >
-          {improvement > 0 ? `+${improvement}` : improvement === 0 ? "0.0" : improvement}
-        </div>
-        <div
+          {improvement > 0
+            ? `+${improvement}`
+            : improvement === 0
+              ? "0.0"
+              : improvement}
+        </p>
+        <p
+          className="v2-eyebrow"
           style={{
-            ...CAPS_LABEL_STYLE,
-            fontWeight: 600,
             letterSpacing: "0.08em",
-            color: "var(--color-text-muted)",
           }}
         >
           IMPROVED
-        </div>
+        </p>
       </div>
       <span
         className="material-symbols-outlined"
         style={{
           fontSize: 16,
-          color: "var(--color-text-muted)",
+          color: "var(--v2-ink-3)",
           opacity: 0.5,
           flexShrink: 0,
           fontVariationSettings: "'FILL' 0, 'wght' 300",
@@ -151,7 +159,7 @@ export function StatsPrSection({
   const { locale } = useLocale();
 
   return (
-    <div style={{ marginBottom: "var(--space-xl)" }}>
+    <div style={{ marginBottom: "var(--v2-s-7)" }}>
       <StatsSectionHeading
         label={locale === "ko" ? "개인 최고 기록" : "Personal Records"}
         title={locale === "ko" ? "PR 기록 추적" : "PR Tracking"}
@@ -161,12 +169,22 @@ export function StatsPrSection({
             : "Review best lifts by exercise and improvement across the selected period."
         }
       />
-      <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-xs)" }}>
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: "var(--v2-s-1)",
+        }}
+      >
         {items.length > 0 ? (
-          items.map((row) => <PrRow key={row.exerciseId ?? row.exerciseName} row={row} />)
+          items.map((row) => (
+            <PrRow key={row.exerciseId ?? row.exerciseName} row={row} />
+          ))
         ) : (
           <StateBlock
-            title={locale === "ko" ? "표시할 PR 데이터가 없습니다" : "No PR data yet"}
+            title={
+              locale === "ko" ? "표시할 PR 데이터가 없습니다" : "No PR data yet"
+            }
             description={
               locale === "ko"
                 ? "현재 선택한 기간에 개인 최고 기록 추이를 계산할 데이터가 없습니다."
@@ -179,4 +197,3 @@ export function StatsPrSection({
     </div>
   );
 }
-

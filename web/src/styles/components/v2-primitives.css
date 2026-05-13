@@ -1,0 +1,70 @@
+/*
+  IronGraph v2 primitives — state layer
+  -------------------------------------
+  Components render their base styles inline (in JSX) so the inline `style`
+  prop stays authoritative for layout/color. This file only adds hover /
+  active / focus-visible / disabled states that are awkward to express inline.
+
+  Convention:
+    - `.v2-pressable` is applied to every interactive primitive (button, link
+      acting as button, nav-row, icon-btn). It carries the shared state layer.
+    - Variant classes (`.v2-btn-primary`, `.v2-card`, ...) carry only the
+      tweaks specific to that variant.
+*/
+
+.v2-pressable {
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .v2-pressable:hover:not(:disabled) {
+    filter: brightness(1.04);
+  }
+  .v2-nav-row.v2-pressable:hover:not(:disabled) {
+    background: var(--v2-paper-2);
+    filter: none;
+  }
+}
+
+.v2-pressable:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.v2-pressable:focus-visible {
+  outline: 2px solid var(--v2-focus);
+  outline-offset: 2px;
+}
+
+.v2-pressable:disabled {
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* Card — onClick=cursor:pointer 가 켜진 경우만 pressable 효과 */
+.v2-card {
+  transition:
+    background var(--v2-d-1) var(--v2-e-out),
+    box-shadow var(--v2-d-1) var(--v2-e-out);
+}
+
+/* DotsLoader 애니메이션 */
+@keyframes v2-dot-bounce {
+  0%, 80%, 100% {
+    transform: translateY(0);
+    opacity: 0.6;
+  }
+  40% {
+    transform: translateY(-3px);
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .v2-pressable:active:not(:disabled) {
+    transform: none;
+  }
+  .v2-dots-loader span {
+    animation: none !important;
+  }
+}

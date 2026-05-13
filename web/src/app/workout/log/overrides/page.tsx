@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { V2PrimaryBtn } from "@/components/v2/primitives";
 import { resolveRequestLocale } from "@/lib/i18n/messages";
 import { APP_ROUTES } from "@/lib/app-routes";
 
@@ -14,13 +15,13 @@ function NavRow({ item }: { item: NavItem }) {
   return (
     <Link
       href={item.href}
-      className="v2-page-row"
+      className="v2-page-row v2-pressable"
       style={{
         display: "flex",
         alignItems: "center",
-        gap: 14,
-        padding: "14px 16px",
-        borderRadius: 16,
+        gap: "var(--v2-s-3)",
+        padding: "var(--v2-s-3) var(--v2-s-4)",
+        borderRadius: "var(--v2-r-3)",
         background: "var(--v2-paper-2)",
         textDecoration: "none",
         minHeight: 64,
@@ -111,33 +112,21 @@ export default async function WorkoutLogOverridesPage() {
             ? "오버라이드는 별도 화면이 아니라, 오늘 기록 흐름 중에 잠시 끼어드는 보조 도구예요."
             : "Overrides are support tools used during today's workout flow, not a separate start screen."}
         </p>
-        <Link
-          href={APP_ROUTES.todayLog}
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 6,
-            marginTop: 16,
-            padding: "10px 18px",
-            minHeight: 44,
-            borderRadius: 9999,
-            background: "var(--v2-accent)",
-            color: "var(--v2-ink-on-accent)",
-            fontFamily: "var(--v2-f-display)",
-            fontSize: 13,
-            fontWeight: 700,
-            textDecoration: "none",
-          }}
-        >
-          <span
-            className="material-symbols-outlined"
-            style={{ fontSize: 16, fontVariationSettings: "'FILL' 1, 'wght' 500" }}
-            aria-hidden="true"
+        <div style={{ marginTop: "var(--v2-s-4)" }}>
+          <V2PrimaryBtn
+            as="a"
+            href={APP_ROUTES.todayLog}
+            icon="arrow_back"
+            style={{
+              minHeight: 44,
+              padding: "10px 18px",
+              borderRadius: "var(--v2-r-pill)",
+              fontSize: 13,
+            }}
           >
-            arrow_back
-          </span>
-          {locale === "ko" ? "오늘 기록으로 돌아가기" : "Back to Today's Log"}
-        </Link>
+            {locale === "ko" ? "오늘 기록으로 돌아가기" : "Back to Today's Log"}
+          </V2PrimaryBtn>
+        </div>
       </div>
 
       <div style={{ padding: "8px 8px 8px" }}>

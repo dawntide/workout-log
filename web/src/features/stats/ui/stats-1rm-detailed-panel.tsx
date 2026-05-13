@@ -122,7 +122,7 @@ export const Stats1RMDetailedPanel = forwardRef<
   const activePoint = hasChartData ? series[resolvedActiveIndex] : null;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-md)" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: "var(--v2-s-4)" }}>
       <Stats1RMControls
         locale={locale}
         selectedExerciseName={selectedExercise?.name ?? null}

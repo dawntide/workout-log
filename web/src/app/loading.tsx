@@ -2,7 +2,7 @@ import type { CSSProperties } from "react";
 
 // PERF: 홈 라우트 loading.tsx - 라우트 전환 시 즉각 피드백
 const skeletonStyle: CSSProperties = {
-  background: "linear-gradient(90deg, var(--color-surface-container) 0%, var(--color-surface-container-high) 50%, var(--color-surface-container) 100%)",
+  background: "linear-gradient(90deg, var(--v2-paper-2) 0%, var(--v2-paper-3) 50%, var(--v2-paper-2) 100%)",
   backgroundSize: "200% 100%",
   animation: "skeleton-shimmer 1.4s ease infinite",
   borderRadius: 8,
@@ -29,7 +29,7 @@ export default function HomeLoading() {
         <div className="hd-section__header">
           <div style={{ ...skeletonStyle, height: 16, width: "40%", borderRadius: 4 }} />
         </div>
-        <div className="hd-protocol inner-shadow-false" style={{ background: "var(--color-surface-container-low)" }}>
+        <div className="hd-protocol inner-shadow-false" style={{ background: "var(--v2-paper)" }}>
           <div className="hd-protocol__inner" style={{ paddingTop: 24, paddingBottom: 24 }}>
             <div style={{ ...skeletonStyle, height: 12, width: "30%", marginBottom: 8, borderRadius: 4 }} />
             <div style={{ ...skeletonStyle, height: 24, width: "70%", marginBottom: 24, borderRadius: 6 }} />
@@ -62,7 +62,7 @@ export default function HomeLoading() {
 
         <div className="hd-bento-grid">
            {/* Wide Tile */}
-           <div className="hd-bento-tile hd-bento-tile--wide col-span-2" style={{ background: "var(--color-surface-container-low)" }}>
+           <div className="hd-bento-tile hd-bento-tile--wide col-span-2" style={{ background: "var(--v2-paper)" }}>
              <div>
                <div style={{ ...skeletonStyle, height: 12, width: "40%", marginBottom: 6, borderRadius: 4 }} />
                <div style={{ ...skeletonStyle, height: 28, width: "60%", marginBottom: 6, borderRadius: 6 }} />
@@ -72,14 +72,14 @@ export default function HomeLoading() {
            </div>
            
            {/* Small Tile 1 */}
-           <div className="hd-bento-tile" style={{ background: "var(--color-surface-container-low)" }}>
+           <div className="hd-bento-tile" style={{ background: "var(--v2-paper)" }}>
              <div style={{ ...skeletonStyle, height: 12, width: "50%", marginBottom: 6, borderRadius: 4 }} />
              <div style={{ ...skeletonStyle, height: 24, width: "70%", marginBottom: 6, borderRadius: 6 }} />
              <div style={{ ...skeletonStyle, height: 12, width: "60%", borderRadius: 4 }} />
            </div>
 
            {/* Small Tile 2 */}
-           <div className="hd-bento-tile" style={{ background: "var(--color-surface-container-low)" }}>
+           <div className="hd-bento-tile" style={{ background: "var(--v2-paper)" }}>
              <div style={{ ...skeletonStyle, height: 12, width: "50%", marginBottom: 6, borderRadius: 4 }} />
              <div style={{ ...skeletonStyle, height: 24, width: "70%", marginBottom: 6, borderRadius: 6 }} />
              <div style={{ ...skeletonStyle, height: 12, width: "60%", borderRadius: 4 }} />

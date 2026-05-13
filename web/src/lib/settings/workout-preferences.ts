@@ -240,7 +240,7 @@ export function applyThemePreferenceToDocument(theme: ThemePreference) {
   if (typeof document === "undefined") return;
   document.documentElement.setAttribute("data-theme-preference", theme.toLowerCase());
   // No theme-color injection: Safari uses natural frosted-glass,
-  // blurring html { background-color: var(--color-bg) } behind the pill.
+  // blurring html { background-color: var(--v2-bg) } behind the pill.
   document.querySelectorAll(`meta[name="theme-color"][data-dynamic]`).forEach(m => m.remove());
 }
 

@@ -199,17 +199,14 @@ const AddExerciseSetRow = memo(function AddExerciseSetRow({
         style={{
           display: "grid",
           gridTemplateColumns: "0.7fr 1.8fr 1.2fr",
-          gap: "var(--space-xs)",
+          gap: "var(--v2-s-1)",
           alignItems: "center",
           textAlign: "center",
         }}
       >
         <span
-          style={{
-            color: "var(--text-metric-sets)",
-            font: "var(--font-secondary)",
-            fontWeight: 600,
-          }}
+          className="v2-mono-label"
+          style={{ color: "var(--v2-ink-3)" }}
         >
           {index + 1}
         </span>
@@ -220,7 +217,7 @@ const AddExerciseSetRow = memo(function AddExerciseSetRow({
           max={1000}
           step={incrementKg}
           formatValue={formatWeightValue}
-          color="var(--text-metric-weight)"
+          color="var(--v2-c-weight)"
           onChange={handleWeightChange}
         />
         <WorkoutRecordInlinePicker
@@ -230,7 +227,7 @@ const AddExerciseSetRow = memo(function AddExerciseSetRow({
           max={100}
           step={1}
           formatValue={formatRepsValue}
-          color="var(--text-metric-reps)"
+          color="var(--v2-c-reps)"
           onChange={handleRepsChange}
         />
       </div>
@@ -260,6 +257,9 @@ export const AddExerciseSheet = memo(function AddExerciseSheet({
   bodyweightKg,
   resolveWeightWithCurrentPreferences,
 }: AddExerciseSheetProps) {
+  const showRuleInfo = addDraftIncrementInfo.source === "RULE";
+  const showBodyweightInfo =
+    isBodyweightExerciseName(addDraft.exerciseName) && Boolean(bodyweightKg);
   return (
     <BottomSheet
       open={open}
@@ -274,7 +274,13 @@ export const AddExerciseSheet = memo(function AddExerciseSheet({
       }}
       footer={null}
     >
-      <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: "var(--v2-s-4)",
+        }}
+      >
         <div>
           <SearchSelectCombobox
             query={exerciseQuery}
@@ -317,18 +323,18 @@ export const AddExerciseSheet = memo(function AddExerciseSheet({
                   style={{
                     display: "flex",
                     alignItems: "center",
-                    gap: "10px",
-                    marginBottom: "var(--space-sm)",
+                    gap: "var(--v2-s-2)",
+                    marginBottom: "var(--v2-s-3)",
                     padding: "10px 14px",
-                    background: "var(--color-primary-weak)",
-                    borderRadius: "12px",
+                    background: "var(--v2-accent-weak)",
+                    borderRadius: "var(--v2-r-2)",
                   }}
                 >
                   <span
                     className="material-symbols-outlined"
                     style={{
-                      fontSize: "18px",
-                      color: "var(--color-primary)",
+                      fontSize: 18,
+                      color: "var(--v2-accent)",
                       fontVariationSettings: "'FILL' 1",
                       flexShrink: 0,
                     }}
@@ -336,12 +342,10 @@ export const AddExerciseSheet = memo(function AddExerciseSheet({
                     check_circle
                   </span>
                   <span
+                    className="v2-body"
                     style={{
                       flex: 1,
-                      fontFamily: "var(--font-headline-family)",
-                      fontSize: "14px",
                       fontWeight: 700,
-                      color: "var(--color-text)",
                     }}
                   >
                     {selectedExerciseOption.category
@@ -351,16 +355,17 @@ export const AddExerciseSheet = memo(function AddExerciseSheet({
                   <button
                     type="button"
                     onClick={() => onSelectExerciseOption(null)}
+                    className="v2-pressable"
                     style={{
                       background: "none",
                       border: "none",
                       cursor: "pointer",
-                      fontFamily: "var(--font-label-family)",
-                      fontSize: "12px",
+                      fontFamily: "var(--v2-f-display)",
+                      fontSize: 12,
                       fontWeight: 700,
-                      color: "var(--color-primary)",
+                      color: "var(--v2-accent)",
                       padding: "4px 8px",
-                      borderRadius: "8px",
+                      borderRadius: "var(--v2-r-1)",
                       flexShrink: 0,
                     }}
                   >
@@ -372,26 +377,48 @@ export const AddExerciseSheet = memo(function AddExerciseSheet({
             hideOptions={Boolean(selectedExerciseOption)}
           />
           {exerciseOptionsError ? (
-            <p style={{ margin: "6px 0 0", fontFamily: "var(--font-label-family)", fontSize: "12px", color: "var(--color-danger)" }}>
+            <p
+              className="v2-small"
+              style={{
+                margin: "6px 0 0",
+                color: "var(--v2-c-danger)",
+              }}
+            >
               {exerciseOptionsError}
             </p>
           ) : null}
         </div>
 
-        <div style={{ background: "var(--color-surface-container)", borderRadius: "20px", padding: "16px" }}>
+        <div
+          style={{
+            background: "var(--v2-paper-2)",
+            borderRadius: "var(--v2-r-4)",
+            padding: "var(--v2-s-4)",
+          }}
+        >
           <div
             aria-hidden="true"
             style={{
               display: "grid",
               gridTemplateColumns: "0.7fr 1.8fr 1.2fr",
-              gap: "var(--space-xs)",
-              marginBottom: "10px",
+              gap: "var(--v2-s-1)",
+              marginBottom: "var(--v2-s-2)",
               textAlign: "center",
             }}
           >
-            <span style={{ fontFamily: "var(--font-label-family)", fontSize: "10px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--color-text-muted)" }}>Sets</span>
-            <span style={{ fontFamily: "var(--font-label-family)", fontSize: "10px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-metric-weight)" }}>Weight</span>
-            <span style={{ fontFamily: "var(--font-label-family)", fontSize: "10px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-metric-reps)" }}>Reps</span>
+            <span className="v2-eyebrow">Sets</span>
+            <span
+              className="v2-eyebrow"
+              style={{ color: "var(--v2-c-weight)" }}
+            >
+              Weight
+            </span>
+            <span
+              className="v2-eyebrow"
+              style={{ color: "var(--v2-c-reps)" }}
+            >
+              Reps
+            </span>
           </div>
 
           <div role="list" aria-label={locale === "ko" ? "세트 편집" : "Edit sets"}>
@@ -414,20 +441,21 @@ export const AddExerciseSheet = memo(function AddExerciseSheet({
 
           <button
             type="button"
+            className="v2-pressable"
             style={{
               width: "100%",
-              marginTop: "12px",
+              marginTop: "var(--v2-s-3)",
               padding: "10px",
-              background: "var(--color-surface-container-high)",
+              background: "var(--v2-paper-3)",
               border: "none",
-              borderRadius: "12px",
-              color: "var(--color-text-muted)",
+              borderRadius: "var(--v2-r-2)",
+              color: "var(--v2-ink-2)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              gap: "6px",
-              fontFamily: "var(--font-label-family)",
-              fontSize: "13px",
+              gap: "var(--v2-s-2)",
+              fontFamily: "var(--v2-f-display)",
+              fontSize: 13,
               fontWeight: 700,
               cursor: "pointer",
             }}
@@ -443,41 +471,48 @@ export const AddExerciseSheet = memo(function AddExerciseSheet({
           </button>
         </div>
 
-        {(addDraftIncrementInfo.source === "RULE" || (isBodyweightExerciseName(addDraft.exerciseName) && bodyweightKg)) ? (
+        {showRuleInfo || showBodyweightInfo ? (
           <div
             style={{
-              background: "var(--color-surface-container)",
-              borderRadius: "12px",
+              background: "var(--v2-paper-2)",
+              borderRadius: "var(--v2-r-2)",
               padding: "10px 14px",
               display: "flex",
               flexDirection: "column",
-              gap: "4px",
+              gap: 4,
             }}
           >
-            {addDraftIncrementInfo.source === "RULE" ? (
-              <span style={{ fontFamily: "var(--font-label-family)", fontSize: "12px", color: "var(--color-text-muted)" }}>
-                {locale === "ko" ? `적용 Increment: ${addDraftIncrementKg.toFixed(2)}kg` : `Applied increment: ${addDraftIncrementKg.toFixed(2)}kg`}
+            {showRuleInfo ? (
+              <span
+                className="v2-small"
+                style={{ color: "var(--v2-ink-2)" }}
+              >
+                {locale === "ko"
+                  ? `적용 Increment: ${addDraftIncrementKg.toFixed(2)}kg`
+                  : `Applied increment: ${addDraftIncrementKg.toFixed(2)}kg`}
               </span>
             ) : null}
-            {isBodyweightExerciseName(addDraft.exerciseName) && bodyweightKg ? (
-              <span style={{ fontFamily: "var(--font-label-family)", fontSize: "12px", color: "var(--color-text-muted)" }}>
-                {locale === "ko" ? `총 부하(외부중량 + 체중): ${addDraftTotalLoadKg?.toFixed(2) ?? "-"}kg` : `Total load (external + bodyweight): ${addDraftTotalLoadKg?.toFixed(2) ?? "-"}kg`}
+            {showBodyweightInfo ? (
+              <span
+                className="v2-small"
+                style={{ color: "var(--v2-ink-2)" }}
+              >
+                {locale === "ko"
+                  ? `총 부하(외부중량 + 체중): ${addDraftTotalLoadKg?.toFixed(2) ?? "-"}kg`
+                  : `Total load (external + bodyweight): ${addDraftTotalLoadKg?.toFixed(2) ?? "-"}kg`}
               </span>
             ) : null}
           </div>
         ) : null}
 
-        <label style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-          <span
-            style={{
-              fontFamily: "var(--font-label-family)",
-              fontSize: "10px",
-              fontWeight: 700,
-              letterSpacing: "0.08em",
-              textTransform: "uppercase",
-              color: "var(--color-text-muted)",
-            }}
-          >
+        <label
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: 6,
+          }}
+        >
+          <span className="v2-eyebrow">
             {locale === "ko" ? "메모" : "Memo"}
           </span>
           <AppTextarea
@@ -490,23 +525,26 @@ export const AddExerciseSheet = memo(function AddExerciseSheet({
         <Link
           href="/exercises?context=session"
           onClick={onClose}
+          className="v2-pressable"
           style={{
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            gap: "6px",
-            padding: "12px",
-            borderRadius: "14px",
-            background: "var(--color-surface-container)",
-            color: "var(--color-text-muted)",
+            gap: "var(--v2-s-2)",
+            padding: "var(--v2-s-3)",
+            borderRadius: "var(--v2-r-3)",
+            background: "var(--v2-paper-2)",
+            color: "var(--v2-ink-2)",
             textDecoration: "none",
-            fontFamily: "var(--font-label-family)",
-            fontSize: "13px",
+            fontFamily: "var(--v2-f-display)",
+            fontSize: 13,
             fontWeight: 700,
             letterSpacing: "0.02em",
           }}
         >
-          <span className="material-symbols-outlined" style={{ fontSize: "16px" }}>tune</span>
+          <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
+            tune
+          </span>
           {locale === "ko" ? "운동종목 관리" : "Manage Exercises"}
         </Link>
       </div>

@@ -95,7 +95,7 @@ export const Stats1RMOverlaySheets = memo(function Stats1RMOverlaySheets({
         }}
         footer={null}
       >
-        <div style={{ padding: "0 var(--space-xs)" }}>
+        <div style={{ padding: "0 var(--v2-s-1)" }}>
           <CalendarRangePicker
             startDate={rangeDraft.from}
             endDate={rangeDraft.to}
@@ -109,10 +109,10 @@ export const Stats1RMOverlaySheets = memo(function Stats1RMOverlaySheets({
           />
           {rangeDraftError ? (
             <p
+              className="v2-small"
               style={{
-                color: "var(--color-danger)",
-                fontSize: "13px",
-                marginTop: "var(--space-md)",
+                color: "var(--v2-c-danger)",
+                marginTop: "var(--v2-s-4)",
                 margin: 0,
               }}
             >

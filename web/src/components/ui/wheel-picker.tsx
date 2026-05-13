@@ -396,7 +396,7 @@ export const WheelPicker = memo(
             justifyContent: "center",
             fontSize: "1.5rem",
             fontWeight: isSelected ? 600 : 400,
-            color: "var(--color-text)",
+            color: "var(--v2-ink)",
           }}
           onClick={() => handleItemClick(i)}
         >
@@ -423,7 +423,7 @@ export const WheelPicker = memo(
             top: centerOffset,
             height: itemHeight,
             borderRadius: 8,
-            background: "var(--color-surface-container)",
+            background: "var(--v2-paper-2)",
             pointerEvents: "none",
           }}
         />

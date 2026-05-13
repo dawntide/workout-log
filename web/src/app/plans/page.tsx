@@ -1,8 +1,7 @@
-import Link from "next/link";
 import { APP_ROUTES } from "@/lib/app-routes";
 import { getAppCopy, resolveRequestLocale } from "@/lib/i18n/messages";
 import { NavRow } from "@/components/workout/nav-row";
-import { Button } from "@/components/ui/button";
+import { V2SecondaryBtn } from "@/components/v2/primitives";
 import { AppPage, PageHeader, PageSection } from "@/components/ui/page-layout";
 
 type NavItem = {
@@ -33,14 +32,14 @@ export default async function PlansIndexPage() {
         title={copy.plans.title}
         description={locale === "ko" ? "지금 진행 중인 플랜을 한눈에 관리하세요." : "Manage your active plans in one place."}
         actions={(
-          <Button as={Link} href={APP_ROUTES.programStore} variant="secondary">
+          <V2SecondaryBtn as="a" href={APP_ROUTES.programStore}>
             {locale === "ko" ? "프로그램 스토어" : "Program Store"}
-          </Button>
+          </V2SecondaryBtn>
         )}
       />
 
       <PageSection title={copy.plans.managementSection}>
-        <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-xs)" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "var(--v2-s-1)" }}>
           {managementItems.map((item) => (
             <NavRow key={item.href} item={item} />
           ))}
@@ -48,7 +47,7 @@ export default async function PlansIndexPage() {
       </PageSection>
 
       <PageSection title={locale === "ko" ? "빠른 이동" : "Quick Access"}>
-        <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-xs)" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "var(--v2-s-1)" }}>
           <NavRow
             item={{
               href: APP_ROUTES.programStore,

@@ -57,10 +57,10 @@ export function MonthYearPickerSheet({
       }}
       footer={null}
     >
-      <div style={{ padding: "var(--space-sm) 0 var(--space-lg)" }}>
-        <div style={{ display: "flex", alignItems: "flex-start", gap: "var(--space-md)" }}>
+      <div style={{ padding: "var(--v2-s-2) 0 var(--v2-s-5)" }}>
+        <div style={{ display: "flex", alignItems: "flex-start", gap: "var(--v2-s-4)" }}>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <span style={{ display: "block", marginBottom: "var(--space-sm)", fontSize: "10px", fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--color-text-muted)" }}>{locale === "ko" ? "연도" : "Year"}</span>
+            <span style={{ display: "block", marginBottom: "var(--v2-s-2)", fontSize: "10px", fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--v2-ink-2)" }}>{locale === "ko" ? "연도" : "Year"}</span>
             <WheelPicker
               values={years}
               value={draftYear}
@@ -71,7 +71,7 @@ export function MonthYearPickerSheet({
             />
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <span style={{ display: "block", marginBottom: "var(--space-sm)", fontSize: "10px", fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--color-text-muted)" }}>{locale === "ko" ? "월" : "Month"}</span>
+            <span style={{ display: "block", marginBottom: "var(--v2-s-2)", fontSize: "10px", fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--v2-ink-2)" }}>{locale === "ko" ? "월" : "Month"}</span>
             <WheelPicker
               values={months}
               value={draftMonth}

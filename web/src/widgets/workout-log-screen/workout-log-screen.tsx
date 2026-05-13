@@ -311,7 +311,7 @@ function WorkoutLogScreenContent({
             minHeight: 0,
             gap: 6,
             overflow: "hidden",
-            marginBottom: "calc((var(--space-xl) + 32px) * -1)",
+            marginBottom: "calc((var(--v2-s-7) + 32px) * -1)",
           }}
         >
           {/* 컴팩트 상단 바 */}
@@ -480,9 +480,10 @@ function WorkoutLogScreenContent({
 
             {isEditingExistingLog ? (
               <p
+                className="v2-small"
                 style={{
                   fontSize: 11,
-                  color: "var(--text-hint)",
+                  color: "var(--v2-ink-3)",
                   margin: 0,
                 }}
               >

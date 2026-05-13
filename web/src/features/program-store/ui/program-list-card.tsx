@@ -1,5 +1,6 @@
 "use client";
 
+import { V2PrimaryBtn, V2SecondaryBtn } from "@/components/v2/primitives";
 import { formatProgramDisplayName } from "@/features/program-store/model/view";
 import {
   getProgramDetailInfo,
@@ -8,19 +9,19 @@ import {
 
 function tagLabelClass(tag: string): string {
   const normalized = tag.toLowerCase().trim();
-  if (["manual", "fixed", "custom"].some((keyword) => normalized.includes(keyword))) {
+  if (["manual", "fixed", "custom"].some((k) => normalized.includes(k))) {
     return "label label-tag-manual label-sm";
   }
   if (
-    ["beginner", "novice", "starter", "입문", "초보"].some((keyword) =>
-      normalized.includes(keyword),
+    ["beginner", "novice", "starter", "입문", "초보"].some((k) =>
+      normalized.includes(k),
     )
   ) {
     return "label label-tag-beginner label-sm";
   }
   if (
-    ["amrap", "top-set", "topset", "top set", "rpe", "rir"].some((keyword) =>
-      normalized.includes(keyword),
+    ["amrap", "top-set", "topset", "top set", "rpe", "rir"].some((k) =>
+      normalized.includes(k),
     )
   ) {
     return normalized.includes("amrap")
@@ -28,22 +29,22 @@ function tagLabelClass(tag: string): string {
       : "label label-tag-top-set label-sm";
   }
   if (
-    ["strength", "power", "hypertrophy", "근력", "파워", "근비대"].some((keyword) =>
-      normalized.includes(keyword),
+    ["strength", "power", "hypertrophy", "근력", "파워", "근비대"].some((k) =>
+      normalized.includes(k),
     )
   ) {
     return "label label-tag-session label-sm";
   }
   if (
-    ["linear", "progression", "wave", "periodization", "선형", "주기화"].some((keyword) =>
-      normalized.includes(keyword),
+    ["linear", "progression", "wave", "periodization", "선형", "주기화"].some(
+      (k) => normalized.includes(k),
     )
   ) {
     return "label label-tag-progression label-sm";
   }
   if (
-    ["base", "variant", "template", "library", "operator"].some((keyword) =>
-      normalized.includes(keyword),
+    ["base", "variant", "template", "library", "operator"].some((k) =>
+      normalized.includes(k),
     )
   ) {
     return "label label-tag-identity label-sm";
@@ -60,34 +61,20 @@ function programCardBadge(item: ProgramListItem, locale: "ko" | "en") {
   if (item.source === "CUSTOM") {
     return {
       label: locale === "ko" ? "커스텀" : "Custom",
-      style: {
-        background: "color-mix(in srgb, var(--color-secondary) 15%, transparent)",
-        color: "var(--color-secondary)",
-        border:
-          "1px solid color-mix(in srgb, var(--color-secondary) 20%, transparent)",
-      },
+      color: "var(--v2-c-info)",
     };
   }
 
   if (isBeginnerProgram) {
     return {
       label: locale === "ko" ? "입문 추천" : "Beginner Pick",
-      style: {
-        background: "color-mix(in srgb, var(--color-tertiary) 15%, transparent)",
-        color: "var(--color-tertiary)",
-        border:
-          "1px solid color-mix(in srgb, var(--color-tertiary) 20%, transparent)",
-      },
+      color: "var(--v2-c-success)",
     };
   }
 
   return {
     label: locale === "ko" ? "공식" : "Official",
-    style: {
-      background: "color-mix(in srgb, var(--color-primary) 15%, transparent)",
-      color: "var(--color-primary)",
-      border: "1px solid color-mix(in srgb, var(--color-primary) 20%, transparent)",
-    },
+    color: "var(--v2-accent)",
   };
 }
 
@@ -151,20 +138,9 @@ export function ProgramListCard({
       value: levelLabel,
     },
   ].filter(
-    (meta): meta is { icon: string; label: string; value: string } => meta !== null,
+    (meta): meta is { icon: string; label: string; value: string } =>
+      meta !== null,
   );
-
-  const badgeLabelStyle: React.CSSProperties = {
-    fontFamily: "var(--font-label-family)",
-    fontSize: "10px",
-    fontWeight: 700,
-    letterSpacing: "0.1em",
-    textTransform: "uppercase",
-    padding: "2px 8px",
-    borderRadius: 4,
-    display: "inline-block",
-    ...badge.style,
-  };
 
   return (
     <div
@@ -174,29 +150,15 @@ export function ProgramListCard({
       onKeyDown={(event) => {
         if (event.key === "Enter" || event.key === " ") onPress();
       }}
+      className="v2-pressable"
       style={{
-        background: "var(--color-surface-container-low)",
-        borderRadius: 16,
-        padding: "var(--space-lg)",
+        background: "var(--v2-paper)",
+        borderRadius: "var(--v2-r-3)",
+        padding: "var(--v2-s-6)",
         cursor: "pointer",
-        marginBottom: "var(--space-md)",
+        marginBottom: "var(--v2-s-4)",
         outline: "none",
-      }}
-      onMouseEnter={(event) => {
-        (event.currentTarget as HTMLDivElement).style.background =
-          "var(--color-surface-container)";
-      }}
-      onMouseLeave={(event) => {
-        (event.currentTarget as HTMLDivElement).style.background =
-          "var(--color-surface-container-low)";
-      }}
-      onFocus={(event) => {
-        (event.currentTarget as HTMLDivElement).style.background =
-          "var(--color-surface-container)";
-      }}
-      onBlur={(event) => {
-        (event.currentTarget as HTMLDivElement).style.background =
-          "var(--color-surface-container-low)";
+        boxShadow: "var(--v2-elev-1)",
       }}
     >
       <div
@@ -204,26 +166,41 @@ export function ProgramListCard({
           display: "flex",
           justifyContent: "space-between",
           alignItems: "flex-start",
-          marginBottom: "var(--space-sm)",
+          marginBottom: "var(--v2-s-2)",
         }}
       >
         <div style={{ flex: 1, minWidth: 0 }}>
-          <span style={badgeLabelStyle}>{badge.label}</span>
-          <h2
+          <span
+            className="v2-mono-label"
             style={{
-              fontFamily: "var(--font-headline-family)",
-              fontSize: "20px",
-              fontWeight: 800,
-              letterSpacing: "-0.3px",
-              color: "var(--text-plan-name)",
-              margin: "var(--space-xs) 0 2px",
+              fontSize: 10,
+              letterSpacing: "0.1em",
+              padding: "2px 8px",
+              borderRadius: 4,
+              display: "inline-block",
+              textTransform: "uppercase",
+              color: badge.color,
+              background: `color-mix(in srgb, ${badge.color} 15%, transparent)`,
+              border: `1px solid color-mix(in srgb, ${badge.color} 20%, transparent)`,
+            }}
+          >
+            {badge.label}
+          </span>
+          <h2
+            className="v2-h2"
+            style={{
+              fontSize: 20,
+              margin: "var(--v2-s-1) 0 2px",
               lineHeight: 1.2,
             }}
           >
             {formatProgramDisplayName(item.name)}
           </h2>
           {item.subtitle ? (
-            <p style={{ fontSize: "13px", color: "var(--color-text-muted)", margin: 0 }}>
+            <p
+              className="v2-small"
+              style={{ color: "var(--v2-ink-2)", margin: 0 }}
+            >
               {item.subtitle}
             </p>
           ) : null}
@@ -236,7 +213,7 @@ export function ProgramListCard({
               gap: 4,
               justifyContent: "flex-end",
               flexShrink: 0,
-              marginLeft: "var(--space-sm)",
+              marginLeft: "var(--v2-s-2)",
             }}
           >
             {tags.slice(0, 2).map((tag) => (
@@ -250,10 +227,10 @@ export function ProgramListCard({
 
       {item.description ? (
         <p
+          className="v2-small"
           style={{
-            fontSize: "13px",
-            color: "var(--color-text-muted)",
-            margin: "0 0 var(--space-sm)",
+            color: "var(--v2-ink-2)",
+            margin: "0 0 var(--v2-s-2)",
             lineHeight: 1.5,
             display: "-webkit-box",
             WebkitLineClamp: 2,
@@ -270,11 +247,11 @@ export function ProgramListCard({
           style={{
             display: "flex",
             flexWrap: "wrap",
-            gap: "var(--space-md)",
-            marginBottom: "var(--space-md)",
-            background: "var(--color-surface-container-lowest)",
-            padding: "var(--space-sm) var(--space-md)",
-            borderRadius: 10,
+            gap: "var(--v2-s-4)",
+            marginBottom: "var(--v2-s-4)",
+            background: "var(--v2-paper-2)",
+            padding: "var(--v2-s-2) var(--v2-s-4)",
+            borderRadius: "var(--v2-r-2)",
           }}
         >
           {metaItems.map((meta) => (
@@ -282,28 +259,20 @@ export function ProgramListCard({
               key={meta.label}
               style={{ display: "flex", flexDirection: "column", gap: 2 }}
             >
+              <span className="v2-eyebrow">{meta.label}</span>
               <span
+                className="v2-small"
                 style={{
-                  fontFamily: "var(--font-label-family)",
-                  fontSize: "10px",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.1em",
-                  color: "var(--color-text-subtle)",
-                }}
-              >
-                {meta.label}
-              </span>
-              <span
-                style={{
-                  fontFamily: "var(--font-label-family)",
-                  fontSize: "13px",
-                  color: "var(--color-text)",
+                  color: "var(--v2-ink)",
                   display: "flex",
                   alignItems: "center",
                   gap: 4,
                 }}
               >
-                <span className="material-symbols-outlined" style={{ fontSize: 14 }}>
+                <span
+                  className="material-symbols-outlined"
+                  style={{ fontSize: 14 }}
+                >
                   {meta.icon}
                 </span>
                 {meta.value}
@@ -318,20 +287,13 @@ export function ProgramListCard({
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          gap: "var(--space-sm)",
+          gap: "var(--v2-s-2)",
         }}
       >
         <div style={{ flex: 1 }}>
           <span
-            style={{
-              fontFamily: "var(--font-label-family)",
-              fontSize: "10px",
-              textTransform: "uppercase",
-              letterSpacing: "0.1em",
-              color: "var(--color-text-subtle)",
-              display: "block",
-              marginBottom: 6,
-            }}
+            className="v2-eyebrow"
+            style={{ display: "block", marginBottom: 6 }}
           >
             {locale === "ko" ? "강도" : "Intensity"}
           </span>
@@ -345,42 +307,41 @@ export function ProgramListCard({
                   borderRadius: 9999,
                   background:
                     index <= intensityFill
-                      ? "var(--color-primary)"
-                      : "var(--color-surface-container-highest)",
+                      ? "var(--v2-accent)"
+                      : "var(--v2-paper-4)",
                 }}
               />
             ))}
           </div>
         </div>
-        <button
-          type="button"
-          onClick={(event) => {
-            event.stopPropagation();
-            onPress();
-          }}
-          style={{
-            background: isMarket
-              ? "var(--color-action)"
-              : "var(--color-surface-container-highest)",
-            color: isMarket ? "#fff" : "var(--color-text)",
-            border: "none",
-            borderRadius: 10,
-            padding: "10px 20px",
-            fontFamily: "var(--font-headline-family)",
-            fontSize: "13px",
-            fontWeight: 700,
-            cursor: "pointer",
-            flexShrink: 0,
-          }}
+        <span
+          onClick={(event) => event.stopPropagation()}
+          style={{ flexShrink: 0 }}
         >
-          {isMarket
-            ? locale === "ko"
-              ? "시작하기"
-              : "Start"
-            : locale === "ko"
-              ? "편집"
-              : "Edit"}
-        </button>
+          {isMarket ? (
+            <V2PrimaryBtn
+              onClick={onPress}
+              style={{
+                padding: "10px 20px",
+                minHeight: 44,
+                fontSize: 13,
+              }}
+            >
+              {locale === "ko" ? "시작하기" : "Start"}
+            </V2PrimaryBtn>
+          ) : (
+            <V2SecondaryBtn
+              onClick={onPress}
+              style={{
+                padding: "10px 20px",
+                minHeight: 44,
+                fontSize: 13,
+              }}
+            >
+              {locale === "ko" ? "편집" : "Edit"}
+            </V2SecondaryBtn>
+          )}
+        </span>
       </div>
     </div>
   );

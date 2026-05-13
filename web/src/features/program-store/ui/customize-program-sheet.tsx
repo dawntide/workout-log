@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import ExerciseEditorRow from "@/features/program-store/ui/program-exercise-editor-row";
-import { Card } from "@/components/ui/card";
+import { V2Card } from "@/components/v2/primitives";
 import { AppTextInput } from "@/components/ui/form-controls";
 import type { ExerciseOption } from "@/features/program-store/model/types";
 import type { ProgramStoreCustomizeDraft } from "@/features/program-store/model/use-program-store-sheet-entry-controller";
@@ -129,16 +129,16 @@ export function CustomizeProgramSheet({
       footer={null}
     >
       {draft ? (
-        <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-lg)" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "var(--v2-s-5)" }}>
           {error ? (
             <div
               role="alert"
               style={{
-                border: "1px solid color-mix(in srgb, var(--color-danger) 34%, var(--color-border))",
+                border: "1px solid color-mix(in srgb, var(--v2-c-danger) 34%, var(--v2-hairline))",
                 borderRadius: "8px",
-                background: "var(--color-danger-weak)",
-                color: "var(--color-danger-strong)",
-                padding: "var(--space-sm) var(--space-md)",
+                background: "color-mix(in srgb, var(--v2-c-danger) 14%, var(--v2-paper))",
+                color: "var(--v2-c-danger)",
+                padding: "var(--v2-s-2) var(--v2-s-4)",
                 font: "var(--font-secondary)",
                 lineHeight: 1.5,
               }}
@@ -147,8 +147,8 @@ export function CustomizeProgramSheet({
             </div>
           ) : null}
 
-          <label style={{ display: "flex", flexDirection: "column", gap: "var(--space-xs)" }}>
-            <span style={{ color: "var(--text-session-context)", font: "var(--font-secondary)" }}>
+          <label style={{ display: "flex", flexDirection: "column", gap: "var(--v2-s-1)" }}>
+            <span style={{ color: "var(--v2-ink-2)", font: "var(--font-secondary)" }}>
               {locale === "ko" ? "프로그램 이름" : "Program Name"}
             </span>
             <AppTextInput
@@ -158,7 +158,7 @@ export function CustomizeProgramSheet({
             />
           </label>
 
-          <Card tone="subtle" padding="md" elevated={false}>
+          <V2Card tone="inset" padding="var(--v2-s-4)">
             <h2
               style={{
                 fontFamily: "var(--font-headline-family)",
@@ -166,35 +166,35 @@ export function CustomizeProgramSheet({
                 fontWeight: 700,
                 letterSpacing: "0.06em",
                 textTransform: "uppercase",
-                color: "var(--color-text-muted)",
-                margin: "0 0 var(--space-xs)",
+                color: "var(--v2-ink-2)",
+                margin: "0 0 var(--v2-s-1)",
               }}
             >
               {locale === "ko" ? "기본 구성" : "Base Setup"}
             </h2>
             {isOperatorCustomization ? (
               <>
-                <p style={{ fontSize: "13px", color: "var(--color-text-muted)", margin: "0 0 4px", lineHeight: 1.5 }}>
+                <p style={{ fontSize: "13px", color: "var(--v2-ink-2)", margin: "0 0 4px", lineHeight: 1.5 }}>
                   {locale === "ko"
                     ? "D1/D2는 스쿼트 + 벤치프레스 + 풀업, D3는 스쿼트 + 벤치프레스 + 데드리프트 구성을 기준으로 시작합니다."
                     : "D1/D2 start from Squat + Bench + Pull-Up, and D3 starts from Squat + Bench + Deadlift."}
                 </p>
-                <p style={{ fontSize: "13px", color: "var(--color-text-muted)", margin: 0, lineHeight: 1.5 }}>
+                <p style={{ fontSize: "13px", color: "var(--v2-ink-2)", margin: 0, lineHeight: 1.5 }}>
                   {locale === "ko"
                     ? "세션 순서는 유지되고, 각 day 안에서 종목만 교체·추가·삭제할 수 있습니다."
                     : "Session order stays fixed, and you can swap, add, or remove exercises inside each day."}
                 </p>
               </>
             ) : (
-              <p style={{ fontSize: "13px", color: "var(--color-text-muted)", margin: 0, lineHeight: 1.5 }}>
+              <p style={{ fontSize: "13px", color: "var(--v2-ink-2)", margin: 0, lineHeight: 1.5 }}>
                 {locale === "ko"
                   ? "기존 세션 구성을 기반으로 시작합니다. 각 세션의 종목을 교체/추가/삭제할 수 있습니다."
                   : "Start from the current session structure. You can swap, add, or remove exercises in each session."}
               </p>
             )}
-          </Card>
+          </V2Card>
 
-          <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-md)" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: "var(--v2-s-4)" }}>
             <h2
               style={{
                 fontFamily: "var(--font-headline-family)",
@@ -202,13 +202,13 @@ export function CustomizeProgramSheet({
                 fontWeight: 700,
                 letterSpacing: "0.06em",
                 textTransform: "uppercase",
-                color: "var(--color-text-muted)",
+                color: "var(--v2-ink-2)",
                 margin: 0,
               }}
             >
               {locale === "ko" ? "Day별 종목 변경" : "Adjust Exercises by Day"}
             </h2>
-            <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-md)" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "var(--v2-s-4)" }}>
               {draft.sessions.map((session) => {
                 const meta = operatorSessionMeta(session.key, locale);
                 const summary = session.exercises
@@ -217,12 +217,14 @@ export function CustomizeProgramSheet({
                   .join(" + ");
 
                 return (
-                  <Card
+                  <div
                     key={session.id}
-                    padding="none"
-                    tone="inset"
-                    elevated={false}
-                    style={{ padding: "var(--space-sm)", marginBottom: 0 }}
+                    style={{
+                      padding: "var(--v2-s-2)",
+                      marginBottom: 0,
+                      background: "var(--v2-paper-2)",
+                      borderRadius: "var(--v2-r-3)",
+                    }}
                     onDragOver={(event) => {
                       event.preventDefault();
                     }}
@@ -231,17 +233,20 @@ export function CustomizeProgramSheet({
                       onSessionDrop(session.id, session.exercises.length);
                     }}
                   >
-                    <header style={{ marginBottom: "var(--space-sm)" }}>
+                    <header style={{ marginBottom: "var(--v2-s-2)" }}>
                       <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
                         <strong>{meta.title}</strong>
-                        <span style={{ color: "var(--text-meta)", font: "var(--font-secondary)" }}>
+                        <span
+                          className="v2-small"
+                          style={{ color: "var(--v2-ink-3)" }}
+                        >
                           {summary || meta.description}
                         </span>
                       </div>
                     </header>
 
                     {session.exercises.length === 0 ? (
-                      <p style={{ fontSize: "13px", color: "var(--color-text-muted)", margin: "var(--space-xs) 0" }}>
+                      <p style={{ fontSize: "13px", color: "var(--v2-ink-2)", margin: "var(--v2-s-1) 0" }}>
                         {locale === "ko" ? "아직 추가된 운동이 없습니다." : "No exercises added yet."}
                       </p>
                     ) : null}
@@ -249,7 +254,7 @@ export function CustomizeProgramSheet({
                     {session.exercises.map((exercise, exerciseIndex) => (
                       <div
                         key={exercise.id}
-                        style={{ marginTop: exerciseIndex === 0 ? 0 : "var(--space-sm)" }}
+                        style={{ marginTop: exerciseIndex === 0 ? 0 : "var(--v2-s-2)" }}
                         ref={(node) => onRegisterExerciseRef(exercise.id, node)}
                       >
                         <ExerciseEditorRow
@@ -274,7 +279,7 @@ export function CustomizeProgramSheet({
                     <button
                       type="button"
                       className="btn btn-secondary btn-full"
-                      style={{ marginTop: "var(--space-sm)" }}
+                      style={{ marginTop: "var(--v2-s-2)" }}
                       onClick={() => onAddExercise(session.id)}
                     >
                       <span
@@ -286,7 +291,7 @@ export function CustomizeProgramSheet({
                       </span>
                       <span>{locale === "ko" ? "운동 추가" : "Add Exercise"}</span>
                     </button>
-                  </Card>
+                  </div>
                 );
               })}
             </div>

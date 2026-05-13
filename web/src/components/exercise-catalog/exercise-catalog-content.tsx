@@ -7,7 +7,7 @@ import { apiDelete, apiGet, apiPatch, apiPost } from "@/lib/api";
 import { useQuerySettled } from "@/lib/ui/use-query-settled";
 import { EmptyStateRows, ErrorStateRows, LoadingStateRows, NoticeStateRows } from "@/components/ui/settings-state";
 import { useAppDialog } from "@/components/ui/app-dialog-provider";
-import { Card, CardContent } from "@/components/ui/card";
+import { V2Card } from "@/components/v2/primitives";
 import { AppSelect, AppTextInput } from "@/components/ui/form-controls";
 import { SearchInput } from "@/components/ui/search-input";
 
@@ -155,7 +155,7 @@ const CategoryField = memo(function CategoryField({
   const [customMode, setCustomMode] = useState(isInitiallyCustom);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-xs)" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: "var(--v2-s-1)" }}>
       <FieldLabel>{label}</FieldLabel>
       <AppSelect
         variant="compact"
@@ -194,7 +194,7 @@ function FieldLabel({ children }: { children: ReactNode }) {
       fontWeight: 700,
       letterSpacing: "0.08em",
       textTransform: "uppercase" as const,
-      color: "var(--color-text-muted)",
+      color: "var(--v2-ink-2)",
     }}>
       {children}
     </span>
@@ -231,11 +231,11 @@ function InlineExerciseForm({
   locale: "ko" | "en";
 }) {
   return (
-    <Card padding="md" tone="default" elevated={false}>
-      <CardContent>
-        <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-md)" }}>
+    <V2Card tone="paper" padding="var(--v2-s-4)">
+      <>
+        <div style={{ display: "flex", flexDirection: "column", gap: "var(--v2-s-4)" }}>
           {/* Name */}
-          <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-xs)" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: "var(--v2-s-1)" }}>
             <FieldLabel>{locale === "ko" ? "운동종목명" : "Exercise Name"}</FieldLabel>
             <AppTextInput
               value={name}
@@ -249,7 +249,7 @@ function InlineExerciseForm({
           <div style={{
             display: "grid",
             gridTemplateColumns: aliases !== undefined ? "1fr 1fr" : "1fr",
-            gap: "var(--space-md)",
+            gap: "var(--v2-s-4)",
           }}>
             <CategoryField
               label={locale === "ko" ? "카테고리" : "Category"}
@@ -259,7 +259,7 @@ function InlineExerciseForm({
               locale={locale}
             />
             {aliases !== undefined && onAliasesChange && (
-              <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-xs)" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: "var(--v2-s-1)" }}>
                 <FieldLabel>{locale === "ko" ? "별칭 (쉼표 구분)" : "Aliases (comma-separated)"}</FieldLabel>
                 <AppTextInput
                   variant="compact"
@@ -272,7 +272,7 @@ function InlineExerciseForm({
           </div>
 
           {/* Actions */}
-          <div style={{ display: "flex", gap: "var(--space-sm)" }}>
+          <div style={{ display: "flex", gap: "var(--v2-s-2)" }}>
             <button
               type="button"
               className="btn btn-secondary"
@@ -293,8 +293,8 @@ function InlineExerciseForm({
             </button>
           </div>
         </div>
-      </CardContent>
-    </Card>
+      </>
+    </V2Card>
   );
 }
 
@@ -316,22 +316,22 @@ function ExerciseRowView({
       display: "flex",
       alignItems: "center",
       justifyContent: "space-between",
-      padding: "var(--space-md)",
-      backgroundColor: "var(--color-surface-container-low)",
-      border: "1px solid var(--color-border)",
+      padding: "var(--v2-s-4)",
+      backgroundColor: "var(--v2-paper)",
+      border: "1px solid var(--v2-hairline)",
       borderRadius: "12px",
-      gap: "var(--space-sm)",
+      gap: "var(--v2-s-2)",
     }}>
       {/* Left content */}
       <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: "4px" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "var(--space-sm)", flexWrap: "wrap" as const }}>
-          <span style={{ font: "var(--font-card-title)", color: "var(--color-text)" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "var(--v2-s-2)", flexWrap: "wrap" as const }}>
+          <span style={{ font: "var(--font-card-title)", color: "var(--v2-ink)" }}>
             {item.name}
           </span>
           <CategoryBadge category={item.category} />
         </div>
         {item.aliases.length > 0 && (
-          <span style={{ font: "var(--font-secondary)", color: "var(--color-text-muted)" }}>
+          <span style={{ font: "var(--font-secondary)", color: "var(--v2-ink-2)" }}>
             {locale === "ko" ? "별칭" : "Aliases"}: {item.aliases.join(", ")}
           </span>
         )}
@@ -370,15 +370,15 @@ function StatsGrid({ total, items, locale }: { total: number; items: ExerciseIte
     <div style={{
       display: "grid",
       gridTemplateColumns: "1fr 1fr",
-      gap: "var(--space-sm)",
-      marginBottom: "var(--space-lg)",
+      gap: "var(--v2-s-2)",
+      marginBottom: "var(--v2-s-5)",
     }}>
       {/* Total count tile */}
       <div style={{
-        backgroundColor: "var(--color-surface-container-low)",
-        border: "1px solid var(--color-border)",
+        backgroundColor: "var(--v2-paper)",
+        border: "1px solid var(--v2-hairline)",
         borderRadius: "12px",
-        padding: "var(--space-md)",
+        padding: "var(--v2-s-4)",
         display: "flex", flexDirection: "column", justifyContent: "space-between",
         minHeight: "96px",
       }}>
@@ -386,7 +386,7 @@ function StatsGrid({ total, items, locale }: { total: number; items: ExerciseIte
           fontFamily: "var(--font-label-family)",
           fontSize: "10px", fontWeight: 700,
           letterSpacing: "0.15em", textTransform: "uppercase" as const,
-          color: "var(--color-text-subtle)",
+          color: "var(--v2-ink-3)",
         }}>
           {locale === "ko" ? "전체 종목" : "Total Exercises"}
         </span>
@@ -394,14 +394,14 @@ function StatsGrid({ total, items, locale }: { total: number; items: ExerciseIte
           <span style={{
             fontFamily: "var(--font-label-family)",
             fontSize: "36px", fontWeight: 700, lineHeight: 1,
-            color: "var(--color-primary)",
+            color: "var(--v2-accent)",
           }}>
             {total}
           </span>
           <span style={{
             fontFamily: "var(--font-label-family)",
             fontSize: "11px",
-            color: "var(--color-text-subtle)",
+            color: "var(--v2-ink-3)",
           }}>
             {locale === "ko" ? "종목" : "items"}
           </span>
@@ -410,10 +410,10 @@ function StatsGrid({ total, items, locale }: { total: number; items: ExerciseIte
 
       {/* Recent exercises tile */}
       <div style={{
-        backgroundColor: "var(--color-action-weak)",
-        border: "1px solid color-mix(in srgb, var(--color-primary) 20%, var(--color-border))",
+        backgroundColor: "var(--v2-accent-weak)",
+        border: "1px solid color-mix(in srgb, var(--v2-accent) 20%, var(--v2-hairline))",
         borderRadius: "12px",
-        padding: "var(--space-md)",
+        padding: "var(--v2-s-4)",
         display: "flex", flexDirection: "column", justifyContent: "space-between",
         minHeight: "96px",
       }}>
@@ -421,7 +421,7 @@ function StatsGrid({ total, items, locale }: { total: number; items: ExerciseIte
           fontFamily: "var(--font-label-family)",
           fontSize: "10px", fontWeight: 700,
           letterSpacing: "0.15em", textTransform: "uppercase" as const,
-          color: "var(--color-text-muted)",
+          color: "var(--v2-ink-2)",
         }}>
           {locale === "ko" ? "최근 종목" : "Recent Exercises"}
         </span>
@@ -430,12 +430,12 @@ function StatsGrid({ total, items, locale }: { total: number; items: ExerciseIte
             {avatars.map((initials, i) => (
               <div key={i} style={{
                 width: 32, height: 32, borderRadius: "9999px",
-                backgroundColor: "var(--color-surface-container-high)",
-                border: "2px solid var(--color-surface-container-low)",
+                backgroundColor: "var(--v2-paper-3)",
+                border: "2px solid var(--v2-paper)",
                 display: "flex", alignItems: "center", justifyContent: "center",
                 fontFamily: "var(--font-label-family)",
                 fontSize: "10px", fontWeight: 700,
-                color: "var(--color-text)",
+                color: "var(--v2-ink)",
                 marginLeft: i > 0 ? "-8px" : "0",
                 position: "relative" as const,
                 zIndex: avatars.length - i,
@@ -445,7 +445,7 @@ function StatsGrid({ total, items, locale }: { total: number; items: ExerciseIte
             ))}
           </div>
         ) : (
-          <span style={{ font: "var(--font-secondary)", color: "var(--color-text-subtle)" }}>—</span>
+          <span style={{ font: "var(--font-secondary)", color: "var(--v2-ink-3)" }}>—</span>
         )}
       </div>
     </div>
@@ -626,15 +626,15 @@ export function ExerciseCatalogContent() {
     <div>
       {/* Editorial page header */}
       <div style={{
-        marginBottom: "var(--space-xl)",
-        paddingBottom: "var(--space-md)",
-        borderBottom: "1px solid var(--color-border)",
+        marginBottom: "var(--v2-s-7)",
+        paddingBottom: "var(--v2-s-4)",
+        borderBottom: "1px solid var(--v2-hairline)",
       }}>
         <div style={{
           fontFamily: "var(--font-label-family)",
           fontSize: "10px", fontWeight: 700,
           letterSpacing: "0.12em", textTransform: "uppercase" as const,
-          color: "var(--color-primary)",
+          color: "var(--v2-accent)",
           marginBottom: "4px",
         }}>
           Exercise Library
@@ -642,12 +642,12 @@ export function ExerciseCatalogContent() {
         <h1 style={{
           fontFamily: "var(--font-headline-family)",
           fontSize: "28px", fontWeight: 800, letterSpacing: "-0.5px",
-          color: "var(--color-text)",
-          margin: "0 0 var(--space-sm)",
+          color: "var(--v2-ink)",
+          margin: "0 0 var(--v2-s-2)",
         }}>
           {locale === "ko" ? "운동 종목 관리" : "Exercise Management"}
         </h1>
-        <p style={{ fontSize: "13px", color: "var(--color-text-muted)", margin: 0, lineHeight: 1.5 }}>
+        <p style={{ fontSize: "13px", color: "var(--v2-ink-2)", margin: 0, lineHeight: 1.5 }}>
           {locale === "ko" ? "종목을 추가·수정하거나 카테고리와 별칭을 관리합니다." : "Add and edit exercises, categories, and aliases."}
         </p>
       </div>
@@ -658,7 +658,7 @@ export function ExerciseCatalogContent() {
       <NoticeStateRows message={notice} label={locale === "ko" ? "안내" : "Notice"} />
 
       {/* Search */}
-      <div style={{ marginBottom: "var(--space-md)" }}>
+      <div style={{ marginBottom: "var(--v2-s-4)" }}>
         <SearchInput
           bare
           value={query}
@@ -673,7 +673,7 @@ export function ExerciseCatalogContent() {
 
       {/* Inline create form */}
       {createOpen && (
-        <div style={{ marginBottom: "var(--space-md)" }}>
+        <div style={{ marginBottom: "var(--v2-s-4)" }}>
           <InlineExerciseForm
             name={createName}
             onNameChange={setCreateName}
@@ -696,7 +696,7 @@ export function ExerciseCatalogContent() {
         <button
           type="button"
           className="btn btn-secondary btn-full"
-          style={{ marginBottom: "var(--space-lg)", display: "flex", alignItems: "center", justifyContent: "center", gap: "var(--space-xs)" }}
+          style={{ marginBottom: "var(--v2-s-5)", display: "flex", alignItems: "center", justifyContent: "center", gap: "var(--v2-s-1)" }}
           onClick={() => setCreateOpen(true)}
         >
           <span className="material-symbols-outlined" aria-hidden="true" style={{ fontSize: 18 }}>add</span>
@@ -709,8 +709,8 @@ export function ExerciseCatalogContent() {
         fontFamily: "var(--font-headline-family)",
         fontSize: "13px", fontWeight: 700,
         letterSpacing: "0.06em", textTransform: "uppercase" as const,
-        color: "var(--color-text-muted)",
-        margin: "0 0 var(--space-sm)",
+        color: "var(--v2-ink-2)",
+        margin: "0 0 var(--v2-s-2)",
       }}>
         {locale === "ko" ? "활성 카탈로그" : "Active Catalog"}
       </h2>
@@ -744,7 +744,7 @@ export function ExerciseCatalogContent() {
                 top: 0,
                 left: 0,
                 width: "100%",
-                paddingBottom: "var(--space-sm)",
+                paddingBottom: "var(--v2-s-2)",
                 transform: `translateY(${virtualItem.start - virtualizer.options.scrollMargin}px)`,
               }}
             >

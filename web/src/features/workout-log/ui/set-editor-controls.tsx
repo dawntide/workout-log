@@ -4,14 +4,19 @@ import dynamic from "next/dynamic";
 import { memo, useRef, useState, type ReactNode, type TouchEvent } from "react";
 
 const NumberPickerSheet = dynamic(
-  () => import("@/components/ui/number-picker-sheet").then((mod) => mod.NumberPickerSheet),
+  () =>
+    import("@/components/ui/number-picker-sheet").then(
+      (mod) => mod.NumberPickerSheet,
+    ),
   { ssr: false },
 );
 
 export function formatCompactWeightValue(value: number, step = 0.5) {
   if (!Number.isFinite(value)) return "0";
   const raw = String(step);
-  const precision = raw.includes(".") ? Math.min(2, raw.split(".")[1]?.length ?? 0) : 0;
+  const precision = raw.includes(".")
+    ? Math.min(2, raw.split(".")[1]?.length ?? 0)
+    : 0;
   const rounded = Number(value.toFixed(Math.max(precision, 1)));
   if (precision === 0 || Number.isInteger(rounded)) return String(rounded);
   return rounded.toFixed(precision);
@@ -31,6 +36,14 @@ type WorkoutRecordInlinePickerProps = {
   failed?: boolean;
   color?: string;
 };
+
+const REPS_METRIC = "var(--v2-c-reps)";
+const SUCCESS_TINT =
+  "color-mix(in srgb, var(--v2-c-success) 18%, var(--v2-paper))";
+const REPS_TINT =
+  "color-mix(in srgb, var(--v2-c-reps) 14%, var(--v2-paper))";
+const DANGER_TINT =
+  "color-mix(in srgb, var(--v2-c-danger) 22%, var(--v2-paper))";
 
 export const WorkoutRecordInlinePicker = memo(function WorkoutRecordInlinePicker({
   label,
@@ -54,39 +67,45 @@ export const WorkoutRecordInlinePicker = memo(function WorkoutRecordInlinePicker
     typeof max === "number" &&
     typeof step === "number";
 
+  const isReps = color === REPS_METRIC;
+  const bg = failed
+    ? DANGER_TINT
+    : complete
+      ? isReps
+        ? REPS_TINT
+        : SUCCESS_TINT
+      : "transparent";
+  const fg = failed
+    ? "var(--v2-c-danger)"
+    : complete
+      ? isReps
+        ? "var(--v2-c-reps)"
+        : "var(--v2-ink)"
+      : color || "var(--v2-ink-2)";
+
   return (
     <div style={{ display: "flex", width: "100%", justifyContent: "center" }}>
       <button
         type="button"
-        className="workout-record-picker-btn"
+        className="workout-record-picker-btn v2-pressable"
         style={{
           width: "100%",
           padding: "6px 4px",
-          border: "1px solid var(--color-border)",
-          borderRadius: "8px",
-          backgroundColor: failed
-            ? "color-mix(in srgb, var(--color-danger) 25%, var(--color-surface-container-low))"
-            : complete
-              ? color === "var(--text-metric-reps)"
-                ? "var(--color-success-weak)"
-                : "color-mix(in srgb, var(--color-success) 18%, var(--color-surface-container-low))"
-              : "transparent",
-          color: failed
-            ? "var(--color-danger-strong)"
-            : complete
-              ? color === "var(--text-metric-reps)"
-                ? "var(--color-success-strong)"
-                : "var(--color-text)"
-              : color || "var(--color-text-muted)",
+          border: "1px solid var(--v2-hairline)",
+          borderRadius: "var(--v2-r-1)",
+          backgroundColor: bg,
+          color: fg,
           display: "flex",
           justifyContent: "center",
           alignItems: "center",
-          fontSize: "22px",
+          fontFamily: "var(--v2-f-num)",
+          fontSize: 22,
           fontWeight: 700,
           letterSpacing: "-0.5px",
           lineHeight: 1,
           fontVariantNumeric: "tabular-nums",
-          minHeight: "44px",
+          minHeight: 44,
+          cursor: "pointer",
         }}
         onClick={() => {
           if (usesLocalSheet) {
@@ -143,7 +162,13 @@ export function SwipeableSetRow({
   };
 
   const handleTouchMove = (e: TouchEvent<HTMLDivElement>) => {
-    if (disabled || !isDraggingRef.current || startXRef.current === null || !rowRef.current) return;
+    if (
+      disabled ||
+      !isDraggingRef.current ||
+      startXRef.current === null ||
+      !rowRef.current
+    )
+      return;
     const diff = e.touches[0].clientX - startXRef.current;
     if (diff < 0) {
       offsetXRef.current = Math.max(diff, -44);
@@ -153,14 +178,16 @@ export function SwipeableSetRow({
     } else {
       offsetXRef.current = 0;
     }
-    rowRef.current.style.transform = offsetXRef.current !== 0 ? `translateX(${offsetXRef.current}px)` : "";
+    rowRef.current.style.transform =
+      offsetXRef.current !== 0 ? `translateX(${offsetXRef.current}px)` : "";
   };
 
   const handleTouchEnd = () => {
     if (disabled || !rowRef.current) return;
     isDraggingRef.current = false;
     rowRef.current.style.willChange = "auto";
-    rowRef.current.style.transition = "transform 0.2s cubic-bezier(0.32, 0.72, 0, 1)";
+    rowRef.current.style.transition =
+      "transform 0.2s cubic-bezier(0.32, 0.72, 0, 1)";
     if (offsetXRef.current < -22) {
       offsetXRef.current = -44;
       rowRef.current.style.transform = "translateX(-44px)";
@@ -180,7 +207,13 @@ export function SwipeableSetRow({
   };
 
   return (
-    <div style={{ position: "relative", clipPath: "inset(0 0 0 0 round 6px)", marginBottom: "var(--space-xs)" }}>
+    <div
+      style={{
+        position: "relative",
+        clipPath: "inset(0 0 0 0 round 6px)",
+        marginBottom: "var(--v2-s-1)",
+      }}
+    >
       <div
         style={{
           position: "absolute",
@@ -188,11 +221,11 @@ export function SwipeableSetRow({
           top: 0,
           bottom: 0,
           zIndex: 0,
-          width: "44px",
+          width: 44,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          borderRadius: "6px",
+          borderRadius: 6,
         }}
       >
         <button
@@ -204,7 +237,7 @@ export function SwipeableSetRow({
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            color: "var(--color-danger)",
+            color: "var(--v2-c-danger)",
             backgroundColor: "transparent",
             border: "none",
             boxShadow: "none",
@@ -213,7 +246,10 @@ export function SwipeableSetRow({
           aria-label={deleteLabel}
           disabled={disabled}
         >
-          <span className="material-symbols-outlined" style={{ fontSize: 22, fontVariationSettings: "'wght' 400" }}>
+          <span
+            className="material-symbols-outlined"
+            style={{ fontSize: 22, fontVariationSettings: "'wght' 400" }}
+          >
             delete
           </span>
         </button>
@@ -228,8 +264,8 @@ export function SwipeableSetRow({
         style={{
           position: "relative",
           zIndex: 1,
-          backgroundColor: "var(--color-surface-container-low)",
-          borderRadius: "6px",
+          backgroundColor: "var(--v2-paper)",
+          borderRadius: 6,
           touchAction: "pan-y",
           padding: "2px 0",
         }}
