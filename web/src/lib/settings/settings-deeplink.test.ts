@@ -12,6 +12,9 @@ test("toSettingsDeepLinkHref builds canonical key route", () => {
 });
 
 test("resolveSettingsDeepLink resolves known key and row anchor", () => {
+  // After S-6-A IA compaction, the save-policy page was consolidated into
+  // /settings/debug. The settings-search-index now maps the save-policy key
+  // there. Deeplink row anchors still resolve normally against the new path.
   const resolved = resolveSettingsDeepLink({
     key: "settings.save-policy",
     row: "auto-sync",
@@ -19,9 +22,9 @@ test("resolveSettingsDeepLink resolves known key and row anchor", () => {
 
   assert.equal(resolved.ok, true);
   if (resolved.ok) {
-    assert.equal(resolved.entry.path, "/settings/save-policy");
+    assert.equal(resolved.entry.path, "/settings/debug");
     assert.equal(resolved.anchorId, "row-auto-sync");
-    assert.equal(resolved.target, "/settings/save-policy?row=auto-sync&source=deeplink#row-auto-sync");
+    assert.equal(resolved.target, "/settings/debug?row=auto-sync&source=deeplink#row-auto-sync");
   }
 });
 
