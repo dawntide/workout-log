@@ -124,7 +124,7 @@ function MiniCalendar({
             alignItems: "center",
             justifyContent: "center",
             gap: 2,
-            borderRadius: 10,
+            borderRadius: "var(--v2-r-1)",
             background: isT
               ? "var(--v2-accent)"
               : isL
@@ -150,7 +150,7 @@ function MiniCalendar({
                   style={{
                     width: 4,
                     height: 4,
-                    borderRadius: 9999,
+                    borderRadius: "var(--v2-r-pill)",
                     background: "var(--v2-c-success)",
                   }}
                 />
@@ -382,7 +382,7 @@ export function V2PlanSheet({
             style={{
               width: 36,
               height: 36,
-              borderRadius: 12,
+              borderRadius: "var(--v2-r-2)",
               border: "none",
               background: "transparent",
               color: "var(--v2-ink-2)",
@@ -411,7 +411,7 @@ export function V2PlanSheet({
             style={{
               width: 36,
               height: 36,
-              borderRadius: 12,
+              borderRadius: "var(--v2-r-2)",
               border: "none",
               background: "transparent",
               color: "var(--v2-ink-2)",
@@ -436,7 +436,7 @@ export function V2PlanSheet({
               style={{
                 minHeight: 36,
                 padding: "6px 12px",
-                borderRadius: 9999,
+                borderRadius: "var(--v2-r-pill)",
                 border: "none",
                 background: "var(--v2-paper-2)",
                 color: "var(--v2-ink-2)",
@@ -545,7 +545,7 @@ export function V2PlanSheet({
                   style={{
                     width: 44,
                     height: 44,
-                    borderRadius: 14,
+                    borderRadius: "var(--v2-r-2)",
                     background: "var(--v2-paper-2)",
                     display: "flex",
                     alignItems: "center",
@@ -613,7 +613,7 @@ export function V2PlanSheet({
               width: "100%",
               minHeight: 44,
               padding: "10px 18px",
-              borderRadius: 12,
+              borderRadius: "var(--v2-r-2)",
               background: "var(--v2-paper-2)",
               color: "var(--v2-ink)",
               border: "none",
@@ -647,7 +647,7 @@ export function V2PlanSheet({
               width: "100%",
               minHeight: 44,
               padding: "10px 18px",
-              borderRadius: 12,
+              borderRadius: "var(--v2-r-2)",
               background: "var(--v2-accent)",
               color: "var(--v2-ink-on-accent)",
               border: "none",

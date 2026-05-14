@@ -179,7 +179,7 @@ export function ProgramListCard({
               fontSize: 10,
               letterSpacing: "0.1em",
               padding: "2px 8px",
-              borderRadius: 4,
+              borderRadius: "var(--v2-r-0)",
               display: "inline-block",
               textTransform: "uppercase",
               color: badge.color,
@@ -307,7 +307,7 @@ export function ProgramListCard({
                 style={{
                   height: 6,
                   flex: 1,
-                  borderRadius: 9999,
+                  borderRadius: "var(--v2-r-pill)",
                   background:
                     index <= intensityFill
                       ? "var(--v2-accent)"

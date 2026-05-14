@@ -422,7 +422,7 @@ export const WheelPicker = memo(
             right: 8,
             top: centerOffset,
             height: itemHeight,
-            borderRadius: 8,
+            borderRadius: "var(--v2-r-1)",
             background: "var(--v2-paper-2)",
             pointerEvents: "none",
           }}

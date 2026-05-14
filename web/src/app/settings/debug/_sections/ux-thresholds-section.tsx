@@ -264,7 +264,7 @@ export function UxThresholdsSection({
       <section>
         <V2SettingsSection title={locale === "ko" ? "플랜별 기준치 프로필(선택)" : "Plan-Specific Threshold Profile (Optional)"} />
         <div style={{ display: "flex", flexDirection: "column", gap: "var(--v2-s-2)" }}>
-          <div style={{ background: "var(--v2-paper)", borderRadius: 20, padding: "var(--v2-s-4)", boxShadow: "0 1px 3px var(--shadow-color-soft)" }}>
+          <div style={{ background: "var(--v2-paper)", borderRadius: "var(--v2-r-4)", padding: "var(--v2-s-4)", boxShadow: "0 1px 3px var(--shadow-color-soft)" }}>
             <AppSelect
               label={locale === "ko" ? "플랜 선택" : "Select Plan"}
               value={selectedPlanId}

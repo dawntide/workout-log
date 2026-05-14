@@ -248,7 +248,7 @@ export function MinimumPlatePageContent({ initialSnapshot, initialExercises }: M
 
       <section>
         <V2SettingsSection title={locale === "ko" ? "기본값 조절" : "Adjust Default"} description={locale === "ko" ? "스테퍼로 조절한 뒤 저장 버튼으로 반영합니다." : "Adjust it with the stepper, then save the change."} />
-        <div style={{ background: "var(--v2-paper)", borderRadius: 20, padding: "var(--v2-s-4)", display: "flex", flexDirection: "column", gap: "var(--v2-s-2)" }}>
+        <div style={{ background: "var(--v2-paper)", borderRadius: "var(--v2-r-4)", padding: "var(--v2-s-4)", display: "flex", flexDirection: "column", gap: "var(--v2-s-2)" }}>
           <AppNumberStepper
             label={locale === "ko" ? "기본 최소 원판 (kg)" : "Default Minimum Plate (kg)"}
             value={defaultDraftKg}
@@ -335,7 +335,7 @@ export function MinimumPlatePageContent({ initialSnapshot, initialExercises }: M
         }
       >
         <div style={{ display: "flex", flexDirection: "column", gap: "var(--v2-s-4)" }}>
-          <div style={{ background: "var(--v2-paper)", borderRadius: 20, padding: "var(--v2-s-4)", display: "flex", flexDirection: "column", gap: "var(--v2-s-2)" }}>
+          <div style={{ background: "var(--v2-paper)", borderRadius: "var(--v2-r-4)", padding: "var(--v2-s-4)", display: "flex", flexDirection: "column", gap: "var(--v2-s-2)" }}>
             <label style={{ display: "flex", flexDirection: "column", gap: "var(--v2-s-1)" }}>
               <span className="v2-font-text" style={{ color: "var(--v2-ink-2)", fontSize: 13 }}>{locale === "ko" ? "운동종목 드롭다운 검색/선택" : "Search and select an exercise"}</span>
               <div data-no-swipe="true">
@@ -469,7 +469,7 @@ export function MinimumPlatePageContent({ initialSnapshot, initialExercises }: M
                             padding: "10px 14px",
                             background: "var(--v2-paper-2)",
                             border: "none",
-                            borderRadius: 12,
+                            borderRadius: "var(--v2-r-2)",
                             textAlign: "left",
                             fontSize: 14,
                             color: "var(--v2-ink)",
@@ -490,7 +490,7 @@ export function MinimumPlatePageContent({ initialSnapshot, initialExercises }: M
             </label>
           </div>
 
-          <div style={{ background: "var(--v2-paper)", borderRadius: 20, padding: "var(--v2-s-4)" }}>
+          <div style={{ background: "var(--v2-paper)", borderRadius: "var(--v2-r-4)", padding: "var(--v2-s-4)" }}>
             <AppNumberStepper
               label={locale === "ko" ? "최소 원판 Increment (kg)" : "Minimum Plate Increment (kg)"}
               value={ruleDraft.incrementKg}

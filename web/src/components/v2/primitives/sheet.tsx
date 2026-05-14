@@ -83,7 +83,7 @@ export function V2Sheet({
               width: 36,
               height: 4,
               background: "var(--v2-paper-4)",
-              borderRadius: 9999,
+              borderRadius: "var(--v2-r-pill)",
             }}
           />
         </div>

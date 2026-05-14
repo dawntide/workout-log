@@ -224,7 +224,7 @@ export function SwipeableSetRow({
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          borderRadius: 6,
+          borderRadius: "var(--v2-r-0)",
         }}
       >
         <button
@@ -264,7 +264,7 @@ export function SwipeableSetRow({
           position: "relative",
           zIndex: 1,
           backgroundColor: "var(--v2-paper)",
-          borderRadius: 6,
+          borderRadius: "var(--v2-r-0)",
           touchAction: "pan-y",
           padding: "2px 0",
         }}

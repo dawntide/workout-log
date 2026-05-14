@@ -107,14 +107,14 @@ export function V2MorePage() {
               gap: 12,
               padding: "14px 16px",
               background: "var(--v2-paper-2)",
-              borderRadius: 16,
+              borderRadius: "var(--v2-r-3)",
             }}
           >
             <div
               style={{
                 width: 40,
                 height: 40,
-                borderRadius: 9999,
+                borderRadius: "var(--v2-r-pill)",
                 background: "var(--v2-accent)",
                 color: "var(--v2-ink-on-accent)",
                 display: "flex",
@@ -170,7 +170,7 @@ export function V2MorePage() {
                 style={{
                   width: 36,
                   height: 36,
-                  borderRadius: 12,
+                  borderRadius: "var(--v2-r-2)",
                   border: "none",
                   background: "var(--v2-paper-3)",
                   color: "var(--v2-ink-2)",
@@ -312,7 +312,7 @@ export function V2MorePage() {
             padding: "12px 18px",
             background: "transparent",
             color: "var(--v2-ink-3)",
-            borderRadius: 12,
+            borderRadius: "var(--v2-r-2)",
             border: "none",
             cursor: "pointer",
             fontWeight: 600,
@@ -354,7 +354,7 @@ function Section({
       <div
         style={{
           background: "var(--v2-paper)",
-          borderRadius: 16,
+          borderRadius: "var(--v2-r-3)",
           overflow: "hidden",
           display: "flex",
           flexDirection: "column",

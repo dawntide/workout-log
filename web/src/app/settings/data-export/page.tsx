@@ -272,7 +272,7 @@ export default function SettingsDataExportPage() {
 
       {exportingLabel ? (
         <section>
-          <div style={{ background: "var(--v2-paper)", borderRadius: 20, padding: "var(--v2-s-4)", boxShadow: "0 1px 3px var(--shadow-color-soft)" }}>
+          <div style={{ background: "var(--v2-paper)", borderRadius: "var(--v2-r-4)", padding: "var(--v2-s-4)", boxShadow: "0 1px 3px var(--shadow-color-soft)" }}>
             <p className="v2-font-display" style={{ margin: 0, fontSize: 13, color: "var(--v2-ink-2)" }}>{exportingLabel}</p>
           </div>
         </section>

@@ -152,7 +152,7 @@ function TodayDeck({
                       style={{
                         width: 28,
                         height: 28,
-                        borderRadius: 8,
+                        borderRadius: "var(--v2-r-1)",
                         background:
                           ex.role === "MAIN"
                             ? "var(--v2-accent)"
@@ -254,7 +254,7 @@ function TodayDeck({
                 style={{
                   flex: 1,
                   height: 6,
-                  borderRadius: 9999,
+                  borderRadius: "var(--v2-r-pill)",
                   background: d.hasWorkout
                     ? "var(--v2-c-pr)"
                     : "var(--v2-paper-3)",
@@ -311,7 +311,7 @@ function TodayDeck({
                 style={{
                   flex: 1,
                   height: 8,
-                  borderRadius: 9999,
+                  borderRadius: "var(--v2-r-pill)",
                   background:
                     i < Math.min(5, weekly.sessionCount)
                       ? "var(--v2-c-progress)"
@@ -378,7 +378,7 @@ function TodayDeck({
                       style={{
                         width: 40,
                         height: 40,
-                        borderRadius: 12,
+                        borderRadius: "var(--v2-r-2)",
                         background: isPr
                           ? "color-mix(in srgb, var(--v2-c-pr) 16%, var(--v2-paper))"
                           : "color-mix(in srgb, var(--v2-c-weight) 16%, var(--v2-paper))",

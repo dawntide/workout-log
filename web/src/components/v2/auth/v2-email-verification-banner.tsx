@@ -71,7 +71,7 @@ export function V2EmailVerificationBanner() {
       style={{
         margin: "12px 12px 0",
         padding: "12px 14px",
-        borderRadius: 14,
+        borderRadius: "var(--v2-r-2)",
         background: "color-mix(in srgb, var(--v2-c-warning) 14%, var(--v2-paper))",
         color: "var(--v2-ink)",
         display: "flex",
@@ -129,7 +129,7 @@ export function V2EmailVerificationBanner() {
         aria-label={locale === "ko" ? "인증 배너 닫기" : "Dismiss verification banner"}
         style={{
           border: "none",
-          borderRadius: 10,
+          borderRadius: "var(--v2-r-1)",
           background: "transparent",
           color: "var(--v2-ink-3)",
           width: 32,

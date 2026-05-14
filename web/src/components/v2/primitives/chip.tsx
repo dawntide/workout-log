@@ -76,7 +76,7 @@ export function V2Chip({
         alignItems: "center",
         gap: 4,
         padding: "4px 10px",
-        borderRadius: 9999,
+        borderRadius: "var(--v2-r-pill)",
         fontSize: 11,
         fontWeight: 700,
         letterSpacing: "0.04em",

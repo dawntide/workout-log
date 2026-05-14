@@ -140,7 +140,7 @@ export function V2PasswordSheet({
             style={{
               marginTop: 8,
               padding: "10px 14px",
-              borderRadius: 12,
+              borderRadius: "var(--v2-r-2)",
               background:
                 "color-mix(in srgb, var(--v2-c-danger) 14%, var(--v2-paper))",
               color: "var(--v2-c-danger)",
@@ -157,7 +157,7 @@ export function V2PasswordSheet({
             style={{
               marginTop: 8,
               padding: "10px 14px",
-              borderRadius: 12,
+              borderRadius: "var(--v2-r-2)",
               background:
                 "color-mix(in srgb, var(--v2-c-success) 14%, var(--v2-paper))",
               color: "var(--v2-c-success)",
@@ -218,7 +218,7 @@ function PwField({
         style={{
           minHeight: 48,
           padding: "12px 14px",
-          borderRadius: 12,
+          borderRadius: "var(--v2-r-2)",
           background: "var(--v2-paper-2)",
           border: "none",
           outline: "none",

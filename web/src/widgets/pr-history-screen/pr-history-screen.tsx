@@ -129,7 +129,7 @@ export function PrHistoryScreen({
                         display: "inline-flex",
                         alignItems: "center",
                         padding: "8px 14px",
-                        borderRadius: 9999,
+                        borderRadius: "var(--v2-r-pill)",
                         fontWeight: 700,
                         fontSize: 12,
                         letterSpacing: "0.04em",
@@ -171,7 +171,7 @@ export function PrHistoryScreen({
                   style={{
                     display: "inline-flex",
                     padding: "8px 14px",
-                    borderRadius: 9999,
+                    borderRadius: "var(--v2-r-pill)",
                     fontWeight: 700,
                     fontSize: 12,
                     letterSpacing: "0.04em",
@@ -204,7 +204,7 @@ export function PrHistoryScreen({
                       style={{
                         display: "inline-flex",
                         padding: "8px 14px",
-                        borderRadius: 9999,
+                        borderRadius: "var(--v2-r-pill)",
                         fontWeight: 700,
                         fontSize: 12,
                         letterSpacing: "0.04em",

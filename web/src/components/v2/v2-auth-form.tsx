@@ -199,7 +199,7 @@ export function V2AuthForm({ mode }: { mode: Mode }) {
             style={{
               width: 36,
               height: 36,
-              borderRadius: 12,
+              borderRadius: "var(--v2-r-2)",
               background: "var(--v2-accent)",
               color: "var(--v2-ink-on-accent)",
               display: "flex",
@@ -326,7 +326,7 @@ export function V2AuthForm({ mode }: { mode: Mode }) {
                   width: 36,
                   height: 36,
                   border: "none",
-                  borderRadius: 12,
+                  borderRadius: "var(--v2-r-2)",
                   background: "transparent",
                   color: "var(--v2-ink-3)",
                   cursor: "pointer",
@@ -421,7 +421,7 @@ export function V2AuthForm({ mode }: { mode: Mode }) {
                 gap: 6,
                 marginTop: 2,
                 padding: "11px 14px",
-                borderRadius: 12,
+                borderRadius: "var(--v2-r-2)",
                 background:
                   "color-mix(in srgb, var(--v2-c-danger) 14%, var(--v2-paper))",
                 color: "var(--v2-c-danger)",
@@ -442,7 +442,7 @@ export function V2AuthForm({ mode }: { mode: Mode }) {
               type="submit"
               icon={isSignup ? "arrow_forward" : "arrow_forward"}
               disabled={submitting}
-              style={{ borderRadius: 14, minHeight: 52 }}
+              style={{ borderRadius: "var(--v2-r-2)", minHeight: 52 }}
             >
               {submitting
                 ? locale === "ko"
@@ -556,7 +556,7 @@ function StrengthMeter({ score, label }: { score: number; label: string }) {
             style={{
               flex: 1,
               height: 3,
-              borderRadius: 9999,
+              borderRadius: "var(--v2-r-pill)",
               background:
                 score >= i
                   ? score <= 1
@@ -612,7 +612,7 @@ function CheckboxRow({
           width: 20,
           height: 20,
           marginTop: 1,
-          borderRadius: 6,
+          borderRadius: "var(--v2-r-0)",
           background: checked ? "var(--v2-accent)" : "transparent",
           boxShadow: checked
             ? "none"

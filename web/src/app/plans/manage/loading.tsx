@@ -4,7 +4,7 @@ const skeletonStyle: React.CSSProperties = {
     "linear-gradient(90deg, var(--v2-paper) 0%, var(--v2-paper-3) 50%, var(--v2-paper) 100%)",
   backgroundSize: "200% 100%",
   animation: "skeleton-shimmer 1.4s ease infinite",
-  borderRadius: 8,
+  borderRadius: "var(--v2-r-1)",
 };
 
 export default function PlansManageLoading() {
@@ -22,19 +22,19 @@ export default function PlansManageLoading() {
         <div
           style={{
             padding: "22px 22px 24px",
-            borderRadius: 24,
+            borderRadius: "var(--v2-r-4)",
             background: "var(--v2-paper)",
             marginBottom: "var(--v2-s-4)",
           }}
         >
-          <div style={{ ...skeletonStyle, height: 12, width: 120, marginBottom: 8, borderRadius: 4 }} />
-          <div style={{ ...skeletonStyle, height: 28, width: 160, marginBottom: 6, borderRadius: 6 }} />
-          <div style={{ ...skeletonStyle, height: 13, width: "70%", marginBottom: 18, borderRadius: 4 }} />
+          <div style={{ ...skeletonStyle, height: 12, width: 120, marginBottom: 8, borderRadius: "var(--v2-r-0)" }} />
+          <div style={{ ...skeletonStyle, height: 28, width: 160, marginBottom: 6, borderRadius: "var(--v2-r-0)" }} />
+          <div style={{ ...skeletonStyle, height: 13, width: "70%", marginBottom: 18, borderRadius: "var(--v2-r-0)" }} />
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 8 }}>
             {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} style={{ background: "var(--v2-paper-2)", borderRadius: 14, padding: "12px 12px 14px" }}>
-                <div style={{ ...skeletonStyle, height: 10, width: "70%", marginBottom: 6, borderRadius: 4 }} />
-                <div style={{ ...skeletonStyle, height: 22, width: "50%", borderRadius: 4 }} />
+              <div key={i} style={{ background: "var(--v2-paper-2)", borderRadius: "var(--v2-r-2)", padding: "12px 12px 14px" }}>
+                <div style={{ ...skeletonStyle, height: 10, width: "70%", marginBottom: 6, borderRadius: "var(--v2-r-0)" }} />
+                <div style={{ ...skeletonStyle, height: 22, width: "50%", borderRadius: "var(--v2-r-0)" }} />
               </div>
             ))}
           </div>
@@ -44,7 +44,7 @@ export default function PlansManageLoading() {
       <section>
         {/* ── Search ── */}
         <div style={{ marginBottom: "var(--v2-s-4)" }}>
-          <div style={{ ...skeletonStyle, height: 48, borderRadius: 12 }} />
+          <div style={{ ...skeletonStyle, height: 48, borderRadius: "var(--v2-r-2)" }} />
         </div>
 
         {/* ── Plan Cards ── */}
@@ -54,7 +54,7 @@ export default function PlansManageLoading() {
               key={i}
               style={{
                 background: "var(--v2-paper)",
-                borderRadius: 18,
+                borderRadius: "var(--v2-r-3)",
                 padding: "18px 18px 16px",
                 display: "flex",
                 flexDirection: "column",
@@ -63,12 +63,12 @@ export default function PlansManageLoading() {
             >
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                 <div style={{ display: "flex", gap: 6 }}>
-                  <div style={{ ...skeletonStyle, height: 18, width: 70, borderRadius: 999 }} />
-                  <div style={{ ...skeletonStyle, height: 18, width: 70, borderRadius: 999 }} />
+                  <div style={{ ...skeletonStyle, height: 18, width: 70, borderRadius: "var(--v2-r-pill)" }} />
+                  <div style={{ ...skeletonStyle, height: 18, width: 70, borderRadius: "var(--v2-r-pill)" }} />
                 </div>
-                <div style={{ ...skeletonStyle, height: 22, width: "55%", borderRadius: 6 }} />
-                <div style={{ ...skeletonStyle, height: 13, width: "40%", borderRadius: 4 }} />
-                <div style={{ ...skeletonStyle, height: 12, width: "30%", marginTop: 4, borderRadius: 4 }} />
+                <div style={{ ...skeletonStyle, height: 22, width: "55%", borderRadius: "var(--v2-r-0)" }} />
+                <div style={{ ...skeletonStyle, height: 13, width: "40%", borderRadius: "var(--v2-r-0)" }} />
+                <div style={{ ...skeletonStyle, height: 12, width: "30%", marginTop: 4, borderRadius: "var(--v2-r-0)" }} />
               </div>
 
               {/* TM grid */}
@@ -78,22 +78,22 @@ export default function PlansManageLoading() {
                   gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
                   gap: 6,
                   padding: 10,
-                  borderRadius: 12,
+                  borderRadius: "var(--v2-r-2)",
                   background: "var(--v2-paper-2)",
                 }}
               >
                 {Array.from({ length: 4 }).map((_, j) => (
-                  <div key={j} style={{ padding: "6px 8px", background: "var(--v2-paper)", borderRadius: 10 }}>
-                    <div style={{ ...skeletonStyle, height: 10, width: "70%", marginBottom: 4, borderRadius: 4 }} />
-                    <div style={{ ...skeletonStyle, height: 14, width: "60%", borderRadius: 4 }} />
+                  <div key={j} style={{ padding: "6px 8px", background: "var(--v2-paper)", borderRadius: "var(--v2-r-1)" }}>
+                    <div style={{ ...skeletonStyle, height: 10, width: "70%", marginBottom: 4, borderRadius: "var(--v2-r-0)" }} />
+                    <div style={{ ...skeletonStyle, height: 14, width: "60%", borderRadius: "var(--v2-r-0)" }} />
                   </div>
                 ))}
               </div>
 
               {/* actions */}
               <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 8 }}>
-                <div style={{ ...skeletonStyle, height: 42, borderRadius: 12 }} />
-                <div style={{ ...skeletonStyle, height: 42, width: 110, borderRadius: 12 }} />
+                <div style={{ ...skeletonStyle, height: 42, borderRadius: "var(--v2-r-2)" }} />
+                <div style={{ ...skeletonStyle, height: 42, width: 110, borderRadius: "var(--v2-r-2)" }} />
               </div>
             </div>
           ))}

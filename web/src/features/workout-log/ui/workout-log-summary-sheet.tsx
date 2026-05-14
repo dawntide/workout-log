@@ -144,7 +144,7 @@ export function WorkoutLogSummarySheet({
                 aria-label={ex.exerciseName}
                 style={{
                   background: "var(--v2-paper-2)",
-                  borderRadius: 14,
+                  borderRadius: "var(--v2-r-2)",
                   overflow: "hidden",
                 }}
               >
@@ -232,7 +232,7 @@ export function WorkoutLogSummarySheet({
                       style={{
                         marginTop: 10,
                         padding: "10px 12px",
-                        borderRadius: 10,
+                        borderRadius: "var(--v2-r-1)",
                         background: "var(--v2-paper)",
                         color: "var(--v2-ink-2)",
                         fontSize: 12,
@@ -260,7 +260,7 @@ function ProgressBadge({ filled, total }: { filled: number; total: number }) {
       style={{
         fontSize: 10,
         padding: "2px 8px",
-        borderRadius: 9999,
+        borderRadius: "var(--v2-r-pill)",
         background: isComplete
           ? "color-mix(in srgb, var(--v2-c-success) 18%, var(--v2-paper))"
           : "var(--v2-paper-3)",
@@ -356,7 +356,7 @@ function SetDetailTable({
               gap: 8,
               alignItems: "center",
               padding: "6px 8px",
-              borderRadius: 8,
+              borderRadius: "var(--v2-r-1)",
               background: isSetComplete
                 ? "color-mix(in srgb, var(--v2-c-success) 8%, var(--v2-paper))"
                 : isFailure

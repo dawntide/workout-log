@@ -32,7 +32,7 @@ export default function CalendarLoading() {
             ...skeletonStyle,
             height: 24,
             width: "30%",
-            borderRadius: 6,
+            borderRadius: "var(--v2-r-0)",
           }}
         />
       </div>
@@ -75,7 +75,7 @@ export default function CalendarLoading() {
                   ...skeletonStyle,
                   height: 14,
                   width: 20,
-                  borderRadius: 4,
+                  borderRadius: "var(--v2-r-0)",
                 }}
               />
             </div>
@@ -146,7 +146,7 @@ export default function CalendarLoading() {
                   ...skeletonStyle,
                   height: 12,
                   width: "50%",
-                  borderRadius: 4,
+                  borderRadius: "var(--v2-r-0)",
                 }}
               />
             </div>

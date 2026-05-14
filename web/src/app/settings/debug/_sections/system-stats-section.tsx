@@ -242,7 +242,7 @@ export function SystemStatsSection() {
         </div>
 
         {loading ? (
-          <div style={{ background: "var(--v2-paper)", borderRadius: 20, padding: "var(--v2-s-4)", marginBottom: "var(--v2-s-5)" }}>
+          <div style={{ background: "var(--v2-paper)", borderRadius: "var(--v2-r-4)", padding: "var(--v2-s-4)", marginBottom: "var(--v2-s-5)" }}>
             <div style={{ fontSize: "13px", color: "var(--v2-ink-2)" }}>
               {locale === "ko" ? "시스템 통계를 불러오는 중..." : "Loading system stats..."}
             </div>
@@ -255,7 +255,7 @@ export function SystemStatsSection() {
               {locale === "ko" ? "마이그레이션" : "Migrations"}
             </h2>
           </div>
-          <div style={{ background: "var(--v2-paper)", borderRadius: 20, padding: "var(--v2-s-4)", boxShadow: "0 1px 3px var(--shadow-color-soft)" }}>
+          <div style={{ background: "var(--v2-paper)", borderRadius: "var(--v2-r-4)", padding: "var(--v2-s-4)", boxShadow: "0 1px 3px var(--shadow-color-soft)" }}>
             <div style={{ display: "flex", gap: "var(--v2-s-2)", marginBottom: "var(--v2-s-4)" }}>
               {MIGRATION_LOOKBACK_PRESETS.map(p => (
                 <button key={p} onClick={() => setLookback(p)} className={`label ${lookback === p ? "label-primary" : "label-neutral"}`}>
@@ -287,7 +287,7 @@ export function SystemStatsSection() {
           {uxSnapshot?.funnel && (
             <div style={{ display: "grid", gap: "var(--v2-s-4)" }}>
               {uxSnapshot.funnel.steps.map(step => (
-                <div key={step.id} style={{ background: "var(--v2-paper)", borderRadius: 16, padding: "var(--v2-s-4)", boxShadow: "0 1px 3px var(--shadow-color-soft)" }}>
+                <div key={step.id} style={{ background: "var(--v2-paper)", borderRadius: "var(--v2-r-3)", padding: "var(--v2-s-4)", boxShadow: "0 1px 3px var(--shadow-color-soft)" }}>
                   <div style={{ display: "flex", justifyContent: "space-between" }}>
                     <span>{step.label}</span>
                     <span className="metric-value">{formatIntegerByLocale(step.count, locale)}</span>
@@ -302,7 +302,7 @@ export function SystemStatsSection() {
             </div>
           )}
           {!uxSnapshot?.funnel && !loading ? (
-            <div style={{ background: "var(--v2-paper)", borderRadius: 16, padding: "var(--v2-s-4)" }}>
+            <div style={{ background: "var(--v2-paper)", borderRadius: "var(--v2-r-3)", padding: "var(--v2-s-4)" }}>
               <div style={{ fontSize: "13px", color: "var(--v2-ink-2)" }}>
                 {locale === "ko" ? "UX 퍼널 데이터가 아직 없습니다." : "No UX funnel data is available yet."}
               </div>
@@ -318,7 +318,7 @@ export function SystemStatsSection() {
           </div>
           <div style={{ display: "grid", gap: "var(--v2-s-2)" }}>
             {uxSnapshot?.thresholds.map(t => (
-              <div key={t.id} style={{ background: "var(--v2-paper)", borderRadius: 16, padding: "var(--v2-s-2) var(--v2-s-4)", boxShadow: "0 1px 3px var(--shadow-color-soft)" }}>
+              <div key={t.id} style={{ background: "var(--v2-paper)", borderRadius: "var(--v2-r-3)", padding: "var(--v2-s-2) var(--v2-s-4)", boxShadow: "0 1px 3px var(--shadow-color-soft)" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <span style={{ fontSize: "14px" }}>{t.label}</span>
                   <span className={`label ${t.status === "ok" ? "label-complete" : "label-warning"}`}>
@@ -328,7 +328,7 @@ export function SystemStatsSection() {
               </div>
             ))}
             {!uxSnapshot?.thresholds?.length && !loading ? (
-              <div style={{ background: "var(--v2-paper)", borderRadius: 16, padding: "var(--v2-s-4)" }}>
+              <div style={{ background: "var(--v2-paper)", borderRadius: "var(--v2-r-3)", padding: "var(--v2-s-4)" }}>
                 <div style={{ fontSize: "13px", color: "var(--v2-ink-2)" }}>
                   {locale === "ko" ? "기준치 데이터가 아직 없습니다." : "No threshold data is available yet."}
                 </div>

@@ -143,7 +143,7 @@ function AuthFrame({
           style={{
             width: 56,
             height: 56,
-            borderRadius: 18,
+            borderRadius: "var(--v2-r-3)",
             background: "var(--v2-accent-weak)",
             display: "flex",
             alignItems: "center",
@@ -205,7 +205,7 @@ export function Status({
       style={{
         marginTop: 8,
         padding: "10px 14px",
-        borderRadius: 12,
+        borderRadius: "var(--v2-r-2)",
         background: `color-mix(in srgb, ${color} 14%, var(--v2-paper))`,
         color,
         fontSize: 13,
@@ -233,6 +233,6 @@ export const inputShellStyle: CSSProperties = {
   gap: 10,
   minHeight: 52,
   padding: "8px 14px",
-  borderRadius: 14,
+  borderRadius: "var(--v2-r-2)",
   background: "var(--v2-paper-2)",
 };

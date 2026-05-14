@@ -337,7 +337,7 @@ function WorkoutLogScreenContent({
                 alignItems: "center",
                 gap: 4,
                 padding: "6px 10px",
-                borderRadius: 12,
+                borderRadius: "var(--v2-r-2)",
                 background: "var(--v2-paper-2)",
                 color: "var(--v2-ink)",
                 border: "none",
@@ -391,7 +391,7 @@ function WorkoutLogScreenContent({
                     justifyContent: "center",
                     gap: 4,
                     padding: "6px 10px",
-                    borderRadius: 12,
+                    borderRadius: "var(--v2-r-2)",
                     background:
                       "color-mix(in srgb, var(--v2-accent) 14%, var(--v2-paper))",
                     color: "var(--v2-accent-ink)",
@@ -442,7 +442,7 @@ function WorkoutLogScreenContent({
                   alignItems: "center",
                   gap: 6,
                   padding: "8px 10px",
-                  borderRadius: 12,
+                  borderRadius: "var(--v2-r-2)",
                   background: "var(--v2-paper-2)",
                   color: "var(--v2-ink)",
                   border: "none",
@@ -507,7 +507,7 @@ function WorkoutLogScreenContent({
               justifyContent: "center",
               gap: 6,
               padding: "8px 14px",
-              borderRadius: 12,
+              borderRadius: "var(--v2-r-2)",
               background:
                 workflowState === "saving"
                   ? "var(--v2-paper-2)"
@@ -613,7 +613,7 @@ function DateNav({
         justifyContent: "space-between",
         gap: 6,
         padding: "4px 10px",
-        borderRadius: 12,
+        borderRadius: "var(--v2-r-2)",
         background: "var(--v2-paper-2)",
         minHeight: 36,
         ...style,

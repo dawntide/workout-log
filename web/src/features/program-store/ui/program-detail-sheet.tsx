@@ -94,7 +94,7 @@ function IntensityBars({ level }: { level: string }) {
           style={{
             width: 5,
             height: i <= filled ? 14 : 10,
-            borderRadius: 3,
+            borderRadius: "var(--v2-r-0)",
             backgroundColor:
               i <= filled ? "var(--v2-c-warning)" : "var(--v2-paper-4)",
             transition: "background-color 0.2s",
@@ -398,7 +398,7 @@ export function ProgramDetailSheet({
         <div
           style={{
             padding: "3px 10px",
-            borderRadius: 6,
+            borderRadius: "var(--v2-r-0)",
             background: `color-mix(in srgb, ${levelBadge.color} 14%, var(--v2-paper-2))`,
             boxShadow: `inset 0 0 0 1px color-mix(in srgb, ${levelBadge.color} 28%, transparent)`,
             flexShrink: 0,

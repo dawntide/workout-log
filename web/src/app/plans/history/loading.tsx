@@ -4,7 +4,7 @@ const skeletonStyle: React.CSSProperties = {
     "linear-gradient(90deg, var(--v2-paper-2) 0%, var(--v2-paper-3) 50%, var(--v2-paper-2) 100%)",
   backgroundSize: "200% 100%",
   animation: "skeleton-shimmer 1.4s ease infinite",
-  borderRadius: 8,
+  borderRadius: "var(--v2-r-1)",
 };
 
 export default function PlanHistoryLoading() {
@@ -22,14 +22,14 @@ export default function PlanHistoryLoading() {
         <div
           style={{
             padding: "22px 22px 24px",
-            borderRadius: 24,
+            borderRadius: "var(--v2-r-4)",
             background: "var(--v2-paper)",
             marginBottom: "var(--v2-s-4)",
           }}
         >
-          <div style={{ ...skeletonStyle, height: 12, width: 100, marginBottom: 8, borderRadius: 4 }} />
-          <div style={{ ...skeletonStyle, height: 28, width: 180, marginBottom: 6, borderRadius: 6 }} />
-          <div style={{ ...skeletonStyle, height: 13, width: "75%", borderRadius: 4 }} />
+          <div style={{ ...skeletonStyle, height: 12, width: 100, marginBottom: 8, borderRadius: "var(--v2-r-0)" }} />
+          <div style={{ ...skeletonStyle, height: 28, width: 180, marginBottom: 6, borderRadius: "var(--v2-r-0)" }} />
+          <div style={{ ...skeletonStyle, height: 13, width: "75%", borderRadius: "var(--v2-r-0)" }} />
         </div>
 
         {/* ── Plan tab strip ── */}
@@ -40,7 +40,7 @@ export default function PlanHistoryLoading() {
               style={{
                 flex: "0 0 auto",
                 padding: "10px 16px",
-                borderRadius: 14,
+                borderRadius: "var(--v2-r-2)",
                 background: "var(--v2-paper)",
                 minHeight: 52,
                 display: "flex",
@@ -48,8 +48,8 @@ export default function PlanHistoryLoading() {
                 gap: 4,
               }}
             >
-              <div style={{ ...skeletonStyle, height: 13, width: 80, borderRadius: 4 }} />
-              <div style={{ ...skeletonStyle, height: 10, width: 50, borderRadius: 4 }} />
+              <div style={{ ...skeletonStyle, height: 13, width: 80, borderRadius: "var(--v2-r-0)" }} />
+              <div style={{ ...skeletonStyle, height: 10, width: 50, borderRadius: "var(--v2-r-0)" }} />
             </div>
           ))}
         </div>
@@ -60,14 +60,14 @@ export default function PlanHistoryLoading() {
             display: "grid",
             gridTemplateColumns: "1.4fr 1fr 1fr 1fr",
             padding: "16px 18px",
-            borderRadius: 24,
+            borderRadius: "var(--v2-r-4)",
             background: "var(--v2-paper)",
           }}
         >
           {Array.from({ length: 4 }).map((_, i) => (
             <div key={i} style={{ padding: "0 12px" }}>
-              <div style={{ ...skeletonStyle, height: 10, width: "60%", marginBottom: 6, borderRadius: 4 }} />
-              <div style={{ ...skeletonStyle, height: 17, width: "70%", borderRadius: 4 }} />
+              <div style={{ ...skeletonStyle, height: 10, width: "60%", marginBottom: 6, borderRadius: "var(--v2-r-0)" }} />
+              <div style={{ ...skeletonStyle, height: 17, width: "70%", borderRadius: "var(--v2-r-0)" }} />
             </div>
           ))}
         </div>
@@ -75,7 +75,7 @@ export default function PlanHistoryLoading() {
 
       {/* ── Logs Section ── */}
       <section style={{ marginTop: "var(--v2-s-5)" }}>
-        <div style={{ ...skeletonStyle, height: 24, width: 110, marginBottom: 14, borderRadius: 999 }} />
+        <div style={{ ...skeletonStyle, height: 24, width: 110, marginBottom: 14, borderRadius: "var(--v2-r-pill)" }} />
 
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {Array.from({ length: 3 }).map((_, i) => (
@@ -86,7 +86,7 @@ export default function PlanHistoryLoading() {
                 gridTemplateColumns: "56px 1fr",
                 gap: 14,
                 padding: 14,
-                borderRadius: 16,
+                borderRadius: "var(--v2-r-3)",
                 background: "var(--v2-paper)",
               }}
             >
@@ -95,7 +95,7 @@ export default function PlanHistoryLoading() {
                 style={{
                   width: 56,
                   height: 56,
-                  borderRadius: 14,
+                  borderRadius: "var(--v2-r-2)",
                   background: "var(--v2-paper-2)",
                   display: "flex",
                   flexDirection: "column",
@@ -104,17 +104,17 @@ export default function PlanHistoryLoading() {
                   gap: 2,
                 }}
               >
-                <div style={{ ...skeletonStyle, height: 9, width: 24, borderRadius: 4 }} />
-                <div style={{ ...skeletonStyle, height: 18, width: 24, borderRadius: 4 }} />
-                <div style={{ ...skeletonStyle, height: 10, width: 18, borderRadius: 4 }} />
+                <div style={{ ...skeletonStyle, height: 9, width: 24, borderRadius: "var(--v2-r-0)" }} />
+                <div style={{ ...skeletonStyle, height: 18, width: 24, borderRadius: "var(--v2-r-0)" }} />
+                <div style={{ ...skeletonStyle, height: 10, width: 18, borderRadius: "var(--v2-r-0)" }} />
               </div>
 
               {/* body */}
               <div style={{ display: "flex", flexDirection: "column", gap: 8, minWidth: 0 }}>
-                <div style={{ ...skeletonStyle, height: 15, width: "70%", borderRadius: 4 }} />
+                <div style={{ ...skeletonStyle, height: 15, width: "70%", borderRadius: "var(--v2-r-0)" }} />
                 <div style={{ display: "flex", gap: 4 }}>
-                  <div style={{ ...skeletonStyle, height: 18, width: 60, borderRadius: 999 }} />
-                  <div style={{ ...skeletonStyle, height: 18, width: 80, borderRadius: 999 }} />
+                  <div style={{ ...skeletonStyle, height: 18, width: 60, borderRadius: "var(--v2-r-pill)" }} />
+                  <div style={{ ...skeletonStyle, height: 18, width: 80, borderRadius: "var(--v2-r-pill)" }} />
                 </div>
                 <div
                   style={{
@@ -122,20 +122,20 @@ export default function PlanHistoryLoading() {
                     gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
                     gap: 8,
                     padding: "8px 10px",
-                    borderRadius: 12,
+                    borderRadius: "var(--v2-r-2)",
                     background: "var(--v2-paper-2)",
                   }}
                 >
                   {Array.from({ length: 3 }).map((_, j) => (
                     <div key={j} style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                      <div style={{ ...skeletonStyle, height: 9, width: "60%", borderRadius: 4 }} />
-                      <div style={{ ...skeletonStyle, height: 15, width: "55%", borderRadius: 4 }} />
+                      <div style={{ ...skeletonStyle, height: 9, width: "60%", borderRadius: "var(--v2-r-0)" }} />
+                      <div style={{ ...skeletonStyle, height: 15, width: "55%", borderRadius: "var(--v2-r-0)" }} />
                     </div>
                   ))}
                 </div>
                 <div style={{ display: "flex", gap: 6 }}>
-                  <div style={{ ...skeletonStyle, height: 36, width: 100, borderRadius: 999 }} />
-                  <div style={{ ...skeletonStyle, height: 36, width: 90, borderRadius: 999 }} />
+                  <div style={{ ...skeletonStyle, height: 36, width: 100, borderRadius: "var(--v2-r-pill)" }} />
+                  <div style={{ ...skeletonStyle, height: 36, width: 90, borderRadius: "var(--v2-r-pill)" }} />
                 </div>
               </div>
             </article>

@@ -31,12 +31,12 @@ export default function WorkoutRecordLoading() {
             ...skeletonStyle,
             height: 12,
             width: 80,
-            borderRadius: 4,
+            borderRadius: "var(--v2-r-0)",
             marginBottom: "var(--v2-s-1)",
           }}
         />
         <div
-          style={{ ...skeletonStyle, height: 24, width: "60%", borderRadius: 6 }}
+          style={{ ...skeletonStyle, height: 24, width: "60%", borderRadius: "var(--v2-r-0)" }}
         />
       </section>
 
@@ -53,7 +53,7 @@ export default function WorkoutRecordLoading() {
                   ...skeletonStyle,
                   height: 12,
                   width: 50,
-                  borderRadius: 4,
+                  borderRadius: "var(--v2-r-0)",
                 }}
               />
               <div
@@ -61,7 +61,7 @@ export default function WorkoutRecordLoading() {
                   ...skeletonStyle,
                   height: 28,
                   width: 140,
-                  borderRadius: 6,
+                  borderRadius: "var(--v2-r-0)",
                 }}
               />
             </div>
@@ -122,7 +122,7 @@ export default function WorkoutRecordLoading() {
                 ...skeletonStyle,
                 height: 12,
                 width: 60,
-                borderRadius: 4,
+                borderRadius: "var(--v2-r-0)",
               }}
             />
             <div
@@ -130,7 +130,7 @@ export default function WorkoutRecordLoading() {
                 ...skeletonStyle,
                 height: 16,
                 width: 120,
-                borderRadius: 4,
+                borderRadius: "var(--v2-r-0)",
               }}
             />
             <div
@@ -138,7 +138,7 @@ export default function WorkoutRecordLoading() {
                 ...skeletonStyle,
                 height: 12,
                 width: 80,
-                borderRadius: 4,
+                borderRadius: "var(--v2-r-0)",
               }}
             />
           </div>
@@ -156,7 +156,7 @@ export default function WorkoutRecordLoading() {
                 ...skeletonStyle,
                 height: 20,
                 width: 24,
-                borderRadius: 4,
+                borderRadius: "var(--v2-r-0)",
               }}
             />
             <div
@@ -164,7 +164,7 @@ export default function WorkoutRecordLoading() {
                 ...skeletonStyle,
                 height: 10,
                 width: 30,
-                borderRadius: 4,
+                borderRadius: "var(--v2-r-0)",
               }}
             />
           </div>
@@ -187,7 +187,7 @@ export default function WorkoutRecordLoading() {
                       ...skeletonStyle,
                       height: 20,
                       width: "40%",
-                      borderRadius: 6,
+                      borderRadius: "var(--v2-r-0)",
                     }}
                   />
                   <div
@@ -195,7 +195,7 @@ export default function WorkoutRecordLoading() {
                       ...skeletonStyle,
                       height: 20,
                       width: 48,
-                      borderRadius: 6,
+                      borderRadius: "var(--v2-r-0)",
                     }}
                   />
                 </div>
@@ -221,16 +221,16 @@ export default function WorkoutRecordLoading() {
                   }}
                 >
                   <div
-                    style={{ ...skeletonStyle, height: 12, borderRadius: 4 }}
+                    style={{ ...skeletonStyle, height: 12, borderRadius: "var(--v2-r-0)" }}
                   />
                   <div
-                    style={{ ...skeletonStyle, height: 12, borderRadius: 4 }}
+                    style={{ ...skeletonStyle, height: 12, borderRadius: "var(--v2-r-0)" }}
                   />
                   <div
-                    style={{ ...skeletonStyle, height: 12, borderRadius: 4 }}
+                    style={{ ...skeletonStyle, height: 12, borderRadius: "var(--v2-r-0)" }}
                   />
                   <div
-                    style={{ ...skeletonStyle, height: 12, borderRadius: 4 }}
+                    style={{ ...skeletonStyle, height: 12, borderRadius: "var(--v2-r-0)" }}
                   />
                 </div>
 
@@ -297,7 +297,7 @@ export default function WorkoutRecordLoading() {
                     ...skeletonStyle,
                     height: 18,
                     width: 80,
-                    borderRadius: 6,
+                    borderRadius: "var(--v2-r-0)",
                   }}
                 />
               </div>
@@ -316,7 +316,7 @@ export default function WorkoutRecordLoading() {
           }}
         >
           <div
-            style={{ ...skeletonStyle, height: 24, width: 140, borderRadius: 6 }}
+            style={{ ...skeletonStyle, height: 24, width: 140, borderRadius: "var(--v2-r-0)" }}
           />
         </div>
 
@@ -327,7 +327,7 @@ export default function WorkoutRecordLoading() {
               height: 12,
               width: 60,
               marginBottom: 6,
-              borderRadius: 4,
+              borderRadius: "var(--v2-r-0)",
             }}
           />
           <div

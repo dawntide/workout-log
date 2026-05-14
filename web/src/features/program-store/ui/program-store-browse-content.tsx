@@ -122,7 +122,7 @@ export function ProgramStoreBrowseContent({
               onClick={() => onChangeCategoryFilter(category.key)}
               style={{
                 padding: "8px 18px",
-                borderRadius: 9999,
+                borderRadius: "var(--v2-r-pill)",
                 cursor: "pointer",
                 whiteSpace: "nowrap",
                 fontFamily: "var(--font-label-family)",

@@ -167,7 +167,7 @@ export function V2Onboarding() {
               justifyContent: "center",
               width: 44,
               height: 44,
-              borderRadius: 12,
+              borderRadius: "var(--v2-r-2)",
               marginLeft: -8,
             }}
           >
@@ -185,7 +185,7 @@ export function V2Onboarding() {
                 style={{
                   flex: 1,
                   height: 3,
-                  borderRadius: 9999,
+                  borderRadius: "var(--v2-r-pill)",
                   background:
                     i <= step ? "var(--v2-accent)" : "var(--v2-paper-3)",
                   transition: "background var(--v2-d-2) var(--v2-e-out)",
@@ -207,7 +207,7 @@ export function V2Onboarding() {
                 fontWeight: 600,
                 minHeight: 44,
                 padding: "8px 12px",
-                borderRadius: 12,
+                borderRadius: "var(--v2-r-2)",
                 marginRight: -8,
               }}
             >
@@ -306,7 +306,7 @@ function Welcome({ locale }: { locale: "ko" | "en" }) {
         style={{
           width: 72,
           height: 72,
-          borderRadius: 24,
+          borderRadius: "var(--v2-r-4)",
           background: "var(--v2-accent-weak)",
           display: "flex",
           alignItems: "center",
@@ -636,7 +636,7 @@ function ProgramPick({
                 cursor: "pointer",
                 border: "none",
                 padding: "16px 18px",
-                borderRadius: 18,
+                borderRadius: "var(--v2-r-3)",
                 background: sel ? "var(--v2-accent-weak)" : "var(--v2-paper)",
                 boxShadow: sel
                   ? "inset 0 0 0 2px var(--v2-accent)"
@@ -685,7 +685,7 @@ function RecommendedChip({ locale }: { locale: "ko" | "en" }) {
     display: "inline-flex",
     alignItems: "center",
     padding: "3px 8px",
-    borderRadius: 9999,
+    borderRadius: "var(--v2-r-pill)",
     fontSize: 10,
     fontWeight: 700,
     letterSpacing: "0.06em",

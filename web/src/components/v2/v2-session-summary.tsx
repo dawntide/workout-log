@@ -613,7 +613,7 @@ export function V2SessionSummary({
                       style={{
                         width: 32,
                         height: 32,
-                        borderRadius: 10,
+                        borderRadius: "var(--v2-r-1)",
                         background: isPr
                           ? "color-mix(in srgb, var(--v2-c-pr) 16%, var(--v2-paper))"
                           : "var(--v2-paper-2)",

@@ -403,7 +403,7 @@ export function WorkoutLogKeypadPanel({
               style={{
                 marginTop: 8,
                 padding: "12px 18px",
-                borderRadius: 12,
+                borderRadius: "var(--v2-r-2)",
                 border: "none",
                 background: "var(--v2-accent)",
                 color: "var(--v2-ink-on-accent)",
@@ -468,7 +468,7 @@ export function WorkoutLogKeypadPanel({
               style={{
                 flex: "1 0 auto",
                 padding: "8px 12px",
-                borderRadius: 12,
+                borderRadius: "var(--v2-r-2)",
                 border: "none",
                 cursor: "pointer",
                 background: isActive ? "var(--v2-ink)" : "var(--v2-paper-2)",
@@ -503,7 +503,7 @@ export function WorkoutLogKeypadPanel({
                     style={{
                       fontSize: 8,
                       padding: "1px 4px",
-                      borderRadius: 4,
+                      borderRadius: "var(--v2-r-0)",
                       background: isActive
                         ? "rgba(255,255,255,0.16)"
                         : "var(--v2-paper-3)",
@@ -539,7 +539,7 @@ export function WorkoutLogKeypadPanel({
             style={{
               flexShrink: 0,
               padding: "8px 12px",
-              borderRadius: 12,
+              borderRadius: "var(--v2-r-2)",
               border: "none",
               cursor: "pointer",
               background: "var(--v2-paper-2)",
@@ -586,7 +586,7 @@ export function WorkoutLogKeypadPanel({
                   style={{
                     flex: 1,
                     height: 6,
-                    borderRadius: 9999,
+                    borderRadius: "var(--v2-r-pill)",
                     border: "none",
                     cursor: "pointer",
                     padding: 0,
@@ -654,7 +654,7 @@ export function WorkoutLogKeypadPanel({
                 style={{
                   flexShrink: 0,
                   padding: "2px 6px",
-                  borderRadius: 6,
+                  borderRadius: "var(--v2-r-0)",
                   background: "var(--v2-paper-2)",
                   color: "var(--v2-ink-2)",
                   fontSize: 10,
@@ -777,7 +777,7 @@ export function WorkoutLogKeypadPanel({
             className="v2-font-display"
             style={{
               padding: "8px 10px",
-              borderRadius: 12,
+              borderRadius: "var(--v2-r-2)",
               border: "none",
               background: "var(--v2-paper-2)",
               color: canRemoveSet ? "var(--v2-ink-2)" : "var(--v2-paper-3)",
@@ -808,7 +808,7 @@ export function WorkoutLogKeypadPanel({
             className="v2-font-display"
             style={{
               padding: "8px 10px",
-              borderRadius: 12,
+              borderRadius: "var(--v2-r-2)",
               border: "none",
               background: "var(--v2-paper-2)",
               color: "var(--v2-ink)",
@@ -844,7 +844,7 @@ export function WorkoutLogKeypadPanel({
               className="v2-font-display"
               style={{
                 padding: "8px 10px",
-                borderRadius: 12,
+                borderRadius: "var(--v2-r-2)",
                 background: "var(--v2-paper-2)",
                 color: "var(--v2-ink)",
                 border: "none",
@@ -883,7 +883,7 @@ export function WorkoutLogKeypadPanel({
             className="v2-font-display"
             style={{
               padding: "8px 10px",
-              borderRadius: 12,
+              borderRadius: "var(--v2-r-2)",
               background: memoMode ? "var(--v2-accent)" : "var(--v2-paper-2)",
               color: memoMode
                 ? "var(--v2-ink-on-accent)"
@@ -940,7 +940,7 @@ export function WorkoutLogKeypadPanel({
             autoFocus
             style={{
               border: "none",
-              borderRadius: 14,
+              borderRadius: "var(--v2-r-2)",
               background: "var(--v2-paper)",
               fontSize: 14,
               minHeight: 100,
@@ -987,7 +987,7 @@ const panelShellStyle: CSSProperties = {
   flex: 1,
   minHeight: 0,
   background: "var(--v2-paper)",
-  borderRadius: 20,
+  borderRadius: "var(--v2-r-4)",
   overflow: "hidden",
 };
 
@@ -1146,7 +1146,7 @@ function Key({
 
   const display: CSSProperties = {
     height: 44,
-    borderRadius: 12,
+    borderRadius: "var(--v2-r-2)",
     background: isDone
       ? "var(--v2-c-success)"
       : isNext

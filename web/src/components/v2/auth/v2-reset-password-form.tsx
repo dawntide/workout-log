@@ -78,7 +78,7 @@ export function V2ResetPasswordForm() {
           style={{
             width: 56,
             height: 56,
-            borderRadius: 18,
+            borderRadius: "var(--v2-r-3)",
             background: "var(--v2-accent-weak)",
             display: "flex",
             alignItems: "center",

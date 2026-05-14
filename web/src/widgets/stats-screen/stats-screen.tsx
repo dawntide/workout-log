@@ -429,7 +429,7 @@ export function StatsScreen({
                   color: "var(--v2-accent-ink)",
                   textDecoration: "none",
                   padding: "6px 10px",
-                  borderRadius: 9999,
+                  borderRadius: "var(--v2-r-pill)",
                   background: "var(--v2-accent-weak)",
                 }}
               >

@@ -1,9 +1,9 @@
 {
   "note": "design-lint baseline — Hard Rules (design-guide.md §0.5) 위반 카운트. 줄이는 변경만 허용, --update로 갱신.",
-  "generatedAt": "2026-05-14T07:12:57.800Z",
+  "generatedAt": "2026-05-14T08:08:30.776Z",
   "totals": {
     "onePxSolid": 0,
-    "hardcodedBorderRadius": 220,
+    "hardcodedBorderRadius": 0,
     "hardcodedFontSize": 264,
     "hardcodedPadding": 158,
     "hardcodedGap": 173,
