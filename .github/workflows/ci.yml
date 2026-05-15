@@ -6,8 +6,8 @@ on:
     branches: [main]
     paths:
       - "web/**"
-      - ".github/workflows/ci.yml"
       - ".github/workflows/**"
+      - ".github/actions/**"
       - "deploy/**"
       - "infra/**"
   workflow_dispatch: {}
@@ -33,19 +33,7 @@ jobs:
         working-directory: web
     steps:
       - uses: actions/checkout@v4
-
-      - uses: pnpm/action-setup@v5
-        with:
-          version: 10
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: pnpm
-          cache-dependency-path: web/pnpm-lock.yaml
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+      - uses: ./.github/actions/setup-pnpm-node
 
       - name: Lint
         run: pnpm lint
@@ -72,28 +60,16 @@ jobs:
         working-directory: web
     steps:
       - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-pnpm-node
 
-      - uses: pnpm/action-setup@v5
-        with:
-          version: 10
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: pnpm
-          cache-dependency-path: web/pnpm-lock.yaml
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      # .next/cache 캐시 — 변경된 파일 기준으로 복원, 전체 재빌드 방지
+      # .next/cache 캐시 — 빌드 설정 + 소스 변경 기준으로 복원, 전체 재빌드 방지
       - name: Cache Next.js build
         uses: actions/cache@v4
         with:
           path: web/.next/cache
-          key: nextjs-build-${{ runner.os }}-${{ hashFiles('web/pnpm-lock.yaml') }}-${{ hashFiles('web/src/**/*.{ts,tsx,css}') }}
+          key: nextjs-build-${{ runner.os }}-${{ hashFiles('web/pnpm-lock.yaml', 'web/next.config.ts', 'web/postcss.config.mjs') }}-${{ hashFiles('web/src/**/*.{ts,tsx,css}') }}
           restore-keys: |
-            nextjs-build-${{ runner.os }}-${{ hashFiles('web/pnpm-lock.yaml') }}-
+            nextjs-build-${{ runner.os }}-${{ hashFiles('web/pnpm-lock.yaml', 'web/next.config.ts', 'web/postcss.config.mjs') }}-
             nextjs-build-${{ runner.os }}-
 
       - name: Build
@@ -136,31 +112,8 @@ jobs:
         working-directory: web
     steps:
       - uses: actions/checkout@v4
-
-      - uses: pnpm/action-setup@v5
-        with:
-          version: 10
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: pnpm
-          cache-dependency-path: web/pnpm-lock.yaml
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      # Playwright 브라우저 캐시 — pnpm-lock.yaml 변경 시에만 재다운로드
-      - name: Cache Playwright browsers
-        uses: actions/cache@v4
-        id: playwright-cache
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-chromium-${{ hashFiles('web/pnpm-lock.yaml') }}
-
-      - name: Install Playwright browsers
-        if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: pnpm exec playwright install chromium
+      - uses: ./.github/actions/setup-pnpm-node
+      - uses: ./.github/actions/playwright-install
 
       - name: Run DB migrations
         env:

@@ -1,0 +1,36 @@
+name: Cache & install Playwright browsers
+description: Restore ~/.cache/ms-playwright keyed on the installed @playwright/test version (not on lockfile hash).
+
+inputs:
+  browser:
+    description: Browser to install when cache misses
+    required: false
+    default: chromium
+  working-directory:
+    description: Working directory containing @playwright/test in node_modules
+    required: false
+    default: web
+
+runs:
+  using: composite
+  steps:
+    - name: Resolve Playwright version
+      id: pw-version
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: |
+        v=$(node -p "require('@playwright/test/package.json').version")
+        echo "version=$v" >> "$GITHUB_OUTPUT"
+
+    - name: Cache Playwright browsers
+      id: cache
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/ms-playwright
+        key: playwright-${{ runner.os }}-${{ inputs.browser }}-${{ steps.pw-version.outputs.version }}
+
+    - name: Install Playwright browser ${{ inputs.browser }}
+      if: steps.cache.outputs.cache-hit != 'true'
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: pnpm exec playwright install ${{ inputs.browser }}

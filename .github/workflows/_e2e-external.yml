@@ -1,0 +1,77 @@
+name: _e2e-external
+
+# Reusable workflow: Playwright E2E against an external BASE_URL (e.g. Vercel Preview).
+# No postgres service — assumes the target deployment already has its own DB.
+
+on:
+  workflow_call:
+    inputs:
+      ref:
+        description: Git ref to checkout. Defaults to github.sha.
+        required: false
+        type: string
+        default: ""
+      base-url:
+        description: External BASE_URL for Playwright (target deployment URL)
+        required: true
+        type: string
+      spec:
+        description: Playwright spec path
+        required: false
+        type: string
+        default: e2e/smoke.spec.ts
+      artifact-name:
+        description: Name of the uploaded Playwright artifact
+        required: true
+        type: string
+      retention-days:
+        description: Artifact retention in days
+        required: false
+        type: number
+        default: 7
+      timeout-minutes:
+        description: Job timeout in minutes
+        required: false
+        type: number
+        default: 15
+    secrets:
+      VERCEL_AUTOMATION_BYPASS_SECRET:
+        description: Vercel Protection Bypass secret for automation
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  run:
+    name: E2E · External
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ inputs.timeout-minutes }}
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+
+      - uses: ./.github/actions/setup-pnpm-node
+      - uses: ./.github/actions/playwright-install
+
+      - name: Run Playwright (${{ inputs.spec }}) against ${{ inputs.base-url }}
+        env:
+          PLAYWRIGHT_BASE_URL: ${{ inputs.base-url }}
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+          CI: "true"
+        run: pnpm exec playwright test ${{ inputs.spec }} --project chromium
+
+      - name: Upload Playwright artifacts
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.artifact-name }}
+          path: |
+            web/playwright-report
+            web/test-results
+          if-no-files-found: ignore
+          retention-days: ${{ inputs.retention-days }}

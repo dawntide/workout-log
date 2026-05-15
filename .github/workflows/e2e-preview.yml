@@ -14,62 +14,17 @@ permissions:
   deployments: read
 
 jobs:
-  e2e-preview:
+  # Preview 배포가 성공 상태일 때만 실행 (Production 배포 제외)
+  preview:
     name: E2E · Vercel Preview
-    # Preview 배포가 성공 상태일 때만 실행 (Production 배포 제외)
     if: |
       github.event.deployment_status.state == 'success' &&
       github.event.deployment.environment == 'Preview'
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    defaults:
-      run:
-        working-directory: web
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.deployment.sha }}
-
-      - uses: pnpm/action-setup@v5
-        with:
-          version: 10
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: pnpm
-          cache-dependency-path: web/pnpm-lock.yaml
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Cache Playwright browsers
-        uses: actions/cache@v4
-        id: playwright-cache
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-chromium-${{ hashFiles('web/pnpm-lock.yaml') }}
-
-      - name: Install Playwright browsers
-        if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: pnpm exec playwright install chromium
-
-      # PLAYWRIGHT_BASE_URL = Vercel Preview URL (예: https://workout-log-abc123.vercel.app)
-      # VERCEL_AUTOMATION_BYPASS_SECRET = Vercel Project Settings > Deployment Protection > Protection Bypass for Automation
-      - name: Run smoke E2E against Vercel Preview
-        env:
-          PLAYWRIGHT_BASE_URL: ${{ github.event.deployment_status.target_url }}
-          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
-          CI: "true"
-        run: pnpm exec playwright test e2e/smoke.spec.ts --project chromium
-
-      - name: Upload Playwright artifacts
-        if: ${{ always() }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: playwright-preview-${{ github.event.deployment.id }}-${{ github.run_attempt }}
-          path: |
-            web/playwright-report
-            web/test-results
-          if-no-files-found: ignore
-          retention-days: 7
+    uses: ./.github/workflows/_e2e-external.yml
+    with:
+      ref: ${{ github.event.deployment.sha }}
+      base-url: ${{ github.event.deployment_status.target_url }}
+      artifact-name: playwright-preview-${{ github.event.deployment.id }}-${{ github.run_attempt }}
+      retention-days: 7
+      timeout-minutes: 15
+    secrets: inherit
