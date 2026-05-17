@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAppDialog } from "@/components/ui/app-dialog-provider";
 import {
   EmptyStateRows,
@@ -94,6 +94,20 @@ function WorkoutLogScreenContent({
   const persistenceKey =
     selectedPlanId && query.date ? `${selectedPlanId}:${query.date}` : null;
   const isWorkoutLogRouteActive = pathname?.startsWith("/workout/log") ?? true;
+
+  // 운동기록 화면은 뷰포트 내에서 컨텐츠가 정확히 맞도록 lock.
+  // 하단 네비게이션 영역을 reserve 하고 수직 스크롤이 발생하지 않게 한다.
+  useEffect(() => {
+    const previous = document.body.dataset.viewportLocked;
+    document.body.dataset.viewportLocked = "true";
+    return () => {
+      if (previous === undefined) {
+        delete document.body.dataset.viewportLocked;
+      } else {
+        document.body.dataset.viewportLocked = previous;
+      }
+    };
+  }, []);
 
   const {
     pendingRestorePrompt,
@@ -311,7 +325,6 @@ function WorkoutLogScreenContent({
             minHeight: 0,
             gap: "var(--v2-s-1)",
             overflow: "hidden",
-            marginBottom: "calc((var(--v2-s-7) + 32px) * -1)",
           }}
         >
           {/* 컴팩트 상단 바 */}
