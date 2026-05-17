@@ -320,9 +320,10 @@ function WorkoutLogScreenContent({
         <div
           style={{
             display: "flex",
-            flex: 1,
+            flex: "1 1 0",
             flexDirection: "column",
             minHeight: 0,
+            height: "100%",
             gap: "var(--v2-s-1)",
             overflow: "hidden",
           }}
@@ -519,7 +520,7 @@ function WorkoutLogScreenContent({
               alignItems: "center",
               justifyContent: "center",
               gap: "var(--v2-s-1)",
-              padding: "var(--v2-s-2) var(--v2-s-4)",
+              padding: "var(--v2-s-1) var(--v2-s-4)",
               borderRadius: "var(--v2-r-2)",
               background:
                 workflowState === "saving"

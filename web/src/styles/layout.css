@@ -58,15 +58,22 @@ body[data-viewport-locked="true"] .app-shell {
 }
 
 body[data-viewport-locked="true"] .app-main {
-  /* ActionDock 영역(약 52px 높이 + 12px 하단 오프셋 + 12px 상단 여백) */
-  padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px));
+  /* ActionDock(아이콘+라벨 약 60px) + 8px 하단 오프셋 + 4px 상단 버퍼 */
+  padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px));
   min-height: 0;
   overflow: hidden;
+}
+
+body[data-viewport-locked="true"] .app-shell__content {
+  min-height: 0;
+  min-width: 0;
+  flex: 1 1 0;
 }
 
 body[data-viewport-locked="true"] .app-shell__page {
   padding-bottom: 0;
   min-height: 0;
+  flex: 1 1 0;
 }
 
 /* Base utility padding container */
