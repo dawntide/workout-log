@@ -69,11 +69,16 @@ body[data-viewport-locked="true"] .app-main {
 body[data-viewport-locked="true"] .app-shell__content {
   min-height: 0;
   min-width: 0;
+  /* flex chain 보완 — 일부 모바일 브라우저에서 nested flex 의 height 가
+   * 전파되지 않는 케이스가 있어 명시적으로 100% 를 강제한다. */
+  height: 100%;
 }
 
 body[data-viewport-locked="true"] .app-shell__page {
   padding-bottom: 0;
   min-height: 0;
+  /* 동일 — page 컨테이너가 content 전체 높이를 차지하도록 보장. */
+  height: 100%;
 }
 
 /* Base utility padding container */
