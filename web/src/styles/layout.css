@@ -52,6 +52,8 @@ body[data-viewport-locked="true"] {
 }
 
 body[data-viewport-locked="true"] .app-shell {
+  /* 100vh fallback (dvh 미지원 브라우저 대응) → 100dvh override */
+  height: 100vh;
   height: 100dvh;
   min-height: 0;
   overflow: hidden;
@@ -67,13 +69,11 @@ body[data-viewport-locked="true"] .app-main {
 body[data-viewport-locked="true"] .app-shell__content {
   min-height: 0;
   min-width: 0;
-  flex: 1 1 0;
 }
 
 body[data-viewport-locked="true"] .app-shell__page {
   padding-bottom: 0;
   min-height: 0;
-  flex: 1 1 0;
 }
 
 /* Base utility padding container */

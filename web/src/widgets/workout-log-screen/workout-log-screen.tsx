@@ -320,10 +320,9 @@ function WorkoutLogScreenContent({
         <div
           style={{
             display: "flex",
-            flex: "1 1 0",
+            flex: 1,
             flexDirection: "column",
             minHeight: 0,
-            height: "100%",
             gap: "var(--v2-s-1)",
             overflow: "hidden",
           }}
