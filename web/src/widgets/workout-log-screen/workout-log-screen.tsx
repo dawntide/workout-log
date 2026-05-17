@@ -323,6 +323,9 @@ function WorkoutLogScreenContent({
             flex: 1,
             flexDirection: "column",
             minHeight: 0,
+            // 부모(.app-shell__page)의 flex 계산이 일부 모바일 환경에서
+            // child 로 height 를 전파하지 못하는 경우를 대비한 안전망.
+            height: "100%",
             gap: "var(--v2-s-1)",
             overflow: "hidden",
           }}
