@@ -21,6 +21,36 @@ import type { PlanForManage } from "@/server/services/plans/get-plans-for-manage
 type Plan = PlanForManage;
 type StrengthBaselineDraft = Record<string, { oneRepMaxKg: number; trainingMaxKg: number }>;
 
+type IncrementDraftEntry = {
+  increaseKg: number;
+  decreaseKg: number;
+  defaultIncreaseKg: number;
+  defaultResetFactor: number;
+  workKg: number;
+};
+type IncrementDraft = Record<string, IncrementDraftEntry>;
+
+type ProgressionStateApiResponse = {
+  program: string | null;
+  state: {
+    cycle: number;
+    week: number;
+    day: number;
+    targets: Record<string, { workKg: number; progressionTarget?: string; failureStreak: number; successStreak: number }>;
+  } | null;
+  effectiveRules?: Record<
+    string,
+    {
+      progressionTarget: string;
+      increaseKg: number;
+      decreaseKg: number | null;
+      resetFactor: number;
+      defaultIncreaseKg: number;
+      defaultResetFactor: number;
+    }
+  >;
+};
+
 const TARGET_LABELS: Record<string, string> = {
   SQUAT: "Squat",
   BENCH: "Bench",
@@ -271,6 +301,8 @@ export function PlansManageContent({ initialPlans }: { initialPlans: Plan[] }) {
   const [managePlanId, setManagePlanId] = useState("");
   const [nameDraft, setNameDraft] = useState("");
   const [strengthDraft, setStrengthDraft] = useState<StrengthBaselineDraft>({});
+  const [incrementDraft, setIncrementDraft] = useState<IncrementDraft>({});
+  const [incrementLoading, setIncrementLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
@@ -350,7 +382,42 @@ export function PlansManageContent({ initialPlans }: { initialPlans: Plan[] }) {
     setError(null);
     setNameDraft(plan.name);
     setStrengthDraft(createStrengthBaselineDraft(plan.params));
+    setIncrementDraft({});
     setManagePlanId(plan.id);
+
+    const planParams = toRecord(plan.params);
+    if (planParams.autoProgression === true) {
+      void loadIncrementDraft(plan.id);
+    }
+  }
+
+  async function loadIncrementDraft(planId: string) {
+    try {
+      setIncrementLoading(true);
+      const res = await apiGet<ProgressionStateApiResponse>(
+        `/api/plans/${encodeURIComponent(planId)}/progression-state`,
+      );
+      if (!res.program || !res.effectiveRules) {
+        setIncrementDraft({});
+        return;
+      }
+      const draft: IncrementDraft = {};
+      for (const [key, rule] of Object.entries(res.effectiveRules)) {
+        const workKg = res.state?.targets?.[key]?.workKg ?? 0;
+        draft[key] = {
+          increaseKg: rule.increaseKg,
+          decreaseKg: rule.decreaseKg ?? 0,
+          defaultIncreaseKg: rule.defaultIncreaseKg,
+          defaultResetFactor: rule.defaultResetFactor,
+          workKg,
+        };
+      }
+      setIncrementDraft(draft);
+    } catch {
+      setIncrementDraft({});
+    } finally {
+      setIncrementLoading(false);
+    }
   }
 
   async function savePlanChanges() {
@@ -383,11 +450,36 @@ export function PlansManageContent({ initialPlans }: { initialPlans: Plan[] }) {
     }
 
     const prevPlan = managedPlan;
-    const nextParams = {
-      ...toRecord(managedPlan.params),
+    const currentParams = toRecord(managedPlan.params);
+    const nextParams: Record<string, unknown> = {
+      ...currentParams,
       oneRepMaxKg,
       trainingMaxKg,
     };
+
+    const overrideEntries = Object.entries(incrementDraft);
+    if (overrideEntries.length > 0) {
+      const increaseKgMap: Record<string, number> = {};
+      const decreaseKgMap: Record<string, number> = {};
+      for (const [key, row] of overrideEntries) {
+        if (row.increaseKg !== row.defaultIncreaseKg) {
+          increaseKgMap[key] = row.increaseKg;
+        }
+        if (row.decreaseKg > 0) {
+          decreaseKgMap[key] = row.decreaseKg;
+        }
+      }
+      const hasOverrides =
+        Object.keys(increaseKgMap).length > 0 || Object.keys(decreaseKgMap).length > 0;
+      if (hasOverrides) {
+        const incrementOverrides: Record<string, Record<string, number>> = {};
+        if (Object.keys(increaseKgMap).length > 0) incrementOverrides.increaseKg = increaseKgMap;
+        if (Object.keys(decreaseKgMap).length > 0) incrementOverrides.decreaseKg = decreaseKgMap;
+        nextParams.incrementOverrides = incrementOverrides;
+      } else {
+        delete nextParams.incrementOverrides;
+      }
+    }
 
     try {
       setSaving(true);
@@ -706,6 +798,83 @@ export function PlansManageContent({ initialPlans }: { initialPlans: Plan[] }) {
                 </div>
               )}
             </div>
+
+            {Object.keys(incrementDraft).length > 0 ? (
+              <div className="plan-manage-sheet__field">
+                <span className="plan-manage-sheet__label">
+                  {locale === "ko" ? "증량/감량 사이클 설정 (kg)" : "Per-Cycle Increment / Decrement (kg)"}
+                </span>
+                <div
+                  style={{
+                    fontSize: "var(--v2-t-12)",
+                    color: "var(--v2-ink-2)",
+                    marginBottom: "var(--v2-s-2)",
+                  }}
+                >
+                  {locale === "ko"
+                    ? "자동 진행 성공/실패 시 운동 종목별 변동량을 2.5kg 단위로 조정합니다. 감량 0 = 프로그램 기본값(%) 사용."
+                    : "Adjust per-exercise change applied on success/failure (2.5kg step). Decrease 0 = use program default (%)."}
+                </div>
+                <div className="plan-manage-sheet__stack">
+                  {Object.entries(incrementDraft).map(([key, row]) => {
+                    const label = targetLabelFromKey(key);
+                    return (
+                      <div key={key} className="tm-edit-row">
+                        <strong className="tm-edit-row__label">{label}</strong>
+                        <div className="tm-edit-row__field">
+                          <span className="tm-edit-row__field-label">
+                            {locale === "ko"
+                              ? `증량 (기본 ${formatKg(row.defaultIncreaseKg)}kg)`
+                              : `Increase (default ${formatKg(row.defaultIncreaseKg)}kg)`}
+                          </span>
+                          <NumberPickerField
+                            label={`${label} ${locale === "ko" ? "증량" : "Increase"}`}
+                            value={row.increaseKg}
+                            min={0}
+                            max={20}
+                            step={2.5}
+                            unit="kg"
+                            formatValue={formatKg}
+                            onChange={(value) => {
+                              setIncrementDraft((prev) => ({
+                                ...prev,
+                                [key]: { ...prev[key]!, increaseKg: value },
+                              }));
+                            }}
+                          />
+                        </div>
+                        <div className="tm-edit-row__field">
+                          <span className="tm-edit-row__field-label">
+                            {locale === "ko"
+                              ? `감량 (기본 ${Math.round((1 - row.defaultResetFactor) * 100)}%)`
+                              : `Decrease (default ${Math.round((1 - row.defaultResetFactor) * 100)}%)`}
+                          </span>
+                          <NumberPickerField
+                            label={`${label} ${locale === "ko" ? "감량" : "Decrease"}`}
+                            value={row.decreaseKg}
+                            min={0}
+                            max={20}
+                            step={2.5}
+                            unit="kg"
+                            formatValue={formatKg}
+                            onChange={(value) => {
+                              setIncrementDraft((prev) => ({
+                                ...prev,
+                                [key]: { ...prev[key]!, decreaseKg: value },
+                              }));
+                            }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : incrementLoading ? (
+              <div className="plan-manage-sheet__empty">
+                {locale === "ko" ? "증량/감량 설정 불러오는 중..." : "Loading increment settings..."}
+              </div>
+            ) : null}
 
             <div className="plan-manage-sheet__stack">
               <V2PrimaryBtn

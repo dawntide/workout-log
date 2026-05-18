@@ -30,6 +30,16 @@ export type TargetRuntimeState = {
   amrapReps?: number | null;
 };
 
+export type IncrementOverride = {
+  increaseKg?: number;
+  decreaseKg?: number;
+};
+
+export type IncrementOverrideMap = {
+  increaseKg?: Record<string, number>;
+  decreaseKg?: Record<string, number>;
+};
+
 export type ProgressionRuntimeState = {
   cycle: number;
   week: number;
@@ -151,72 +161,124 @@ function progressionIdentityForSet(set: LoggedSetInput): {
   };
 }
 
-export function rulesFor(program: ProgressionProgram, target: string) {
+export type RulesForResult = {
+  increaseEverySuccesses: number;
+  failResetThreshold: number;
+  increaseKg: number;
+  resetFactor: number;
+  defaultIncreaseKg: number;
+  decreaseKg: number | null;
+};
+
+export function rulesFor(
+  program: ProgressionProgram,
+  target: string,
+  override?: IncrementOverride,
+): RulesForResult {
+  let defaults: {
+    increaseEverySuccesses: number;
+    failResetThreshold: number;
+    increaseKg: number;
+    resetFactor: number;
+  };
+
   if (program === "operator") {
     // Tactical Barbell Operator 공식 룰: 블록 완주 시 상체(BENCH/PULL) +5lb(≈2.5kg),
     // 하체(SQUAT/DEADLIFT) +10lb(≈5kg).
-    return {
+    defaults = {
       increaseEverySuccesses: 3,
       failResetThreshold: 2,
       increaseKg: target === "DEADLIFT" || target === "SQUAT" ? 5 : 2.5,
       resetFactor: 0.95,
     };
-  }
-
-  if (program === "wendler-531") {
+  } else if (program === "wendler-531") {
     // 짐 웬들러 5/3/1: 4주 사이클, 상체+2.5kg / 하체+5kg, 10% 감소 딜로드
-    const increaseKg = target === "DEADLIFT" || target === "SQUAT" ? 5 : 2.5;
-    return {
+    defaults = {
       increaseEverySuccesses: 1,
       failResetThreshold: 3,
-      increaseKg,
+      increaseKg: target === "DEADLIFT" || target === "SQUAT" ? 5 : 2.5,
       resetFactor: 0.9,
     };
-  }
-
-  if (program === "gzclp") {
+  } else if (program === "gzclp") {
     // T1 기준: 3회 연속 실패 시 15% 감소
-    return {
+    defaults = {
       increaseEverySuccesses: 1,
       failResetThreshold: 3,
       increaseKg: target === "DEADLIFT" ? 5 : 2.5,
       resetFactor: 0.85,
     };
-  }
-
-  if (program === "texas-method") {
+  } else if (program === "texas-method") {
     // 주간 3세션(볼륨/회복/강도) 중 3회 연속 강도일 실패 시 10% 감소
-    // increaseEverySuccesses: 3 = 3세션(1주) 연속 성공 시 증량
-    return {
+    defaults = {
       increaseEverySuccesses: 3,
+      failResetThreshold: 3,
+      increaseKg: target === "DEADLIFT" ? 5 : 2.5,
+      resetFactor: 0.9,
+    };
+  } else if (program === "asymptote") {
+    // Asymptote Protocol: 블록 종료 시 AMRAP 결과로만 TM 변동 (±2.5/유지/-5).
+    // rulesFor는 override(수동) 경로의 안전 디폴트로만 사용된다.
+    defaults = {
+      increaseEverySuccesses: 1,
+      failResetThreshold: 3,
+      increaseKg: 2.5,
+      resetFactor: 0.95,
+    };
+  } else {
+    // greyskull-lp, starting-strength-lp, stronglifts-5x5:
+    // 매 세션 증량, 3회 연속 실패 시 10% 감소
+    defaults = {
+      increaseEverySuccesses: 1,
       failResetThreshold: 3,
       increaseKg: target === "DEADLIFT" ? 5 : 2.5,
       resetFactor: 0.9,
     };
   }
 
-  if (program === "asymptote") {
-    // Asymptote Protocol: 블록 종료 시 AMRAP 결과로만 TM 변동 (±2.5/유지/-5).
-    // rulesFor는 override 경로의 안전 디폴트로만 사용된다.
-    return {
-      increaseEverySuccesses: 1,
-      failResetThreshold: 3,
-      increaseKg: 2.5,
-      resetFactor: 0.95,
-    };
-  }
+  const increaseKg =
+    override?.increaseKg !== undefined && Number.isFinite(override.increaseKg)
+      ? toPositiveRounded2p5(override.increaseKg)
+      : defaults.increaseKg;
+  const decreaseKg =
+    override?.decreaseKg !== undefined && Number.isFinite(override.decreaseKg)
+      ? toPositiveRounded2p5(override.decreaseKg)
+      : null;
 
-  // greyskull-lp, starting-strength-lp, stronglifts-5x5:
-  // 매 세션 증량, 3회 연속 실패 시 10% 감소
   return {
-    increaseEverySuccesses: 1,
-    failResetThreshold: 3,
-    increaseKg: target === "DEADLIFT" ? 5 : 2.5,
-    resetFactor: 0.9,
+    increaseEverySuccesses: defaults.increaseEverySuccesses,
+    failResetThreshold: defaults.failResetThreshold,
+    increaseKg,
+    resetFactor: defaults.resetFactor,
+    defaultIncreaseKg: defaults.increaseKg,
+    decreaseKg,
   };
 }
 
-function targetsFor(program: ProgressionProgram): ProgressionTarget[] {
+export function readIncrementOverride(
+  planParams: unknown,
+  progressionKey: string,
+  progressionTarget: string,
+): IncrementOverride | undefined {
+  if (!planParams || typeof planParams !== "object") return undefined;
+  const overrides = (planParams as { incrementOverrides?: IncrementOverrideMap })
+    .incrementOverrides;
+  if (!overrides || typeof overrides !== "object") return undefined;
+
+  const inc = overrides.increaseKg;
+  const dec = overrides.decreaseKg;
+  const increaseKg =
+    inc && (inc[progressionKey] ?? inc[progressionTarget]);
+  const decreaseKg =
+    dec && (dec[progressionKey] ?? dec[progressionTarget]);
+
+  if (increaseKg === undefined && decreaseKg === undefined) return undefined;
+  const result: IncrementOverride = {};
+  if (increaseKg !== undefined) result.increaseKg = Number(increaseKg);
+  if (decreaseKg !== undefined) result.decreaseKg = Number(decreaseKg);
+  return result;
+}
+
+export function targetsFor(program: ProgressionProgram): ProgressionTarget[] {
   if (program === "operator") return ["SQUAT", "BENCH", "DEADLIFT", "PULL"];
   if (program === "wendler-531") return ["SQUAT", "BENCH", "OHP", "DEADLIFT"];
   if (program === "asymptote") return ["SQUAT", "BENCH", "DEADLIFT", "OHP", "PULL"];
@@ -531,7 +593,11 @@ export function reduceProgressionState(input: {
       continue;
     }
 
-    const rule = rulesFor(input.program, progressionTarget);
+    const rule = rulesFor(
+      input.program,
+      progressionTarget,
+      readIncrementOverride(input.planParams, key, progressionTarget),
+    );
     if (success) {
       next.successStreak += 1;
       next.failureStreak = 0;
@@ -547,10 +613,15 @@ export function reduceProgressionState(input: {
       next.successStreak = 0;
       reason = "hold:failure-streak";
       if (next.failureStreak >= rule.failResetThreshold) {
-        next.workKg = toPositiveRounded2p5(next.workKg * rule.resetFactor);
+        if (rule.decreaseKg !== null) {
+          next.workKg = toPositiveRounded2p5(next.workKg - rule.decreaseKg);
+          reason = `reset:-${rule.decreaseKg}kg`;
+        } else {
+          next.workKg = toPositiveRounded2p5(next.workKg * rule.resetFactor);
+          reason = `reset:*${rule.resetFactor}`;
+        }
         next.failureStreak = 0;
         eventType = "RESET";
-        reason = `reset:*${rule.resetFactor}`;
       }
     }
 
@@ -601,7 +672,11 @@ export function reduceProgressionState(input: {
             };
             continue;
           }
-          const increaseKg = rulesFor(input.program, progressionTarget).increaseKg;
+          const increaseKg = rulesFor(
+            input.program,
+            progressionTarget,
+            readIncrementOverride(input.planParams, key, progressionTarget),
+          ).increaseKg;
           const after: TargetRuntimeState = {
             progressionTarget,
             workKg: toPositiveRounded2p5(before.workKg + increaseKg),
@@ -670,7 +745,11 @@ export function reduceProgressionState(input: {
             state.targets[key] = { ...before, successStreak: 0, failureStreak: 0 };
             continue;
           }
-          const increaseKg = rulesFor("wendler-531", progressionTarget).increaseKg;
+          const increaseKg = rulesFor(
+            "wendler-531",
+            progressionTarget,
+            readIncrementOverride(input.planParams, key, progressionTarget),
+          ).increaseKg;
           const after: TargetRuntimeState = {
             progressionTarget,
             workKg: toPositiveRounded2p5(before.workKg + increaseKg),
@@ -753,6 +832,8 @@ export function reduceProgressionState(input: {
       };
 
       // 1) 메인 3개 (SQ/BP/PULL) TM 변동: AMRAP 렙수 기반.
+      // 주의: AMRAP 분기는 incrementOverrides의 영향을 받지 않는다 (프로토콜 정합성 — ±2.5/-5 고정).
+      // 사용자 커스텀 증/감량은 수동 override 경로(autoProgression의 increase/reset)에서만 적용된다.
       for (const [key, current] of Object.entries(state.targets)) {
         const progressionTarget =
           parseProgressionTarget(current?.progressionTarget) ?? parseProgressionTarget(key);

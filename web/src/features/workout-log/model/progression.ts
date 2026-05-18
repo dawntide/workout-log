@@ -33,12 +33,40 @@ type ProgressionProgram =
   | "texas-method"
   | "gzclp"
   | "wendler-531"
+  | "asymptote"
   | null;
+
+export type ProgressionEffectiveRule = {
+  progressionTarget: string;
+  increaseKg: number;
+  decreaseKg: number | null;
+  resetFactor: number;
+  defaultIncreaseKg: number;
+  defaultResetFactor: number;
+};
 
 type ProgressionStateResponse = {
   program: ProgressionProgram;
   state: ProgressionRuntimeStateSnapshot | null;
+  effectiveRules?: Record<string, ProgressionEffectiveRule>;
 };
+
+function snapTo2p5(value: number) {
+  return Math.max(0, Math.round(value / 2.5) * 2.5);
+}
+
+function computeResetKgFromRule(workKg: number, rule: ProgressionEffectiveRule | undefined, fallbackFactor: number): number {
+  if (rule?.decreaseKg !== null && rule?.decreaseKg !== undefined) {
+    return snapTo2p5(workKg - rule.decreaseKg);
+  }
+  const factor = rule?.resetFactor ?? fallbackFactor;
+  return snapTo2p5(workKg * factor);
+}
+
+function resolveIncreaseKgFromRule(key: string, rule: ProgressionEffectiveRule | undefined, lowerDefault: number, upperDefault: number): number {
+  if (rule?.increaseKg !== undefined) return rule.increaseKg;
+  return key === "DEADLIFT" || key === "SQUAT" ? lowerDefault : upperDefault;
+}
 
 function mapExerciseNameToProgressionTarget(name: string): string | null {
   const n = name.trim().toLowerCase();
@@ -82,8 +110,18 @@ function progressionTargetLabel(target: string, locale: "ko" | "en"): string {
   return labels[target as keyof typeof labels] ?? target;
 }
 
+function formatResetCopy(workKg: number, resetKg: number, rule: ProgressionEffectiveRule | undefined, locale: "ko" | "en", fallbackFactor: number): string {
+  if (rule?.decreaseKg !== null && rule?.decreaseKg !== undefined) {
+    return locale === "ko" ? `감소(-${rule.decreaseKg}kg) → ${resetKg}kg` : `Reduce (-${rule.decreaseKg}kg) -> ${resetKg}kg`;
+  }
+  const factor = rule?.resetFactor ?? fallbackFactor;
+  const pct = Math.round((1 - factor) * 100);
+  return locale === "ko" ? `감소(${pct}%) → ${resetKg}kg` : `Reduce (${pct}%) -> ${resetKg}kg`;
+}
+
 function buildOperatorBlockCompletionMessage(
   state: ProgressionRuntimeStateSnapshot | null,
+  effectiveRules: Record<string, ProgressionEffectiveRule> | undefined,
   locale: "ko" | "en",
 ): string {
   const lines: string[] =
@@ -99,13 +137,15 @@ function buildOperatorBlockCompletionMessage(
     for (const [key, t] of Object.entries(state.targets)) {
       if (t.workKg <= 0) continue;
       const label = progressionTargetLabel(key, locale);
-      const increaseKg = key === "DEADLIFT" || key === "SQUAT" ? 5 : 2.5;
-      const resetKg = Math.round((t.workKg * 0.95) / 2.5) * 2.5;
+      const rule = effectiveRules?.[key];
+      const increaseKg = resolveIncreaseKgFromRule(key, rule, 5, 2.5);
+      const resetKg = computeResetKgFromRule(t.workKg, rule, 0.95);
+      const resetCopy = formatResetCopy(t.workKg, resetKg, rule, locale, 0.95);
       lines.push(`• ${label}: ${t.workKg}kg`);
       lines.push(
         locale === "ko"
-          ? `  증량 → ${t.workKg + increaseKg}kg / 유지 → ${t.workKg}kg / 감소 → ${resetKg}kg`
-          : `  Increase -> ${t.workKg + increaseKg}kg / Keep -> ${t.workKg}kg / Reduce -> ${resetKg}kg`,
+          ? `  증량(+${increaseKg}kg) → ${t.workKg + increaseKg}kg / 유지 → ${t.workKg}kg / ${resetCopy}`
+          : `  Increase (+${increaseKg}kg) -> ${t.workKg + increaseKg}kg / Keep -> ${t.workKg}kg / ${resetCopy}`,
       );
     }
   }
@@ -114,6 +154,7 @@ function buildOperatorBlockCompletionMessage(
 
 function build531BlockCompletionMessage(
   state: ProgressionRuntimeStateSnapshot | null,
+  effectiveRules: Record<string, ProgressionEffectiveRule> | undefined,
   locale: "ko" | "en",
 ): string {
   const lines: string[] =
@@ -129,13 +170,15 @@ function build531BlockCompletionMessage(
     for (const [key, t] of Object.entries(state.targets)) {
       if (t.workKg <= 0) continue;
       const label = progressionTargetLabel(key, locale);
-      const increaseKg = key === "DEADLIFT" || key === "SQUAT" ? 5 : 2.5;
-      const resetKg = Math.round((t.workKg * 0.9) / 2.5) * 2.5;
+      const rule = effectiveRules?.[key];
+      const increaseKg = resolveIncreaseKgFromRule(key, rule, 5, 2.5);
+      const resetKg = computeResetKgFromRule(t.workKg, rule, 0.9);
+      const resetCopy = formatResetCopy(t.workKg, resetKg, rule, locale, 0.9);
       lines.push(`• ${label}: ${t.workKg}kg`);
       lines.push(
         locale === "ko"
-          ? `  증량(+${increaseKg}kg) → ${t.workKg + increaseKg}kg / 유지 → ${t.workKg}kg / 감소(10%) → ${resetKg}kg`
-          : `  Increase (+${increaseKg}kg) -> ${t.workKg + increaseKg}kg / Keep -> ${t.workKg}kg / Reduce (10%) -> ${resetKg}kg`,
+          ? `  증량(+${increaseKg}kg) → ${t.workKg + increaseKg}kg / 유지 → ${t.workKg}kg / ${resetCopy}`
+          : `  Increase (+${increaseKg}kg) -> ${t.workKg + increaseKg}kg / Keep -> ${t.workKg}kg / ${resetCopy}`,
       );
     }
   }
@@ -145,21 +188,23 @@ function build531BlockCompletionMessage(
 function buildResetProtocolMessage(
   failures: FailedProgressionExercise[],
   state: ProgressionRuntimeStateSnapshot | null,
-  resetFactor: number,
+  effectiveRules: Record<string, ProgressionEffectiveRule> | undefined,
+  fallbackResetFactor: number,
   locale: "ko" | "en",
 ): string {
-  const pct = Math.round((1 - resetFactor) * 100);
   const lines: string[] = [locale === "ko" ? "3회 연속 실패 기준에 도달했습니다." : "Three consecutive failures were reached.", ""];
   for (const f of failures) {
     const workKg = state?.targets[f.target]?.workKg ?? null;
     if (workKg !== null) {
-      const resetKg = Math.round((workKg * resetFactor) / 2.5) * 2.5;
-      const increaseKg = f.target === "DEADLIFT" ? 5 : 2.5;
+      const rule = effectiveRules?.[f.target];
+      const resetKg = computeResetKgFromRule(workKg, rule, fallbackResetFactor);
+      const increaseKg = resolveIncreaseKgFromRule(f.target, rule, 5, 2.5);
+      const resetCopy = formatResetCopy(workKg, resetKg, rule, locale, fallbackResetFactor);
       lines.push(`• ${f.exerciseName}: ${workKg}kg`);
       lines.push(
         locale === "ko"
-          ? `  감소(${pct}%) → ${resetKg}kg / 유지 → ${workKg}kg / 증량 → ${workKg + increaseKg}kg`
-          : `  Reduce (${pct}%) -> ${resetKg}kg / Keep -> ${workKg}kg / Increase -> ${workKg + increaseKg}kg`,
+          ? `  ${resetCopy} / 유지 → ${workKg}kg / 증량(+${increaseKg}kg) → ${workKg + increaseKg}kg`
+          : `  ${resetCopy} / Keep -> ${workKg}kg / Increase (+${increaseKg}kg) -> ${workKg + increaseKg}kg`,
       );
     } else {
       lines.push(`• ${f.exerciseName}`);
@@ -214,7 +259,7 @@ export async function resolveWorkoutLogProgressionOverride({
     if (progressionData.program === "operator" && isOperatorBlockEnd) {
       const choice = await requestChoice({
         title: locale === "ko" ? "블록 완료 - 무게 설정" : "Block Complete - Set Weights",
-        message: buildOperatorBlockCompletionMessage(progressionData.state, locale),
+        message: buildOperatorBlockCompletionMessage(progressionData.state, progressionData.effectiveRules, locale),
         mode: "block-completion",
       });
       if (choice === "cancel") {
@@ -229,7 +274,7 @@ export async function resolveWorkoutLogProgressionOverride({
     if (progressionData.program === "wendler-531" && is531BlockEnd) {
       const choice = await requestChoice({
         title: locale === "ko" ? "4주 사이클 완료 - TM 설정" : "4-Week Cycle Complete - Set TMs",
-        message: build531BlockCompletionMessage(progressionData.state, locale),
+        message: build531BlockCompletionMessage(progressionData.state, progressionData.effectiveRules, locale),
         mode: "block-completion",
       });
       if (choice === "cancel") {
@@ -242,14 +287,14 @@ export async function resolveWorkoutLogProgressionOverride({
     }
 
     if (progressionData.program !== null && progressionData.program !== "operator" && failures.length > 0) {
-      const resetFactor = progressionData.program === "gzclp" ? 0.85 : 0.9;
+      const fallbackResetFactor = progressionData.program === "gzclp" ? 0.85 : 0.9;
       const resetFailures = failures.filter(
         (f) => (progressionData.state?.targets[f.target]?.failureStreak ?? 0) >= 2,
       );
       if (resetFailures.length > 0) {
         const choice = await requestChoice({
           title: locale === "ko" ? "연속 실패 기준 도달" : "Consecutive Failure Threshold Reached",
-          message: buildResetProtocolMessage(resetFailures, progressionData.state, resetFactor, locale),
+          message: buildResetProtocolMessage(resetFailures, progressionData.state, progressionData.effectiveRules, fallbackResetFactor, locale),
           mode: "greyskull-reset",
         });
         if (choice === "cancel") {

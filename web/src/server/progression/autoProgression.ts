@@ -11,6 +11,7 @@ import {
 import {
   LoggedSetInput,
   ProgressionProgram,
+  readIncrementOverride,
   reduceProgressionState,
   resolveAutoProgressionProgram,
   rulesFor,
@@ -235,10 +236,14 @@ export async function applyAutoProgressionFromLog(input: ApplyAutoProgressionInp
         if (!target) continue;
         const prev = prevTargets[key];
         const baseKg = prev ? Number(prev.workKg ?? 0) : target.workKg;
-        const { increaseKg } = rulesFor(resolved.progressionProgram, target.progressionTarget);
+        const { increaseKg } = rulesFor(
+          resolved.progressionProgram,
+          target.progressionTarget,
+          readIncrementOverride(resolved.params, key, target.progressionTarget),
+        );
         nextTargets[key] = {
           ...target,
-          workKg: Math.round((baseKg + increaseKg) / 2.5) * 2.5,
+          workKg: Math.max(0, Math.round((baseKg + increaseKg) / 2.5) * 2.5),
           successStreak: 0,
           failureStreak: 0,
         };
@@ -255,10 +260,18 @@ export async function applyAutoProgressionFromLog(input: ApplyAutoProgressionInp
         if (!target) continue;
         const prev = prevTargets[key];
         const baseKg = prev ? Number(prev.workKg ?? 0) : target.workKg;
-        const { resetFactor } = rulesFor(resolved.progressionProgram, target.progressionTarget);
+        const rule = rulesFor(
+          resolved.progressionProgram,
+          target.progressionTarget,
+          readIncrementOverride(resolved.params, key, target.progressionTarget),
+        );
+        const computedKg =
+          rule.decreaseKg !== null
+            ? baseKg - rule.decreaseKg
+            : baseKg * rule.resetFactor;
         nextTargets[key] = {
           ...target,
-          workKg: Math.round((baseKg * resetFactor) / 2.5) * 2.5,
+          workKg: Math.max(0, Math.round(computedKg / 2.5) * 2.5),
           successStreak: 0,
           failureStreak: 0,
         };

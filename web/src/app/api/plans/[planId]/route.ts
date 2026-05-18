@@ -16,6 +16,74 @@ function asRecord(value: unknown): Record<string, unknown> {
   return value as Record<string, unknown>;
 }
 
+const PROGRESSION_KEY_PATTERN = /^[A-Z][A-Z0-9_]*$/;
+
+function snapTo2p5(n: number): number {
+  return Math.max(0, Math.round(n / 2.5) * 2.5);
+}
+
+type NormalizedIncrementOverrides = {
+  increaseKg?: Record<string, number>;
+  decreaseKg?: Record<string, number>;
+};
+
+function validateIncrementOverrides(
+  value: unknown,
+  locale: "ko" | "en",
+):
+  | { ok: true; value: NormalizedIncrementOverrides | null }
+  | { ok: false; error: string } {
+  if (value === undefined) return { ok: true, value: null };
+  if (value === null) return { ok: true, value: null };
+  if (typeof value !== "object" || Array.isArray(value)) {
+    return {
+      ok: false,
+      error:
+        locale === "ko"
+          ? "incrementOverrides는 객체여야 합니다."
+          : "incrementOverrides must be an object.",
+    };
+  }
+
+  const out: NormalizedIncrementOverrides = {};
+  for (const side of ["increaseKg", "decreaseKg"] as const) {
+    const raw = (value as Record<string, unknown>)[side];
+    if (raw === undefined) continue;
+    if (raw === null) continue;
+    if (typeof raw !== "object" || Array.isArray(raw)) {
+      return {
+        ok: false,
+        error:
+          locale === "ko"
+            ? `incrementOverrides.${side}는 객체여야 합니다.`
+            : `incrementOverrides.${side} must be an object.`,
+      };
+    }
+    const normalized: Record<string, number> = {};
+    for (const [rawKey, rawValue] of Object.entries(raw)) {
+      const key = String(rawKey).trim().toUpperCase();
+      if (!PROGRESSION_KEY_PATTERN.test(key)) continue;
+      const num = Number(rawValue);
+      if (!Number.isFinite(num) || num < 0) {
+        return {
+          ok: false,
+          error:
+            locale === "ko"
+              ? `${key}의 ${side} 값은 0 이상의 숫자여야 합니다.`
+              : `${key} ${side} must be a non-negative number.`,
+        };
+      }
+      normalized[key] = snapTo2p5(num);
+    }
+    if (Object.keys(normalized).length > 0) {
+      out[side] = normalized;
+    }
+  }
+
+  if (!out.increaseKg && !out.decreaseKg) return { ok: true, value: null };
+  return { ok: true, value: out };
+}
+
 async function PATCHImpl(req: Request, ctx: Ctx) {
   try {
     const locale = await resolveRequestLocale();
@@ -54,6 +122,19 @@ async function PATCHImpl(req: Request, ctx: Ctx) {
       ...currentParams,
       ...paramPatch,
     };
+
+    if (Object.prototype.hasOwnProperty.call(paramPatch, "incrementOverrides")) {
+      const validation = validateIncrementOverrides(paramPatch.incrementOverrides, locale);
+      if (!validation.ok) {
+        return NextResponse.json({ error: validation.error }, { status: 400 });
+      }
+      if (validation.value === null) {
+        delete nextParams.incrementOverrides;
+      } else {
+        nextParams.incrementOverrides = validation.value;
+      }
+    }
+
     if (typeof body.autoProgression === "boolean") {
       nextParams.autoProgression = body.autoProgression;
     }

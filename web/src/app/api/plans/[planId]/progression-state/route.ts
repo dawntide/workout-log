@@ -8,7 +8,12 @@ import {
   programVersion,
 } from "@/server/db/schema";
 import { getAuthenticatedUserId } from "@/server/auth/user";
-import { resolveAutoProgressionProgram } from "@/server/progression/reducer";
+import {
+  readIncrementOverride,
+  resolveAutoProgressionProgram,
+  rulesFor,
+  targetsFor,
+} from "@/server/progression/reducer";
 import { resolveRequestLocale } from "@/lib/i18n/messages";
 import { apiErrorResponse } from "@/app/api/_utils/error-response";
 
@@ -70,7 +75,51 @@ export async function GET(_req: Request, ctx: Ctx) {
       .limit(1);
     const state = runtimeRows[0]?.state ?? null;
 
-    return NextResponse.json({ program, state });
+    const programTargets = targetsFor(program);
+    const stateTargetKeys =
+      state && typeof state === "object" && (state as { targets?: Record<string, unknown> }).targets
+        ? Object.keys((state as { targets: Record<string, unknown> }).targets)
+        : [];
+    const ruleKeys = Array.from(new Set<string>([...programTargets, ...stateTargetKeys]));
+
+    type EffectiveRule = {
+      progressionTarget: string;
+      increaseKg: number;
+      decreaseKg: number | null;
+      resetFactor: number;
+      defaultIncreaseKg: number;
+      defaultResetFactor: number;
+    };
+
+    const effectiveRules: Record<string, EffectiveRule> = {};
+    for (const key of ruleKeys) {
+      let progressionTarget: string = key;
+      const stateTarget =
+        state && typeof state === "object"
+          ? ((state as { targets?: Record<string, { progressionTarget?: string }> }).targets?.[key])
+          : undefined;
+      if (stateTarget?.progressionTarget) {
+        progressionTarget = String(stateTarget.progressionTarget).toUpperCase();
+      } else if (programTargets.includes(key as never)) {
+        progressionTarget = key;
+      }
+      const defaults = rulesFor(program, progressionTarget);
+      const effective = rulesFor(
+        program,
+        progressionTarget,
+        readIncrementOverride(params, key, progressionTarget),
+      );
+      effectiveRules[key] = {
+        progressionTarget,
+        increaseKg: effective.increaseKg,
+        decreaseKg: effective.decreaseKg,
+        resetFactor: effective.resetFactor,
+        defaultIncreaseKg: defaults.increaseKg,
+        defaultResetFactor: defaults.resetFactor,
+      };
+    }
+
+    return NextResponse.json({ program, state, effectiveRules });
   } catch (e) {
     console.error("[progression-state] error", e);
     return apiErrorResponse(e);
