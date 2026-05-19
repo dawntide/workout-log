@@ -237,6 +237,19 @@ function cycleDetailText(weeks: number | undefined, locale: ProgramStoreLocale) 
   return locale === "ko" ? `${weeks}주 사이클` : `${weeks}-week cycle`;
 }
 
+function asymptoteCycleText(cycles: number | undefined, locale: ProgramStoreLocale) {
+  if (!cycles) return "-";
+  return locale === "ko" ? `${cycles}사이클/블록` : `${cycles}-cycle block`;
+}
+
+function asymptoteCycleDetailText(
+  cycles: number | undefined,
+  locale: ProgramStoreLocale,
+) {
+  if (!cycles) return "";
+  return locale === "ko" ? `${cycles}사이클 블록` : `${cycles}-cycle block`;
+}
+
 function splitText(count: number, locale: ProgramStoreLocale) {
   return locale === "ko" ? `${count}분할` : `${count}-day split`;
 }
@@ -302,6 +315,15 @@ export function getProgramScheduleLabel(
     return parts.join(" · ");
   }
 
+  if (def.kind === "asymptote") {
+    const parts: string[] = [];
+    const sessionsPerCycle = def.schedule?.sessionsPerWeek;
+    const cyclesPerBlock = def.schedule?.weeks;
+    if (sessionsPerCycle) parts.push(frequencyText(sessionsPerCycle, locale));
+    if (cyclesPerBlock) parts.push(asymptoteCycleDetailText(cyclesPerBlock, locale));
+    return parts.join(" · ");
+  }
+
   if (def.kind === "531") {
     const rawModules: string[] = Array.isArray(def.modules) ? (def.modules as string[]) : ["SQUAT", "BENCH", "DEADLIFT", "OHP"];
     const count = Math.min(rawModules.length, 4);
@@ -357,16 +379,104 @@ export function getProgramDetailInfo(
 
     const modules = Array.isArray(def.modules) ? (def.modules as string[]) : null;
 
+    const mainSets = (def.progression?.mainSets as number | undefined) ?? 3;
+    const mainReps = 5;
+    const setsRepsLabel = `${mainSets}×${mainReps}`;
+    const sessions: ProgramSessionBreakdown[] = [
+      {
+        key: "D1",
+        exercises: [
+          { name: targetLabel("SQUAT"), setsReps: setsRepsLabel, hasAmrap: false },
+          { name: targetLabel("BENCH"), setsReps: setsRepsLabel, hasAmrap: false },
+          { name: "Pull-Up", setsReps: setsRepsLabel, hasAmrap: false },
+        ],
+      },
+      {
+        key: "D2",
+        exercises: [
+          { name: targetLabel("SQUAT"), setsReps: setsRepsLabel, hasAmrap: false },
+          { name: targetLabel("BENCH"), setsReps: setsRepsLabel, hasAmrap: false },
+          { name: "Pull-Up", setsReps: setsRepsLabel, hasAmrap: false },
+        ],
+      },
+      {
+        key: "D3",
+        exercises: [
+          { name: targetLabel("SQUAT"), setsReps: setsRepsLabel, hasAmrap: false },
+          { name: targetLabel("BENCH"), setsReps: setsRepsLabel, hasAmrap: false },
+          { name: targetLabel("DEADLIFT"), setsReps: setsRepsLabel, hasAmrap: false },
+        ],
+      },
+    ];
+
     const tmPercent = typeof defaults?.tmPercent === "number" ? Math.round(defaults.tmPercent * 100) : null;
-    const mainSets = def.progression?.mainSets as number | undefined;
     const progressionParts: string[] = [];
     if (tmPercent) progressionParts.push(`TM ${tmPercent}%`);
-    if (mainSets) progressionParts.push(locale === "ko" ? `메인 ${mainSets}세트` : `Main ${mainSets} sets`);
+    progressionParts.push(locale === "ko" ? `메인 ${mainSets}세트` : `Main ${mainSets} sets`);
 
     return {
       scheduleLabel: parts.join(" · "),
       stats,
-      sessions: null,
+      sessions,
+      modules,
+      progressionNote: progressionParts.join(" · ") || null,
+    };
+  }
+
+  if (def.kind === "asymptote") {
+    const sessionsPerCycle = def.schedule?.sessionsPerWeek as number | undefined;
+    const cyclesPerBlock = def.schedule?.weeks as number | undefined;
+    const parts: string[] = [];
+    if (sessionsPerCycle) parts.push(frequencyText(sessionsPerCycle, locale));
+    if (cyclesPerBlock) parts.push(asymptoteCycleDetailText(cyclesPerBlock, locale));
+
+    const stats: ProgramStatItem[] = [
+      { key: "difficulty", label: statLabel("difficulty", locale), value: difficultyValue },
+      { key: "frequency", label: statLabel("frequency", locale), value: frequencyText(sessionsPerCycle, locale) },
+      { key: "cycle", label: statLabel("cycle", locale), value: asymptoteCycleText(cyclesPerBlock, locale) },
+      { key: "type", label: statLabel("type", locale), value: typeValue },
+    ];
+
+    const modules = Array.isArray(def.modules) ? (def.modules as string[]) : ["SQUAT", "BENCH", "DEADLIFT", "OHP", "PULL"];
+
+    const sessions: ProgramSessionBreakdown[] = [
+      {
+        key: "A",
+        exercises: [
+          { name: "Back Squat", setsReps: "4×3+", hasAmrap: true },
+          { name: "Bench Press", setsReps: "4×5", hasAmrap: false },
+          { name: "Weighted Pull-Up", setsReps: "4×3+", hasAmrap: true },
+        ],
+      },
+      {
+        key: "B",
+        exercises: [
+          { name: "Back Squat", setsReps: "5×5", hasAmrap: false },
+          { name: "Deadlift", setsReps: "3×3", hasAmrap: false },
+          { name: "Weighted Pull-Up", setsReps: "3×8", hasAmrap: false },
+        ],
+      },
+      {
+        key: "C",
+        exercises: [
+          { name: "Back Squat", setsReps: "6×3", hasAmrap: false },
+          { name: "Bench Press", setsReps: "4×3+", hasAmrap: true },
+          { name: "Overhead Press", setsReps: "4×5", hasAmrap: false },
+        ],
+      },
+    ];
+
+    const tmPercent = typeof defaults?.tmPercent === "number" ? Math.round(defaults.tmPercent * 100) : null;
+    const progressionParts: string[] = [];
+    if (tmPercent) progressionParts.push(`TM ${tmPercent}%`);
+    progressionParts.push(
+      locale === "ko" ? "사이클 3 AMRAP 게이팅" : "Cycle 3 AMRAP gating",
+    );
+
+    return {
+      scheduleLabel: parts.join(" · "),
+      stats,
+      sessions,
       modules,
       progressionNote: progressionParts.join(" · ") || null,
     };
@@ -656,6 +766,38 @@ export function resolveOperatorExerciseDefaults(
   return { sets: 3, reps: 5 };
 }
 
+function asymptoteSessionDrafts(): ProgramSessionDraft[] {
+  return [
+    {
+      id: uid("session"),
+      key: "A",
+      exercises: [
+        createFixedExerciseDraft("Back Squat", "AUTO", "SQUAT", 4, 3),
+        createFixedExerciseDraft("Bench Press", "AUTO", "BENCH", 4, 5),
+        createFixedExerciseDraft("Weighted Pull-Up", "AUTO", "PULL", 4, 3),
+      ],
+    },
+    {
+      id: uid("session"),
+      key: "B",
+      exercises: [
+        createFixedExerciseDraft("Back Squat", "AUTO", "SQUAT", 5, 5),
+        createFixedExerciseDraft("Deadlift", "AUTO", "DEADLIFT", 3, 3),
+        createFixedExerciseDraft("Weighted Pull-Up", "AUTO", "PULL", 3, 8),
+      ],
+    },
+    {
+      id: uid("session"),
+      key: "C",
+      exercises: [
+        createFixedExerciseDraft("Back Squat", "AUTO", "SQUAT", 6, 3),
+        createFixedExerciseDraft("Bench Press", "AUTO", "BENCH", 4, 3),
+        createFixedExerciseDraft("Overhead Press", "AUTO", "OHP", 4, 5),
+      ],
+    },
+  ];
+}
+
 function operatorSessionDrafts(): ProgramSessionDraft[] {
   return [
     {
@@ -703,6 +845,10 @@ export function inferSessionDraftsFromTemplate(template: ProgramTemplate): Progr
   }
   if (isOperatorTemplate(template)) {
     return operatorSessionDrafts();
+  }
+
+  if (definition?.kind === "asymptote") {
+    return asymptoteSessionDrafts();
   }
 
   if (definition?.kind === "531") {

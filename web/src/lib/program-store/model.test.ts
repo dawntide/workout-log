@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   createEmptyExerciseDraft,
   extractOneRmTargetsFromTemplate,
+  getProgramDetailInfo,
   inferSessionDraftsFromTemplate,
   isOperatorTemplate,
   resolveOperatorExerciseDefaults,
@@ -198,6 +199,133 @@ test("createEmptyExerciseDraft uses operator defaults when auto row type is prov
   assert.equal(customOperatorDraft.reps, 8);
   assert.equal(genericDraft.sets, 3);
   assert.equal(genericDraft.reps, 8);
+});
+
+const asymptoteTemplate: ProgramTemplate = {
+  id: "template-asymptote",
+  slug: "asymptote-protocol",
+  name: "Asymptote Protocol (Base)",
+  type: "LOGIC",
+  visibility: "PUBLIC",
+  description: null,
+  tags: ["strength", "barbell", "asymptote", "intermediate", "block-periodization", "amrap"],
+  latestVersion: {
+    id: "version-asymptote",
+    version: 1,
+    definition: {
+      kind: "asymptote",
+      schedule: { weeks: 4, sessionsPerWeek: 3 },
+      modules: ["SQUAT", "BENCH", "DEADLIFT", "OHP", "PULL"],
+      progression: { profile: "asymptote-v1" },
+    },
+    defaults: { tmPercent: 0.83 },
+  },
+};
+
+test("getProgramDetailInfo returns full asymptote stats, sessions, modules, and progression", () => {
+  const info = getProgramDetailInfo(asymptoteTemplate, "ko");
+
+  const cycleStat = info.stats.find((stat) => stat.key === "cycle");
+  const frequencyStat = info.stats.find((stat) => stat.key === "frequency");
+  const difficultyStat = info.stats.find((stat) => stat.key === "difficulty");
+  const typeStat = info.stats.find((stat) => stat.key === "type");
+
+  assert.equal(cycleStat?.value, "4사이클/블록");
+  assert.equal(frequencyStat?.value, "주 3회");
+  assert.equal(difficultyStat?.value, "중급");
+  assert.equal(typeStat?.value, "자동 진행");
+
+  assert.deepEqual(info.modules, ["SQUAT", "BENCH", "DEADLIFT", "OHP", "PULL"]);
+
+  assert.equal(info.sessions?.length, 3);
+  assert.deepEqual(
+    info.sessions?.map((s) => ({ key: s.key, count: s.exercises.length })),
+    [
+      { key: "A", count: 3 },
+      { key: "B", count: 3 },
+      { key: "C", count: 3 },
+    ],
+  );
+
+  const sessionA = info.sessions?.find((s) => s.key === "A");
+  assert.deepEqual(
+    sessionA?.exercises.map((ex) => ex.name),
+    ["Back Squat", "Bench Press", "Weighted Pull-Up"],
+  );
+  const benchInC = info.sessions
+    ?.find((s) => s.key === "C")
+    ?.exercises.find((ex) => ex.name === "Bench Press");
+  assert.equal(benchInC?.setsReps, "4×3+");
+  assert.equal(benchInC?.hasAmrap, true);
+
+  assert.ok(info.progressionNote);
+  assert.ok(info.progressionNote?.includes("TM 83%"));
+  assert.ok(info.progressionNote?.includes("AMRAP"));
+});
+
+test("getProgramDetailInfo asymptote stats in English use cycle block label", () => {
+  const info = getProgramDetailInfo(asymptoteTemplate, "en");
+  const cycleStat = info.stats.find((stat) => stat.key === "cycle");
+  const frequencyStat = info.stats.find((stat) => stat.key === "frequency");
+  assert.equal(cycleStat?.value, "4-cycle block");
+  assert.equal(frequencyStat?.value, "3 days/wk");
+});
+
+test("inferSessionDraftsFromTemplate returns canonical asymptote A/B/C drafts", () => {
+  const sessions = inferSessionDraftsFromTemplate(asymptoteTemplate);
+  assert.deepEqual(
+    sessions.map((session) => ({
+      key: session.key,
+      exercises: session.exercises.map((exercise) => ({
+        name: exercise.exerciseName,
+        sets: exercise.sets,
+        reps: exercise.reps,
+        progressionTarget: exercise.progressionTarget,
+      })),
+    })),
+    [
+      {
+        key: "A",
+        exercises: [
+          { name: "Back Squat", sets: 4, reps: 3, progressionTarget: "SQUAT" },
+          { name: "Bench Press", sets: 4, reps: 5, progressionTarget: "BENCH" },
+          { name: "Weighted Pull-Up", sets: 4, reps: 3, progressionTarget: "PULL" },
+        ],
+      },
+      {
+        key: "B",
+        exercises: [
+          { name: "Back Squat", sets: 5, reps: 5, progressionTarget: "SQUAT" },
+          { name: "Deadlift", sets: 3, reps: 3, progressionTarget: "DEADLIFT" },
+          { name: "Weighted Pull-Up", sets: 3, reps: 8, progressionTarget: "PULL" },
+        ],
+      },
+      {
+        key: "C",
+        exercises: [
+          { name: "Back Squat", sets: 6, reps: 3, progressionTarget: "SQUAT" },
+          { name: "Bench Press", sets: 4, reps: 3, progressionTarget: "BENCH" },
+          { name: "Overhead Press", sets: 4, reps: 5, progressionTarget: "OHP" },
+        ],
+      },
+    ],
+  );
+});
+
+test("getProgramDetailInfo operator returns canonical D1/D2/D3 session breakdown", () => {
+  const info = getProgramDetailInfo(operatorTemplate, "ko");
+  assert.equal(info.sessions?.length, 3);
+  assert.deepEqual(
+    info.sessions?.map((s) => ({
+      key: s.key,
+      names: s.exercises.map((ex) => ex.name),
+    })),
+    [
+      { key: "D1", names: ["Back Squat", "Bench Press", "Pull-Up"] },
+      { key: "D2", names: ["Back Squat", "Bench Press", "Pull-Up"] },
+      { key: "D3", names: ["Back Squat", "Bench Press", "Deadlift"] },
+    ],
+  );
 });
 
 test("inferSessionDraftsFromTemplate reads legacy slot roles as auto rows", () => {
