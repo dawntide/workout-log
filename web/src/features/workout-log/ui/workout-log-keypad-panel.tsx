@@ -505,7 +505,7 @@ export function WorkoutLogKeypadPanel({
                       padding: "1px var(--v2-s-1)",
                       borderRadius: "var(--v2-r-0)",
                       background: isActive
-                        ? "rgba(255,255,255,0.16)"
+                        ? "color-mix(in srgb, var(--v2-ink-on-accent) 16%, transparent)"
                         : "var(--v2-paper-3)",
                       color: isActive
                         ? "var(--v2-ink-on-accent)"
