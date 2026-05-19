@@ -44,12 +44,12 @@ export const Stats1RMControls = memo(function Stats1RMControls({
           }}
         >
           <div style={{ overflow: "hidden" }}>
-            <div style={{ fontSize: "var(--v2-t-label)", color: "var(--v2-ink-2)", marginBottom: "2px", fontWeight: 600 }}>
+            <div className="v2-eyebrow" style={{ color: "var(--v2-ink-2)", marginBottom: 2 }}>
               {locale === "ko" ? "운동종목" : "Exercise"}
             </div>
             <div
+              className="v2-body"
               style={{
-                font: "var(--font-body)",
                 fontWeight: 700,
                 color: "var(--v2-accent)",
                 whiteSpace: "nowrap",
@@ -87,12 +87,12 @@ export const Stats1RMControls = memo(function Stats1RMControls({
           }}
         >
           <div style={{ overflow: "hidden" }}>
-            <div style={{ fontSize: "var(--v2-t-label)", color: "var(--v2-ink-2)", marginBottom: "2px", fontWeight: 600 }}>
+            <div className="v2-eyebrow" style={{ color: "var(--v2-ink-2)", marginBottom: 2 }}>
               {locale === "ko" ? "필터링" : "Filter"}
             </div>
             <div
+              className="v2-body"
               style={{
-                font: "var(--font-body)",
                 fontWeight: 600,
                 color: "var(--v2-ink)",
                 whiteSpace: "nowrap",

@@ -133,13 +133,13 @@ export function CustomizeProgramSheet({
           {error ? (
             <div
               role="alert"
+              className="v2-small"
               style={{
                 boxShadow: "inset 0 0 0 1px color-mix(in srgb, var(--v2-c-danger) 34%, var(--v2-hairline))",
                 borderRadius: "var(--v2-r-1)",
                 background: "color-mix(in srgb, var(--v2-c-danger) 14%, var(--v2-paper))",
                 color: "var(--v2-c-danger)",
                 padding: "var(--v2-s-2) var(--v2-s-4)",
-                font: "var(--font-secondary)",
                 lineHeight: 1.5,
               }}
             >
@@ -148,7 +148,7 @@ export function CustomizeProgramSheet({
           ) : null}
 
           <label style={{ display: "flex", flexDirection: "column", gap: "var(--v2-s-1)" }}>
-            <span style={{ color: "var(--v2-ink-2)", font: "var(--font-secondary)" }}>
+            <span className="v2-small" style={{ color: "var(--v2-ink-2)" }}>
               {locale === "ko" ? "프로그램 이름" : "Program Name"}
             </span>
             <AppTextInput
@@ -160,12 +160,8 @@ export function CustomizeProgramSheet({
 
           <V2Card tone="inset" padding="var(--v2-s-4)">
             <h2
+              className="v2-eyebrow"
               style={{
-                fontFamily: "var(--font-headline-family)",
-                fontSize: "var(--v2-t-small)",
-                fontWeight: 700,
-                letterSpacing: "0.06em",
-                textTransform: "uppercase",
                 color: "var(--v2-ink-2)",
                 margin: "0 0 var(--v2-s-1)",
               }}
@@ -174,12 +170,12 @@ export function CustomizeProgramSheet({
             </h2>
             {isOperatorCustomization ? (
               <>
-                <p style={{ fontSize: "var(--v2-t-small)", color: "var(--v2-ink-2)", margin: "0 0 4px", lineHeight: 1.5 }}>
+                <p className="v2-small" style={{ color: "var(--v2-ink-2)", margin: "0 0 var(--v2-s-1)", lineHeight: 1.5 }}>
                   {locale === "ko"
                     ? "D1/D2는 스쿼트 + 벤치프레스 + 풀업, D3는 스쿼트 + 벤치프레스 + 데드리프트 구성을 기준으로 시작합니다."
                     : "D1/D2 start from Squat + Bench + Pull-Up, and D3 starts from Squat + Bench + Deadlift."}
                 </p>
-                <p style={{ fontSize: "var(--v2-t-small)", color: "var(--v2-ink-2)", margin: 0, lineHeight: 1.5 }}>
+                <p className="v2-small" style={{ color: "var(--v2-ink-2)", margin: 0, lineHeight: 1.5 }}>
                   {locale === "ko"
                     ? "세션 순서는 유지되고, 각 day 안에서 종목만 교체·추가·삭제할 수 있습니다."
                     : "Session order stays fixed, and you can swap, add, or remove exercises inside each day."}
@@ -196,15 +192,8 @@ export function CustomizeProgramSheet({
 
           <div style={{ display: "flex", flexDirection: "column", gap: "var(--v2-s-4)" }}>
             <h2
-              style={{
-                fontFamily: "var(--font-headline-family)",
-                fontSize: "var(--v2-t-small)",
-                fontWeight: 700,
-                letterSpacing: "0.06em",
-                textTransform: "uppercase",
-                color: "var(--v2-ink-2)",
-                margin: 0,
-              }}
+              className="v2-eyebrow"
+              style={{ color: "var(--v2-ink-2)", margin: 0 }}
             >
               {locale === "ko" ? "Day별 종목 변경" : "Adjust Exercises by Day"}
             </h2>

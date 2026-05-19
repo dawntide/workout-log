@@ -107,7 +107,7 @@ export const AppSelect = forwardRef<
           justifyContent: "space-between",
           gap: "var(--v2-s-2)",
           width: "100%",
-          minHeight: "44px",
+          minHeight: "var(--v2-s-8)",
           borderRadius: "var(--v2-r-1)",
           padding: "var(--v2-s-2) var(--v2-s-4)",
           backgroundColor: "var(--v2-paper-2)",
@@ -115,26 +115,25 @@ export const AppSelect = forwardRef<
         }}
       >
         {label ? (
-          <span style={{ color: "var(--v2-ink-2)", font: "var(--font-secondary)", whiteSpace: "nowrap" }}>
+          <span className="v2-small" style={{ color: "var(--v2-ink-2)", whiteSpace: "nowrap" }}>
             {label}
           </span>
         ) : null}
         <span style={{ display: "inline-flex", alignItems: "center", gap: "var(--v2-s-1)", minWidth: 0 }}>
           <select
             ref={ref}
-            className={className}
+            className={["v2-body", className].filter(Boolean).join(" ")}
             style={{
               border: "none",
               background: "transparent",
               color: "var(--v2-ink)",
-              font: "var(--font-body)",
               outline: "none",
               appearance: "none",
               WebkitAppearance: "none",
               minWidth: 0,
               textAlign: "right",
               textAlignLast: "right",
-              paddingRight: "0",
+              paddingRight: 0,
             }}
             {...props}
             multiple={multiple}

@@ -107,13 +107,13 @@ export function CreateProgramSheet({
           {error ? (
             <div
               role="alert"
+              className="v2-small"
               style={{
                 boxShadow: "inset 0 0 0 1px color-mix(in srgb, var(--v2-c-danger) 34%, var(--v2-hairline))",
                 borderRadius: "var(--v2-r-1)",
                 background: "color-mix(in srgb, var(--v2-c-danger) 14%, var(--v2-paper))",
                 color: "var(--v2-c-danger)",
                 padding: "var(--v2-s-2) var(--v2-s-4)",
-                font: "var(--font-secondary)",
                 lineHeight: 1.5,
               }}
             >
@@ -122,16 +122,7 @@ export function CreateProgramSheet({
           ) : null}
 
           <label style={{ display: "flex", flexDirection: "column", gap: "var(--v2-s-1)" }}>
-            <span
-              style={{
-                fontFamily: "var(--font-label-family)",
-                fontSize: "var(--v2-t-label)",
-                fontWeight: 700,
-                letterSpacing: "0.08em",
-                textTransform: "uppercase",
-                color: "var(--v2-ink-2)",
-              }}
-            >
+            <span className="v2-eyebrow" style={{ color: "var(--v2-ink-2)" }}>
               {locale === "ko" ? "프로그램 이름" : "Program Name"}
             </span>
             <AppTextInput
@@ -179,15 +170,8 @@ export function CreateProgramSheet({
 
           <V2Card padding="var(--v2-s-4)" tone="inset">
             <h2
-              style={{
-                fontFamily: "var(--font-headline-family)",
-                fontSize: "var(--v2-t-small)",
-                fontWeight: 700,
-                letterSpacing: "0.06em",
-                textTransform: "uppercase",
-                color: "var(--v2-ink-2)",
-                margin: "0 0 var(--v2-s-2)",
-              }}
+              className="v2-eyebrow"
+              style={{ color: "var(--v2-ink-2)", margin: "0 0 var(--v2-s-2)" }}
             >
               {locale === "ko" ? "세션 규칙" : "Session Rules"}
             </h2>
@@ -210,16 +194,7 @@ export function CreateProgramSheet({
             </div>
             {draft.rule.type === "NUMERIC" ? (
               <div style={{ display: "flex", flexDirection: "column", gap: "var(--v2-s-1)" }}>
-                <span
-                  style={{
-                    fontFamily: "var(--font-label-family)",
-                    fontSize: "var(--v2-t-label)",
-                    fontWeight: 700,
-                    letterSpacing: "0.08em",
-                    textTransform: "uppercase",
-                    color: "var(--v2-ink-2)",
-                  }}
-                >
+                <span className="v2-eyebrow" style={{ color: "var(--v2-ink-2)" }}>
                   {locale === "ko" ? "세션 개수 (1~4)" : "Session Count (1-4)"}
                 </span>
                 <NumberPickerField
@@ -236,17 +211,7 @@ export function CreateProgramSheet({
           </V2Card>
 
           <div style={{ display: "flex", flexDirection: "column", gap: "var(--v2-s-4)" }}>
-            <h2
-              style={{
-                fontFamily: "var(--font-headline-family)",
-                fontSize: "var(--v2-t-small)",
-                fontWeight: 700,
-                letterSpacing: "0.06em",
-                textTransform: "uppercase",
-                color: "var(--v2-ink-2)",
-                margin: 0,
-              }}
-            >
+            <h2 className="v2-eyebrow" style={{ color: "var(--v2-ink-2)", margin: 0 }}>
               {locale === "ko" ? "세션별 운동 배치" : "Exercise Layout by Session"}
             </h2>
             {draft.sessions.map((session) => (

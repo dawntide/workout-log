@@ -137,20 +137,19 @@ export function NumberPickerField({
     if (variant === "stepper") {
       return {
         justifyContent: "space-between" as const,
-        borderRadius: "8px",
-        minHeight: "44px",
+        borderRadius: "var(--v2-r-1)",
+        minHeight: "var(--v2-s-8)",
         padding: "var(--v2-s-2) var(--v2-s-3)",
         backgroundColor: complete ? "var(--v2-paper-2)" : "var(--v2-paper)",
         color: complete ? "var(--v2-ink)" : "var(--v2-ink-2)",
-        font: "var(--font-body)",
       };
     }
     if (variant === "workout-number") {
       const isReps = tone === "reps";
       return {
         justifyContent: "center" as const,
-        borderRadius: "6px",
-        minHeight: "36px",
+        borderRadius: "var(--v2-r-1)",
+        minHeight: "var(--v2-s-7)",
         padding: "var(--v2-s-1) var(--v2-s-2)",
         backgroundColor: complete
           ? isReps
@@ -165,20 +164,20 @@ export function NumberPickerField({
         boxShadow: complete && isReps
           ? "inset 0 0 0 1px color-mix(in srgb, var(--v2-c-success) 35%, var(--v2-hairline))"
           : undefined,
-        fontWeight: complete && isReps ? "600" : undefined,
-        font: "var(--font-secondary)",
+        fontWeight: complete && isReps ? 600 : undefined,
       };
     }
     return {
       justifyContent: "space-between" as const,
-      borderRadius: "8px",
-      minHeight: "44px",
-      padding: "var(--v2-s-3) var(--v2-s-3)",
+      borderRadius: "var(--v2-r-1)",
+      minHeight: "var(--v2-s-8)",
+      padding: "var(--v2-s-3)",
       backgroundColor: complete ? "var(--v2-paper-2)" : "var(--v2-paper)",
       color: complete ? "var(--v2-ink)" : "var(--v2-ink)",
-      font: "var(--font-body)",
     };
   })();
+  const variantTypoClass =
+    variant === "workout-number" ? "v2-small" : "v2-body";
 
   return (
     <>
@@ -186,20 +185,30 @@ export function NumberPickerField({
         type="button"
         onClick={() => setOpen(true)}
         aria-label={label ? `${label}: ${displayText}` : displayText}
-        className={[className, isCompletedReps ? "reps-complete" : ""].join(" ").trim()}
+        className={[variantTypoClass, className, isCompletedReps ? "reps-complete" : ""].join(" ").trim()}
         style={{
           width: "100%",
           border: "none",
           display: "inline-flex",
           alignItems: "center",
-          gap: "6px",
+          gap: "var(--v2-s-2)",
           textAlign: "left",
           cursor: "pointer",
           ...variantStyles,
         }}
       >
         <span style={{ fontVariantNumeric: "tabular-nums" }}>{displayText}</span>
-        {unit ? <span style={{ color: isCompletedReps ? "var(--v2-accent-ink)" : "var(--v2-ink-2)", font: "var(--font-secondary)", fontWeight: isCompletedReps ? 600 : undefined }}>{unit}</span> : null}
+        {unit ? (
+          <span
+            className="v2-small"
+            style={{
+              color: isCompletedReps ? "var(--v2-accent-ink)" : "var(--v2-ink-2)",
+              fontWeight: isCompletedReps ? 600 : undefined,
+            }}
+          >
+            {unit}
+          </span>
+        ) : null}
       </button>
       <NumberPickerSheet
         open={open}

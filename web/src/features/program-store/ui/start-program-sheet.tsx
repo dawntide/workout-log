@@ -81,12 +81,8 @@ export const StartProgramSheet = memo(function StartProgramSheet({
               }}
             >
               <strong
-                style={{
-                  fontFamily: "var(--font-headline-family)",
-                  fontSize: "var(--v2-t-body)",
-                  fontWeight: 700,
-                  color: "var(--v2-ink)",
-                }}
+                className="v2-body"
+                style={{ fontWeight: 700, color: "var(--v2-ink)" }}
               >
                 {formatProgramDisplayName(draft.template.name)}
               </strong>
@@ -96,26 +92,14 @@ export const StartProgramSheet = memo(function StartProgramSheet({
             </div>
           </V2Card>
           {draft.recommendationStatus === "loading" ? (
-            <p
-              style={{
-                fontSize: "var(--v2-t-small)",
-                color: "var(--v2-ink-2)",
-                margin: 0,
-              }}
-            >
+            <p className="v2-small" style={{ color: "var(--v2-ink-2)", margin: 0 }}>
               {locale === "ko"
                 ? "운동 종목별 1RM 통계 기반 추천값 계산 중..."
                 : "Calculating recommendations from your 1RM history..."}
             </p>
           ) : null}
           {draft.recommendationMessage ? (
-            <p
-              style={{
-                fontSize: "var(--v2-t-small)",
-                color: "var(--v2-ink-2)",
-                margin: 0,
-              }}
-            >
+            <p className="v2-small" style={{ color: "var(--v2-ink-2)", margin: 0 }}>
               {draft.recommendationMessage}
             </p>
           ) : null}
@@ -125,12 +109,8 @@ export const StartProgramSheet = memo(function StartProgramSheet({
               style={{ display: "flex", flexDirection: "column", gap: "var(--v2-s-1)" }}
             >
               <span
+                className="v2-eyebrow"
                 style={{
-                  fontFamily: "var(--font-label-family)",
-                  fontSize: "var(--v2-t-label)",
-                  fontWeight: 700,
-                  letterSpacing: "0.08em",
-                  textTransform: "uppercase",
                   color: "var(--v2-ink-2)",
                 }}
               >

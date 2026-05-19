@@ -77,11 +77,11 @@ export function AppLaunchSplash() {
           style={{ borderRadius: "20%" }}
           priority
         />
-        <p className="v2-font-display" style={{ fontSize: "var(--v2-t-h2)", fontWeight: 700, color: "var(--v2-ink)", margin: 0 }}>
+        <p className="v2-h2 v2-font-display" style={{ color: "var(--v2-ink)", margin: 0 }}>
           Workout Log
         </p>
         <div aria-hidden="true" style={{ display: "flex", alignItems: "center", gap: "var(--v2-s-2)", color: "var(--v2-ink-2)" }}>
-          <span style={{ font: "var(--font-secondary)" }}>{locale === "ko" ? "로딩 중..." : "Loading..."}</span>
+          <span className="v2-small">{locale === "ko" ? "로딩 중..." : "Loading..."}</span>
         </div>
       </div>
     </div>

@@ -13,6 +13,7 @@ export function PlanSelectorButton({ planName, disabled, ...props }: PlanSelecto
       disabled={disabled}
       aria-label={locale === "ko" ? "플랜 선택 열기" : "Open plan selector"}
       aria-haspopup="dialog"
+      className="v2-pressable"
       style={{
         width: "100%",
         display: "flex",
@@ -22,30 +23,17 @@ export function PlanSelectorButton({ planName, disabled, ...props }: PlanSelecto
         padding: "var(--v2-s-4) var(--v2-s-5)",
         background: "var(--v2-paper)",
         border: "none",
-        borderRadius: "20px",
+        borderRadius: "var(--v2-r-4)",
         cursor: disabled ? "default" : "pointer",
         transition: "background 0.15s",
       }}
       {...props}
     >
       <div>
-        <div style={{
-          fontFamily: "var(--font-label-family)",
-          fontSize: "var(--v2-t-eyebrow)",
-          fontWeight: 700,
-          letterSpacing: "0.08em",
-          textTransform: "uppercase",
-          color: "var(--v2-ink-2)",
-          marginBottom: "4px",
-        }}>
+        <div className="v2-eyebrow" style={{ color: "var(--v2-ink-2)", marginBottom: "var(--v2-s-1)" }}>
           {copy.workoutLog.activePlanLabel}
         </div>
-        <div style={{
-          fontFamily: "var(--font-headline-family)",
-          fontSize: "var(--v2-t-body)",
-          fontWeight: 700,
-          color: "var(--v2-ink)",
-        }}>
+        <div className="v2-body v2-font-display" style={{ fontWeight: 700, color: "var(--v2-ink)" }}>
           {planName}
         </div>
       </div>

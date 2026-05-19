@@ -57,14 +57,13 @@ export function SearchInputRow({
         onChange={onChange}
         placeholder={resolvedPlaceholder}
         aria-label={ariaLabel}
-        className="search-card-input"
+        className="search-card-input v2-body"
         onKeyDown={onKeyDown}
         style={{
           flex: 1,
           border: "none",
           outline: "none",
           background: "transparent",
-          font: "var(--font-body)",
           color: "var(--v2-ink)",
           minWidth: 0,
         }}

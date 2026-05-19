@@ -267,7 +267,7 @@ const ProgramExerciseEditorRow = memo(function ProgramExerciseEditorRow({
       </div>
 
       <div>
-        <span style={{ display: "block", marginBottom: "var(--v2-s-2)", color: "var(--v2-ink-2)", font: "var(--font-secondary)" }}>
+        <span className="v2-small" style={{ display: "block", marginBottom: "var(--v2-s-2)", color: "var(--v2-ink-2)" }}>
           {locale === "ko" ? "운동종목" : "Exercise"}
         </span>
         <div data-no-swipe="true">
@@ -382,9 +382,9 @@ const ProgramExerciseEditorRow = memo(function ProgramExerciseEditorRow({
                 }}
               >
                 {exerciseOptionsLoading ? (
-                  <span style={{ color: "var(--v2-ink-2)", font: "var(--font-secondary)" }}>{copy.programExerciseEditor.searching}</span>
+                  <span className="v2-small" style={{ color: "var(--v2-ink-2)" }}>{copy.programExerciseEditor.searching}</span>
                 ) : filteredExerciseOptions.length === 0 ? (
-                  <span style={{ color: "var(--v2-ink-2)", font: "var(--font-secondary)" }}>{copy.programExerciseEditor.noMatchingExercises}</span>
+                  <span className="v2-small" style={{ color: "var(--v2-ink-2)" }}>{copy.programExerciseEditor.noMatchingExercises}</span>
                 ) : (
                   filteredExerciseOptions.map((option) => (
                     <V2SecondaryBtn
@@ -408,7 +408,7 @@ const ProgramExerciseEditorRow = memo(function ProgramExerciseEditorRow({
       {!operatorStyle ? (
         <div style={{ display: "flex", flexDirection: "column", gap: "var(--v2-s-2)" }}>
           <label style={{ display: "flex", flexDirection: "column", gap: "var(--v2-s-1)" }}>
-            <span style={{ color: "var(--v2-ink-2)", font: "var(--font-secondary)" }}>
+            <span className="v2-small" style={{ color: "var(--v2-ink-2)" }}>
               {locale === "ko" ? "수행 방식" : "Execution Mode"}
             </span>
             <AppSelect
@@ -427,7 +427,7 @@ const ProgramExerciseEditorRow = memo(function ProgramExerciseEditorRow({
 
           {exercise.mode === "MARKET" && (
             <label style={{ display: "flex", flexDirection: "column", gap: "var(--v2-s-1)" }}>
-              <span style={{ color: "var(--v2-ink-2)", font: "var(--font-secondary)" }}>
+              <span className="v2-small" style={{ color: "var(--v2-ink-2)" }}>
                 {locale === "ko" ? "기반 프로그램" : "Base Program"}
               </span>
               <AppSelect
@@ -447,7 +447,7 @@ const ProgramExerciseEditorRow = memo(function ProgramExerciseEditorRow({
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: "var(--v2-s-2)" }}>
           <label style={{ display: "flex", flexDirection: "column", gap: "var(--v2-s-1)" }}>
-            <span style={{ color: "var(--v2-ink-2)", font: "var(--font-secondary)" }}>
+            <span className="v2-small" style={{ color: "var(--v2-ink-2)" }}>
               {locale === "ko" ? "행 타입" : "Row Type"}
             </span>
             <AppSelect
@@ -476,7 +476,7 @@ const ProgramExerciseEditorRow = memo(function ProgramExerciseEditorRow({
           </label>
           {operatorAutoRow ? (
             <label style={{ display: "flex", flexDirection: "column", gap: "var(--v2-s-1)" }}>
-              <span style={{ color: "var(--v2-ink-2)", font: "var(--font-secondary)" }}>
+              <span className="v2-small" style={{ color: "var(--v2-ink-2)" }}>
                 {locale === "ko" ? "진행 타겟" : "Progression Target"}
               </span>
               <AppSelect
@@ -496,11 +496,11 @@ const ProgramExerciseEditorRow = memo(function ProgramExerciseEditorRow({
               </AppSelect>
             </label>
           ) : null}
-          <div style={{ color: "var(--v2-ink-2)", font: "var(--font-secondary)" }}>
+          <div className="v2-small" style={{ color: "var(--v2-ink-2)" }}>
             {operatorRowTypeHelp(exercise.rowType, locale)}
           </div>
           {operatorAutoDefaults ? (
-            <div style={{ color: "var(--v2-ink-2)", font: "var(--font-secondary)" }}>
+            <div className="v2-small" style={{ color: "var(--v2-ink-2)" }}>
               {locale === "ko" ? "Operator 자동 설정:" : "Operator defaults:"}{" "}
               <strong>
                 {operatorAutoDefaults.sets}
@@ -521,7 +521,7 @@ const ProgramExerciseEditorRow = memo(function ProgramExerciseEditorRow({
       ) : null}
 
       <label>
-        <span style={{ display: "block", marginBottom: "var(--v2-s-2)", color: "var(--v2-ink-2)", font: "var(--font-secondary)" }}>
+        <span className="v2-small" style={{ display: "block", marginBottom: "var(--v2-s-2)", color: "var(--v2-ink-2)" }}>
           {locale === "ko" ? "메모" : "Note"}
         </span>
         <AppTextInput

@@ -63,7 +63,7 @@ export const Stats1RMChartSection = memo(function Stats1RMChartSection({
                 {activePoint ? `${activePoint.e1rm.toFixed(1)}` : "-"}
                 <span style={{ fontSize: "var(--v2-t-14)", marginLeft: "2px", fontWeight: 400 }}>kg</span>
               </span>
-              <span style={{ font: "var(--font-secondary)", color: "var(--v2-ink-2)" }}>
+              <span className="v2-small" style={{ color: "var(--v2-ink-2)" }}>
                 {activePoint ? formatPointDate(activePoint.date, locale) : "-"}
               </span>
             </div>
@@ -101,7 +101,7 @@ export const Stats1RMChartSection = memo(function Stats1RMChartSection({
             <span className="metric-label" style={{ display: "block", marginBottom: "2px" }}>
               {locale === "ko" ? "최고 e1RM" : "Best e1RM"}
             </span>
-            <span style={{ font: "var(--font-secondary)", color: "var(--v2-ink-2)", fontSize: "var(--v2-t-small)" }}>
+            <span className="v2-small" style={{ color: "var(--v2-ink-2)" }}>
               {stats?.best ? formatPointDate(stats.best.date, locale) : "-"}
             </span>
           </div>

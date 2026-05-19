@@ -194,14 +194,7 @@ const CategoryField = memo(function CategoryField({
 
 function FieldLabel({ children }: { children: ReactNode }) {
   return (
-    <span style={{
-      fontFamily: "var(--font-label-family)",
-      fontSize: "var(--v2-t-label)",
-      fontWeight: 700,
-      letterSpacing: "0.08em",
-      textTransform: "uppercase" as const,
-      color: "var(--v2-ink-2)",
-    }}>
+    <span className="v2-eyebrow" style={{ color: "var(--v2-ink-2)" }}>
       {children}
     </span>
   );
@@ -326,13 +319,13 @@ function ExerciseRowView({
       {/* Left content */}
       <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: "4px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "var(--v2-s-2)", flexWrap: "wrap" as const }}>
-          <span style={{ font: "var(--font-card-title)", color: "var(--v2-ink)" }}>
+          <span className="v2-body" style={{ color: "var(--v2-ink)", fontWeight: 700 }}>
             {item.name}
           </span>
           <CategoryBadge category={item.category} />
         </div>
         {item.aliases.length > 0 && (
-          <span style={{ font: "var(--font-secondary)", color: "var(--v2-ink-2)" }}>
+          <span className="v2-small" style={{ color: "var(--v2-ink-2)" }}>
             {locale === "ko" ? "별칭" : "Aliases"}: {item.aliases.join(", ")}
           </span>
         )}
@@ -379,27 +372,14 @@ function StatsGrid({ total, items, locale }: { total: number; items: ExerciseIte
         display: "flex", flexDirection: "column", justifyContent: "space-between",
         minHeight: "96px",
       }}>
-        <span style={{
-          fontFamily: "var(--font-label-family)",
-          fontSize: "var(--v2-t-eyebrow)", fontWeight: 700,
-          letterSpacing: "0.15em", textTransform: "uppercase" as const,
-          color: "var(--v2-ink-3)",
-        }}>
+        <span className="v2-eyebrow" style={{ color: "var(--v2-ink-3)" }}>
           {locale === "ko" ? "전체 종목" : "Total Exercises"}
         </span>
-        <div style={{ display: "flex", alignItems: "baseline", gap: "4px" }}>
-          <span style={{
-            fontFamily: "var(--font-label-family)",
-            fontSize: "var(--v2-t-h1)", fontWeight: 700, lineHeight: 1,
-            color: "var(--v2-accent)",
-          }}>
+        <div style={{ display: "flex", alignItems: "baseline", gap: "var(--v2-s-1)" }}>
+          <span className="v2-num-md" style={{ color: "var(--v2-accent)", lineHeight: 1 }}>
             {total}
           </span>
-          <span style={{
-            fontFamily: "var(--font-label-family)",
-            fontSize: "var(--v2-t-label)",
-            color: "var(--v2-ink-3)",
-          }}>
+          <span className="v2-label" style={{ color: "var(--v2-ink-3)" }}>
             {locale === "ko" ? "종목" : "items"}
           </span>
         </div>
@@ -413,35 +393,36 @@ function StatsGrid({ total, items, locale }: { total: number; items: ExerciseIte
         display: "flex", flexDirection: "column", justifyContent: "space-between",
         minHeight: "96px",
       }}>
-        <span style={{
-          fontFamily: "var(--font-label-family)",
-          fontSize: "var(--v2-t-eyebrow)", fontWeight: 700,
-          letterSpacing: "0.15em", textTransform: "uppercase" as const,
-          color: "var(--v2-ink-2)",
-        }}>
+        <span className="v2-eyebrow" style={{ color: "var(--v2-ink-2)" }}>
           {locale === "ko" ? "최근 종목" : "Recent Exercises"}
         </span>
         {avatars.length > 0 ? (
           <div style={{ display: "flex" }}>
             {avatars.map((initials, i) => (
-              <div key={i} style={{
-                width: 32, height: 32, borderRadius: "9999px",
-                backgroundColor: "var(--v2-paper-3)",
-                border: "2px solid var(--v2-paper)",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                fontFamily: "var(--font-label-family)",
-                fontSize: "var(--v2-t-eyebrow)", fontWeight: 700,
-                color: "var(--v2-ink)",
-                marginLeft: i > 0 ? "-8px" : "0",
-                position: "relative" as const,
-                zIndex: avatars.length - i,
-              }}>
+              <div
+                key={i}
+                className="v2-eyebrow"
+                style={{
+                  width: "var(--v2-s-7)",
+                  height: "var(--v2-s-7)",
+                  borderRadius: "var(--v2-r-pill)",
+                  backgroundColor: "var(--v2-paper-3)",
+                  boxShadow: "0 0 0 2px var(--v2-paper)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  color: "var(--v2-ink)",
+                  marginLeft: i > 0 ? "calc(var(--v2-s-2) * -1)" : 0,
+                  position: "relative",
+                  zIndex: avatars.length - i,
+                }}
+              >
                 {initials}
               </div>
             ))}
           </div>
         ) : (
-          <span style={{ font: "var(--font-secondary)", color: "var(--v2-ink-3)" }}>—</span>
+          <span className="v2-small" style={{ color: "var(--v2-ink-3)" }}>—</span>
         )}
       </div>
     </div>
@@ -625,24 +606,13 @@ export function ExerciseCatalogContent() {
         marginBottom: "var(--v2-s-7)",
         paddingBottom: "var(--v2-s-4)",
       }}>
-        <div style={{
-          fontFamily: "var(--font-label-family)",
-          fontSize: "var(--v2-t-eyebrow)", fontWeight: 700,
-          letterSpacing: "0.12em", textTransform: "uppercase" as const,
-          color: "var(--v2-accent)",
-          marginBottom: "4px",
-        }}>
+        <div className="v2-eyebrow" style={{ color: "var(--v2-accent)", marginBottom: "var(--v2-s-1)" }}>
           Exercise Library
         </div>
-        <h1 style={{
-          fontFamily: "var(--font-headline-family)",
-          fontSize: "var(--v2-t-28)", fontWeight: 800, letterSpacing: "-0.5px",
-          color: "var(--v2-ink)",
-          margin: "0 0 var(--v2-s-2)",
-        }}>
+        <h1 className="v2-h1" style={{ color: "var(--v2-ink)", margin: "0 0 var(--v2-s-2)" }}>
           {locale === "ko" ? "운동 종목 관리" : "Exercise Management"}
         </h1>
-        <p style={{ fontSize: "var(--v2-t-small)", color: "var(--v2-ink-2)", margin: 0, lineHeight: 1.5 }}>
+        <p className="v2-small" style={{ color: "var(--v2-ink-2)", margin: 0, lineHeight: 1.5 }}>
           {locale === "ko" ? "종목을 추가·수정하거나 카테고리와 별칭을 관리합니다." : "Add and edit exercises, categories, and aliases."}
         </p>
       </div>
@@ -699,13 +669,7 @@ export function ExerciseCatalogContent() {
       )}
 
       {/* Section header */}
-      <h2 style={{
-        fontFamily: "var(--font-headline-family)",
-        fontSize: "var(--v2-t-small)", fontWeight: 700,
-        letterSpacing: "0.06em", textTransform: "uppercase" as const,
-        color: "var(--v2-ink-2)",
-        margin: "0 0 var(--v2-s-2)",
-      }}>
+      <h2 className="v2-eyebrow" style={{ color: "var(--v2-ink-2)", margin: "0 0 var(--v2-s-2)" }}>
         {locale === "ko" ? "활성 카탈로그" : "Active Catalog"}
       </h2>
 

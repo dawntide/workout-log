@@ -120,17 +120,13 @@ export function ProgramStoreBrowseContent({
               key={category.key}
               type="button"
               onClick={() => onChangeCategoryFilter(category.key)}
+              className="v2-eyebrow v2-pressable"
               style={{
                 padding: "var(--v2-s-2) var(--v2-s-5)",
                 border: "none",
                 borderRadius: "var(--v2-r-pill)",
                 cursor: "pointer",
                 whiteSpace: "nowrap",
-                fontFamily: "var(--font-label-family)",
-                fontSize: "var(--v2-t-label)",
-                fontWeight: 700,
-                letterSpacing: "0.1em",
-                textTransform: "uppercase",
                 flexShrink: 0,
                 background:
                   categoryFilter === category.key
