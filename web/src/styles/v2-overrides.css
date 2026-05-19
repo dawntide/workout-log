@@ -116,6 +116,9 @@
   --color-icon-button-border: color-mix(in srgb, var(--v2-paper-4) 40%, transparent);
   --color-icon-button-text: var(--v2-ink-2);
   --color-icon-button-active: var(--v2-paper-3);
+  --color-icon-button-danger-bg: color-mix(in srgb, var(--v2-c-danger) 12%, var(--v2-paper));
+  --color-icon-button-danger-border: color-mix(in srgb, var(--v2-c-danger) 32%, transparent);
+  --color-icon-button-danger-text: var(--v2-c-danger);
 
   --color-focus-ring: var(--v2-focus);
   --color-link: var(--v2-accent);

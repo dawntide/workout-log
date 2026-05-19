@@ -300,7 +300,7 @@ function RecentSets({
                   fontVariantNumeric: "tabular-nums",
                 }}
               >
-                <span style={{ color: "var(--v2-ink-3)", minWidth: 28 }}>
+                <span style={{ color: "var(--v2-ink-3)", minWidth: "var(--v2-s-7)" }}>
                   #{idx + 1}
                 </span>
                 <span>

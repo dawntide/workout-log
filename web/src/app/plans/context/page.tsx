@@ -40,16 +40,16 @@ function SettingRow({ item }: { item: SettingItem }) {
         display: "flex",
         alignItems: "center",
         gap: "var(--v2-s-4)",
-        padding: "var(--v2-s-4) var(--v2-s-4)",
-        borderRadius: "14px",
+        padding: "var(--v2-s-4)",
+        borderRadius: "var(--v2-r-3)",
         background: "var(--v2-paper)",
         textDecoration: "none",
       }}
     >
       <span className="material-symbols-outlined" aria-hidden="true">{item.iconSymbol}</span>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontWeight: 700, fontSize: "var(--v2-t-14)" }}>{item.label}</div>
-        <div style={{ fontSize: "var(--v2-t-12)", color: "var(--v2-ink-2)" }}>{item.description}</div>
+        <div className="v2-body" style={{ fontWeight: 700 }}>{item.label}</div>
+        <div className="v2-small" style={{ color: "var(--v2-ink-2)" }}>{item.description}</div>
       </div>
       <div style={{ fontSize: "var(--v2-t-12)", color: "var(--v2-ink-2)", whiteSpace: "nowrap" }}>{item.currentValue}</div>
     </Link>

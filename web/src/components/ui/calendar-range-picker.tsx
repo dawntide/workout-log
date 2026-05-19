@@ -129,8 +129,8 @@ export function CalendarRangePicker({
             textDecoration: "underline",
             cursor: "pointer",
             minHeight: "var(--v2-s-8)",
-            minWidth: 44,
-            padding: "var(--v2-s-3) var(--v2-s-3)",
+            minWidth: "var(--v2-s-8)",
+            padding: "var(--v2-s-3)",
           }}
         >
           {locale === "ko" ? "초기화" : "Reset"}

@@ -77,7 +77,7 @@ const SwipeableExerciseRow = memo(function SwipeableExerciseRow({
   };
 
   return (
-    <div style={{ position: "relative", overflow: "hidden", borderRadius: "12px" }}>
+    <div style={{ position: "relative", overflow: "hidden", borderRadius: "var(--v2-r-2)" }}>
       {/* Swipe-revealed delete button */}
       <div
         style={{

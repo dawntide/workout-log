@@ -266,7 +266,7 @@ function ProgressBadge({ filled, total }: { filled: number; total: number }) {
           : "var(--v2-paper-3)",
         color: isComplete ? "var(--v2-c-success)" : "var(--v2-ink-3)",
         flexShrink: 0,
-        minWidth: 36,
+        minWidth: "var(--v2-s-7)",
         textAlign: "center",
       }}
     >

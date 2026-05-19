@@ -481,7 +481,7 @@ export function WorkoutLogKeypadPanel({
                 flexDirection: "column",
                 alignItems: "flex-start",
                 gap: 2,
-                minWidth: 100,
+                minWidth: "var(--v2-s-9)",
                 minHeight: "var(--v2-s-8)",
                 textAlign: "left",
               }}
@@ -544,7 +544,7 @@ export function WorkoutLogKeypadPanel({
               cursor: "pointer",
               background: "var(--v2-paper-2)",
               color: "var(--v2-accent)",
-              minWidth: 48,
+              minWidth: "var(--v2-s-8)",
               minHeight: "var(--v2-s-8)",
               display: "flex",
               alignItems: "center",
