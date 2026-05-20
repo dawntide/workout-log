@@ -96,59 +96,67 @@ export function ProgramStoreBrowseContent({
       ) : null}
 
       {listItems.length > 0 || hasStoreQuery ? (
-        <SearchInput
-          value={storeQuery}
-          onChange={onChangeStoreQuery}
-          placeholder={copy.searchPlaceholder}
-          ariaLabel={copy.searchAriaLabel}
-        />
-      ) : null}
-
-      {listItems.length > 0 ? (
         <div
           style={{
             display: "flex",
-            gap: "var(--v2-s-2)",
-            overflowX: "auto",
-            paddingBottom: "var(--v2-s-1)",
-            scrollbarWidth: "none",
-            msOverflowStyle: "none",
+            flexDirection: "column",
+            gap: "var(--v2-s-4)",
           }}
         >
-          {categoryOptions.map((category) => (
-            <button
-              key={category.key}
-              type="button"
-              onClick={() => onChangeCategoryFilter(category.key)}
+          <SearchInput
+            value={storeQuery}
+            onChange={onChangeStoreQuery}
+            placeholder={copy.searchPlaceholder}
+            ariaLabel={copy.searchAriaLabel}
+          />
+
+          {listItems.length > 0 ? (
+            <div
               style={{
-                padding: "var(--v2-s-2) var(--v2-s-5)",
-                border: "none",
-                borderRadius: "var(--v2-r-pill)",
-                cursor: "pointer",
-                whiteSpace: "nowrap",
-                fontFamily: "var(--font-label-family)",
-                fontSize: "var(--v2-t-label)",
-                fontWeight: 700,
-                letterSpacing: "0.1em",
-                textTransform: "uppercase",
-                flexShrink: 0,
-                background:
-                  categoryFilter === category.key
-                    ? "var(--v2-accent-weak)"
-                    : "var(--v2-paper)",
-                color:
-                  categoryFilter === category.key
-                    ? "var(--v2-accent-ink)"
-                    : "var(--v2-ink-2)",
-                boxShadow:
-                  categoryFilter === category.key
-                    ? "0 10px 20px color-mix(in srgb, var(--shadow-color-soft) 68%, transparent)"
-                    : "none",
+                display: "flex",
+                gap: "var(--v2-s-2)",
+                overflowX: "auto",
+                paddingBottom: "var(--v2-s-1)",
+                scrollbarWidth: "none",
+                msOverflowStyle: "none",
               }}
             >
-              {category.label}
-            </button>
-          ))}
+              {categoryOptions.map((category) => (
+                <button
+                  key={category.key}
+                  type="button"
+                  onClick={() => onChangeCategoryFilter(category.key)}
+                  style={{
+                    padding: "var(--v2-s-2) var(--v2-s-5)",
+                    border: "none",
+                    borderRadius: "var(--v2-r-pill)",
+                    cursor: "pointer",
+                    whiteSpace: "nowrap",
+                    fontFamily: "var(--font-label-family)",
+                    fontSize: "var(--v2-t-label)",
+                    fontWeight: 700,
+                    letterSpacing: "0.1em",
+                    textTransform: "uppercase",
+                    flexShrink: 0,
+                    background:
+                      categoryFilter === category.key
+                        ? "var(--v2-accent-weak)"
+                        : "var(--v2-paper)",
+                    color:
+                      categoryFilter === category.key
+                        ? "var(--v2-accent-ink)"
+                        : "var(--v2-ink-2)",
+                    boxShadow:
+                      categoryFilter === category.key
+                        ? "0 10px 20px color-mix(in srgb, var(--shadow-color-soft) 68%, transparent)"
+                        : "none",
+                  }}
+                >
+                  {category.label}
+                </button>
+              ))}
+            </div>
+          ) : null}
         </div>
       ) : null}
 
