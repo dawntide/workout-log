@@ -66,6 +66,8 @@ export function SearchInputRow({
           background: "transparent",
           color: "var(--v2-ink)",
           minWidth: 0,
+          // iOS Safari auto-zoom 방지 — .v2-body(15px) 오버라이드.
+          fontSize: "var(--v2-t-16)",
         }}
       />
 

@@ -96,6 +96,11 @@
   background: transparent;
   color: var(--v2-ink);
   font-family: var(--v2-f-text);
+  /* iOS Safari auto-zoom 방지: V2TextField/V2Textarea가 input에 v2-body
+     (15px) / v2-small (13px) 클래스를 직접 부여하지만, 입력 요소에서는
+     항상 16px 이상이 되도록 cascading 우선순위(class specificity)로
+     강제. v2-body / v2-small의 line-height 등 나머지 속성은 그대로. */
+  font-size: var(--v2-t-16);
 }
 
 .v2-textfield-input::placeholder {
@@ -113,6 +118,7 @@
   resize: vertical;
   min-height: calc(var(--v2-s-8) + var(--v2-s-7));
   font-family: var(--v2-f-text);
+  font-size: var(--v2-t-16);
   line-height: 1.5;
 }
 

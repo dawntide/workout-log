@@ -134,6 +134,8 @@ export const AppSelect = forwardRef<
               textAlign: "right",
               textAlignLast: "right",
               paddingRight: 0,
+              // iOS Safari auto-zoom 방지 — .v2-body(15px) 오버라이드.
+              fontSize: "var(--v2-t-16)",
             }}
             {...props}
             multiple={multiple}

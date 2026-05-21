@@ -37,6 +37,25 @@ textarea,
 select {
   accent-color: var(--v2-accent);
   caret-color: var(--v2-accent-2);
+  /* iOS Safari는 입력 요소의 computed font-size가 16px 미만이면 포커스 시
+     자동 확대된다. --v2-t-body=15px / --v2-t-small=13px이라 거의 모든 입력
+     필드가 확대 트리거 조건에 해당하므로 type 셀렉터 기준선으로 16px을
+     보장한다. */
+  font-size: var(--v2-t-16);
+}
+
+/* v2-body / v2-small typography 클래스를 input/textarea/select에 그대로
+   붙이는 사용처(SearchInputRow, AppSelect settings-row 등)에서도 클래스
+   specificity(10)가 위 type 셀렉터(1)를 이기지 않도록 컴파운드 셀렉터로
+   16px을 한 번 더 잠근다. line-height·font-family는 v2-body/v2-small에서
+   그대로 상속. */
+input.v2-body,
+input.v2-small,
+textarea.v2-body,
+textarea.v2-small,
+select.v2-body,
+select.v2-small {
+  font-size: var(--v2-t-16);
 }
 
 button,

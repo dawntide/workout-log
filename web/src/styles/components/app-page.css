@@ -376,7 +376,10 @@
   background: var(--v2-paper-2);
   color: var(--v2-ink);
   font-family: var(--v2-f-text);
-  font-size: var(--v2-t-body);
+  /* iOS Safari auto-zoom 방지: 모든 .app-form-control 변형(default/compact/dense/
+     workout/workout-number)은 16px 이상이어야 함. 시각적 정보 위계는 padding,
+     min-height, font-weight, color로 표현. */
+  font-size: var(--v2-t-16);
   outline: none;
   box-shadow: inset 0 0 0 0 transparent;
   box-sizing: border-box;
@@ -402,23 +405,17 @@
 .app-form-control--compact {
   min-height: 48px;
   padding: var(--v2-s-3) var(--v2-s-3);
-  font-size: var(--v2-t-14);
 }
 
 .app-form-control--dense {
   min-height: 40px;
   padding: var(--v2-s-2) var(--v2-s-3);
-  font-size: var(--v2-t-14);
 }
 
 .app-form-control--workout {
   min-height: 52px;
   padding: var(--v2-s-3) var(--v2-s-4);
   border-radius: var(--v2-r-4);
-  /* iOS Safari는 입력 요소 font-size가 16px 미만이면 포커스 시 자동 확대됨.
-     `font: var(--font-body)` 단축형은 16px이지만 일부 iOS 버전이 zoom 판정에서
-     이를 안정적으로 인식하지 못하므로 명시적으로 선언해 확대를 차단. */
-  font-size: var(--v2-t-16);
 }
 
 .app-form-control--workout-number {

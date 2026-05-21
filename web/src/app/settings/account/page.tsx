@@ -625,7 +625,8 @@ export default function SettingsAccountPage() {
                   border: "none",
                   background: "var(--v2-paper-2)",
                   color: "var(--v2-ink)",
-                  font: "inherit",
+                  fontFamily: "inherit",
+                  fontSize: "var(--v2-t-16)",
                   boxSizing: "border-box",
                 }}
               />
@@ -654,7 +655,8 @@ export default function SettingsAccountPage() {
                   border: "none",
                   background: "var(--v2-paper-2)",
                   color: "var(--v2-ink)",
-                  font: "inherit",
+                  fontFamily: "inherit",
+                  fontSize: "var(--v2-t-16)",
                   boxSizing: "border-box",
                 }}
               />
@@ -806,7 +808,8 @@ export default function SettingsAccountPage() {
               border: "none",
               background: "var(--v2-paper-2)",
               color: "var(--v2-ink)",
-              font: "inherit",
+              fontFamily: "inherit",
+              fontSize: "var(--v2-t-16)",
               boxSizing: "border-box",
             }}
           />
