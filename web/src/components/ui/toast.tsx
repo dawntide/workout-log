@@ -44,17 +44,29 @@ export const Toast = memo(function Toast({
       role="status"
       aria-live="polite"
       aria-label={ariaLabel}
-      className="fixed left-1/2 -translate-x-1/2 z-[100] animate-in fade-in slide-in-from-top-4 duration-200 pointer-events-none"
       style={{
-        top: "calc(env(safe-area-inset-top, 0px) + 16px)",
+        position: "fixed",
+        top: "calc(env(safe-area-inset-top, 0px) + var(--v2-s-4))",
+        left: "50%",
+        transform: "translateX(-50%)",
+        zIndex: 100,
+        pointerEvents: "none",
+        animation: "v2-slideDown 200ms ease-out",
       }}
     >
       <div
-        className="flex items-center gap-2 px-5 py-3 rounded-full shadow-xl font-semibold"
         style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: "var(--v2-s-2)",
+          padding: "var(--v2-s-3) var(--v2-s-5)",
+          borderRadius: "var(--v2-r-pill)",
           background,
           color: foreground,
+          boxShadow: "var(--v2-elev-2)",
+          fontWeight: 600,
           maxWidth: "min(92vw, 420px)",
+          whiteSpace: "nowrap",
         }}
       >
         <span
