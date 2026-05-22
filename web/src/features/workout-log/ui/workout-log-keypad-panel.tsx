@@ -911,8 +911,7 @@ export function WorkoutLogKeypadPanel({
         </div>
       )}
 
-      {/* 키패드 또는 메모 */}
-      <div style={{ flex: 1, minHeight: 0 }} />
+      {/* 키패드 또는 메모 — marginTop:auto 로 잔여 공간을 위로 흡수 */}
       {memoMode && activeExercise ? (
         <div
           style={{
@@ -920,7 +919,7 @@ export function WorkoutLogKeypadPanel({
             borderTopLeftRadius: 20,
             borderTopRightRadius: 20,
             padding: "var(--v2-s-3) var(--v2-s-3) var(--v2-s-4)",
-            marginTop: "var(--v2-s-2)",
+            marginTop: "auto",
             flexShrink: 0,
           }}
         >
@@ -955,7 +954,7 @@ export function WorkoutLogKeypadPanel({
             borderTopLeftRadius: 20,
             borderTopRightRadius: 20,
             padding: "var(--v2-s-2) var(--v2-s-3) var(--v2-s-3)",
-            marginTop: "var(--v2-s-2)",
+            marginTop: "auto",
             flexShrink: 0,
           }}
         >
@@ -963,7 +962,7 @@ export function WorkoutLogKeypadPanel({
             style={{
               display: "grid",
               gridTemplateColumns: "repeat(4, 1fr)",
-              gap: "var(--v2-s-1)",
+              gap: "var(--v2-workout-key-gap)",
             }}
           >
             {keysFor(activeField).map((k, i) => (
@@ -1012,7 +1011,10 @@ function FieldDisplay({
   size?: "sm" | "md";
   extra?: React.ReactNode;
 }) {
-  const valueFontSize = size === "sm" ? 22 : 32;
+  const valueFontSize =
+    size === "sm"
+      ? "var(--v2-workout-display-fs-sm)"
+      : "var(--v2-workout-display-fs)";
   return (
     <button
       type="button"
@@ -1145,7 +1147,7 @@ function Key({
   const isDone = k === "done";
 
   const display: CSSProperties = {
-    height: 44,
+    height: "var(--v2-workout-key-h)",
     borderRadius: "var(--v2-r-2)",
     background: isDone
       ? "var(--v2-c-success)"

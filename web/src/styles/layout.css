@@ -49,6 +49,13 @@ body[data-viewport-locked="true"] {
   overflow: hidden;
   /* iOS Safari: 바운스 스크롤 방지 */
   overscroll-behavior: none;
+
+  /* 운동기록 화면 — 뷰포트 높이에 따라 키패드/디스플레이가 비례 확대되어
+   * 큰 화면에서 키패드 위 공백이 한 곳에 쌓이지 않도록 한다. */
+  --v2-workout-key-h: clamp(44px, 6.4dvh, 64px);
+  --v2-workout-display-fs: clamp(28px, 4.4dvh, 44px);
+  --v2-workout-display-fs-sm: clamp(20px, 3dvh, 30px);
+  --v2-workout-key-gap: clamp(4px, 0.6dvh, 8px);
 }
 
 body[data-viewport-locked="true"] .app-shell {
