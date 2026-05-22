@@ -8,7 +8,13 @@ import {
 } from "react";
 import { useRouter } from "next/navigation";
 import { useLocale } from "@/components/locale-provider";
+import { apiPatch } from "@/lib/api";
 import { APP_ROUTES } from "@/lib/app-routes";
+import {
+  serializeTrainingGoalSecondary,
+  SETTINGS_KEYS,
+  type TrainingGoalKey,
+} from "@/lib/settings/workout-preferences";
 import {
   V2PrimaryBtn,
   V2Segmented,
@@ -39,6 +45,53 @@ const TOTAL_STEPS = 4;
 type GoalKey = "strength" | "hypertrophy" | "endurance" | "general";
 type ExpKey = "novice" | "intermediate" | "advanced" | "returning";
 type Unit = "kg" | "lb";
+
+function computeBodyweightKg(raw: string, unit: Unit): number | null {
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  const parsed = parseFloat(trimmed);
+  if (!Number.isFinite(parsed) || parsed <= 0) return null;
+  const kg = unit === "lb" ? parsed * 0.453592 : parsed;
+  if (kg < 20 || kg > 300) return null;
+  return Math.round(kg * 10) / 10;
+}
+
+async function persistOnboardingPreferences(input: {
+  goals: GoalKey[];
+  bodyweight: string;
+  unit: Unit;
+}): Promise<void> {
+  const primary = (input.goals[0] ?? null) as TrainingGoalKey | null;
+  const secondary = (primary
+    ? input.goals.slice(1).filter((g) => g !== primary)
+    : []) as TrainingGoalKey[];
+  const bodyweightKg = computeBodyweightKg(input.bodyweight, input.unit);
+
+  const writes: Array<Promise<unknown>> = [];
+  if (primary) {
+    writes.push(
+      apiPatch("/api/settings", {
+        key: SETTINGS_KEYS.trainingGoalPrimary,
+        value: primary,
+      }).catch(() => undefined),
+    );
+  }
+  writes.push(
+    apiPatch("/api/settings", {
+      key: SETTINGS_KEYS.trainingGoalSecondaryJson,
+      value: serializeTrainingGoalSecondary(secondary),
+    }).catch(() => undefined),
+  );
+  if (bodyweightKg !== null) {
+    writes.push(
+      apiPatch("/api/settings", {
+        key: SETTINGS_KEYS.bodyweightKg,
+        value: bodyweightKg,
+      }).catch(() => undefined),
+    );
+  }
+  await Promise.all(writes);
+}
 
 type ProgramRec = {
   key: string;
@@ -109,6 +162,7 @@ export function V2Onboarding() {
 
   const finish = () => {
     markOnboardingDone();
+    void persistOnboardingPreferences({ goals, bodyweight, unit });
     startTransition(() => {
       if (program === "browse" || !program) {
         router.push(APP_ROUTES.programStore);
@@ -121,6 +175,7 @@ export function V2Onboarding() {
 
   const skip = () => {
     markOnboardingDone();
+    void persistOnboardingPreferences({ goals, bodyweight, unit });
     router.push("/");
   };
 

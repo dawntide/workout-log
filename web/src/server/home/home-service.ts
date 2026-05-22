@@ -10,7 +10,24 @@ import {
 } from "@/server/db/schema";
 import { generateAndSaveSession } from "@/server/program-engine/generateSession";
 import { getStatsCache, setStatsCache } from "@/server/stats/cache";
+import {
+  fetchEnduranceStats,
+  type EnduranceResult,
+} from "@/server/stats/endurance-service";
+import {
+  fetchMuscleVolume,
+  type MuscleVolumeResult,
+} from "@/server/stats/muscle-volume-service";
+import {
+  fetchStrengthScore,
+  type StrengthScoreResult,
+} from "@/server/stats/strength-score-service";
+import { getSettingsSnapshot } from "@/server/services/settings/get-settings-snapshot";
 import { resolveLoggedTotalLoadKg } from "@/lib/bodyweight-load";
+import {
+  readWorkoutPreferences,
+  type TrainingGoalKey,
+} from "@/lib/settings/workout-preferences";
 import { buildTodayLogHref, toLocalDateKey } from "@/lib/workout-links";
 import type { AppLocale } from "@/lib/i18n/messages";
 
@@ -113,6 +130,12 @@ export type HomeQuickStats = {
   thisMonthSessions: number;
 };
 
+export type HomeGoalMetrics = {
+  muscleVolume: MuscleVolumeResult | null;
+  strengthScore: StrengthScoreResult | null;
+  endurance: EnduranceResult | null;
+};
+
 export type HomeData = {
   today: HomeTodaySummary;
   planOverview: HomePlanOverview;
@@ -123,6 +146,8 @@ export type HomeData = {
   strengthProgress: HomeStrengthItem[];
   volumeTrend: HomeVolumeTrendPoint[];
   quickStats: HomeQuickStats;
+  goal: TrainingGoalKey;
+  goalMetrics: HomeGoalMetrics;
 };
 
 // ─── Constants ──────────────────────────────────────────────────────
@@ -215,16 +240,23 @@ export async function getHomeData(params: {
   const { userId, locale, timezone = "UTC", recentLimit = DEFAULT_RECENT_LIMIT } = params;
   const now = new Date();
   const todayKey = dateOnlyInTimezone(now, timezone);
+
+  const settings = await getSettingsSnapshot();
+  const prefs = readWorkoutPreferences(settings);
+  const goal = prefs.trainingGoalPrimary;
+  const bodyweightKg = prefs.bodyweightKg;
+
   const homeCacheParams = {
     locale,
     timezone,
     recentLimit,
     todayKey,
+    goal,
   };
 
   const cached = await getStatsCache<HomeData>({
     userId,
-    metric: "home_v1",
+    metric: "home_v2",
     params: homeCacheParams,
     maxAgeSeconds: HOME_CACHE_MAX_AGE_SECONDS,
   });
@@ -235,11 +267,12 @@ export async function getHomeData(params: {
   prFrom.setDate(prFrom.getDate() - prRangeDays);
 
   // 병렬로 데이터 조회
-  const [plans, logs, prs, volumeSeries] = await Promise.all([
+  const [plans, logs, prs, volumeSeries, goalMetrics] = await Promise.all([
     fetchPlans(userId, locale),
     fetchLogs(userId, 40),
     fetchPrs(userId, prFrom, now, 4, locale),
     fetchVolumeSeries(userId),
+    fetchGoalMetrics(userId, goal, bodyweightKg, now),
   ]);
 
   // 세션 스냅샷 생성 (highlightedPlan 필요)
@@ -275,19 +308,54 @@ export async function getHomeData(params: {
     locale,
     timezone,
     todayKey,
+    goal,
+    goalMetrics,
   });
 
   // PERF: 캐시 쓰기를 fire-and-forget으로 처리 → 응답 지연 없이 캐시 갱신
   // setStatsCache 실패는 무시 (다음 요청 때 다시 시도)
   void setStatsCache({
     userId,
-    metric: "home_v1",
+    metric: "home_v2",
     params: homeCacheParams,
     payload,
     maxAgeSeconds: HOME_CACHE_MAX_AGE_SECONDS,
   });
 
   return payload;
+}
+
+const GOAL_METRICS_RANGE_DAYS = 56;
+
+async function fetchGoalMetrics(
+  userId: string,
+  goal: TrainingGoalKey,
+  bodyweightKg: number | null,
+  now: Date,
+): Promise<HomeGoalMetrics> {
+  const from = new Date(now);
+  from.setDate(from.getDate() - GOAL_METRICS_RANGE_DAYS);
+  const rangeDays = GOAL_METRICS_RANGE_DAYS;
+  const baseParams = { userId, from, to: now, rangeDays };
+
+  switch (goal) {
+    case "hypertrophy": {
+      const muscleVolume = await fetchMuscleVolume(baseParams);
+      return { muscleVolume, strengthScore: null, endurance: null };
+    }
+    case "strength":
+    case "powerlifting": {
+      const strengthScore = await fetchStrengthScore({ ...baseParams, bodyweightKg });
+      return { muscleVolume: null, strengthScore, endurance: null };
+    }
+    case "endurance": {
+      const endurance = await fetchEnduranceStats(baseParams);
+      return { muscleVolume: null, strengthScore: null, endurance };
+    }
+    case "general":
+    default:
+      return { muscleVolume: null, strengthScore: null, endurance: null };
+  }
 }
 
 // ─── Fetchers ───────────────────────────────────────────────────────
@@ -520,8 +588,10 @@ function buildHomeData(params: {
   locale: AppLocale;
   timezone: string;
   todayKey: string;
+  goal: TrainingGoalKey;
+  goalMetrics: HomeGoalMetrics;
 }): HomeData {
-  const { plans, logs, prs, volumeSeries, snapshot, recentLimit, locale, todayKey } = params;
+  const { plans, logs, prs, volumeSeries, snapshot, recentLimit, locale, todayKey, goal, goalMetrics } = params;
 
   const { exercises: plannedExercises, totalSets: totalPlannedSets, plannedWeightByExercise } = buildPlannedExercises(snapshot);
 
@@ -535,6 +605,8 @@ function buildHomeData(params: {
     strengthProgress: buildStrengthProgress(prs),
     volumeTrend: buildVolumeTrend(volumeSeries, locale),
     quickStats: buildQuickStats(logs, todayKey),
+    goal,
+    goalMetrics,
   };
 }
 

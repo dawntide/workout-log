@@ -2,11 +2,28 @@ import { asc } from "drizzle-orm";
 import { db } from "@/server/db/client";
 import { exercise } from "@/server/db/schema";
 import { getAuthenticatedUserId } from "@/server/auth/user";
+import {
+  readWorkoutPreferences,
+  type TrainingGoalKey,
+} from "@/lib/settings/workout-preferences";
+import { getSettingsSnapshot } from "@/server/services/settings/get-settings-snapshot";
 import { fetchStatsBundle } from "@/server/stats/bundle-service";
 import {
   fetchE1rmStats,
   fetchStats1RMFilterOptions,
 } from "@/server/stats/e1rm-service";
+import {
+  fetchEnduranceStats,
+  type EnduranceResult,
+} from "@/server/stats/endurance-service";
+import {
+  fetchMuscleVolume,
+  type MuscleVolumeResult,
+} from "@/server/stats/muscle-volume-service";
+import {
+  fetchStrengthScore,
+  type StrengthScoreResult,
+} from "@/server/stats/strength-score-service";
 import { fetchVolumeSeries, type VolumeSeriesResult } from "@/server/stats/volume-series-service";
 
 type SearchParams = Record<string, string | string[] | undefined>;
@@ -52,6 +69,12 @@ async function fetchWeeklyVolumeForBootstrap(
   });
 }
 
+export type StatsGoalMetrics = {
+  muscleVolume: MuscleVolumeResult | null;
+  strengthScore: StrengthScoreResult | null;
+  endurance: EnduranceResult | null;
+};
+
 export type StatsPageBootstrap = {
   initialBundle: Awaited<ReturnType<typeof fetchStatsBundle>>;
   initialExercises?: Awaited<ReturnType<typeof fetchStats1RMFilterOptions>>["exercises"];
@@ -60,7 +83,41 @@ export type StatsPageBootstrap = {
   initialVolumeWeekly: VolumeSeriesResult | null;
   initialSelectedExerciseId: string | null;
   initialSelectedPlanId: string;
+  goal: TrainingGoalKey;
+  goalMetrics: StatsGoalMetrics;
 };
+
+const STATS_GOAL_METRICS_RANGE_DAYS = 56;
+
+async function fetchStatsGoalMetrics(
+  userId: string,
+  goal: TrainingGoalKey,
+  bodyweightKg: number | null,
+): Promise<StatsGoalMetrics> {
+  const now = new Date();
+  const from = new Date(now);
+  from.setDate(from.getDate() - STATS_GOAL_METRICS_RANGE_DAYS);
+  const baseParams = { userId, from, to: now, rangeDays: STATS_GOAL_METRICS_RANGE_DAYS };
+
+  switch (goal) {
+    case "hypertrophy": {
+      const muscleVolume = await fetchMuscleVolume(baseParams);
+      return { muscleVolume, strengthScore: null, endurance: null };
+    }
+    case "strength":
+    case "powerlifting": {
+      const strengthScore = await fetchStrengthScore({ ...baseParams, bodyweightKg });
+      return { muscleVolume: null, strengthScore, endurance: null };
+    }
+    case "endurance": {
+      const endurance = await fetchEnduranceStats(baseParams);
+      return { muscleVolume: null, strengthScore: null, endurance };
+    }
+    case "general":
+    default:
+      return { muscleVolume: null, strengthScore: null, endurance: null };
+  }
+}
 
 export async function getStatsPageBootstrap(
   searchParams?: SearchParams,
@@ -76,10 +133,16 @@ export async function getStatsPageBootstrap(
   const selectedPlanId = readString(params, "planId")?.trim() ?? "";
   const { from, to, rangeDays } = createDefaultStatsRange();
 
+  const settings = await getSettingsSnapshot();
+  const prefs = readWorkoutPreferences(settings);
+  const goal = prefs.trainingGoalPrimary;
+  const goalMetricsPromise = fetchStatsGoalMetrics(userId, goal, prefs.bodyweightKg);
+
   if (defer1rmBootstrap) {
-    const [bundle, volumeWeekly] = await Promise.all([
+    const [bundle, volumeWeekly, goalMetrics] = await Promise.all([
       fetchStatsBundle({ userId, days: 90 }),
       fetchWeeklyVolumeForBootstrap(userId),
+      goalMetricsPromise,
     ]);
     return {
       initialBundle: bundle,
@@ -89,12 +152,14 @@ export async function getStatsPageBootstrap(
       initialVolumeWeekly: volumeWeekly,
       initialSelectedExerciseId: null,
       initialSelectedPlanId: selectedPlanId,
+      goal,
+      goalMetrics,
     };
   }
 
   // PERF: exerciseId/exerciseName이 URL에 이미 있으면 4개 fetch를 모두 병렬로 실행
   if (selectedExerciseId || selectedExerciseName) {
-    const [bundle, filterOptions, initialE1rm, volumeWeekly] = await Promise.all([
+    const [bundle, filterOptions, initialE1rm, volumeWeekly, goalMetrics] = await Promise.all([
       fetchStatsBundle({ userId, days: 90 }),
       fetchStats1RMFilterOptions(userId),
       fetchE1rmStats({
@@ -107,6 +172,7 @@ export async function getStatsPageBootstrap(
         rangeDays,
       }),
       fetchWeeklyVolumeForBootstrap(userId),
+      goalMetricsPromise,
     ]);
     return {
       initialBundle: bundle,
@@ -117,6 +183,8 @@ export async function getStatsPageBootstrap(
       initialSelectedExerciseId:
         initialE1rm?.exerciseId ?? (selectedExerciseId || null),
       initialSelectedPlanId: selectedPlanId,
+      goal,
+      goalMetrics,
     };
   }
 
@@ -129,7 +197,7 @@ export async function getStatsPageBootstrap(
     .limit(1);
   const initialExerciseId = firstExerciseRows[0]?.id ?? "";
 
-  const [bundle, filterOptions, initialE1rm, volumeWeekly] = await Promise.all([
+  const [bundle, filterOptions, initialE1rm, volumeWeekly, goalMetrics] = await Promise.all([
     fetchStatsBundle({ userId, days: 90 }),
     fetchStats1RMFilterOptions(userId),
     initialExerciseId
@@ -144,6 +212,7 @@ export async function getStatsPageBootstrap(
         })
       : Promise.resolve(null),
     fetchWeeklyVolumeForBootstrap(userId),
+    goalMetricsPromise,
   ]);
 
   return {
@@ -155,5 +224,7 @@ export async function getStatsPageBootstrap(
     initialSelectedExerciseId:
       initialE1rm?.exerciseId ?? (initialExerciseId || null),
     initialSelectedPlanId: selectedPlanId,
+    goal,
+    goalMetrics,
   };
 }
