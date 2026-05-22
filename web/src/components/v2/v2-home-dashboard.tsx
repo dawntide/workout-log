@@ -27,6 +27,7 @@ import {
 } from "./primitives";
 import { useV2BottomDockTabs } from "./v2-bottom-dock-context";
 import { StatsContainer } from "@/widgets/stats-screen";
+import { HomeGoalSection } from "@/widgets/goal-aware/home-goal-section";
 
 /* ─────────────────────────── helpers ────────────────────────────── */
 
@@ -487,15 +488,18 @@ export function V2HomeDashboard({ data }: { data: HomeData }) {
   return (
     <div style={{ width: "100%" }}>
       {deck === 0 && (
-        <TodayDeck
-          today={data.today}
-          weekly={data.weeklySummary}
-          strength={data.strengthProgress}
-          copy={copy}
-          locale={locale}
-          isComplete={isComplete}
-          hasPlan={hasPlan}
-        />
+        <>
+          <TodayDeck
+            today={data.today}
+            weekly={data.weeklySummary}
+            strength={data.strengthProgress}
+            copy={copy}
+            locale={locale}
+            isComplete={isComplete}
+            hasPlan={hasPlan}
+          />
+          <HomeGoalSection data={data} />
+        </>
       )}
       {deck === 1 && <StatsContainer />}
     </div>

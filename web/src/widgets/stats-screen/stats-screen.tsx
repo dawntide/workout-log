@@ -10,6 +10,7 @@ import type { Stats1RMDetailedRef } from "@/features/stats/ui/stats-1rm-detailed
 import type { StatsPageBootstrap } from "@/server/services/stats/get-stats-page-bootstrap";
 import { useLocale } from "@/components/locale-provider";
 import { APP_ROUTES } from "@/lib/app-routes";
+import { GoalSection } from "@/widgets/goal-aware/home-goal-section";
 import { WeeklyVolumeSection } from "./weekly-volume-section";
 
 const Stats1RMDetailed = dynamic(
@@ -251,6 +252,8 @@ export function StatsScreen({
   initialVolumeWeekly,
   initialSelectedExerciseId,
   initialSelectedPlanId,
+  goal,
+  goalMetrics,
 }: StatsScreenProps) {
   const { locale } = useLocale();
   const searchParams = useSearchParams();
@@ -356,6 +359,8 @@ export function StatsScreen({
             />
           </div>
         </header>
+
+        <GoalSection goal={goal} metrics={goalMetrics} />
 
         <WeeklyVolumeSection data={initialVolumeWeekly} locale={locale} />
 
