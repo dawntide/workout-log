@@ -9,6 +9,21 @@ export type SettingsSnapshot = Record<string, SettingValue>;
 export type ThemePreference = "SYSTEM" | "LIGHT" | "DARK";
 export type LocalePreference = "ko" | "en";
 
+export type TrainingGoalKey =
+  | "strength"
+  | "hypertrophy"
+  | "endurance"
+  | "general"
+  | "powerlifting";
+
+export const TRAINING_GOAL_KEYS: readonly TrainingGoalKey[] = [
+  "strength",
+  "hypertrophy",
+  "endurance",
+  "general",
+  "powerlifting",
+] as const;
+
 export type MinimumPlateRule = {
   exerciseId: string | null;
   exerciseName: string;
@@ -21,6 +36,8 @@ export type WorkoutPreferences = {
   minimumPlateDefaultKg: number;
   minimumPlateRules: MinimumPlateRule[];
   bodyweightKg: number | null;
+  trainingGoalPrimary: TrainingGoalKey;
+  trainingGoalSecondary: TrainingGoalKey[];
 };
 
 export type ResolvedMinimumPlateIncrement = {
@@ -34,12 +51,16 @@ export const SETTINGS_KEYS = {
   minimumPlateDefaultKg: "prefs.minimumPlate.defaultKg",
   minimumPlateRulesJson: "prefs.minimumPlate.rulesJson",
   bodyweightKg: "prefs.bodyweight.kg",
+  trainingGoalPrimary: "prefs.trainingGoal.primary",
+  trainingGoalSecondaryJson: "prefs.trainingGoal.secondaryJson",
 } as const;
 
 export const DEFAULT_LOCALE_PREFERENCE: LocalePreference = "ko";
 export const DEFAULT_THEME_PREFERENCE: ThemePreference = "SYSTEM";
 export const DEFAULT_MINIMUM_PLATE_KG = 2.5;
 export const DEFAULT_BODYWEIGHT_KG: number | null = null;
+export const DEFAULT_TRAINING_GOAL_PRIMARY: TrainingGoalKey = "general";
+export const DEFAULT_TRAINING_GOAL_SECONDARY: TrainingGoalKey[] = [];
 
 const MIN_INCREMENT_KG = 0.25;
 const MAX_INCREMENT_KG = 25;
@@ -78,6 +99,54 @@ export function normalizeLocalePreference(value: unknown): LocalePreference {
     .toLowerCase();
   if (normalized.startsWith("en")) return "en";
   return "ko";
+}
+
+export function normalizeTrainingGoal(value: unknown): TrainingGoalKey {
+  const normalized = String(value ?? "")
+    .trim()
+    .toLowerCase();
+  if ((TRAINING_GOAL_KEYS as readonly string[]).includes(normalized)) {
+    return normalized as TrainingGoalKey;
+  }
+  return DEFAULT_TRAINING_GOAL_PRIMARY;
+}
+
+function isTrainingGoalKey(value: unknown): value is TrainingGoalKey {
+  return (
+    typeof value === "string" &&
+    (TRAINING_GOAL_KEYS as readonly string[]).includes(value.toLowerCase())
+  );
+}
+
+export function parseTrainingGoalSecondary(
+  value: unknown,
+  primary: TrainingGoalKey = DEFAULT_TRAINING_GOAL_PRIMARY,
+): TrainingGoalKey[] {
+  let entries: unknown[] = [];
+  if (Array.isArray(value)) entries = value;
+  else if (typeof value === "string" && value.trim()) {
+    try {
+      const parsed = JSON.parse(value);
+      if (Array.isArray(parsed)) entries = parsed;
+    } catch {
+      entries = [];
+    }
+  }
+  const seen = new Set<TrainingGoalKey>([primary]);
+  const result: TrainingGoalKey[] = [];
+  for (const entry of entries) {
+    if (!isTrainingGoalKey(entry)) continue;
+    const key = entry.toLowerCase() as TrainingGoalKey;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    result.push(key);
+  }
+  return result;
+}
+
+export function serializeTrainingGoalSecondary(goals: TrainingGoalKey[]): string {
+  const filtered = goals.filter(isTrainingGoalKey).map((g) => g.toLowerCase() as TrainingGoalKey);
+  return JSON.stringify(Array.from(new Set(filtered)));
 }
 
 export function normalizeIncrementKg(value: unknown, fallback = DEFAULT_MINIMUM_PLATE_KG): number {
@@ -149,6 +218,11 @@ export function readWorkoutPreferences(snapshot: SettingsSnapshot): WorkoutPrefe
   const bodyweightRaw = toFiniteNumber(snapshot[SETTINGS_KEYS.bodyweightKg]);
   const bodyweightKg =
     bodyweightRaw === null || bodyweightRaw <= 0 ? DEFAULT_BODYWEIGHT_KG : toRounded2(bodyweightRaw);
+  const trainingGoalPrimary = normalizeTrainingGoal(snapshot[SETTINGS_KEYS.trainingGoalPrimary]);
+  const trainingGoalSecondary = parseTrainingGoalSecondary(
+    snapshot[SETTINGS_KEYS.trainingGoalSecondaryJson],
+    trainingGoalPrimary,
+  );
 
   return {
     locale,
@@ -156,6 +230,8 @@ export function readWorkoutPreferences(snapshot: SettingsSnapshot): WorkoutPrefe
     minimumPlateDefaultKg,
     minimumPlateRules,
     bodyweightKg,
+    trainingGoalPrimary,
+    trainingGoalSecondary,
   };
 }
 
@@ -166,6 +242,8 @@ export function toDefaultWorkoutPreferences(): WorkoutPreferences {
     minimumPlateDefaultKg: DEFAULT_MINIMUM_PLATE_KG,
     minimumPlateRules: [],
     bodyweightKg: DEFAULT_BODYWEIGHT_KG,
+    trainingGoalPrimary: DEFAULT_TRAINING_GOAL_PRIMARY,
+    trainingGoalSecondary: [...DEFAULT_TRAINING_GOAL_SECONDARY],
   };
 }
 
