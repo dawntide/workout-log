@@ -4,6 +4,8 @@ import type {
   WorkoutProgramExerciseEntryStateMap,
 } from "@/entities/workout-record";
 import type {
+  FailureProtocolDecision,
+  FailureProtocolMode,
   FailureProtocolResult,
   FailureProtocolTarget,
 } from "@/components/ui/failure-protocol-sheet";
@@ -27,7 +29,6 @@ export type FailedProgressionExercise = {
 };
 
 export type ProgressionProtocolMode = "block-completion" | "greyskull-reset";
-export type ProgressionProtocolChoice = "cancel" | "hold" | "reset" | "increase";
 
 type ProgressionProgram =
   | "operator"
@@ -114,40 +115,51 @@ function progressionTargetLabel(target: string, locale: "ko" | "en"): string {
   return labels[target as keyof typeof labels] ?? target;
 }
 
-function buildBlockCompletionDescription(
-  variant: "operator" | "wendler-531",
-  state: ProgressionRuntimeStateSnapshot | null,
+function decideRecommendedMode(failureStreak: number): FailureProtocolMode {
+  if (failureStreak >= 2) return "reset";
+  if (failureStreak >= 1) return "hold";
+  return "increase";
+}
+
+function buildReasonLabel(
+  failureStreak: number,
+  successStreak: number,
   locale: "ko" | "en",
 ): string {
-  const headerKo = variant === "operator"
-    ? ["6주 블록을 완료했습니다.", "다음 사이클에 적용할 무게를 선택하세요."]
-    : ["4주 사이클을 완료했습니다.", "다음 사이클에 적용할 트레이닝 맥스를 선택하세요."];
-  const headerEn = variant === "operator"
-    ? ["You completed the 6-week block.", "Choose the working weights to apply to the next cycle."]
-    : ["You completed the 4-week cycle.", "Choose the training max to apply to the next cycle."];
-  const lines = locale === "ko" ? [...headerKo] : [...headerEn];
-  if (state) {
-    const hadFailure = Object.values(state.targets).some((t) => t.failureStreak > 0);
-    if (hadFailure) {
-      lines.push("");
-      lines.push(
-        locale === "ko"
-          ? variant === "operator"
-            ? "이번 블록에서 실패가 있었습니다."
-            : "이번 사이클에서 실패한 세트가 있었습니다."
-          : variant === "operator"
-            ? "There were failed sets in this block."
-            : "There were failed sets in this cycle.",
-      );
-    }
+  if (failureStreak >= 2) {
+    return locale === "ko"
+      ? `${failureStreak}회 연속 실패`
+      : `${failureStreak} consecutive failures`;
   }
-  return lines.join("\n");
+  if (failureStreak >= 1) {
+    return locale === "ko" ? "직전 사이클 실패" : "Previous cycle failed";
+  }
+  if (successStreak >= 1) {
+    return locale === "ko"
+      ? `${successStreak}회 연속 성공`
+      : `${successStreak} consecutive successes`;
+  }
+  return locale === "ko" ? "이전 사이클 성공" : "Previous cycle succeeded";
+}
+
+function buildBlockCompletionDescription(
+  variant: "operator" | "wendler-531",
+  locale: "ko" | "en",
+): string {
+  if (variant === "operator") {
+    return locale === "ko"
+      ? "6주 블록을 완료했습니다.\n다음 사이클에 적용할 무게를 선택하세요."
+      : "You completed the 6-week block.\nChoose the working weights to apply to the next cycle.";
+  }
+  return locale === "ko"
+    ? "4주 사이클을 완료했습니다.\n다음 사이클에 적용할 트레이닝 맥스를 선택하세요."
+    : "You completed the 4-week cycle.\nChoose the training max to apply to the next cycle.";
 }
 
 function buildResetProtocolDescription(locale: "ko" | "en"): string {
   return locale === "ko"
-    ? "3회 연속 실패 기준에 도달했습니다.\n다음 사이클에 적용할 무게를 조정하세요."
-    : "Three consecutive failures were reached.\nAdjust the weights to apply to the next cycle.";
+    ? "연속 실패 기준에 도달했습니다.\n운동별로 다음 사이클 무게를 조정하세요."
+    : "Consecutive failure threshold reached.\nAdjust the next-cycle weight per exercise.";
 }
 
 function buildBlockCompletionTargets(
@@ -163,12 +175,15 @@ function buildBlockCompletionTargets(
     const rule = effectiveRules?.[key];
     const recommendedIncreaseKg = resolveIncreaseKgFromRule(key, rule, 5, 2.5);
     const recommendedResetKg = computeResetKgFromRule(t.workKg, rule, fallbackResetFactor);
+    const recommendedMode = decideRecommendedMode(t.failureStreak);
     targets.push({
       key,
       label: progressionTargetLabel(key, locale),
       currentWorkKg: snapTo2p5(t.workKg),
       recommendedIncreaseKg,
       recommendedResetKg,
+      recommendedMode,
+      reasonLabel: buildReasonLabel(t.failureStreak, t.successStreak, locale),
     });
   }
   return targets;
@@ -183,17 +198,19 @@ function buildResetProtocolTargets(
 ): FailureProtocolTarget[] {
   const targets: FailureProtocolTarget[] = [];
   for (const f of failures) {
-    const workKg = state?.targets[f.target]?.workKg;
-    if (workKg === undefined || workKg <= 0) continue;
+    const targetState = state?.targets[f.target];
+    if (!targetState || targetState.workKg <= 0) continue;
     const rule = effectiveRules?.[f.target];
     const recommendedIncreaseKg = resolveIncreaseKgFromRule(f.target, rule, 5, 2.5);
-    const recommendedResetKg = computeResetKgFromRule(workKg, rule, fallbackResetFactor);
+    const recommendedResetKg = computeResetKgFromRule(targetState.workKg, rule, fallbackResetFactor);
     targets.push({
       key: f.target,
       label: f.exerciseName || progressionTargetLabel(f.target, locale),
-      currentWorkKg: snapTo2p5(workKg),
+      currentWorkKg: snapTo2p5(targetState.workKg),
       recommendedIncreaseKg,
       recommendedResetKg,
+      recommendedMode: "reset",
+      reasonLabel: buildReasonLabel(targetState.failureStreak, targetState.successStreak, locale),
     });
   }
   return targets;
@@ -201,8 +218,7 @@ function buildResetProtocolTargets(
 
 export type ResolvedProgressionOverride = {
   cancelled: boolean;
-  override: "hold" | "increase" | "reset" | null;
-  targetOverridesKg?: Record<string, number>;
+  decisions: Record<string, FailureProtocolDecision> | null;
 };
 
 export async function resolveWorkoutLogProgressionOverride({
@@ -230,7 +246,7 @@ export async function resolveWorkoutLogProgressionOverride({
   }) => Promise<FailureProtocolResult>;
 }): Promise<ResolvedProgressionOverride> {
   if (!selectedPlanId || !autoProgressionEnabled) {
-    return { cancelled: false, override: null };
+    return { cancelled: false, decisions: null };
   }
 
   const isOperatorBlockEnd = sessionWeek === 6 && sessionDay === 3;
@@ -238,7 +254,7 @@ export async function resolveWorkoutLogProgressionOverride({
   const failures = detectFailedProgressionExercises(visibleExercises, programEntryState);
   const shouldCheck = isOperatorBlockEnd || is531BlockEnd || failures.length > 0;
   if (!shouldCheck) {
-    return { cancelled: false, override: null };
+    return { cancelled: false, decisions: null };
   }
 
   try {
@@ -249,43 +265,35 @@ export async function resolveWorkoutLogProgressionOverride({
     if (progressionData.program === "operator" && isOperatorBlockEnd) {
       const targets = buildBlockCompletionTargets(progressionData.state, progressionData.effectiveRules, 0.95, locale);
       if (targets.length === 0) {
-        return { cancelled: false, override: null };
+        return { cancelled: false, decisions: null };
       }
       const result = await requestChoice({
         title: locale === "ko" ? "블록 완료 - 무게 설정" : "Block Complete - Set Weights",
-        description: buildBlockCompletionDescription("operator", progressionData.state, locale),
+        description: buildBlockCompletionDescription("operator", locale),
         mode: "block-completion",
         targets,
       });
       if (result.choice === "cancel") {
-        return { cancelled: true, override: null };
+        return { cancelled: true, decisions: null };
       }
-      return {
-        cancelled: false,
-        override: result.choice,
-        targetOverridesKg: result.targetOverridesKg,
-      };
+      return { cancelled: false, decisions: result.decisions };
     }
 
     if (progressionData.program === "wendler-531" && is531BlockEnd) {
       const targets = buildBlockCompletionTargets(progressionData.state, progressionData.effectiveRules, 0.9, locale);
       if (targets.length === 0) {
-        return { cancelled: false, override: null };
+        return { cancelled: false, decisions: null };
       }
       const result = await requestChoice({
         title: locale === "ko" ? "4주 사이클 완료 - TM 설정" : "4-Week Cycle Complete - Set TMs",
-        description: buildBlockCompletionDescription("wendler-531", progressionData.state, locale),
+        description: buildBlockCompletionDescription("wendler-531", locale),
         mode: "block-completion",
         targets,
       });
       if (result.choice === "cancel") {
-        return { cancelled: true, override: null };
+        return { cancelled: true, decisions: null };
       }
-      return {
-        cancelled: false,
-        override: result.choice,
-        targetOverridesKg: result.targetOverridesKg,
-      };
+      return { cancelled: false, decisions: result.decisions };
     }
 
     if (progressionData.program !== null && progressionData.program !== "operator" && failures.length > 0) {
@@ -302,7 +310,7 @@ export async function resolveWorkoutLogProgressionOverride({
           locale,
         );
         if (targets.length === 0) {
-          return { cancelled: false, override: null };
+          return { cancelled: false, decisions: null };
         }
         const result = await requestChoice({
           title: locale === "ko" ? "연속 실패 기준 도달" : "Consecutive Failure Threshold Reached",
@@ -311,18 +319,14 @@ export async function resolveWorkoutLogProgressionOverride({
           targets,
         });
         if (result.choice === "cancel") {
-          return { cancelled: true, override: null };
+          return { cancelled: true, decisions: null };
         }
-        return {
-          cancelled: false,
-          override: result.choice,
-          targetOverridesKg: result.targetOverridesKg,
-        };
+        return { cancelled: false, decisions: result.decisions };
       }
     }
   } catch {
-    return { cancelled: false, override: null };
+    return { cancelled: false, decisions: null };
   }
 
-  return { cancelled: false, override: null };
+  return { cancelled: false, decisions: null };
 }

@@ -123,8 +123,7 @@ export function useWorkoutLogSaveController({
       const saved = await submitWorkoutLogDraft({
         draft,
         bodyweightKg,
-        progressionOverride: progression.override,
-        progressionTargetOverridesKg: progression.targetOverridesKg ?? null,
+        progressionTargetDecisions: progression.decisions,
         persistenceKey,
       });
 

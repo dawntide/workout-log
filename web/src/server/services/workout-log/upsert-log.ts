@@ -3,6 +3,7 @@ import { plan, generatedSession, workoutLog, workoutSet } from "@/server/db/sche
 import { and, eq, gt, lt, ne } from "drizzle-orm";
 import { getExerciseById, resolveExerciseByName } from "@/server/exercise/resolve";
 import { applyAutoProgressionFromLog, rebuildAutoProgressionForPlan } from "@/server/progression/autoProgression";
+import type { ProgressionTargetDecision } from "@/server/progression/autoProgression";
 import { buildProgressionSummary, readProgressEventByLog } from "@/server/progression/summary";
 import { invalidateStatsCacheForUser } from "@/server/stats/cache";
 
@@ -18,8 +19,7 @@ export type UpsertWorkoutLogInput = {
   planId?: string | null;
   generatedSessionId?: string | null;
   sets: any[];
-  progressionOverride?: "hold" | "increase" | "reset" | null;
-  progressionTargetOverridesKg?: Record<string, number> | null;
+  progressionTargetDecisions?: Record<string, ProgressionTargetDecision> | null;
   locale: "ko" | "en";
 };
 
@@ -34,8 +34,7 @@ export async function upsertWorkoutLogService({
   planId: submittedPlanId,
   generatedSessionId: submittedGeneratedSessionId,
   sets,
-  progressionOverride,
-  progressionTargetOverridesKg,
+  progressionTargetDecisions,
   locale,
 }: UpsertWorkoutLogInput) {
   if (sets.length === 0) {
@@ -246,8 +245,7 @@ export async function upsertWorkoutLogService({
         logId: log.id,
         sets,
         mode: logId ? "replay" : "upsert",
-        progressionOverride,
-        progressionTargetOverridesKg,
+        progressionTargetDecisions,
       });
     }
 

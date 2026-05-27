@@ -1,19 +1,18 @@
 import { toWorkoutLogPayload, type WorkoutRecordDraft } from "@/entities/workout-record";
 import { isBodyweightExerciseName } from "@/lib/bodyweight-load";
+import type { FailureProtocolDecision } from "@/components/ui/failure-protocol-sheet";
 import { submitWorkoutLogAction } from "../actions/submit-workout-log";
 import { clearWorkoutDraft } from "@/lib/storage/workoutDraftStore";
 
 export async function submitWorkoutLogDraft({
   draft,
   bodyweightKg,
-  progressionOverride,
-  progressionTargetOverridesKg,
+  progressionTargetDecisions,
   persistenceKey,
 }: {
   draft: WorkoutRecordDraft;
   bodyweightKg: number | null | undefined;
-  progressionOverride: "hold" | "increase" | "reset" | null;
-  progressionTargetOverridesKg?: Record<string, number> | null;
+  progressionTargetDecisions?: Record<string, FailureProtocolDecision> | null;
   persistenceKey: string | null;
 }) {
   const payload = toWorkoutLogPayload(draft, {
@@ -30,8 +29,7 @@ export async function submitWorkoutLogDraft({
     planId: payload.planId,
     generatedSessionId: payload.generatedSessionId,
     sets: payload.sets,
-    progressionOverride: progressionOverride ?? undefined,
-    progressionTargetOverridesKg: progressionTargetOverridesKg ?? undefined,
+    progressionTargetDecisions: progressionTargetDecisions ?? undefined,
   });
 
   if (!result.success) {

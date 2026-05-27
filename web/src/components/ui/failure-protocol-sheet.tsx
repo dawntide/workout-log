@@ -14,7 +14,7 @@ import {
 } from "@/components/v2/primitives";
 import { BottomSheet } from "./bottom-sheet";
 
-export type FailureProtocolChoice = "cancel" | "hold" | "reset" | "increase";
+export type FailureProtocolMode = "increase" | "hold" | "reset";
 
 export type FailureProtocolTarget = {
   key: string;
@@ -22,20 +22,24 @@ export type FailureProtocolTarget = {
   currentWorkKg: number;
   recommendedIncreaseKg: number;
   recommendedResetKg: number;
+  recommendedMode: FailureProtocolMode;
+  reasonLabel: string;
 };
 
-export type FailureProtocolResult = {
-  choice: FailureProtocolChoice;
-  targetOverridesKg?: Record<string, number>;
+export type FailureProtocolDecision = {
+  mode: FailureProtocolMode;
+  workKg: number;
 };
 
-type FailureProtocolMode = "increase" | "hold" | "reset";
+export type FailureProtocolResult =
+  | { choice: "cancel" }
+  | { choice: "save"; decisions: Record<string, FailureProtocolDecision> };
 
 type FailureProtocolSheetProps = {
   open: boolean;
   title: string;
   description: string;
-  /** block-completion: Operator 블록 완료 / greyskull-reset: Greyskull 리셋 기준 도달 */
+  /** block-completion: Operator/531 사이클 완료 / greyskull-reset: 연속 실패 임계 도달 */
   mode: "block-completion" | "greyskull-reset";
   targets: FailureProtocolTarget[];
   onSelect: (result: FailureProtocolResult) => void;
@@ -57,13 +61,15 @@ function recommendedNextKg(target: FailureProtocolTarget, mode: FailureProtocolM
   return snapTo2p5(target.currentWorkKg);
 }
 
-function buildDefaultOverrides(
+function buildDefaultDecisions(
   targets: FailureProtocolTarget[],
-  mode: FailureProtocolMode,
-): Record<string, number> {
-  const out: Record<string, number> = {};
+): Record<string, FailureProtocolDecision> {
+  const out: Record<string, FailureProtocolDecision> = {};
   for (const t of targets) {
-    out[t.key] = recommendedNextKg(t, mode);
+    out[t.key] = {
+      mode: t.recommendedMode,
+      workKg: recommendedNextKg(t, t.recommendedMode),
+    };
   }
   return out;
 }
@@ -78,40 +84,50 @@ export function FailureProtocolSheet({
 }: FailureProtocolSheetProps) {
   const { locale } = useLocale();
   const isBlockCompletion = mode === "block-completion";
-  const initialMode: FailureProtocolMode = isBlockCompletion ? "increase" : "reset";
 
-  const [selectedMode, setSelectedMode] = useState<FailureProtocolMode>(initialMode);
-  const [overrides, setOverrides] = useState<Record<string, number>>(() =>
-    buildDefaultOverrides(targets, initialMode),
+  const [decisions, setDecisions] = useState<Record<string, FailureProtocolDecision>>(() =>
+    buildDefaultDecisions(targets),
   );
 
-  // 모달이 열릴 때마다 / 타겟이 바뀔 때마다 기본값 재설정
   useEffect(() => {
     if (!open) return;
-    setSelectedMode(initialMode);
-    setOverrides(buildDefaultOverrides(targets, initialMode));
-  }, [open, targets, initialMode]);
+    setDecisions(buildDefaultDecisions(targets));
+  }, [open, targets]);
 
-  const handleModeChange = (next: FailureProtocolMode) => {
-    setSelectedMode(next);
-    setOverrides(buildDefaultOverrides(targets, next));
+  const setTargetMode = (target: FailureProtocolTarget, nextMode: FailureProtocolMode) => {
+    setDecisions((prev) => ({
+      ...prev,
+      [target.key]: {
+        mode: nextMode,
+        workKg: recommendedNextKg(target, nextMode),
+      },
+    }));
   };
 
   const adjustTarget = (key: string, delta: number) => {
-    setOverrides((prev) => {
-      const current = prev[key] ?? 0;
-      return { ...prev, [key]: snapTo2p5(current + delta) };
+    setDecisions((prev) => {
+      const current = prev[key];
+      if (!current) return prev;
+      return {
+        ...prev,
+        [key]: { ...current, workKg: snapTo2p5(current.workKg + delta) },
+      };
     });
   };
 
-  const resetTarget = (key: string) => {
-    const target = targets.find((t) => t.key === key);
-    if (!target) return;
-    setOverrides((prev) => ({ ...prev, [key]: recommendedNextKg(target, selectedMode) }));
+  const resetTarget = (target: FailureProtocolTarget) => {
+    setDecisions((prev) => {
+      const current = prev[target.key];
+      const currentMode = current?.mode ?? target.recommendedMode;
+      return {
+        ...prev,
+        [target.key]: { mode: currentMode, workKg: recommendedNextKg(target, currentMode) },
+      };
+    });
   };
 
   const handleSave = () => {
-    onSelect({ choice: selectedMode, targetOverridesKg: overrides });
+    onSelect({ choice: "save", decisions });
   };
 
   const modeOptions = useMemo(
@@ -120,17 +136,17 @@ export function FailureProtocolSheet({
         {
           value: "increase" as const,
           label: locale === "ko" ? "증량" : "Increase",
-          ariaLabel: locale === "ko" ? "증량 모드" : "Increase mode",
+          ariaLabel: locale === "ko" ? "증량" : "Increase",
         },
         {
           value: "hold" as const,
           label: locale === "ko" ? "유지" : "Hold",
-          ariaLabel: locale === "ko" ? "유지 모드" : "Hold mode",
+          ariaLabel: locale === "ko" ? "유지" : "Hold",
         },
         {
           value: "reset" as const,
           label: locale === "ko" ? "감소" : "Reduce",
-          ariaLabel: locale === "ko" ? "감소 모드" : "Reduce mode",
+          ariaLabel: locale === "ko" ? "감소" : "Reduce",
         },
       ],
     [locale],
@@ -162,30 +178,65 @@ export function FailureProtocolSheet({
       }
     >
       <V2Stack gap={4}>
-        {description ? (
+        {description || targets.length > 0 ? (
           <V2Card tone={isBlockCompletion ? "inset" : "danger"} padding="var(--v2-s-4)">
-            <p className="v2-body" style={{ whiteSpace: "pre-line", margin: 0 }}>
-              {description}
-            </p>
+            <V2Stack gap={2}>
+              {description ? (
+                <p className="v2-body" style={{ whiteSpace: "pre-line", margin: 0 }}>
+                  {description}
+                </p>
+              ) : null}
+              {targets.length > 0 ? (
+                <V2Stack gap={1}>
+                  {targets.map((target) => {
+                    const recommendedNext = recommendedNextKg(target, target.recommendedMode);
+                    const delta = recommendedNext - target.currentWorkKg;
+                    const modeLabel =
+                      target.recommendedMode === "increase"
+                        ? locale === "ko"
+                          ? "증량"
+                          : "Increase"
+                        : target.recommendedMode === "reset"
+                          ? locale === "ko"
+                            ? "감소"
+                            : "Reduce"
+                          : locale === "ko"
+                            ? "유지"
+                            : "Hold";
+                    const deltaText =
+                      delta === 0
+                        ? locale === "ko"
+                          ? "유지"
+                          : "hold"
+                        : `${delta > 0 ? "+" : ""}${formatKg(delta)}kg`;
+                    return (
+                      <p
+                        key={target.key}
+                        className="v2-small"
+                        style={{ margin: 0, color: "var(--v2-ink-2)" }}
+                      >
+                        • {target.label}: {formatKg(target.currentWorkKg)}kg → {formatKg(recommendedNext)}kg ({deltaText}, {modeLabel} {locale === "ko" ? "권장" : "recommended"}
+                        {target.reasonLabel ? ` · ${target.reasonLabel}` : ""})
+                      </p>
+                    );
+                  })}
+                </V2Stack>
+              ) : null}
+            </V2Stack>
           </V2Card>
         ) : null}
 
-        <V2Inline justify="center">
-          <V2Segmented<FailureProtocolMode>
-            options={modeOptions}
-            value={selectedMode}
-            onChange={handleModeChange}
-            ariaLabel={locale === "ko" ? "증감량 모드" : "Adjustment mode"}
-          />
-        </V2Inline>
-
         <V2Stack gap={2}>
           {targets.map((target, index) => {
-            const next = overrides[target.key] ?? recommendedNextKg(target, selectedMode);
-            const recommended = recommendedNextKg(target, selectedMode);
-            const delta = next - target.currentWorkKg;
-            const recommendedDelta = recommended - target.currentWorkKg;
-            const isRecommended = next === recommended;
+            const current = decisions[target.key] ?? {
+              mode: target.recommendedMode,
+              workKg: recommendedNextKg(target, target.recommendedMode),
+            };
+            const recommendedWorkKg = recommendedNextKg(target, current.mode);
+            const delta = current.workKg - target.currentWorkKg;
+            const isRecommended =
+              current.mode === target.recommendedMode &&
+              current.workKg === recommendedNextKg(target, target.recommendedMode);
 
             const deltaLabel =
               delta === 0
@@ -194,12 +245,13 @@ export function FailureProtocolSheet({
                   : "Hold"
                 : `${delta > 0 ? "+" : ""}${formatKg(delta)}kg`;
 
-            const recommendedLabel =
-              recommendedDelta === 0
+            const recommendedDeltaForMode = recommendedWorkKg - target.currentWorkKg;
+            const recommendedDeltaLabel =
+              recommendedDeltaForMode === 0
                 ? locale === "ko"
-                  ? "추천: 유지"
-                  : "Recommended: hold"
-                : `${locale === "ko" ? "추천" : "Recommended"}: ${recommendedDelta > 0 ? "+" : ""}${formatKg(recommendedDelta)}kg`;
+                  ? "유지"
+                  : "hold"
+                : `${recommendedDeltaForMode > 0 ? "+" : ""}${formatKg(recommendedDeltaForMode)}kg`;
 
             const deltaColor =
               delta > 0
@@ -212,7 +264,7 @@ export function FailureProtocolSheet({
               <div key={target.key}>
                 {index > 0 ? <V2Hairline /> : null}
                 <V2Card tone="paper" padding="var(--v2-s-3)">
-                  <V2Stack gap={2}>
+                  <V2Stack gap={3}>
                     <V2Inline justify="space-between" align="baseline">
                       <span className="v2-label" style={{ color: "var(--v2-ink)" }}>
                         {target.label}
@@ -220,6 +272,16 @@ export function FailureProtocolSheet({
                       <span className="v2-small" style={{ color: "var(--v2-ink-3)" }}>
                         {locale === "ko" ? "현재" : "Current"} {formatKg(target.currentWorkKg)}kg
                       </span>
+                    </V2Inline>
+
+                    <V2Inline justify="center">
+                      <V2Segmented<FailureProtocolMode>
+                        options={modeOptions}
+                        value={current.mode}
+                        onChange={(nextMode) => setTargetMode(target, nextMode)}
+                        ariaLabel={`${target.label} ${locale === "ko" ? "모드" : "mode"}`}
+                        size="sm"
+                      />
                     </V2Inline>
 
                     <V2Inline justify="space-between" align="center">
@@ -231,7 +293,7 @@ export function FailureProtocolSheet({
                       />
                       <V2Stack gap={1} align="center" style={{ flex: 1 }}>
                         <span className="v2-num-lg" style={{ color: "var(--v2-ink)" }}>
-                          {formatKg(next)}
+                          {formatKg(current.workKg)}
                           <span
                             className="v2-small"
                             style={{ color: "var(--v2-ink-3)", marginLeft: "var(--v2-s-1)" }}
@@ -253,13 +315,13 @@ export function FailureProtocolSheet({
 
                     <V2Inline justify="space-between" align="center">
                       <span className="v2-small" style={{ color: "var(--v2-ink-3)" }}>
-                        {recommendedLabel}
+                        {locale === "ko" ? "추천" : "Recommended"}: {recommendedDeltaLabel}
                       </span>
                       {!isRecommended ? (
                         <button
                           type="button"
                           className="v2-pressable v2-small"
-                          onClick={() => resetTarget(target.key)}
+                          onClick={() => resetTarget(target)}
                           style={{
                             background: "transparent",
                             border: "none",

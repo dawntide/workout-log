@@ -22,15 +22,23 @@ import { readWorkoutPreferences } from "@/lib/settings/workout-preferences";
 
 type Ctx = { params: Promise<{ logId: string }> };
 
-function parseProgressionTargetOverridesKg(raw: unknown): Record<string, number> | null {
+function parseProgressionTargetDecisions(
+  raw: unknown,
+): Record<string, { mode: "hold" | "increase" | "reset"; workKg: number }> | null {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
-  const out: Record<string, number> = {};
+  const out: Record<string, { mode: "hold" | "increase" | "reset"; workKg: number }> = {};
   for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
     const trimmedKey = String(key).trim();
-    if (!trimmedKey) continue;
-    const num = typeof value === "number" ? value : Number(value);
-    if (!Number.isFinite(num) || num < 0) continue;
-    out[trimmedKey] = Math.max(0, Math.round(num / 2.5) * 2.5);
+    if (!trimmedKey || !value || typeof value !== "object") continue;
+    const entry = value as { mode?: unknown; workKg?: unknown };
+    const mode =
+      entry.mode === "hold" || entry.mode === "increase" || entry.mode === "reset"
+        ? entry.mode
+        : null;
+    if (!mode) continue;
+    const numRaw = typeof entry.workKg === "number" ? entry.workKg : Number(entry.workKg);
+    if (!Number.isFinite(numRaw) || numRaw < 0) continue;
+    out[trimmedKey] = { mode, workKg: Math.max(0, Math.round(numRaw / 2.5) * 2.5) };
   }
   return Object.keys(out).length > 0 ? out : null;
 }
@@ -394,8 +402,7 @@ async function PATCHImpl(req: Request, ctx: Ctx) {
       planId: typeof body.planId === "string" && body.planId.trim() ? body.planId.trim() : undefined,
       generatedSessionId: typeof body.generatedSessionId === "string" && body.generatedSessionId.trim() ? body.generatedSessionId.trim() : undefined,
       sets,
-      progressionOverride: body.progressionOverride === "hold" || body.progressionOverride === "increase" || body.progressionOverride === "reset" ? body.progressionOverride : null,
-      progressionTargetOverridesKg: parseProgressionTargetOverridesKg(body.progressionTargetOverridesKg),
+      progressionTargetDecisions: parseProgressionTargetDecisions(body.progressionTargetDecisions),
     });
 
     return NextResponse.json(updated, { status: 200 });

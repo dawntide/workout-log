@@ -104,7 +104,9 @@ function areFailureProtocolTargetsEqual(
       a.label !== b.label ||
       a.currentWorkKg !== b.currentWorkKg ||
       a.recommendedIncreaseKg !== b.recommendedIncreaseKg ||
-      a.recommendedResetKg !== b.recommendedResetKg
+      a.recommendedResetKg !== b.recommendedResetKg ||
+      a.recommendedMode !== b.recommendedMode ||
+      a.reasonLabel !== b.reasonLabel
     ) {
       return false;
     }
