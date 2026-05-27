@@ -10,20 +10,48 @@ jobs:
   backup:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # bash 기본은 'bash -e {0}'라 pg_dump | gzip 파이프라인의 앞쪽 실패가 무시된다.
+    # pipefail을 켜야 pg_dump 실패가 step 실패로 이어진다.
+    defaults:
+      run:
+        shell: bash -euo pipefail {0}
 
     steps:
-      - name: Install PostgreSQL Tools & jq
+      - name: Install PostgreSQL 17 Client & jq
         run: |
+          # Supabase Postgres는 17.x이고 Ubuntu 24.04 기본 저장소의 postgresql-client는 16이라
+          # 'server version mismatch'로 pg_dump가 즉시 종료된다. PGDG 공식 APT에서 17 클라이언트를 설치.
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc \
+            -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" \
+            | sudo tee /etc/apt/sources.list.d/pgdg.list
           sudo apt-get update
-          sudo apt-get install -y postgresql-client jq
+          sudo apt-get install -y postgresql-client-17 jq
+
+          # Ubuntu 24.04 runner에는 postgresql-client-16이 이미 있고 /usr/bin/pg_dump는
+          # pg_wrapper를 통해 여전히 16을 호출한다. 17 바이너리는 /usr/lib/postgresql/17/bin
+          # 에만 들어가므로 PATH 우선순위를 17로 올린다.
+          echo "/usr/lib/postgresql/17/bin" >> "$GITHUB_PATH"
+
+          echo "Installed pg_dump version (direct path):"
+          /usr/lib/postgresql/17/bin/pg_dump --version
 
       - name: Extract Supabase Details
         id: supabase
         run: |
-          # URL 파싱하여 프로젝트 고유 ID 알아내기
           URL="${{ secrets.SUPABASE_DIRECT_URL }}"
+          if [ -z "$URL" ]; then
+            echo "::error::SUPABASE_DIRECT_URL secret is empty"
+            exit 1
+          fi
+          # URL 파싱하여 프로젝트 고유 ID 알아내기
           # 정규식 패턴: postgres.[PROJECT_REF]:
           PROJECT_REF=$(echo "$URL" | sed -n 's/.*postgres\.\(.*\)[:@].*/\1/p' | cut -d: -f1)
+          if [ -z "$PROJECT_REF" ]; then
+            echo "::error::Failed to extract PROJECT_REF from SUPABASE_DIRECT_URL"
+            exit 1
+          fi
           echo "PROJECT_REF=$PROJECT_REF" >> $GITHUB_ENV
           echo "SUPABASE_REST_URL=https://${PROJECT_REF}.supabase.co" >> $GITHUB_ENV
 
@@ -31,7 +59,11 @@ jobs:
         run: |
           BACKUP_FILE="workoutlog_backup_$(date +'%Y%m%d_%H%M%S').sql.gz"
           echo "BACKUP_FILE=${BACKUP_FILE}" >> $GITHUB_ENV
-          
+
+          echo "Using pg_dump:"
+          which pg_dump
+          pg_dump --version
+
           echo "Generating PostgreSQL public schema dump..."
           pg_dump "${{ secrets.SUPABASE_DIRECT_URL }}" \
             --clean \
@@ -40,8 +72,48 @@ jobs:
             --no-privileges \
             --schema=public \
             | gzip > "${BACKUP_FILE}"
-          
-          echo "✅ Backup created successfully: ${BACKUP_FILE}"
+
+          # pipefail 덕분에 pg_dump 실패는 위 파이프라인에서 잡힌다.
+          # 추가로 파일 사이즈/내용을 검증해서 silent corruption도 차단한다.
+          FILE_SIZE=$(stat -c%s "${BACKUP_FILE}")
+          echo "Backup file size: ${FILE_SIZE} bytes"
+          if [ "$FILE_SIZE" -lt 1024 ]; then
+            echo "::error::Backup file too small (${FILE_SIZE} bytes) — likely empty or corrupted"
+            exit 1
+          fi
+
+          # gzip 무결성 검증.
+          if ! gzip -t "${BACKUP_FILE}"; then
+            echo "::error::Backup is not a valid gzip archive"
+            exit 1
+          fi
+
+          # pipefail이 켜져 있으면 `gunzip -c | head -50 | grep -q`에서 grep이 첫 매치 후
+          # 일찍 종료할 때 gunzip이 SIGPIPE(141)로 죽어 파이프라인 exit code가 비-0이 된다.
+          # 임시 파일에 한 번 풀어두고 SIGPIPE-안전한 grep -c로 검증한다.
+          TMP_SQL=$(mktemp)
+          trap 'rm -f "$TMP_SQL"' EXIT
+          gunzip -c "${BACKUP_FILE}" > "$TMP_SQL"
+
+          # pg_dump 출력의 stable한 마커. 버전 14~17 모두 처음 수십 줄 내에 SET statement_timeout
+          # 또는 pg_catalog 참조가 등장한다. --clean --if-exists 사용 시 'PostgreSQL database dump'
+          # 코멘트는 첫 5줄 밖으로 밀려서 그것만으로는 판정 불가.
+          HEADER_MATCH=$(head -50 "$TMP_SQL" | grep -cE "^SET statement_timeout|pg_catalog" || true)
+          if [ "$HEADER_MATCH" -eq 0 ]; then
+            echo "::error::Backup does not look like a valid pg_dump output"
+            echo "--- first 30 lines ---"
+            head -30 "$TMP_SQL" || true
+            exit 1
+          fi
+
+          TABLE_COUNT=$(grep -c "^CREATE TABLE" "$TMP_SQL" || true)
+          echo "CREATE TABLE statements found: ${TABLE_COUNT}"
+          if [ "$TABLE_COUNT" -lt 5 ]; then
+            echo "::error::Backup contains too few CREATE TABLE statements (${TABLE_COUNT})"
+            exit 1
+          fi
+
+          echo "✅ Backup verified: ${BACKUP_FILE} (${FILE_SIZE} bytes, ${TABLE_COUNT} tables)"
 
       - name: Upload to Supabase Storage
         run: |
@@ -53,11 +125,12 @@ jobs:
             -H "apikey: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
             -H "Content-Type: application/gzip" \
             --data-binary "@${BACKUP_FILE}")
-            
+
           cat response.txt
-          
+          echo ""
+
           if [ "$HTTP_STATUS" -ne 200 ] && [ "$HTTP_STATUS" -ne 201 ]; then
-            echo "❌ Upload failed with HTTP status $HTTP_STATUS"
+            echo "::error::Upload failed with HTTP status $HTTP_STATUS"
             exit 1
           fi
           echo "✅ Upload completed."
@@ -71,27 +144,27 @@ jobs:
             -H "apikey: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
             -H "Content-Type: application/json" \
             -d '{"prefix": "", "limit": 1000, "sortBy": {"column": "created_at", "order": "asc"}}')
-            
+
           # Date cutoff (14 days ago) in UTC ISO format
           CUTOFF_DATE=$(date -d "14 days ago" -u +"%Y-%m-%dT%H:%M:%SZ")
           echo "Looking for files created before ${CUTOFF_DATE}..."
-          
+
           # Extract items older than 14 days. Filter out .emptyFolderPlaceholder
           # jq outputs each filename on a new line
           FILES_TO_DELETE=$(echo "$FILES_JSON" | jq -r --arg CUTOFF "$CUTOFF_DATE" '.[] | select((.created_at < $CUTOFF) and (.name != ".emptyFolderPlaceholder")) | .name')
-          
+
           if [ -z "$FILES_TO_DELETE" ] || [ "$FILES_TO_DELETE" == "null" ]; then
             echo "No backups older than 14 days found."
             exit 0
           fi
-          
+
           echo "The following files will be deleted:"
           echo "$FILES_TO_DELETE"
-          
+
           # Convert filenames into JSON array for DELETE payload
           # format: {"prefixes": ["file1.sql.gz", "file2.sql.gz"]}
           JSON_PAYLOAD=$(echo "$FILES_TO_DELETE" | jq -R . | jq -sc '{prefixes: .}')
-          
+
           echo "Deleting old files from bucket..."
           DELETE_STATUS=$(curl -sS -o del_response.txt -w "%{http_code}" \
             -X DELETE "${SUPABASE_REST_URL}/storage/v1/object/backups" \
@@ -99,15 +172,16 @@ jobs:
             -H "apikey: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
             -H "Content-Type: application/json" \
             -d "$JSON_PAYLOAD")
-            
+
           cat del_response.txt
-          
+          echo ""
+
           if [ "$DELETE_STATUS" -ne 200 ]; then
-            echo "❌ Rotation deletion failed with HTTP $DELETE_STATUS"
+            echo "::error::Rotation deletion failed with HTTP $DELETE_STATUS"
             exit 1
           fi
           echo "✅ Old backups cleaned up successfully."
-          
+
       - name: Security Cleanup
         if: always()
         run: |
