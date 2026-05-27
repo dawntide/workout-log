@@ -88,17 +88,25 @@ jobs:
             exit 1
           fi
 
+          # pipefail이 켜져 있으면 `gunzip -c | head -50 | grep -q`에서 grep이 첫 매치 후
+          # 일찍 종료할 때 gunzip이 SIGPIPE(141)로 죽어 파이프라인 exit code가 비-0이 된다.
+          # 임시 파일에 한 번 풀어두고 SIGPIPE-안전한 grep -c로 검증한다.
+          TMP_SQL=$(mktemp)
+          trap 'rm -f "$TMP_SQL"' EXIT
+          gunzip -c "${BACKUP_FILE}" > "$TMP_SQL"
+
           # pg_dump 출력의 stable한 마커. 버전 14~17 모두 처음 수십 줄 내에 SET statement_timeout
           # 또는 pg_catalog 참조가 등장한다. --clean --if-exists 사용 시 'PostgreSQL database dump'
           # 코멘트는 첫 5줄 밖으로 밀려서 그것만으로는 판정 불가.
-          if ! gunzip -c "${BACKUP_FILE}" | head -50 | grep -qE "^SET statement_timeout|pg_catalog"; then
+          HEADER_MATCH=$(head -50 "$TMP_SQL" | grep -cE "^SET statement_timeout|pg_catalog" || true)
+          if [ "$HEADER_MATCH" -eq 0 ]; then
             echo "::error::Backup does not look like a valid pg_dump output"
-            echo "--- first 30 lines (decompressed) ---"
-            gunzip -c "${BACKUP_FILE}" | head -30 || true
+            echo "--- first 30 lines ---"
+            head -30 "$TMP_SQL" || true
             exit 1
           fi
 
-          TABLE_COUNT=$(gunzip -c "${BACKUP_FILE}" | grep -c "^CREATE TABLE" || true)
+          TABLE_COUNT=$(grep -c "^CREATE TABLE" "$TMP_SQL" || true)
           echo "CREATE TABLE statements found: ${TABLE_COUNT}"
           if [ "$TABLE_COUNT" -lt 5 ]; then
             echo "::error::Backup contains too few CREATE TABLE statements (${TABLE_COUNT})"
