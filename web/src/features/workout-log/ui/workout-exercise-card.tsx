@@ -61,7 +61,13 @@ export function WorkoutExerciseCard({ exerciseId, onExerciseAction }: Props) {
 
   const isUser = exercise.source === "USER";
   const totalSets = exercise.set.repsPerSet.length;
-  const canRemoveSet = totalSets > 1;
+  const isProgramAuto =
+    exercise.source === "PROGRAM" && exercise.badge !== "CUSTOM";
+  const plannedSetCount = isProgramAuto
+    ? (exercise.plannedSetMeta?.repsPerSet.length ?? 0)
+    : 0;
+  const minSetCount = Math.max(1, plannedSetCount);
+  const canRemoveSet = totalSets > minSetCount;
 
   const targetName = exercise.exerciseName.trim().toLowerCase();
   let previousSession: {
@@ -145,7 +151,7 @@ export function WorkoutExerciseCard({ exerciseId, onExerciseAction }: Props) {
   };
 
   const handleRemoveLastSet = () => {
-    if (totalSets <= 1) return;
+    if (totalSets <= minSetCount) return;
     dispatchAction({ type: "REMOVE_SET", index: totalSets - 1 });
   };
 
@@ -217,7 +223,17 @@ export function WorkoutExerciseCard({ exerciseId, onExerciseAction }: Props) {
               >
                 {exercise.exerciseName}
               </span>
-              {isUser && <V2Chip tone="neutral">USER</V2Chip>}
+              {isUser ? (
+                <V2Chip tone="neutral">USER</V2Chip>
+              ) : exercise.badge === "CUSTOM" ? (
+                <V2Chip tone="accent" icon="tune">
+                  {locale === "ko" ? "수동" : "CUSTOM"}
+                </V2Chip>
+              ) : (
+                <V2Chip tone="info" icon="bolt">
+                  {locale === "ko" ? "자동" : "AUTO"}
+                </V2Chip>
+              )}
             </div>
             <span
               className="v2-mono-label"
@@ -447,9 +463,11 @@ export function WorkoutExerciseCard({ exerciseId, onExerciseAction }: Props) {
         <div
           style={{
             display: "flex",
-            flexWrap: "wrap",
+            flexWrap: "nowrap",
             gap: "var(--v2-s-1)",
             justifyContent: "space-between",
+            overflowX: "auto",
+            scrollbarWidth: "none",
           }}
         >
           <ChipButton onClick={toggleMemo} icon="edit_note">
@@ -463,10 +481,10 @@ export function WorkoutExerciseCard({ exerciseId, onExerciseAction }: Props) {
             icon="remove"
             disabled={!canRemoveSet}
           >
-            {locale === "ko" ? "마지막 세트 삭제" : "Remove last set"}
+            {locale === "ko" ? "세트 삭제" : "Remove set"}
           </ChipButton>
           <ChipButton onClick={handleDelete} icon="delete" tone="danger">
-            {locale === "ko" ? "운동 삭제" : "Remove exercise"}
+            {locale === "ko" ? "운동 삭제" : "Delete"}
           </ChipButton>
         </div>
 
