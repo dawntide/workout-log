@@ -5,6 +5,7 @@ import { useAtomValue } from "jotai";
 import { useLocale } from "@/components/locale-provider";
 import { V2Sheet } from "@/components/v2/primitives";
 import { apiGet, isAbortError } from "@/lib/api";
+import { formatPerformedHistoryLine } from "@/lib/workout-notation";
 import { draftAtom } from "@/features/workout-log/store/workout-log-atoms";
 import type {
   CycleOverviewResponse,
@@ -600,34 +601,15 @@ function ExerciseRow({
 
 function formatSetsSummary(
   sets: CycleOverviewSessionExercise["sets"],
-  locale: "ko" | "en",
+  _locale: "ko" | "en",
 ): string {
   if (!sets || sets.length === 0) return "—";
-
-  const firstWeight = sets[0]?.weightKg ?? null;
-  const firstReps = sets[0]?.reps ?? null;
-  const allSameWeight = sets.every((s) => s.weightKg === firstWeight);
-  const allSameReps = sets.every((s) => s.reps === firstReps);
-
-  if (allSameWeight && allSameReps) {
-    const repsText =
-      firstReps !== null && firstReps > 0 ? String(firstReps) : "—";
-    const weightText =
-      firstWeight !== null && firstWeight > 0
-        ? ` · ${firstWeight}kg`
-        : "";
-    const setsLabel = locale === "ko" ? "×" : "×";
-    return `${sets.length}${setsLabel}${repsText}${weightText}`;
-  }
-
-  return sets
-    .map((s) => {
-      const w =
-        s.weightKg !== null && s.weightKg > 0 ? `${s.weightKg}kg` : "—";
-      const r = s.reps !== null && s.reps > 0 ? `×${s.reps}` : "";
-      return `${w}${r}`;
-    })
-    .join(" / ");
+  // 히스토리 컨벤션: per-set `Weight × Reps`. uniform 시에만 compact `Weight × Reps × Sets`.
+  const normalized = sets.map((s) => ({
+    weightKg: s.weightKg ?? 0,
+    reps: s.reps ?? 0,
+  }));
+  return formatPerformedHistoryLine(normalized);
 }
 
 function formatSessionDate(dateStr: string, locale: "ko" | "en"): string {

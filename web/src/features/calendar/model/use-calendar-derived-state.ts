@@ -3,6 +3,10 @@
 import { useMemo } from "react";
 import { dateOnlyInTimezone, sessionKeyToWDLabel } from "@/features/calendar/lib/format";
 import { extractSessionDate, parseSessionKey } from "@/lib/session-key";
+import {
+  formatPerformedHistoryCompact,
+  formatPlannedGroups,
+} from "@/lib/workout-notation/format";
 import type {
   CalendarExercisePreviewItem,
   CalendarPlan,
@@ -23,27 +27,19 @@ function daysBetween(aDateOnly: string, bDateOnly: string) {
 function summarizePlannedSets(sets: CalendarSnapshotSet[]) {
   if (sets.length === 0) return "";
 
-  const groups: Array<{ reps: number; weight: number; count: number }> = [];
+  const groups: Array<{ reps: number; weightKg: number; count: number }> = [];
   for (const set of sets) {
     const reps = Number(set.reps ?? 0);
-    const weight = Number(set.targetWeightKg ?? 0);
+    const weightKg = Number(set.targetWeightKg ?? 0);
     const last = groups[groups.length - 1];
-    if (last && last.reps === reps && last.weight === weight) {
+    if (last && last.reps === reps && last.weightKg === weightKg) {
       last.count += 1;
       continue;
     }
-    groups.push({ reps, weight, count: 1 });
+    groups.push({ reps, weightKg, count: 1 });
   }
 
-  if (groups.length === 1) {
-    const [group] = groups;
-    const weightSuffix = group.weight > 0 ? ` @ ${group.weight}kg` : "";
-    return `${group.count}x${group.reps}${weightSuffix}`;
-  }
-
-  const maxWeight = Math.max(...groups.map((group) => group.weight), 0);
-  const weightSuffix = maxWeight > 0 ? ` (max ${maxWeight}kg)` : "";
-  return `${groups.map((group) => `${group.count}x${group.reps}`).join(", ")}${weightSuffix}`;
+  return formatPlannedGroups(groups);
 }
 
 export function buildPlannedExercisePreview(snapshot: {
@@ -104,10 +100,11 @@ function buildLoggedExercisePreview(sets: CalendarWorkoutLogForDate["sets"]) {
     exercises: Array.from(grouped.entries()).map(([name, value]) => ({
       name,
       role: "MAIN",
-      summary:
-        value.bestWeight > 0
-          ? `${value.count}x${value.bestReps} @ ${value.bestWeight}kg`
-          : `${value.count}x${value.bestReps}`,
+      summary: formatPerformedHistoryCompact(
+        value.bestWeight,
+        value.bestReps,
+        value.count,
+      ),
     })),
     totalSets: sets.length,
     totalVolume: Math.round(totalVolume),

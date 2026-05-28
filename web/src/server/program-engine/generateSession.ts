@@ -70,6 +70,7 @@ type PlannedSet = {
   targetWeightKg?: number;
   percent?: number;
   rpe?: number;
+  amrap?: boolean;
   note?: string;
 };
 
@@ -373,13 +374,20 @@ function normalizeTargets(def: LogicDefinitionV1, fallback: string[]) {
 
 function buildPercentSets(
   tmKg: number,
-  rows: Array<{ reps: number; percent: number; note?: string; rpe?: number }>,
+  rows: Array<{
+    reps: number;
+    percent: number;
+    note?: string;
+    rpe?: number;
+    amrap?: boolean;
+  }>,
 ) {
   return rows.map((row) => ({
     reps: row.reps,
     percent: row.percent,
     targetWeightKg: roundToNearest2p5(tmKg * row.percent),
     rpe: row.rpe,
+    amrap: row.amrap === true,
     note: row.note,
   }));
 }
@@ -440,21 +448,24 @@ function generate531(def: LogicDefinitionV1, ctx: GeneratorCtx): PlannedExercise
   // 공식 5/3/1 메인 세트 테이블 (TM 기준 %)
   // Week 1: 3×5 (65/75/85%), Week 2: 3×3 (70/80/90%)
   // Week 3: 5/3/1 (75/85/95%), Week 4: 딜로드 3×5 (40/50/60%)
-  const mainTable: Record<number, Array<{ reps: number; percent: number; note?: string }>> = {
+  const mainTable: Record<
+    number,
+    Array<{ reps: number; percent: number; note?: string; amrap?: boolean }>
+  > = {
     1: [
       { reps: 5, percent: 0.65 },
       { reps: 5, percent: 0.75 },
-      { reps: 5, percent: 0.85, note: "5+" },
+      { reps: 5, percent: 0.85, note: "5+", amrap: true },
     ],
     2: [
       { reps: 3, percent: 0.70 },
       { reps: 3, percent: 0.80 },
-      { reps: 3, percent: 0.90, note: "3+" },
+      { reps: 3, percent: 0.90, note: "3+", amrap: true },
     ],
     3: [
       { reps: 5, percent: 0.75 },
       { reps: 3, percent: 0.85 },
-      { reps: 1, percent: 0.95, note: "1+" },
+      { reps: 1, percent: 0.95, note: "1+", amrap: true },
     ],
     4: [
       { reps: 5, percent: 0.40, note: "deload" },
@@ -588,6 +599,15 @@ function generateAsymptote(_def: LogicDefinitionV1, ctx: GeneratorCtx): PlannedE
   const isAmrapCycle = cycleInBlock === 3 && !lightBlockMode;
   const session = ASYMPTOTE_SESSIONS[sessionInCycle] ?? ASYMPTOTE_SESSIONS[1]!;
   const sessionLabel = ASYMPTOTE_SESSION_LABELS[sessionInCycle] ?? "A";
+  // 처방 RPE: light block은 비움(회복 주간). 일반 cycle은 강도 점증:
+  // C1→6 (warm), C2→7 (steady), C3 non-AMRAP→8 (heavy). AMRAP 세트는 비워서 실측 RIR로 사용.
+  const cycleBaseRpe = lightBlockMode
+    ? null
+    : cycleInBlock === 1
+      ? 6
+      : cycleInBlock === 2
+        ? 7
+        : 8;
 
   return session.map((row, i) => {
     const tm = resolveAsymptoteTm(row.target, ctx.params, ctx.defaults);
@@ -604,9 +624,11 @@ function generateAsymptote(_def: LogicDefinitionV1, ctx: GeneratorCtx): PlannedE
       const set: PlannedSet = {
         reps: row.reps,
         percent: cycleCoef * row.coef,
+        amrap: isAmrapSet,
         note,
       };
       if (workingWeightKg !== null) set.targetWeightKg = workingWeightKg;
+      if (cycleBaseRpe !== null && !isAmrapSet) set.rpe = cycleBaseRpe;
       return set;
     });
 

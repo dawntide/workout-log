@@ -5,6 +5,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type CSSProperties,
   type ReactNode,
 } from "react";
 import { useAtomValue } from "jotai";
@@ -15,6 +16,10 @@ import {
   V2Hairline,
   V2Textarea,
 } from "@/components/v2/primitives";
+import {
+  PerformedHistoryInline,
+  PrescriptionInline,
+} from "@/lib/workout-notation";
 import {
   makeExerciseCardAtom,
   recentLogItemsAtom,
@@ -72,7 +77,7 @@ export function WorkoutExerciseCard({ exerciseId, onExerciseAction }: Props) {
   const targetName = exercise.exerciseName.trim().toLowerCase();
   let previousSession: {
     performedAt: string;
-    sets: { weightKg: number; reps: number }[];
+    sets: { weightKg: number; reps: number; isAmrap: boolean }[];
   } | null = null;
   if (targetName) {
     for (const log of recentLogItems) {
@@ -80,7 +85,11 @@ export function WorkoutExerciseCard({ exerciseId, onExerciseAction }: Props) {
         (s) => s.exerciseName.trim().toLowerCase() === targetName,
       );
       const usableSets = matched
-        .map((s) => ({ weightKg: s.weightKg ?? 0, reps: s.reps ?? 0 }))
+        .map((s) => ({
+          weightKg: s.weightKg ?? 0,
+          reps: s.reps ?? 0,
+          isAmrap: (s.meta as { amrap?: unknown })?.amrap === true,
+        }))
         .filter((s) => s.reps > 0);
       if (usableSets.length > 0) {
         previousSession = { performedAt: log.performedAt, sets: usableSets };
@@ -124,14 +133,22 @@ export function WorkoutExerciseCard({ exerciseId, onExerciseAction }: Props) {
     exercise.set.repsPerSet.every((r) => r === exercise.set.repsPerSet[0]);
   const setsLabel = locale === "ko" ? "세트" : "sets";
   const firstReps = exercise.set.repsPerSet[0] ?? 0;
-  const planPart =
-    allSame && firstReps > 0
-      ? `${totalSets}×${firstReps}`
-      : `${totalSets} ${setsLabel}`;
-  const planSummary =
+  const planUniform = allSame && firstReps > 0;
+  const firstPercent = exercise.plannedSetMeta?.percentPerSet?.[0];
+  const planIntensity: { value: string; isPercent: boolean } | null =
     exercise.set.weightKg > 0
-      ? `${planPart} · ${exercise.set.weightKg}kg`
-      : planPart;
+      ? { value: `${exercise.set.weightKg}kg`, isPercent: false }
+      : typeof firstPercent === "number" && firstPercent > 0
+        ? { value: `${firstPercent}%`, isPercent: true }
+        : null;
+  const planAmrapPerSet = exercise.plannedSetMeta?.amrapPerSet;
+  const lastSetAmrap = planAmrapPerSet?.at(-1) === true;
+  const planRpePerSet = exercise.plannedSetMeta?.rpePerSet;
+  const firstPlanRpe = planRpePerSet?.[0];
+  const planRpeUniform =
+    typeof firstPlanRpe === "number" &&
+    firstPlanRpe > 0 &&
+    planRpePerSet?.every((r) => r === firstPlanRpe) === true;
 
   const memoValue =
     exercise.source === "PROGRAM"
@@ -235,12 +252,31 @@ export function WorkoutExerciseCard({ exerciseId, onExerciseAction }: Props) {
                 </V2Chip>
               )}
             </div>
-            <span
-              className="v2-mono-label"
-              style={{ color: "var(--v2-ink-3)" }}
-            >
-              {planSummary}
-            </span>
+            {planUniform ? (
+              <PrescriptionInline
+                sets={totalSets}
+                reps={firstReps}
+                weightKg={
+                  planIntensity && !planIntensity.isPercent
+                    ? exercise.set.weightKg
+                    : undefined
+                }
+                percent={
+                  planIntensity && planIntensity.isPercent
+                    ? firstPercent ?? undefined
+                    : undefined
+                }
+                rpe={planRpeUniform ? firstPlanRpe : undefined}
+                lastSetAmrap={lastSetAmrap}
+              />
+            ) : (
+              <span
+                className="v2-mono-label"
+                style={{ color: "var(--v2-ink-3)" }}
+              >
+                {totalSets} {setsLabel}
+              </span>
+            )}
           </div>
           <span
             className="v2-mono-label"
@@ -271,10 +307,10 @@ export function WorkoutExerciseCard({ exerciseId, onExerciseAction }: Props) {
             >
               {locale === "ko"
                 ? firstReps > 0
-                  ? `권장 ${recommendedWeightKg}×${firstReps}`
+                  ? `권장 ${firstReps} @ ${recommendedWeightKg}kg`
                   : `권장 ${recommendedWeightKg}kg`
                 : firstReps > 0
-                  ? `Target ${recommendedWeightKg}×${firstReps}`
+                  ? `Target ${firstReps} @ ${recommendedWeightKg}kg`
                   : `Suggested ${recommendedWeightKg}kg`}
             </ChipButton>
           </div>
@@ -309,92 +345,18 @@ export function WorkoutExerciseCard({ exerciseId, onExerciseAction }: Props) {
               {locale === "ko" ? "지난" : "PREV"}{" "}
               {formatDateFriendly(previousSession.performedAt, locale)}
             </span>
-            {(() => {
-              const sets = previousSession.sets;
-              const uniform =
-                sets.length > 0 &&
-                sets.every(
-                  (s) =>
-                    s.weightKg === sets[0].weightKg && s.reps === sets[0].reps,
-                );
-              if (uniform) {
-                const s0 = sets[0];
-                return (
-                  <span
-                    className="v2-mono-label"
-                    style={{
-                      flexShrink: 0,
-                      marginRight: "auto",
-                      padding: "var(--v2-s-1) var(--v2-s-2)",
-                      borderRadius: "var(--v2-r-0)",
-                      background: "var(--v2-paper-2)",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    <span style={{ color: "var(--v2-c-weight)" }}>
-                      {s0.weightKg > 0 ? s0.weightKg : "—"}
-                    </span>
-                    <span
-                      style={{
-                        color: "var(--v2-ink-3)",
-                        margin: "0 var(--v2-s-1)",
-                      }}
-                    >
-                      ×
-                    </span>
-                    <span style={{ color: "var(--v2-c-reps)" }}>{s0.reps}</span>
-                    {sets.length > 1 && (
-                      <span
-                        style={{
-                          color: "var(--v2-ink-3)",
-                          marginLeft: "var(--v2-s-2)",
-                        }}
-                      >
-                        ×{sets.length}
-                      </span>
-                    )}
-                  </span>
-                );
-              }
-              return (
-                <div
-                  style={{
-                    display: "flex",
-                    gap: "var(--v2-s-1)",
-                    overflowX: "auto",
-                    scrollbarWidth: "none",
-                    flex: 1,
-                    minWidth: 0,
-                  }}
-                >
-                  {sets.map((s, i) => (
-                    <span
-                      key={i}
-                      className="v2-mono-label"
-                      style={{
-                        flexShrink: 0,
-                        padding: "var(--v2-s-1) var(--v2-s-2)",
-                        borderRadius: "var(--v2-r-0)",
-                        background: "var(--v2-paper-2)",
-                      }}
-                    >
-                      <span style={{ color: "var(--v2-c-weight)" }}>
-                        {s.weightKg > 0 ? s.weightKg : "—"}
-                      </span>
-                      <span
-                        style={{
-                          color: "var(--v2-ink-3)",
-                          margin: "0 var(--v2-s-1)",
-                        }}
-                      >
-                        ×
-                      </span>
-                      <span style={{ color: "var(--v2-c-reps)" }}>{s.reps}</span>
-                    </span>
-                  ))}
-                </div>
-              );
-            })()}
+            <PerformedHistoryInline
+              sets={previousSession.sets}
+              chipStyle={{
+                padding: "var(--v2-s-1) var(--v2-s-2)",
+                borderRadius: "var(--v2-r-0)",
+                background: "var(--v2-paper-2)",
+                whiteSpace: "nowrap",
+                flexShrink: 0,
+              }}
+              compactWrapperStyle={{ marginRight: "auto" }}
+              containerStyle={{ flex: 1, minWidth: 0 }}
+            />
             {recommendedWeightKg != null && (
               <div style={{ flexShrink: 0 }}>
                 <ChipButton
@@ -405,10 +367,10 @@ export function WorkoutExerciseCard({ exerciseId, onExerciseAction }: Props) {
                 >
                   {locale === "ko"
                     ? firstReps > 0
-                      ? `권장 ${recommendedWeightKg}×${firstReps}`
+                      ? `권장 ${firstReps} @ ${recommendedWeightKg}kg`
                       : `권장 ${recommendedWeightKg}kg`
                     : firstReps > 0
-                      ? `Target ${recommendedWeightKg}×${firstReps}`
+                      ? `Target ${firstReps} @ ${recommendedWeightKg}kg`
                       : `Suggested ${recommendedWeightKg}kg`}
                 </ChipButton>
               </div>
@@ -465,25 +427,36 @@ export function WorkoutExerciseCard({ exerciseId, onExerciseAction }: Props) {
             display: "flex",
             flexWrap: "nowrap",
             gap: "var(--v2-s-1)",
-            justifyContent: "space-between",
-            overflowX: "auto",
-            scrollbarWidth: "none",
           }}
         >
-          <ChipButton onClick={toggleMemo} icon="edit_note">
+          <ChipButton
+            onClick={toggleMemo}
+            icon="edit_note"
+            style={{ flex: 1, justifyContent: "center", minWidth: 0 }}
+          >
             {locale === "ko" ? "메모" : "Memo"}
           </ChipButton>
-          <ChipButton onClick={handleAddSet} icon="add">
+          <ChipButton
+            onClick={handleAddSet}
+            icon="add"
+            style={{ flex: 1, justifyContent: "center", minWidth: 0 }}
+          >
             {locale === "ko" ? "세트 추가" : "Add set"}
           </ChipButton>
           <ChipButton
             onClick={handleRemoveLastSet}
             icon="remove"
             disabled={!canRemoveSet}
+            style={{ flex: 1, justifyContent: "center", minWidth: 0 }}
           >
             {locale === "ko" ? "세트 삭제" : "Remove set"}
           </ChipButton>
-          <ChipButton onClick={handleDelete} icon="delete" tone="danger">
+          <ChipButton
+            onClick={handleDelete}
+            icon="delete"
+            tone="danger"
+            style={{ flex: 1, justifyContent: "center", minWidth: 0 }}
+          >
             {locale === "ko" ? "운동 삭제" : "Delete"}
           </ChipButton>
         </div>
@@ -510,6 +483,7 @@ function ChipButton({
   disabled,
   tone,
   size = "md",
+  style,
 }: {
   onClick: () => void;
   icon?: string;
@@ -517,6 +491,7 @@ function ChipButton({
   disabled?: boolean;
   tone?: "danger" | "accent";
   size?: "sm" | "md";
+  style?: CSSProperties;
 }) {
   const compact = size === "sm";
   const fg =
@@ -547,6 +522,7 @@ function ChipButton({
         cursor: disabled ? "not-allowed" : "pointer",
         minHeight: compact ? undefined : "var(--v2-s-8)",
         fontWeight: compact ? 400 : 700,
+        ...style,
       }}
     >
       {icon && (

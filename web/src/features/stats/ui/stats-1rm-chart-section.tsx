@@ -81,8 +81,8 @@ export const Stats1RMChartSection = memo(function Stats1RMChartSection({
             }}
           >
             <div className="label label-neutral label-sm">
+              {/* 1RM 도출 기준이 된 히스토리 1세트. 컨벤션: Weight × Reps */}
               {activePoint.weightKg}kg × {activePoint.reps}
-              {locale === "ko" ? "회" : " reps"}
             </div>
           </div>
         ) : null}

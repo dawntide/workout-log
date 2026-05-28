@@ -34,6 +34,18 @@ export function areStringArraysEqual(
   return true;
 }
 
+export function areBooleanArraysEqual(
+  left: boolean[] | null | undefined,
+  right: boolean[] | null | undefined,
+) {
+  if (left === right) return true;
+  if (!left || !right || left.length !== right.length) return false;
+  for (let index = 0; index < left.length; index += 1) {
+    if (left[index] !== right[index]) return false;
+  }
+  return true;
+}
+
 export function areWorkoutProgramEntryStatesEqual(
   left: WorkoutProgramExerciseEntryState | undefined,
   right: WorkoutProgramExerciseEntryState | undefined,
@@ -75,6 +87,14 @@ export function areWorkoutExercisesEqual(
     areNumberArraysEqual(
       left.plannedSetMeta?.targetWeightKgPerSet,
       right.plannedSetMeta?.targetWeightKgPerSet,
+    ) &&
+    areNumberArraysEqual(
+      left.plannedSetMeta?.rpePerSet,
+      right.plannedSetMeta?.rpePerSet,
+    ) &&
+    areBooleanArraysEqual(
+      left.plannedSetMeta?.amrapPerSet,
+      right.plannedSetMeta?.amrapPerSet,
     )
   );
 }

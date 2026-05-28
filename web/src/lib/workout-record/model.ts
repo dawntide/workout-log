@@ -14,6 +14,8 @@ export type WorkoutPlannedSetMeta = {
   percentPerSet: Array<number | null>;
   targetWeightKgPerSet: Array<number | null>;
   repsPerSet: Array<number | null>;
+  rpePerSet: Array<number | null>;
+  amrapPerSet: boolean[];
 };
 
 export type WorkoutNoteModel = {
@@ -192,6 +194,11 @@ function toPlannedSetMeta(sets: SnapshotSet[] | undefined): WorkoutPlannedSetMet
       const reps = Number(set?.reps);
       return Number.isFinite(reps) && reps >= 0 ? reps : null;
     }),
+    rpePerSet: sets.map((set) => {
+      const rpe = Number((set as { rpe?: unknown })?.rpe);
+      return Number.isFinite(rpe) && rpe > 0 ? rpe : null;
+    }),
+    amrapPerSet: sets.map((set) => (set as { amrap?: unknown })?.amrap === true),
   };
 }
 
@@ -949,6 +956,7 @@ export function toWorkoutLogPayload(
       Boolean(bodyweightKg) &&
       typeof isBodyweightExercise === "function" &&
       isBodyweightExercise(exerciseName);
+    const amrapPerSet = exercise.plannedSetMeta?.amrapPerSet;
     repsPerSet.forEach((repsValue, index) => {
       const meta: Record<string, unknown> = exercise.note.memo.trim()
         ? { memo: exercise.note.memo.trim() }
@@ -956,6 +964,9 @@ export function toWorkoutLogPayload(
       if (attachBodyweightMeta && bodyweightKg !== null) {
         meta.bodyweightKg = bodyweightKg;
         meta.totalLoadKg = roundTo2(bodyweightKg + weightKg);
+      }
+      if (amrapPerSet?.[index] === true) {
+        meta.amrap = true;
       }
 
       sets.push({

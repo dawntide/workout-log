@@ -533,7 +533,7 @@ export function V2SessionSummary({
               summary.topEstOneRm
                 ? topPrMatch
                   ? `${summary.topEstOneRm.exerciseName} · ${locale === "ko" ? "PR" : "PR"}`
-                  : `${summary.topEstOneRm.exerciseName} · ${summary.topEstOneRm.weightKg}kg×${summary.topEstOneRm.reps}`
+                  : `${summary.topEstOneRm.exerciseName} · ${summary.topEstOneRm.weightKg}kg × ${summary.topEstOneRm.reps}`
                 : locale === "ko"
                   ? "기록된 세트 없음"
                   : "No logged sets"

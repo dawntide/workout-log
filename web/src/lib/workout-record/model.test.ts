@@ -237,3 +237,87 @@ test("toWorkoutLogPayload maps per-set RPE values", () => {
     [8, 8.5],
   );
 });
+
+test("createWorkoutRecordDraft preserves prescribed rpe in plannedSetMeta.rpePerSet", () => {
+  const session: GeneratedSessionLike = {
+    id: "session-rpe-asymptote",
+    planId: "plan-asymptote",
+    sessionKey: "2026-03-29",
+    snapshot: {
+      sessionKey: "2026-03-29",
+      sessionDate: "2026-03-29",
+      week: 2,
+      day: 1,
+      exercises: [
+        {
+          exerciseName: "Squat",
+          role: "MAIN",
+          rowType: "AUTO",
+          sets: [
+            { reps: 5, percent: 0.7, targetWeightKg: 100, rpe: 7 },
+            { reps: 5, percent: 0.7, targetWeightKg: 100, rpe: 7 },
+            { reps: 5, percent: 0.7, targetWeightKg: 100, rpe: 7 },
+          ],
+        },
+      ],
+    },
+  };
+
+  const draft = createWorkoutRecordDraft(session, "RPE Plan", {
+    sessionDate: "2026-03-29",
+    timezone: "Asia/Seoul",
+  });
+
+  const squat = draft.seedExercises.find((e) => e.exerciseName === "Squat");
+  assert.ok(squat, "seed exercise present");
+  assert.deepEqual(
+    squat!.plannedSetMeta?.rpePerSet,
+    [7, 7, 7],
+    "rpePerSet hydrated from snapshot",
+  );
+});
+
+test("toWorkoutLogPayload stamps meta.amrap from prescribed amrapPerSet", () => {
+  const session: GeneratedSessionLike = {
+    id: "session-amrap-1",
+    planId: "plan-amrap",
+    sessionKey: "2026-03-22",
+    snapshot: {
+      sessionKey: "2026-03-22",
+      sessionDate: "2026-03-22",
+      week: 3,
+      day: 1,
+      exercises: [
+        {
+          exerciseName: "Squat",
+          role: "MAIN",
+          rowType: "AUTO",
+          sets: [
+            { reps: 5, percent: 0.65, targetWeightKg: 100 },
+            { reps: 5, percent: 0.75, targetWeightKg: 110 },
+            { reps: 5, percent: 0.85, targetWeightKg: 120, amrap: true, note: "5+" },
+          ],
+        },
+      ],
+    },
+  };
+
+  const draft = createWorkoutRecordDraft(session, "AMRAP Plan", {
+    sessionDate: "2026-03-22",
+    timezone: "Asia/Seoul",
+  });
+
+  const payload = toWorkoutLogPayload(draft);
+  const squatSets = payload.sets.filter((s) => s.exerciseName === "Squat");
+  assert.equal(squatSets.length, 3, "all three sets emitted");
+  assert.equal(
+    (squatSets[0].meta as { amrap?: boolean }).amrap,
+    undefined,
+    "non-AMRAP set has no amrap key",
+  );
+  assert.equal(
+    (squatSets[2].meta as { amrap?: boolean }).amrap,
+    true,
+    "AMRAP last set is flagged in meta",
+  );
+});

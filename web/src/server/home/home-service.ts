@@ -25,6 +25,10 @@ import {
 import { getSettingsSnapshot } from "@/server/services/settings/get-settings-snapshot";
 import { resolveLoggedTotalLoadKg } from "@/lib/bodyweight-load";
 import {
+  formatPerformedHistoryCompact,
+  formatPlannedGroups,
+} from "@/lib/workout-notation/format";
+import {
   readWorkoutPreferences,
   type TrainingGoalKey,
 } from "@/lib/settings/workout-preferences";
@@ -773,14 +777,18 @@ function buildPlannedExercises(snapshot: any) {
 
 function summarizeSets(sets: any[]): string {
   if (sets.length === 0) return "";
-  const groups: any[] = [];
+  const groups: Array<{ count: number; reps: number; weightKg: number }> = [];
   for (const s of sets) {
-    const r = s.reps ?? 0, w = s.targetWeightKg ?? 0;
-    if (groups.length > 0 && groups[groups.length - 1].reps === r && groups[groups.length - 1].weight === w) groups[groups.length - 1].count++;
-    else groups.push({ reps: r, weight: w, count: 1 });
+    const r = s.reps ?? 0;
+    const w = s.targetWeightKg ?? 0;
+    const last = groups[groups.length - 1];
+    if (last && last.reps === r && last.weightKg === w) {
+      last.count++;
+    } else {
+      groups.push({ reps: r, weightKg: w, count: 1 });
+    }
   }
-  if (groups.length === 1) return `${groups[0].count}x${groups[0].reps}${groups[0].weight > 0 ? ` @ ${groups[0].weight}kg` : ""}`;
-  return groups.map(g => `${g.count}x${g.reps}`).join(", ") + (Math.max(...groups.map(g => g.weight)) > 0 ? ` (max ${Math.max(...groups.map(g => g.weight))}kg)` : "");
+  return formatPlannedGroups(groups);
 }
 
 function groupLoggedExercises(sets: any[]) {
@@ -799,7 +807,8 @@ function groupLoggedExercises(sets: any[]) {
 }
 
 function formatLoggedBestSet(sets: number, reps: number, weight: number) {
-  return weight > 0 ? `${sets}x${reps} @ ${weight}kg` : `${sets}x${reps}`;
+  // 히스토리 컨벤션: `Weight × Reps × Sets` compact (best 세트 기준 압축).
+  return formatPerformedHistoryCompact(weight, reps, sets);
 }
 
 // ─── Timezone Helpers ───────────────────────────────────────────────

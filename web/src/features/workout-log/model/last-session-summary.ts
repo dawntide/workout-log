@@ -1,6 +1,7 @@
 import type {
   WorkoutRecordDraft,
 } from "@/entities/workout-record";
+import { formatPerformedHistoryCompact } from "@/lib/workout-notation";
 import { parseSessionKey } from "@/lib/session-key";
 import {
   daysBetweenDateKeys,
@@ -149,10 +150,13 @@ export function buildLastSessionSummary(
   const exercises = Array.from(exerciseMap.entries()).map(([name, data]) => ({
     name,
     sets: data.sets,
-    bestSet:
-      data.bestWeight > 0
-        ? `${data.sets}x${data.bestReps} @ ${data.bestWeight}kg`
-        : `${data.sets}x${data.bestReps}`,
+    // 히스토리 컨벤션: `Weight × Reps × Sets` (compact). 무게 0이면 `— × Reps × Sets`.
+    // bestSet은 단일 best 세트 데이터로 compact 표시하는 요약이므로 정확한 per-set 분포는 알 수 없음.
+    bestSet: formatPerformedHistoryCompact(
+      data.bestWeight,
+      data.bestReps,
+      data.sets,
+    ),
   }));
 
   return {
