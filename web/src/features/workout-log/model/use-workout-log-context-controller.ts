@@ -69,6 +69,10 @@ export function useWorkoutLogContextController({
   const [loading, setLoading] = useState(true);
   const [plansLoadKey, setPlansLoadKey] = useState("workout-record:init");
   const [error, setError] = useState<string | null>(null);
+  // "blocked" 컨텍스트(예: 자동 진행 플랜에서 이후 기록이 있는 과거 날짜)는
+  // 로드 실패(error)가 아니라 정책 안내다. error 와 분리해 에러 페이지 대신
+  // 안내 배너로 표시한다.
+  const [blockedMessage, setBlockedMessage] = useState<string | null>(null);
   
   const workoutPreferences = useAtomValue(workoutPreferencesAtom);
   const recentLogItems = useAtomValue(recentLogItemsAtom);
@@ -88,6 +92,7 @@ export function useWorkoutLogContextController({
           setLoading(true);
         }
         setError(null);
+        setBlockedMessage(null);
         setSaveError(null);
 
         const result = await loadWorkoutContextData(input, {
@@ -100,7 +105,7 @@ export function useWorkoutLogContextController({
           setDraft(null);
           setProgramEntryState({});
           setLastSession(null);
-          setError(result.message);
+          setBlockedMessage(result.message);
           setWorkflowState("idle");
           return;
         }
@@ -181,6 +186,7 @@ export function useWorkoutLogContextController({
       );
       setLoading(true);
       setError(null);
+      setBlockedMessage(null);
 
       try {
         const bootstrap = await resolveWorkoutLogBootstrap({
@@ -218,7 +224,7 @@ export function useWorkoutLogContextController({
             setDraft(null);
             setProgramEntryState({});
             setLastSession(null);
-            setError(ssrContext.message);
+            setBlockedMessage(ssrContext.message);
             setWorkflowState("idle");
           } else {
             setSelectedPlanId(ssrContext.selectedPlanId);
@@ -337,6 +343,7 @@ export function useWorkoutLogContextController({
     workoutPreferences,
     selectedPlan,
     noPlan,
+    blockedMessage,
     handlePlanChange,
     retryCurrentContextLoad,
   };

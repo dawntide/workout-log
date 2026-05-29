@@ -133,6 +133,7 @@ function WorkoutLogScreenContent({
     error,
     selectedPlan,
     noPlan,
+    blockedMessage,
     handlePlanChange,
     retryCurrentContextLoad,
   } = useWorkoutLogContextController({
@@ -239,6 +240,8 @@ function WorkoutLogScreenContent({
   );
 
   const sessionDate = draft?.session.sessionDate ?? "";
+  // draft 가 없는 blocked 상태에서도 날짜 이동이 가능하도록 query.date 로 폴백한다.
+  const navDateKey = sessionDate || query.date;
   const sessionLabel = useMemo(() => {
     const key = draft?.session.sessionKey;
     if (!key) return null;
@@ -261,15 +264,16 @@ function WorkoutLogScreenContent({
   }, [draft?.session.sessionType, draft?.session.day, sessionLabel]);
   const shiftDate = useCallback(
     (delta: number) => {
-      if (!sessionDate) return;
-      const d = new Date(`${sessionDate}T00:00:00`);
+      const base = sessionDate || query.date;
+      if (!base) return;
+      const d = new Date(`${base}T00:00:00`);
       d.setDate(d.getDate() + delta);
       const y = d.getFullYear();
       const m = String(d.getMonth() + 1).padStart(2, "0");
       const dd = String(d.getDate()).padStart(2, "0");
       handleDateChange(`${y}-${m}-${dd}`);
     },
-    [sessionDate, handleDateChange],
+    [sessionDate, query.date, handleDateChange],
   );
 
   return (
@@ -299,7 +303,7 @@ function WorkoutLogScreenContent({
       />
       <EmptyStateRows className="v2-font-display" when={noPlan} label={copy.workoutLog.noPlans} />
 
-      {!noPlan && isDraftLoaded && draft ? (
+      {!noPlan && ((isDraftLoaded && draft) || blockedMessage) ? (
         <AppPage>
           <V2SectionHeader
             level="h1"
@@ -330,8 +334,8 @@ function WorkoutLogScreenContent({
             }}
           >
             <DateNav
-              dateKey={sessionDate}
-              label={formatDateFriendly(sessionDate, locale)}
+              dateKey={navDateKey}
+              label={formatDateFriendly(navDateKey, locale)}
               onPrev={() => shiftDate(-1)}
               onNext={() => shiftDate(1)}
               onPick={handleDateChange}
@@ -386,6 +390,18 @@ function WorkoutLogScreenContent({
             </button>
           </div>
 
+          {!draft ? (
+            <NoticeStateRows
+              message={blockedMessage}
+              tone="warning"
+              preferInline
+              label={locale === "ko" ? "기록 안내" : "Log notice"}
+              ariaLabel={
+                locale === "ko" ? "기록 안내 상태" : "Log notice state"
+              }
+            />
+          ) : (
+          <>
           <WorkoutLogStackedList
             ref={stackedListRef}
             onExerciseAction={handleExerciseAction}
@@ -490,6 +506,8 @@ function WorkoutLogScreenContent({
                   : copy.workoutLog.saveCreate}
             </button>
           </StickyActionBar>
+          </>
+          )}
         </AppPage>
       ) : null}
 
