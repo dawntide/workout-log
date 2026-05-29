@@ -1,4 +1,5 @@
 import { apiGet } from "@/shared/api";
+import { mapExerciseNameToTarget as mapExerciseNameToProgressionTarget } from "@/lib/strength-engine/target-mapping";
 import type {
   WorkoutExerciseViewModel,
   WorkoutProgramExerciseEntryStateMap,
@@ -71,16 +72,6 @@ function computeResetKgFromRule(workKg: number, rule: ProgressionEffectiveRule |
 function resolveIncreaseKgFromRule(key: string, rule: ProgressionEffectiveRule | undefined, lowerDefault: number, upperDefault: number): number {
   if (rule?.increaseKg !== undefined) return rule.increaseKg;
   return key === "DEADLIFT" || key === "SQUAT" ? lowerDefault : upperDefault;
-}
-
-function mapExerciseNameToProgressionTarget(name: string): string | null {
-  const n = name.trim().toLowerCase();
-  if (n.includes("squat")) return "SQUAT";
-  if (n.includes("bench")) return "BENCH";
-  if (n.includes("deadlift")) return "DEADLIFT";
-  if (n.includes("overhead press") || n === "ohp" || n.includes("shoulder press")) return "OHP";
-  if (n.includes("row") || n.includes("pull-up") || n.includes("pull up") || n.includes("pulldown")) return "PULL";
-  return null;
 }
 
 export function detectFailedProgressionExercises(
