@@ -1,4 +1,9 @@
 import { resolveLoggedTotalLoadKg } from "@/lib/bodyweight-load";
+import { mapExerciseNameToTarget as mapExerciseToTarget } from "@/lib/strength-engine/target-mapping";
+import {
+  ASYMPTOTE_AMRAP_TARGETS_BY_SESSION,
+  deriveAsymptoteAuxTms,
+} from "@/server/program-engine/asymptote";
 
 export type ProgressionProgram =
   | "operator"
@@ -103,27 +108,6 @@ function setWasCompleted(set: LoggedSetInput) {
   const plannedReps = parsePlannedReps(meta);
   if (plannedReps === null) return true;
   return reps >= plannedReps;
-}
-
-function mapExerciseToTarget(exerciseName: string): ProgressionTarget | null {
-  const normalized = String(exerciseName).trim().toLowerCase();
-  if (!normalized) return null;
-
-  if (normalized.includes("squat")) return "SQUAT";
-  if (normalized.includes("bench")) return "BENCH";
-  if (normalized.includes("deadlift")) return "DEADLIFT";
-  if (normalized.includes("overhead press") || normalized === "ohp" || normalized.includes("shoulder press")) {
-    return "OHP";
-  }
-  if (
-    normalized.includes("row") ||
-    normalized.includes("pull-up") ||
-    normalized.includes("pull up") ||
-    normalized.includes("pulldown")
-  ) {
-    return "PULL";
-  }
-  return null;
 }
 
 function parseProgressionTarget(value: unknown): ProgressionTarget | null {
@@ -472,12 +456,9 @@ export function collectTargetOutcomes(sets: LoggedSetInput[]): Map<string, Targe
   return out;
 }
 
-// Asymptote AMRAP 위치: 사이클 3(=week 3)에서만, 메인 3개 리프트 마지막 세트.
-// Session A(day=1): SQUAT/PULL 마지막 세트, Session C(day=3): BENCH 마지막 세트.
-const ASYMPTOTE_AMRAP_KEYS_BY_DAY: Record<number, ReadonlyArray<string>> = {
-  1: ["SQUAT", "PULL"],
-  3: ["BENCH"],
-};
+// Asymptote AMRAP 위치: 사이클 3(=week 3)에서만, 메인 리프트 마지막 세트.
+// 대상 리프트는 ASYMPTOTE_AMRAP_TARGETS_BY_SESSION을 사용한다 — asymptote.ts의
+// ASYMPTOTE_SESSIONS(단일 진실원)에서 파생되므로 generator와 drift 불가(audit §3.7).
 
 function collectAsymptoteAmrapReps(
   sets: LoggedSetInput[],
@@ -486,7 +467,7 @@ function collectAsymptoteAmrapReps(
 ): Map<string, number> {
   const out = new Map<string, number>();
   if (prevWeek !== 3) return out;
-  const amrapKeys = ASYMPTOTE_AMRAP_KEYS_BY_DAY[prevDay];
+  const amrapKeys = ASYMPTOTE_AMRAP_TARGETS_BY_SESSION[prevDay];
   if (!amrapKeys || amrapKeys.length === 0) return out;
 
   const setsByKey = new Map<string, LoggedSetInput[]>();
@@ -895,8 +876,10 @@ export function reduceProgressionState(input: {
       }
 
       // 2) 보조 도출: DL = SQ TM, OHP = floor(BP TM × 0.5 / 2.5) × 2.5
+      //    파생 수학은 deriveAsymptoteAuxTms(단일 진실원)에 위임, round 래핑은 유지(audit §3.6).
       const newSqTm = state.targets["SQUAT"]?.workKg ?? 0;
       const newBpTm = state.targets["BENCH"]?.workKg ?? 0;
+      const auxTms = deriveAsymptoteAuxTms(newSqTm, newBpTm);
       for (const [key, current] of Object.entries(state.targets)) {
         const progressionTarget =
           parseProgressionTarget(current?.progressionTarget) ?? parseProgressionTarget(key);
@@ -905,8 +888,8 @@ export function reduceProgressionState(input: {
         const before = state.targets[key]!;
         const derived =
           progressionTarget === "DEADLIFT"
-            ? toPositiveRounded2p5(newSqTm)
-            : toPositiveRounded2p5(Math.floor((newBpTm * 0.5) / 2.5) * 2.5);
+            ? toPositiveRounded2p5(auxTms.dlTmKg)
+            : toPositiveRounded2p5(auxTms.ohpTmKg);
         const after: TargetRuntimeState = {
           progressionTarget,
           workKg: derived,

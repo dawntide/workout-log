@@ -19,6 +19,7 @@ import {
   floorToMultiple2p5,
 } from "./asymptote";
 import { roundToNearest2p5 } from "./round";
+import { mapExerciseNameToTarget as inferTargetFromExerciseName } from "@/lib/strength-engine/target-mapping";
 
 type AccessoryPatch = {
   op: "ADD_ACCESSORY";
@@ -126,26 +127,6 @@ function defaultExerciseNameForTarget(target: string) {
   if (t === "OHP") return "Overhead Press";
   if (t === "PULL") return "Pull-Up";
   return "Main Lift";
-}
-
-function inferTargetFromExerciseName(exerciseName: string) {
-  const normalized = String(exerciseName).trim().toLowerCase();
-  if (!normalized) return null;
-  if (normalized.includes("squat")) return "SQUAT";
-  if (normalized.includes("bench")) return "BENCH";
-  if (normalized.includes("deadlift")) return "DEADLIFT";
-  if (normalized.includes("overhead press") || normalized === "ohp" || normalized.includes("shoulder press")) {
-    return "OHP";
-  }
-  if (
-    normalized.includes("row") ||
-    normalized.includes("pull-up") ||
-    normalized.includes("pull up") ||
-    normalized.includes("pulldown")
-  ) {
-    return "PULL";
-  }
-  return null;
 }
 
 function normalizeProgressionTarget(value: unknown): "SQUAT" | "BENCH" | "DEADLIFT" | "OHP" | "PULL" | null {

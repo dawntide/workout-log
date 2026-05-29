@@ -9,7 +9,6 @@ on:
       - ".github/workflows/**"
       - ".github/actions/**"
       - "deploy/**"
-      - "infra/**"
   workflow_dispatch: {}
 
 # PR당 최신 push만 실행 — 이전 실행은 취소

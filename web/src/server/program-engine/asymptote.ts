@@ -48,6 +48,17 @@ export const ASYMPTOTE_SESSIONS: Record<number, AsymptoteLiftRow[]> = {
 
 export const ASYMPTOTE_SESSION_LABELS: Record<number, string> = { 1: "A", 2: "B", 3: "C" };
 
+// 세션별 AMRAP 대상 리프트. ASYMPTOTE_SESSIONS(단일 진실원)에서 파생하므로
+// 손으로 재타이핑하던 reducer의 맵과 silent drift가 불가능하다(audit §3.7).
+// 결과: { 1: ["SQUAT","PULL"], 2: [], 3: ["BENCH"] }
+export const ASYMPTOTE_AMRAP_TARGETS_BY_SESSION: Record<number, AsymptoteLift[]> =
+  Object.fromEntries(
+    Object.entries(ASYMPTOTE_SESSIONS).map(([session, rows]) => [
+      Number(session),
+      rows.filter((row) => row.amrap).map((row) => row.target),
+    ]),
+  );
+
 // Asymptote 전용 floor 라운딩 (protocol §4.4: DOWN to 2.5 kg).
 export function floorToMultiple2p5(value: number): number {
   if (!Number.isFinite(value) || value <= 0) return 0;

@@ -4,6 +4,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  ASYMPTOTE_AMRAP_TARGETS_BY_SESSION,
+  ASYMPTOTE_SESSIONS,
   asymptoteShouldAmrap,
   calculateAsymptoteWorkingWeight,
   deriveAsymptoteAuxTms,
@@ -379,4 +381,42 @@ test("§6 edge: floorToMultiple2p5 sanity", () => {
   assert.equal(floorToMultiple2p5(-5), 0);
   assert.equal(floorToMultiple2p5(2.5), 2.5);
   assert.equal(floorToMultiple2p5(2.499), 0);
+});
+
+// ──────────────────────────────────────────────────────────────────────────────
+// §3.7 — AMRAP 대상 맵은 ASYMPTOTE_SESSIONS에서 파생된 단일 진실원이어야 한다 (audit)
+// ──────────────────────────────────────────────────────────────────────────────
+
+test("ASYMPTOTE_AMRAP_TARGETS_BY_SESSION: 과거 손코딩 맵과 동일 (회귀 고정)", () => {
+  // 파생값이 reducer가 손으로 재타이핑하던 {1:[SQUAT,PULL],3:[BENCH]}와 동일한지 고정.
+  // session 2는 undefined→[]로 바뀌지만 collectAsymptoteAmrapReps의 length===0 early-return으로 동치.
+  assert.deepEqual(ASYMPTOTE_AMRAP_TARGETS_BY_SESSION, {
+    1: ["SQUAT", "PULL"],
+    2: [],
+    3: ["BENCH"],
+  });
+});
+
+test("ASYMPTOTE_AMRAP_TARGETS_BY_SESSION: asymptoteShouldAmrap(마지막 세트)와 교차 일치", () => {
+  // 세션별 모든 리프트에 대해 파생 맵 멤버십 == 사이클3 마지막 세트의 asymptoteShouldAmrap.
+  // reducer 맵과 generator 술어가 같은 진실원에서 나오는지 실행으로 보장.
+  for (const [sessionStr, rows] of Object.entries(ASYMPTOTE_SESSIONS)) {
+    const sessionInCycle = Number(sessionStr);
+    const amrapTargets = ASYMPTOTE_AMRAP_TARGETS_BY_SESSION[sessionInCycle] ?? [];
+    for (const row of rows) {
+      const totalSets = row.sets;
+      const shouldAmrap = asymptoteShouldAmrap({
+        cycleInBlock: 3,
+        sessionInCycle,
+        lift: row.target,
+        setNumber: totalSets,
+        totalSets,
+      });
+      assert.equal(
+        amrapTargets.includes(row.target),
+        shouldAmrap,
+        `session ${sessionInCycle} ${row.target}: 맵 멤버십과 asymptoteShouldAmrap 불일치`,
+      );
+    }
+  }
 });
