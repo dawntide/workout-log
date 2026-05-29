@@ -13,11 +13,14 @@ import {
 import {
   appendSetReps,
   appendSetRpe,
+  appendSetWeight,
   createFallbackProgramEntryState,
   patchSetRpeAtIndex,
   patchSetRepsAtIndex,
+  patchSetWeightAtIndex,
   removeSetRepsAtIndex,
   removeSetRpeAtIndex,
+  removeSetWeightAtIndex,
 } from "./exercise-entry";
 import type {
   AddExerciseDraft,
@@ -26,7 +29,8 @@ import type {
 } from "./types";
 
 export type ExerciseRowAction =
-  | { type: "CHANGE_WEIGHT"; value: number }
+  | { type: "CHANGE_WEIGHT"; setIndex: number; value: number }
+  | { type: "APPLY_TARGET_WEIGHTS" }
   | { type: "CHANGE_SET_REPS"; setIndex: number; value: number }
   | { type: "CHANGE_SET_RPE"; setIndex: number; value: number }
   | { type: "ADD_SET" }
@@ -68,19 +72,66 @@ export function buildExerciseActionUpdate(
 ): ExerciseActionUpdate | null {
   switch (action.type) {
     case "CHANGE_WEIGHT": {
-      const { value } = action;
+      const { setIndex, value } = action;
       if (!Number.isFinite(value)) return null;
+      if (
+        !Number.isFinite(setIndex) ||
+        setIndex < 0 ||
+        setIndex >= exercise.set.repsPerSet.length
+      ) {
+        return null;
+      }
       const snapped = resolveWeightWithPreferences(
         value,
         exercise.exerciseId,
         exercise.exerciseName,
         preferences,
       );
+      const weightKgPerSet = patchSetWeightAtIndex(
+        exercise.set.weightKgPerSet,
+        exercise.set.repsPerSet.length,
+        setIndex,
+        snapped,
+      );
       return {
         draftUpdater: (prev) =>
           exercise.source === "PROGRAM"
-            ? patchSeedExercise(prev, exerciseId, { set: { weightKg: snapped } })
-            : updateUserExercise(prev, exerciseId, { set: { weightKg: snapped } }),
+            ? patchSeedExercise(prev, exerciseId, { set: { weightKgPerSet } })
+            : updateUserExercise(prev, exerciseId, { set: { weightKgPerSet } }),
+      };
+    }
+    case "APPLY_TARGET_WEIGHTS": {
+      // "권장값" 버튼. AUTO 는 프로그램 세트별 처방 무게로, CUSTOM/USER 는 권장값으로 균일 채움.
+      const length = exercise.set.repsPerSet.length;
+      const targets = exercise.plannedSetMeta?.targetWeightKgPerSet ?? [];
+      const firstValidTarget = targets.find(
+        (entry): entry is number =>
+          typeof entry === "number" && Number.isFinite(entry) && entry > 0,
+      );
+      const fallbackBase =
+        firstValidTarget ??
+        (typeof exercise.prescribedWeightKg === "number" && exercise.prescribedWeightKg > 0
+          ? exercise.prescribedWeightKg
+          : exercise.set.weightKg);
+      const isAuto = exercise.source === "PROGRAM" && exercise.badge !== "CUSTOM";
+      const weightKgPerSet = Array.from({ length }, (_, setIndex) => {
+        const target = isAuto ? targets[setIndex] : null;
+        const base =
+          typeof target === "number" && Number.isFinite(target) && target >= 0
+            ? target
+            : fallbackBase;
+        return resolveWeightWithPreferences(
+          Math.max(0, Number(base) || 0),
+          exercise.exerciseId,
+          exercise.exerciseName,
+          preferences,
+        );
+      });
+      return {
+        draftUpdater: (prev) =>
+          exercise.source === "PROGRAM"
+            ? patchSeedExercise(prev, exerciseId, { set: { weightKgPerSet } })
+            : updateUserExercise(prev, exerciseId, { set: { weightKgPerSet } }),
       };
     }
     case "CHANGE_SET_REPS": {
@@ -119,9 +170,10 @@ export function buildExerciseActionUpdate(
     case "ADD_SET": {
       const repsPerSet = appendSetReps(exercise.set.repsPerSet);
       const rpePerSet = appendSetRpe(exercise.set.rpePerSet, exercise.set.repsPerSet.length);
+      const weightKgPerSet = appendSetWeight(exercise.set.weightKgPerSet, exercise.set.repsPerSet.length);
       if (exercise.source === "PROGRAM") {
         return {
-          draftUpdater: (prev) => patchSeedExercise(prev, exerciseId, { set: { repsPerSet, rpePerSet } }),
+          draftUpdater: (prev) => patchSeedExercise(prev, exerciseId, { set: { repsPerSet, rpePerSet, weightKgPerSet } }),
           programEntryStateUpdater: (prev) => {
             const current = createFallbackProgramEntryState(exercise, prev[exerciseId]);
             return {
@@ -132,7 +184,7 @@ export function buildExerciseActionUpdate(
         };
       }
       return {
-        draftUpdater: (prev) => updateUserExercise(prev, exerciseId, { set: { repsPerSet, rpePerSet } }),
+        draftUpdater: (prev) => updateUserExercise(prev, exerciseId, { set: { repsPerSet, rpePerSet, weightKgPerSet } }),
       };
     }
     case "REMOVE_SET": {
@@ -143,9 +195,14 @@ export function buildExerciseActionUpdate(
         exercise.set.repsPerSet.length,
         index,
       );
+      const weightKgPerSet = removeSetWeightAtIndex(
+        exercise.set.weightKgPerSet,
+        exercise.set.repsPerSet.length,
+        index,
+      );
       if (exercise.source === "PROGRAM") {
         return {
-          draftUpdater: (prev) => patchSeedExercise(prev, exerciseId, { set: { repsPerSet, rpePerSet } }),
+          draftUpdater: (prev) => patchSeedExercise(prev, exerciseId, { set: { repsPerSet, rpePerSet, weightKgPerSet } }),
           programEntryStateUpdater: (prev) => {
             const current = createFallbackProgramEntryState(exercise, prev[exerciseId]);
             return {
@@ -162,7 +219,7 @@ export function buildExerciseActionUpdate(
         };
       }
       return {
-        draftUpdater: (prev) => updateUserExercise(prev, exerciseId, { set: { repsPerSet, rpePerSet } }),
+        draftUpdater: (prev) => updateUserExercise(prev, exerciseId, { set: { repsPerSet, rpePerSet, weightKgPerSet } }),
       };
     }
     case "CHANGE_MEMO": {

@@ -135,9 +135,14 @@ export function WorkoutExerciseCard({ exerciseId, onExerciseAction }: Props) {
   const firstReps = exercise.set.repsPerSet[0] ?? 0;
   const planUniform = allSame && firstReps > 0;
   const firstPercent = exercise.plannedSetMeta?.percentPerSet?.[0];
+  const weightPerSet = exercise.set.weightKgPerSet ?? [];
+  const firstWeight = weightPerSet[0] ?? 0;
+  // 무게가 세트마다 다르면(예: 5/3/1 램핑) 처방 칩에 단일 무게를 보여주지 않는다.
+  const weightUniform =
+    weightPerSet.length > 0 && weightPerSet.every((w) => w === firstWeight);
   const planIntensity: { value: string; isPercent: boolean } | null =
-    exercise.set.weightKg > 0
-      ? { value: `${exercise.set.weightKg}kg`, isPercent: false }
+    weightUniform && firstWeight > 0
+      ? { value: `${firstWeight}kg`, isPercent: false }
       : typeof firstPercent === "number" && firstPercent > 0
         ? { value: `${firstPercent}%`, isPercent: true }
         : null;
@@ -160,7 +165,7 @@ export function WorkoutExerciseCard({ exerciseId, onExerciseAction }: Props) {
 
   const handleApplyRecommendedWeight = () => {
     if (recommendedWeightKg == null) return;
-    dispatchAction({ type: "CHANGE_WEIGHT", value: recommendedWeightKg });
+    dispatchAction({ type: "APPLY_TARGET_WEIGHTS" });
   };
 
   const handleAddSet = () => {
@@ -280,7 +285,7 @@ export function WorkoutExerciseCard({ exerciseId, onExerciseAction }: Props) {
               reps={firstReps}
               weightKg={
                 planIntensity && !planIntensity.isPercent
-                  ? exercise.set.weightKg
+                  ? firstWeight
                   : undefined
               }
               percent={

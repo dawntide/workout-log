@@ -75,7 +75,8 @@ export function applyRecentWeightsToCustomExercises(
   recentLogs: WorkoutLogRecentLogItem[],
 ): WorkoutRecordDraft {
   const nextSeedExercises = draft.seedExercises.map((exercise) => {
-    if (exercise.badge !== "CUSTOM" || exercise.set.weightKg > 0) return exercise;
+    const hasWeight = (exercise.set.weightKgPerSet ?? []).some((w) => w > 0);
+    if (exercise.badge !== "CUSTOM" || hasWeight) return exercise;
     const name = exercise.exerciseName.toLowerCase();
     let foundWeight: number | null = null;
     outer: for (const log of recentLogs) {
@@ -91,10 +92,12 @@ export function applyRecentWeightsToCustomExercises(
       }
     }
     const weightKg = foundWeight ?? 50;
+    const length = Math.max(1, exercise.set.repsPerSet.length);
     return {
       ...exercise,
       set: {
         ...exercise.set,
+        weightKgPerSet: Array.from({ length }, () => weightKg),
         weightKg,
       },
     };

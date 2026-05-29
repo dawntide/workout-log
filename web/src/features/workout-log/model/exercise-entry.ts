@@ -75,6 +75,51 @@ export function removeSetRpeAtIndex(
   return [...next.slice(0, index), ...next.slice(index + 1)];
 }
 
+function clampWeight(value: number) {
+  if (!Number.isFinite(value)) return 0;
+  return Math.min(9999, Math.max(0, value));
+}
+
+function normalizeWeightPerSet(values: number[] | undefined, length: number) {
+  const count = Math.max(1, Math.min(50, Math.round(length)));
+  const source = Array.isArray(values) ? values : [];
+  const last = source.length > 0 ? clampWeight(source[source.length - 1] ?? 0) : 0;
+  return Array.from({ length: count }, (_, index) =>
+    source[index] !== undefined ? clampWeight(source[index]) : last,
+  );
+}
+
+export function patchSetWeightAtIndex(
+  values: number[] | undefined,
+  length: number,
+  index: number,
+  nextWeight: number,
+) {
+  const next = normalizeWeightPerSet(values, length);
+  if (index < 0 || index >= next.length) return next;
+  next[index] = clampWeight(nextWeight);
+  return next;
+}
+
+export function appendSetWeight(values: number[] | undefined, length: number) {
+  const next = normalizeWeightPerSet(values, length);
+  if (next.length >= 50) return next;
+  // 새 세트는 직전 세트의 무게를 상속한다.
+  const last = next[next.length - 1] ?? 0;
+  return [...next, last];
+}
+
+export function removeSetWeightAtIndex(
+  values: number[] | undefined,
+  length: number,
+  index: number,
+) {
+  const next = normalizeWeightPerSet(values, length);
+  if (next.length <= 1) return next;
+  if (index < 0 || index >= next.length) return next;
+  return [...next.slice(0, index), ...next.slice(index + 1)];
+}
+
 export function createFallbackProgramEntryState(
   exercise: WorkoutExerciseViewModel,
   current?: WorkoutProgramExerciseEntryState,

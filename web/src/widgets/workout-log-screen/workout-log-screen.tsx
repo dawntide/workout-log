@@ -21,6 +21,7 @@ import { useWorkoutLogPlanSheetController } from "@/features/workout-log/model/u
 import { readWorkoutLogQueryContext } from "@/features/workout-log/model/query-context";
 import { useWorkoutLogSaveController } from "@/features/workout-log/model/use-workout-log-save-controller";
 import { applyWorkoutLogWeightRulesToDraft } from "@/lib/workout-record/weight-rules";
+import { migrateWorkoutRecordDraft } from "@/entities/workout-record";
 import { formatDateFriendly } from "@/features/workout-log/model/last-session-summary";
 import { parseSessionKey } from "@/lib/session-key";
 import { WorkoutLogOverlaySheets } from "@/features/workout-log/ui/workout-log-overlay-sheets";
@@ -103,7 +104,8 @@ function WorkoutLogScreenContent({
     enabled: isWorkoutLogRouteActive,
     onRestoreAccepted: useCallback(
       (data) => {
-        setDraft(data.draft);
+        // 구버전 draft(weightKgPerSet 없음)는 단일 weightKg에서 세트별 배열로 마이그레이션.
+        setDraft(migrateWorkoutRecordDraft(data.draft));
         setProgramEntryState(data.programEntryState);
       },
       [setDraft, setProgramEntryState],

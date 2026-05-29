@@ -7,6 +7,9 @@ export type WorkoutSetModel = {
   reps: number;
   repsPerSet: number[];
   rpePerSet: number[];
+  /** 세트별 무게(kg). reps/rpe와 같이 세트마다 독립적으로 보관·수정한다. */
+  weightKgPerSet: number[];
+  /** 파생/레거시 값 = weightKgPerSet[0]. 표시 폴백 및 구버전 draft 호환용으로 유지. */
   weightKg: number;
 };
 
@@ -160,7 +163,7 @@ const WORKOUT_RECORD_TEXT = {
     invalidSetCount: (row: number) => `${row}번째 운동의 세트 수는 1~50 범위여야 합니다.`,
     invalidSetShape: (row: number) => `${row}번째 운동의 세트별 횟수 정보가 올바르지 않습니다.`,
     invalidReps: (row: number, setIndex: number) => `${row}번째 운동의 ${setIndex + 1}세트 횟수는 1~100 범위여야 합니다.`,
-    invalidWeight: (row: number) => `${row}번째 운동의 무게는 0~1000kg 범위여야 합니다.`,
+    invalidWeight: (row: number) => `${row}번째 운동의 무게는 0~9999kg 범위여야 합니다.`,
   },
   en: {
     noExerciseInfo: "No Exercise Info",
@@ -170,7 +173,7 @@ const WORKOUT_RECORD_TEXT = {
     invalidSetCount: (row: number) => `Exercise ${row} must have between 1 and 50 sets.`,
     invalidSetShape: (row: number) => `Exercise ${row} has invalid per-set rep data.`,
     invalidReps: (row: number, setIndex: number) => `Exercise ${row} set ${setIndex + 1} reps must be between 1 and 100.`,
-    invalidWeight: (row: number) => `Exercise ${row} weight must be between 0 and 1000kg.`,
+    invalidWeight: (row: number) => `Exercise ${row} weight must be between 0 and 9999kg.`,
   },
 } as const;
 
@@ -303,6 +306,55 @@ function normalizeRpePerSetArray(
   return Array.from({ length: count }, () => 0);
 }
 
+function normalizeWeightValue(value: unknown, fallback = 0) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.min(9999, Math.max(0, parsed));
+}
+
+function normalizeWeightPerSetArray(
+  value: unknown,
+  fallbackWeight = 0,
+  fallbackCount = 1,
+): number[] {
+  const count = Math.min(50, Math.max(1, Math.round(toNumber(fallbackCount, 1))));
+  const fallback = normalizeWeightValue(fallbackWeight, 0);
+  if (Array.isArray(value)) {
+    const normalized = value
+      .map((entry) => normalizeWeightValue(entry, fallback))
+      .filter((entry) => Number.isFinite(entry))
+      .slice(0, 50);
+    if (normalized.length > 0) {
+      const last = normalized[normalized.length - 1] ?? fallback;
+      return Array.from({ length: count }, (_, index) =>
+        normalizeWeightValue(normalized[index], last),
+      );
+    }
+  }
+
+  return Array.from({ length: count }, () => fallback);
+}
+
+/**
+ * set.weightKgPerSet 가 유효한 배열이면 그대로 정규화하고, 없으면(구버전 draft 등)
+ * 단일 weightKg 에서 reps 길이만큼 균일 배열을 파생한다.
+ */
+function migrateWeightKgPerSet(set: WorkoutSetModel): number[] {
+  const length = Math.min(
+    50,
+    Math.max(
+      1,
+      Array.isArray(set.repsPerSet) && set.repsPerSet.length > 0
+        ? set.repsPerSet.length
+        : Math.round(toNumber(set.count, 1)),
+    ),
+  );
+  if (Array.isArray(set.weightKgPerSet) && set.weightKgPerSet.length > 0) {
+    return normalizeWeightPerSetArray(set.weightKgPerSet, set.weightKg, length);
+  }
+  return normalizeWeightPerSetArray(undefined, set.weightKg, length);
+}
+
 function nonEmpty(value: string, fallback: string) {
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : fallback;
@@ -381,12 +433,14 @@ function deriveEstimateFromLoggedExercises(exercises: WorkoutExerciseModel[]) {
   let estimatedE1rmKg: number | null = null;
 
   for (const exercise of exercises) {
-    for (const reps of exercise.set.repsPerSet) {
-      const e1rm = estimateE1rm(exercise.set.weightKg, reps);
+    const weightKgPerSet = migrateWeightKgPerSet(exercise.set);
+    exercise.set.repsPerSet.forEach((reps, index) => {
+      const weightKg = weightKgPerSet[index] ?? weightKgPerSet[0] ?? 0;
+      const e1rm = estimateE1rm(weightKg, reps);
       if (e1rm !== null) {
         estimatedE1rmKg = estimatedE1rmKg === null ? e1rm : Math.max(estimatedE1rmKg, e1rm);
       }
-    }
+    });
   }
 
   return {
@@ -487,26 +541,61 @@ function toSeedExercise(exercise: SnapshotExercise, index: number): WorkoutExerc
     toNumber(first.reps, 5),
     sets.length,
   );
+  const badge = toSnapshotExerciseBadge(exercise);
+  const prescribedWeightKg = Math.max(0, toNumber(first.targetWeightKg ?? first.weightKg, 0));
+  const plannedSetMeta = toPlannedSetMeta(sets);
+
+  // AUTO(자동 진행) 운동은 프로그램이 세트별 처방 무게(targetWeightKgPerSet)를 가지므로
+  // 5/3/1 램핑(65/75/85%)처럼 세트마다 다른 무게를 그대로 시딩한다.
+  // CUSTOM/그 외는 첫 세트 처방값으로 균일 시딩한다.
+  const weightKgPerSet =
+    badge === "AUTO"
+      ? buildAutoSeedWeightPerSet(plannedSetMeta, prescribedWeightKg, repsPerSet.length)
+      : Array.from({ length: repsPerSet.length }, () => prescribedWeightKg);
 
   return {
     id: `seed-${index + 1}`,
     exerciseId: typeof exercise.exerciseId === "string" ? exercise.exerciseId : null,
     exerciseName: nonEmpty(String(exercise.exerciseName ?? exercise.name ?? ""), `Exercise ${index + 1}`),
     source: "PROGRAM",
-    badge: toSnapshotExerciseBadge(exercise),
-    prescribedWeightKg: Math.max(0, toNumber(first.targetWeightKg ?? first.weightKg, 0)),
-    plannedSetMeta: toPlannedSetMeta(sets),
+    badge,
+    prescribedWeightKg,
+    plannedSetMeta,
     set: {
       count: repsPerSet.length,
       reps: repsPerSet[0] ?? 5,
       repsPerSet,
       rpePerSet: normalizeRpePerSetArray(null, repsPerSet.length),
-      weightKg: Math.max(0, toNumber(first.targetWeightKg ?? first.weightKg, 0)),
+      weightKgPerSet,
+      weightKg: weightKgPerSet[0] ?? 0,
     },
     note: {
       memo: typeof first.note === "string" ? first.note : "",
     },
   };
+}
+
+/**
+ * AUTO 운동의 세트별 시딩 무게. plannedSetMeta.targetWeightKgPerSet 의 각 세트 값을 쓰되,
+ * null 이면 첫 유효 target → prescribedWeightKg → 0 순으로 폴백한다.
+ */
+function buildAutoSeedWeightPerSet(
+  plannedSetMeta: WorkoutPlannedSetMeta | null,
+  prescribedWeightKg: number,
+  length: number,
+): number[] {
+  const targets = plannedSetMeta?.targetWeightKgPerSet ?? [];
+  const firstValidTarget = targets.find(
+    (value): value is number => typeof value === "number" && Number.isFinite(value) && value > 0,
+  );
+  const fallback = firstValidTarget ?? prescribedWeightKg;
+  return Array.from({ length }, (_, setIndex) => {
+    const target = targets[setIndex];
+    if (typeof target === "number" && Number.isFinite(target) && target >= 0) {
+      return Math.max(0, target);
+    }
+    return Math.max(0, fallback);
+  });
 }
 
 function mergeSetModel(base: WorkoutSetModel, patch?: Partial<WorkoutSetModel>): WorkoutSetModel {
@@ -537,12 +626,34 @@ function mergeSetModel(base: WorkoutSetModel, patch?: Partial<WorkoutSetModel>):
     );
   }
 
+  const baseWeightPerSet = migrateWeightKgPerSet(base);
+  let nextWeightPerSet = baseWeightPerSet;
+  if (patch?.weightKgPerSet !== undefined) {
+    nextWeightPerSet = normalizeWeightPerSetArray(
+      patch.weightKgPerSet,
+      base.weightKg,
+      nextRepsPerSet.length,
+    );
+  } else if (patch?.weightKg !== undefined) {
+    // 레거시 단일 무게 patch: 모든 세트를 동일 값으로 설정.
+    const uniform = normalizeWeightValue(patch.weightKg, base.weightKg);
+    nextWeightPerSet = Array.from({ length: nextRepsPerSet.length }, () => uniform);
+  } else if (nextRepsPerSet.length !== baseWeightPerSet.length) {
+    // reps 길이만 바뀐 경우(세트 추가/삭제) 무게 길이를 동기화한다.
+    const last = baseWeightPerSet[baseWeightPerSet.length - 1] ?? base.weightKg;
+    nextWeightPerSet = Array.from(
+      { length: nextRepsPerSet.length },
+      (_, index) => baseWeightPerSet[index] ?? last,
+    );
+  }
+
   return {
     count: nextRepsPerSet.length,
     reps: nextRepsPerSet[0] ?? 5,
     repsPerSet: nextRepsPerSet,
     rpePerSet: nextRpePerSet,
-    weightKg: patch?.weightKg !== undefined ? Math.max(0, Number(patch.weightKg)) : base.weightKg,
+    weightKgPerSet: nextWeightPerSet,
+    weightKg: nextWeightPerSet[0] ?? 0,
   };
 }
 
@@ -583,7 +694,7 @@ function groupLoggedExercises(
     isExtra: boolean;
     repsPerSet: number[];
     rpePerSet: number[];
-    weightKg: number;
+    weightKgPerSet: number[];
     memo: string;
     plannedSetMeta: WorkoutPlannedSetMeta | null;
     badge: WorkoutExerciseBadge;
@@ -609,6 +720,7 @@ function groupLoggedExercises(
     if (isContinuation && previous) {
       previous.repsPerSet.push(reps);
       previous.rpePerSet.push(rpe);
+      previous.weightKgPerSet.push(weightKg);
       if (!previous.memo && memo) {
         previous.memo = memo;
       }
@@ -626,7 +738,7 @@ function groupLoggedExercises(
       isExtra,
       repsPerSet: [reps],
       rpePerSet: [rpe],
-      weightKg,
+      weightKgPerSet: [weightKg],
       memo,
       plannedSetMeta: snapshotExerciseEntry?.plannedSetMeta ?? null,
       badge: snapshotExerciseEntry?.badge ?? (isExtra ? "ADDED" : "AUTO"),
@@ -649,7 +761,12 @@ function groupLoggedExercises(
         exercise.rpePerSet,
         exercise.repsPerSet.length,
       ),
-      weightKg: exercise.weightKg,
+      weightKgPerSet: normalizeWeightPerSetArray(
+        exercise.weightKgPerSet,
+        exercise.weightKgPerSet[0] ?? 0,
+        exercise.repsPerSet.length,
+      ),
+      weightKg: exercise.weightKgPerSet[0] ?? 0,
     },
     note: {
       memo: exercise.memo,
@@ -789,6 +906,7 @@ export function hasWorkoutEdits(draft: WorkoutRecordDraft) {
         patch.set?.repsPerSet !== undefined ||
         patch.set?.rpePerSet !== undefined ||
         patch.set?.weightKg !== undefined ||
+        patch.set?.weightKgPerSet !== undefined ||
         patch.note?.memo !== undefined,
     );
   });
@@ -850,6 +968,9 @@ export function addUserExercise(
       reps: repsPerSet[0] ?? 5,
       repsPerSet,
       rpePerSet: normalizeRpePerSetArray(null, repsPerSet.length),
+      weightKgPerSet: Array.from({ length: repsPerSet.length }, () =>
+        Math.max(0, input.weightKg),
+      ),
       weightKg: Math.max(0, input.weightKg),
     },
     note: {
@@ -892,6 +1013,30 @@ export function removeUserExercise(draft: WorkoutRecordDraft, userId: string): W
   };
 }
 
+function migrateExerciseModelWeights(exercise: WorkoutExerciseModel): WorkoutExerciseModel {
+  const weightKgPerSet = migrateWeightKgPerSet(exercise.set);
+  return {
+    ...exercise,
+    set: {
+      ...exercise.set,
+      weightKgPerSet,
+      weightKg: weightKgPerSet[0] ?? 0,
+    },
+  };
+}
+
+/**
+ * 영속(IndexedDB/localStorage) draft 복원 시 사용. weightKgPerSet 이 없는 구버전 draft 를
+ * 단일 weightKg 에서 세트별 배열로 파생해 화면/스냅/payload 가 정상 동작하도록 한다.
+ */
+export function migrateWorkoutRecordDraft(draft: WorkoutRecordDraft): WorkoutRecordDraft {
+  return {
+    ...draft,
+    seedExercises: draft.seedExercises.map(migrateExerciseModelWeights),
+    userExercises: draft.userExercises.map(migrateExerciseModelWeights),
+  };
+}
+
 export function validateWorkoutDraft(
   draft: WorkoutRecordDraft,
   locale: WorkoutRecordLocale = "ko",
@@ -921,7 +1066,11 @@ export function validateWorkoutDraft(
         errors.push(copy.invalidReps(row, setIndex));
       }
     });
-    if (!Number.isFinite(exercise.set.weightKg) || exercise.set.weightKg < 0 || exercise.set.weightKg > 1000) {
+    const weightKgPerSet = migrateWeightKgPerSet(exercise.set);
+    const hasInvalidWeight = weightKgPerSet.some(
+      (weightKg) => !Number.isFinite(weightKg) || weightKg < 0 || weightKg > 9999,
+    );
+    if (hasInvalidWeight) {
       errors.push(copy.invalidWeight(row));
     }
   });
@@ -950,7 +1099,11 @@ export function toWorkoutLogPayload(
       exercise.set.rpePerSet,
       repsPerSet.length,
     );
-    const weightKg = roundTo2(Math.max(0, Number(exercise.set.weightKg ?? 0)));
+    const weightKgPerSet = normalizeWeightPerSetArray(
+      migrateWeightKgPerSet(exercise.set),
+      exercise.set.weightKg,
+      repsPerSet.length,
+    );
     const exerciseName = exercise.exerciseName.trim();
     const attachBodyweightMeta =
       Boolean(bodyweightKg) &&
@@ -958,6 +1111,7 @@ export function toWorkoutLogPayload(
       isBodyweightExercise(exerciseName);
     const amrapPerSet = exercise.plannedSetMeta?.amrapPerSet;
     repsPerSet.forEach((repsValue, index) => {
+      const weightKg = roundTo2(Math.max(0, Number(weightKgPerSet[index] ?? weightKgPerSet[0] ?? 0)));
       const meta: Record<string, unknown> = exercise.note.memo.trim()
         ? { memo: exercise.note.memo.trim() }
         : {};

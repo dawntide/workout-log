@@ -19,57 +19,74 @@ export function resolveWorkoutWeightWithPreferences(
   return snapWeightToIncrementKg(Math.max(0, weightKg), increment);
 }
 
+function snapWeightPerSet(
+  weightKgPerSet: number[],
+  exerciseId: string | null | undefined,
+  exerciseName: string,
+  preferences: WorkoutPreferences,
+  applyBodyweightLoad: boolean,
+): { next: number[]; changed: boolean } {
+  let changed = false;
+  const next = weightKgPerSet.map((weightKg) => {
+    const basis = applyBodyweightLoad
+      ? computeExternalLoadFromTotalKg(exerciseName, weightKg, preferences.bodyweightKg) ?? weightKg
+      : weightKg;
+    const snapped = resolveWorkoutWeightWithPreferences(
+      basis,
+      exerciseId,
+      exerciseName,
+      preferences,
+    );
+    if (Math.abs(weightKg - snapped) >= 0.0001) {
+      changed = true;
+    }
+    return snapped;
+  });
+  return { next, changed };
+}
+
 export function applyWorkoutLogWeightRulesToDraft(
   sourceDraft: WorkoutRecordDraft,
   preferences: WorkoutPreferences,
 ) {
   let seedChanged = false;
   const nextSeedExercises = sourceDraft.seedExercises.map((exercise) => {
-    const nextWeightKg = resolveWorkoutWeightWithPreferences(
-      computeExternalLoadFromTotalKg(
-        exercise.exerciseName,
-        typeof exercise.prescribedWeightKg === "number"
-          ? exercise.prescribedWeightKg
-          : exercise.set.weightKg,
-        preferences.bodyweightKg,
-      ) ??
-        (typeof exercise.prescribedWeightKg === "number"
-          ? exercise.prescribedWeightKg
-          : exercise.set.weightKg),
+    const { next, changed } = snapWeightPerSet(
+      exercise.set.weightKgPerSet,
       exercise.exerciseId,
       exercise.exerciseName,
       preferences,
+      true,
     );
-    if (Math.abs(exercise.set.weightKg - nextWeightKg) < 0.0001) {
-      return exercise;
-    }
+    if (!changed) return exercise;
     seedChanged = true;
     return {
       ...exercise,
       set: {
         ...exercise.set,
-        weightKg: nextWeightKg,
+        weightKgPerSet: next,
+        weightKg: next[0] ?? 0,
       },
     };
   });
 
   let userChanged = false;
   const nextUserExercises = sourceDraft.userExercises.map((exercise) => {
-    const nextWeightKg = resolveWorkoutWeightWithPreferences(
-      exercise.set.weightKg,
+    const { next, changed } = snapWeightPerSet(
+      exercise.set.weightKgPerSet,
       exercise.exerciseId,
       exercise.exerciseName,
       preferences,
+      false,
     );
-    if (Math.abs(exercise.set.weightKg - nextWeightKg) < 0.0001) {
-      return exercise;
-    }
+    if (!changed) return exercise;
     userChanged = true;
     return {
       ...exercise,
       set: {
         ...exercise.set,
-        weightKg: nextWeightKg,
+        weightKgPerSet: next,
+        weightKg: next[0] ?? 0,
       },
     };
   });

@@ -61,10 +61,10 @@ export function WorkoutSetRow({
     return r > 0 ? String(r) : "";
   }, [exercise, programEntryState, setIndex]);
 
-  const weightValue = useMemo(
-    () => (exercise.set.weightKg > 0 ? String(exercise.set.weightKg) : ""),
-    [exercise.set.weightKg],
-  );
+  const weightValue = useMemo(() => {
+    const w = exercise.set.weightKgPerSet?.[setIndex] ?? 0;
+    return w > 0 ? String(w) : "";
+  }, [exercise.set.weightKgPerSet, setIndex]);
 
   const rpeRaw = useMemo(() => {
     const r = exercise.set.rpePerSet?.[setIndex] ?? 0;
@@ -85,17 +85,18 @@ export function WorkoutSetRow({
     (raw: string) => {
       const cleaned = raw.replace(/[^0-9.]/g, "");
       if (cleaned === "" || cleaned === ".") {
-        onExerciseAction({ type: "CHANGE_WEIGHT", value: 0 });
+        onExerciseAction({ type: "CHANGE_WEIGHT", setIndex, value: 0 });
         return;
       }
       const num = Number(cleaned);
       if (!Number.isFinite(num)) return;
       onExerciseAction({
         type: "CHANGE_WEIGHT",
+        setIndex,
         value: Math.max(0, Math.min(9999, num)),
       });
     },
-    [onExerciseAction],
+    [onExerciseAction, setIndex],
   );
 
   const handleRepsChange = useCallback(

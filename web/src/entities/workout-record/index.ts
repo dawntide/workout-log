@@ -22,6 +22,7 @@ export {
   createWorkoutRecordDraftFromLog,
   hasWorkoutEdits,
   materializeWorkoutExercises,
+  migrateWorkoutRecordDraft,
   patchSeedExercise,
   removeSeedExercise,
   removeUserExercise,
