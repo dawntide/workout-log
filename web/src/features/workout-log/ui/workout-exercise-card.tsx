@@ -217,65 +217,31 @@ export function WorkoutExerciseCard({ exerciseId, onExerciseAction }: Props) {
               flex: 1,
               minWidth: 0,
               display: "flex",
-              flexDirection: "column",
-              gap: "var(--v2-s-1)",
+              alignItems: "center",
+              gap: "var(--v2-s-2)",
             }}
           >
-            <div
+            <span
+              className="v2-h3"
               style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "var(--v2-s-2)",
                 minWidth: 0,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
               }}
             >
-              <span
-                className="v2-h3"
-                style={{
-                  minWidth: 0,
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {exercise.exerciseName}
-              </span>
-              {isUser ? (
-                <V2Chip tone="neutral">USER</V2Chip>
-              ) : exercise.badge === "CUSTOM" ? (
-                <V2Chip tone="accent" icon="tune">
-                  {locale === "ko" ? "수동" : "CUSTOM"}
-                </V2Chip>
-              ) : (
-                <V2Chip tone="info" icon="bolt">
-                  {locale === "ko" ? "자동" : "AUTO"}
-                </V2Chip>
-              )}
-            </div>
-            {planUniform ? (
-              <PrescriptionInline
-                sets={totalSets}
-                reps={firstReps}
-                weightKg={
-                  planIntensity && !planIntensity.isPercent
-                    ? exercise.set.weightKg
-                    : undefined
-                }
-                percent={
-                  planIntensity && planIntensity.isPercent
-                    ? firstPercent ?? undefined
-                    : undefined
-                }
-                rpe={planRpeUniform ? firstPlanRpe : undefined}
-                lastSetAmrap={lastSetAmrap}
-              />
+              {exercise.exerciseName}
+            </span>
+            {isUser ? (
+              <V2Chip tone="neutral">USER</V2Chip>
+            ) : exercise.badge === "CUSTOM" ? (
+              <V2Chip tone="accent" icon="tune">
+                {locale === "ko" ? "수동" : "CUSTOM"}
+              </V2Chip>
             ) : (
-              <span
-                className="v2-mono-label"
-                style={{ color: "var(--v2-ink-3)" }}
-              >
-                {totalSets} {setsLabel}
-              </span>
+              <V2Chip tone="info" icon="bolt">
+                {locale === "ko" ? "자동" : "AUTO"}
+              </V2Chip>
             )}
           </div>
           <span
@@ -297,24 +263,53 @@ export function WorkoutExerciseCard({ exerciseId, onExerciseAction }: Props) {
           </span>
         </div>
 
-        {!previousSession && recommendedWeightKg != null && (
-          <div style={{ display: "flex" }}>
+        {/* 처방 + 권장 무게 적용. 무게·횟수는 처방에만 표시하고 버튼은 액션 라벨로
+            축약해 중복을 없앤다. 좁은 화면에서는 버튼이 다음 줄로 wrap되어 잘리지 않는다. */}
+        <div
+          style={{
+            display: "flex",
+            flexWrap: "wrap",
+            alignItems: "center",
+            gap: "var(--v2-s-2)",
+            minWidth: 0,
+          }}
+        >
+          {planUniform ? (
+            <PrescriptionInline
+              sets={totalSets}
+              reps={firstReps}
+              weightKg={
+                planIntensity && !planIntensity.isPercent
+                  ? exercise.set.weightKg
+                  : undefined
+              }
+              percent={
+                planIntensity && planIntensity.isPercent
+                  ? firstPercent ?? undefined
+                  : undefined
+              }
+              rpe={planRpeUniform ? firstPlanRpe : undefined}
+              lastSetAmrap={lastSetAmrap}
+            />
+          ) : (
+            <span
+              className="v2-mono-label"
+              style={{ color: "var(--v2-ink-3)" }}
+            >
+              {totalSets} {setsLabel}
+            </span>
+          )}
+          {recommendedWeightKg != null && (
             <ChipButton
               onClick={handleApplyRecommendedWeight}
               icon="restart_alt"
               tone="accent"
               size="sm"
             >
-              {locale === "ko"
-                ? firstReps > 0
-                  ? `권장 ${firstReps} @ ${recommendedWeightKg}kg`
-                  : `권장 ${recommendedWeightKg}kg`
-                : firstReps > 0
-                  ? `Target ${firstReps} @ ${recommendedWeightKg}kg`
-                  : `Suggested ${recommendedWeightKg}kg`}
+              {locale === "ko" ? "권장값" : "Target"}
             </ChipButton>
-          </div>
-        )}
+          )}
+        </div>
 
         {previousSession && (
           <div
@@ -357,24 +352,6 @@ export function WorkoutExerciseCard({ exerciseId, onExerciseAction }: Props) {
               compactWrapperStyle={{ marginRight: "auto" }}
               containerStyle={{ flex: 1, minWidth: 0 }}
             />
-            {recommendedWeightKg != null && (
-              <div style={{ flexShrink: 0 }}>
-                <ChipButton
-                  onClick={handleApplyRecommendedWeight}
-                  icon="restart_alt"
-                  tone="accent"
-                  size="sm"
-                >
-                  {locale === "ko"
-                    ? firstReps > 0
-                      ? `권장 ${firstReps} @ ${recommendedWeightKg}kg`
-                      : `권장 ${recommendedWeightKg}kg`
-                    : firstReps > 0
-                      ? `Target ${firstReps} @ ${recommendedWeightKg}kg`
-                      : `Suggested ${recommendedWeightKg}kg`}
-                </ChipButton>
-              </div>
-            )}
           </div>
         )}
 
