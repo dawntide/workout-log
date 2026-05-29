@@ -3,9 +3,12 @@ import { eq } from "drizzle-orm";
 import { db } from "@/server/db/client";
 import {
   appUser,
+  authOauthAccount,
   authSession,
   emailVerificationToken,
   passwordResetToken,
+  userSetting,
+  uxEventLog,
 } from "@/server/db/schema";
 import { verifyPassword } from "@/server/auth/password";
 import { requireAuthenticatedUserId } from "@/server/auth/user";
@@ -111,6 +114,11 @@ async function DELETEImpl(req: Request) {
       await tx
         .delete(emailVerificationToken)
         .where(eq(emailVerificationToken.userId, userId));
+      // 계정 삭제 완전성(audit §3.1): FK가 없어 cascade되지 않는 user-scoped 데이터 정리.
+      // deleteUserDomainData는 import-replace와 공유하므로(설정 보존), 계정 전용 정리는 여기서 수행.
+      await tx.delete(userSetting).where(eq(userSetting.userId, userId));
+      await tx.delete(uxEventLog).where(eq(uxEventLog.userId, userId));
+      await tx.delete(authOauthAccount).where(eq(authOauthAccount.userId, userId));
       await tx.delete(authSession).where(eq(authSession.userId, userId));
       await tx.delete(appUser).where(eq(appUser.id, userId));
     });

@@ -21,7 +21,7 @@
     "test:async-ux:stats-1rm": "bash scripts/playwright-wrapper.sh test e2e/stats-1rm-async-continuity.spec.ts --project chromium",
     "test:settings:policy": "tsx --test src/lib/settings/update-setting.test.ts",
     "typecheck": "tsc --noEmit",
-    "test:unit": "tsx --test src/server/progression/reducer.test.ts src/lib/settings/update-setting.test.ts src/lib/settings/settings-deeplink.test.ts src/lib/settings/settings-search.test.ts src/lib/navigation/view-transition.test.ts src/lib/workout-record/model.test.ts src/lib/workout-record/entry-state.test.ts src/lib/workout-notation/format.test.ts src/lib/strength-engine/target-mapping.test.ts src/server/auth/token.test.ts src/server/auth/jwt-verify.test.ts src/server/auth/rate-limit.test.ts src/server/import/userImport.test.ts",
+    "test:unit": "tsx --test src/server/progression/reducer.test.ts src/lib/settings/update-setting.test.ts src/lib/settings/settings-deeplink.test.ts src/lib/settings/settings-search.test.ts src/lib/navigation/view-transition.test.ts src/lib/workout-record/model.test.ts src/lib/workout-record/entry-state.test.ts src/lib/workout-notation/format.test.ts src/lib/strength-engine/target-mapping.test.ts src/server/auth/token.test.ts src/server/auth/jwt-verify.test.ts src/server/auth/rate-limit.test.ts src/server/import/userImport.test.ts src/server/data/deleteUserData.coverage.test.ts",
     "test:progression": "tsx --test src/server/progression/reducer.test.ts src/server/progression/reducer.full-block.test.ts src/server/progression/asymptote.guide.test.ts src/server/program-engine/generateSession.rounding.test.ts",
     "test:e2e": "bash scripts/playwright-wrapper.sh test",
     "test:e2e:dev": "PLAYWRIGHT_SERVER_MODE=dev bash scripts/playwright-wrapper.sh test",

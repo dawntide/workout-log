@@ -1,3 +1,5 @@
+import { mapExerciseNameToTarget } from "@/lib/strength-engine/target-mapping";
+
 export type ProgramTemplate = {
   id: string;
   slug: string;
@@ -113,25 +115,8 @@ function defaultExerciseNameForTarget(targetRaw: string) {
   return targetRaw || "Exercise";
 }
 
-export function inferProgressionTargetFromExerciseName(exerciseName: string): ProgramProgressionTarget | null {
-  const normalized = String(exerciseName).trim().toLowerCase();
-  if (!normalized) return null;
-  if (normalized.includes("squat")) return "SQUAT";
-  if (normalized.includes("bench")) return "BENCH";
-  if (normalized.includes("deadlift")) return "DEADLIFT";
-  if (normalized.includes("overhead press") || normalized === "ohp" || normalized.includes("shoulder press")) {
-    return "OHP";
-  }
-  if (
-    normalized.includes("row") ||
-    normalized.includes("pull-up") ||
-    normalized.includes("pull up") ||
-    normalized.includes("pulldown")
-  ) {
-    return "PULL";
-  }
-  return null;
-}
+// 정규 매퍼 재노출(audit §3.6). ProgramProgressionTarget ≡ StrengthTarget(동일 유니온).
+export const inferProgressionTargetFromExerciseName = mapExerciseNameToTarget;
 
 function normalizeProgressionTarget(value: unknown): ProgramProgressionTarget | null {
   if (isProgramProgressionTarget(value)) return value;
