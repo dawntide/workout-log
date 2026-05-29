@@ -8,9 +8,7 @@ import type {
   WorkoutExerciseViewModel,
   WorkoutRecordDraft,
 } from "@/entities/workout-record";
-import {
-  resolveWorkoutWeightWithPreferences,
-} from "./weight-rules";
+import { resolveWorkoutWeightWithPreferences } from "@/lib/workout-record/weight-rules";
 
 import { useSetAtom, useAtomValue } from "jotai";
 import { draftAtom, programEntryStateAtom, workflowStateAtom, workoutPreferencesAtom, visibleExercisesAtom } from "../store/workout-log-atoms";

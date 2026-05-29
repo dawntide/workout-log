@@ -4,7 +4,7 @@ import {
   snapWeightToIncrementKg,
   type WorkoutPreferences,
 } from "@/lib/settings/workout-preferences";
-import type { WorkoutRecordDraft } from "@/entities/workout-record";
+import type { WorkoutRecordDraft } from "@/lib/workout-record/model";
 
 export function resolveWorkoutWeightWithPreferences(
   weightKg: number,

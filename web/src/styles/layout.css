@@ -35,59 +35,6 @@
   padding-bottom: var(--v2-s-7);
 }
 
-/*
- * Viewport-locked 모드 — 운동기록 등 단일 화면에서 컨텐츠를
- * 뷰포트 내에 정확히 맞춰 수직 스크롤이 발생하지 않도록 합니다.
- * 하단 고정 네비게이션(ActionDock) 높이를 reserve 하고,
- * 페이지 내부 flex 컨테이너가 남은 공간을 100% 채웁니다.
- *
- * 사용: 페이지 컴포넌트의 useEffect 에서
- *   document.body.dataset.viewportLocked = "true"
- * 마운트, 언마운트 시 해제.
- */
-body[data-viewport-locked="true"] {
-  overflow: hidden;
-  /* iOS Safari: 바운스 스크롤 방지 */
-  overscroll-behavior: none;
-
-  /* 운동기록 화면 — 뷰포트 높이에 따라 키패드/디스플레이가 비례 확대되어
-   * 큰 화면에서 키패드 위 공백이 한 곳에 쌓이지 않도록 한다. */
-  --v2-workout-key-h: clamp(44px, 6.4dvh, 64px);
-  --v2-workout-display-fs: clamp(28px, 4.4dvh, 44px);
-  --v2-workout-display-fs-sm: clamp(20px, 3dvh, 30px);
-  --v2-workout-key-gap: clamp(4px, 0.6dvh, 8px);
-}
-
-body[data-viewport-locked="true"] .app-shell {
-  /* 100vh fallback (dvh 미지원 브라우저 대응) → 100dvh override */
-  height: 100vh;
-  height: 100dvh;
-  min-height: 0;
-  overflow: hidden;
-}
-
-body[data-viewport-locked="true"] .app-main {
-  /* ActionDock(아이콘+라벨 약 60px) + 8px 하단 오프셋 + 4px 상단 버퍼 */
-  padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px));
-  min-height: 0;
-  overflow: hidden;
-}
-
-body[data-viewport-locked="true"] .app-shell__content {
-  min-height: 0;
-  min-width: 0;
-  /* flex chain 보완 — 일부 모바일 브라우저에서 nested flex 의 height 가
-   * 전파되지 않는 케이스가 있어 명시적으로 100% 를 강제한다. */
-  height: 100%;
-}
-
-body[data-viewport-locked="true"] .app-shell__page {
-  padding-bottom: 0;
-  min-height: 0;
-  /* 동일 — page 컨테이너가 content 전체 높이를 차지하도록 보장. */
-  height: 100%;
-}
-
 /* Base utility padding container */
 .container {
   padding-left: var(--v2-s-4);

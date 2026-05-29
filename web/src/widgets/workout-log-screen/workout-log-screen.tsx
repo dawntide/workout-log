@@ -20,7 +20,7 @@ import { useWorkoutLogKeyboardOpenEffect } from "@/features/workout-log/model/us
 import { useWorkoutLogPlanSheetController } from "@/features/workout-log/model/use-workout-log-plan-sheet-controller";
 import { readWorkoutLogQueryContext } from "@/features/workout-log/model/query-context";
 import { useWorkoutLogSaveController } from "@/features/workout-log/model/use-workout-log-save-controller";
-import { applyWorkoutLogWeightRulesToDraft } from "@/features/workout-log/model/weight-rules";
+import { applyWorkoutLogWeightRulesToDraft } from "@/lib/workout-record/weight-rules";
 import { formatDateFriendly } from "@/features/workout-log/model/last-session-summary";
 import { parseSessionKey } from "@/lib/session-key";
 import { WorkoutLogOverlaySheets } from "@/features/workout-log/ui/workout-log-overlay-sheets";

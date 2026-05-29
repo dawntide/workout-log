@@ -15,7 +15,7 @@ import {
   prepareWorkoutRecordDraftForEntry,
 } from "@/entities/workout-record";
 import type { WorkoutPreferences } from "@/lib/settings/workout-preferences";
-import { applyWorkoutLogWeightRulesToDraft } from "@/features/workout-log/model/weight-rules";
+import { applyWorkoutLogWeightRulesToDraft } from "@/lib/workout-record/weight-rules";
 import {
   applyRecentWeightsToCustomExercises,
   buildLastSessionSummary,
