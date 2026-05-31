@@ -55,17 +55,6 @@ type WorkoutLogOverlaySheetsProps = {
   onSelectExerciseOption: (option: WorkoutLogExerciseOption | null) => void;
   onCloseAddExerciseSheet: () => void;
   onAddExercise: () => void;
-  addDraftIncrementKg: number;
-  addDraftIncrementInfo: {
-    source: string;
-  };
-  addDraftTotalLoadKg: number | null;
-  bodyweightKg: number | null;
-  resolveWeightWithCurrentPreferences: (
-    weightKg: number,
-    exerciseId: string | null | undefined,
-    exerciseName: string,
-  ) => number;
   pendingRestorePrompt: PendingRestorePrompt | null;
   onResolveRestorePrompt: (accept: boolean) => void;
   failureProtocolSheet: {
@@ -149,12 +138,6 @@ function areWorkoutLogOverlaySheetsPropsEqual(
     previous.onSelectExerciseOption === next.onSelectExerciseOption &&
     previous.onCloseAddExerciseSheet === next.onCloseAddExerciseSheet &&
     previous.onAddExercise === next.onAddExercise &&
-    previous.addDraftIncrementKg === next.addDraftIncrementKg &&
-    previous.addDraftIncrementInfo.source === next.addDraftIncrementInfo.source &&
-    previous.addDraftTotalLoadKg === next.addDraftTotalLoadKg &&
-    previous.bodyweightKg === next.bodyweightKg &&
-    previous.resolveWeightWithCurrentPreferences ===
-      next.resolveWeightWithCurrentPreferences &&
     previous.onResolveRestorePrompt === next.onResolveRestorePrompt &&
     previous.onSelectFailureProtocol === next.onSelectFailureProtocol &&
     areSearchSelectOptionsEqual(previous.planSheetOptions, next.planSheetOptions) &&
@@ -199,11 +182,6 @@ export const WorkoutLogOverlaySheets = memo(function WorkoutLogOverlaySheets({
   onSelectExerciseOption,
   onCloseAddExerciseSheet,
   onAddExercise,
-  addDraftIncrementKg,
-  addDraftIncrementInfo,
-  addDraftTotalLoadKg,
-  bodyweightKg,
-  resolveWeightWithCurrentPreferences,
   pendingRestorePrompt,
   onResolveRestorePrompt,
   failureProtocolSheet,
@@ -236,11 +214,6 @@ export const WorkoutLogOverlaySheets = memo(function WorkoutLogOverlaySheets({
         onSelectExerciseOption={onSelectExerciseOption}
         onClose={onCloseAddExerciseSheet}
         onAddExercise={onAddExercise}
-        addDraftIncrementKg={addDraftIncrementKg}
-        addDraftIncrementInfo={addDraftIncrementInfo}
-        addDraftTotalLoadKg={addDraftTotalLoadKg}
-        bodyweightKg={bodyweightKg}
-        resolveWeightWithCurrentPreferences={resolveWeightWithCurrentPreferences}
       />
 
       <RestoreDraftSheet

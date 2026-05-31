@@ -168,9 +168,6 @@ function WorkoutLogScreenContent({
     exerciseOptionsLoading,
     filteredExerciseOptions,
     selectedExerciseOption,
-    addDraftIncrementKg,
-    addDraftIncrementInfo,
-    addDraftTotalLoadKg,
     openAddExerciseSheet,
     closeAddExerciseSheet,
     selectExerciseOption,
@@ -179,7 +176,6 @@ function WorkoutLogScreenContent({
     open: addSheetOpen,
     setOpen: setAddSheetOpen,
     locale,
-    resolveWeightWithCurrentPreferences: (weight, _id, _name) => weight,
   });
 
   const {
@@ -540,11 +536,6 @@ function WorkoutLogScreenContent({
         onSelectExerciseOption={selectExerciseOption}
         onCloseAddExerciseSheet={closeAddExerciseSheet}
         onAddExercise={handleAddExercise}
-        addDraftIncrementKg={addDraftIncrementKg}
-        addDraftIncrementInfo={addDraftIncrementInfo}
-        addDraftTotalLoadKg={addDraftTotalLoadKg}
-        bodyweightKg={null}
-        resolveWeightWithCurrentPreferences={(w) => w}
         pendingRestorePrompt={pendingRestorePrompt}
         onResolveRestorePrompt={resolveRestorePrompt}
         failureProtocolSheet={failureProtocolSheet}

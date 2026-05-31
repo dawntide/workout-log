@@ -2,21 +2,13 @@
 
 import Link from "next/link";
 import dynamic from "next/dynamic";
-import { memo, useCallback, type Dispatch, type SetStateAction } from "react";
-import { AppPlusMinusIcon, AppTextarea } from "@/components/ui/form-controls";
+import { memo, type Dispatch, type SetStateAction } from "react";
 import { SearchSelectCombobox } from "@/components/ui/search-select-sheet";
-import { patchSetRepsAtIndex, appendSetReps } from "@/features/workout-log/model/exercise-entry";
 import type { AddExerciseDraft, WorkoutLogExerciseOption } from "@/features/workout-log/model/types";
 import {
   areAddExerciseDraftsEqual,
   areWorkoutLogExerciseOptionsEqual,
 } from "@/features/workout-log/ui/prop-equality";
-import {
-  SwipeableSetRow,
-  WorkoutRecordInlinePicker,
-  formatCompactWeightValue,
-} from "@/features/workout-log/ui/set-editor-controls";
-import { isBodyweightExerciseName } from "@/lib/bodyweight-load";
 import type { AppCopy, AppLocale } from "@/lib/i18n/messages";
 
 const BottomSheet = dynamic(
@@ -40,17 +32,6 @@ type AddExerciseSheetProps = {
   onSelectExerciseOption: (option: WorkoutLogExerciseOption | null) => void;
   onClose: () => void;
   onAddExercise: () => void;
-  addDraftIncrementKg: number;
-  addDraftIncrementInfo: {
-    source: string;
-  };
-  addDraftTotalLoadKg: number | null;
-  bodyweightKg: number | null;
-  resolveWeightWithCurrentPreferences: (
-    weightKg: number,
-    exerciseId: string | null | undefined,
-    exerciseName: string,
-  ) => number;
 };
 
 function areSelectedExerciseOptionsEqual(
@@ -83,12 +64,6 @@ function areAddExerciseSheetPropsEqual(
     previous.onSelectExerciseOption === next.onSelectExerciseOption &&
     previous.onClose === next.onClose &&
     previous.onAddExercise === next.onAddExercise &&
-    previous.addDraftIncrementKg === next.addDraftIncrementKg &&
-    previous.addDraftIncrementInfo.source === next.addDraftIncrementInfo.source &&
-    previous.addDraftTotalLoadKg === next.addDraftTotalLoadKg &&
-    previous.bodyweightKg === next.bodyweightKg &&
-    previous.resolveWeightWithCurrentPreferences ===
-      next.resolveWeightWithCurrentPreferences &&
     areAddExerciseDraftsEqual(previous.addDraft, next.addDraft) &&
     areWorkoutLogExerciseOptionsEqual(
       previous.filteredExerciseOptions,
@@ -100,140 +75,6 @@ function areAddExerciseSheetPropsEqual(
     )
   );
 }
-
-type AddExerciseSetRowProps = {
-  index: number;
-  setReps: number;
-  weightKg: number;
-  incrementKg: number;
-  locale: AppLocale;
-  disableDelete: boolean;
-  exerciseId: string | null;
-  exerciseName: string;
-  setAddDraft: Dispatch<SetStateAction<AddExerciseDraft>>;
-  resolveWeightWithCurrentPreferences: (
-    weightKg: number,
-    exerciseId: string | null | undefined,
-    exerciseName: string,
-  ) => number;
-};
-
-function areAddExerciseSetRowPropsEqual(
-  previous: AddExerciseSetRowProps,
-  next: AddExerciseSetRowProps,
-) {
-  return (
-    previous.index === next.index &&
-    previous.setReps === next.setReps &&
-    previous.weightKg === next.weightKg &&
-    previous.incrementKg === next.incrementKg &&
-    previous.locale === next.locale &&
-    previous.disableDelete === next.disableDelete &&
-    previous.exerciseId === next.exerciseId &&
-    previous.exerciseName === next.exerciseName &&
-    previous.setAddDraft === next.setAddDraft &&
-    previous.resolveWeightWithCurrentPreferences ===
-      next.resolveWeightWithCurrentPreferences
-  );
-}
-
-const AddExerciseSetRow = memo(function AddExerciseSetRow({
-  index,
-  setReps,
-  weightKg,
-  incrementKg,
-  locale,
-  disableDelete,
-  exerciseId,
-  exerciseName,
-  setAddDraft,
-  resolveWeightWithCurrentPreferences,
-}: AddExerciseSetRowProps) {
-  const formatWeightValue = useCallback(
-    (value: number) => formatCompactWeightValue(value, incrementKg),
-    [incrementKg],
-  );
-  const formatRepsValue = useCallback(
-    (value: number) => String(Math.round(value)),
-    [],
-  );
-  const handleWeightChange = useCallback(
-    (value: number) =>
-      setAddDraft((prev) => ({
-        ...prev,
-        weightKg: resolveWeightWithCurrentPreferences(
-          value,
-          exerciseId,
-          exerciseName,
-        ),
-      })),
-    [
-      exerciseId,
-      exerciseName,
-      resolveWeightWithCurrentPreferences,
-      setAddDraft,
-    ],
-  );
-  const handleRepsChange = useCallback(
-    (value: number) =>
-      setAddDraft((prev) => ({
-        ...prev,
-        repsPerSet: patchSetRepsAtIndex(prev.repsPerSet, index, value),
-      })),
-    [index, setAddDraft],
-  );
-
-  return (
-    <SwipeableSetRow
-      deleteLabel={locale === "ko" ? "세트 삭제" : "Delete set"}
-      disabled={disableDelete}
-      onDelete={() =>
-        setAddDraft((prev) => ({
-          ...prev,
-          repsPerSet: prev.repsPerSet.filter((_, rowIndex) => rowIndex !== index),
-        }))
-      }
-    >
-      <div
-        role="listitem"
-        style={{
-          display: "grid",
-          gridTemplateColumns: "0.7fr 1.8fr 1.2fr",
-          gap: "var(--v2-s-1)",
-          alignItems: "center",
-          textAlign: "center",
-        }}
-      >
-        <span
-          className="v2-mono-label"
-          style={{ color: "var(--v2-ink-3)" }}
-        >
-          {index + 1}
-        </span>
-        <WorkoutRecordInlinePicker
-          label={locale === "ko" ? `${index + 1}세트 무게` : `Set ${index + 1} Weight`}
-          value={weightKg}
-          min={0}
-          max={1000}
-          step={incrementKg}
-          formatValue={formatWeightValue}
-          color="var(--v2-c-weight)"
-          onChange={handleWeightChange}
-        />
-        <WorkoutRecordInlinePicker
-          label={locale === "ko" ? `${index + 1}세트 횟수` : `Set ${index + 1} Reps`}
-          value={setReps}
-          min={1}
-          max={100}
-          step={1}
-          formatValue={formatRepsValue}
-          color="var(--v2-c-reps)"
-          onChange={handleRepsChange}
-        />
-      </div>
-    </SwipeableSetRow>
-  );
-}, areAddExerciseSetRowPropsEqual);
 
 export const AddExerciseSheet = memo(function AddExerciseSheet({
   open,
@@ -251,15 +92,7 @@ export const AddExerciseSheet = memo(function AddExerciseSheet({
   onSelectExerciseOption,
   onClose,
   onAddExercise,
-  addDraftIncrementKg,
-  addDraftIncrementInfo,
-  addDraftTotalLoadKg,
-  bodyweightKg,
-  resolveWeightWithCurrentPreferences,
 }: AddExerciseSheetProps) {
-  const showRuleInfo = addDraftIncrementInfo.source === "RULE";
-  const showBodyweightInfo =
-    isBodyweightExerciseName(addDraft.exerciseName) && Boolean(bodyweightKg);
   return (
     <BottomSheet
       open={open}
@@ -388,137 +221,14 @@ export const AddExerciseSheet = memo(function AddExerciseSheet({
           ) : null}
         </div>
 
-        <div
-          style={{
-            background: "var(--v2-paper-2)",
-            borderRadius: "var(--v2-r-4)",
-            padding: "var(--v2-s-4)",
-          }}
+        <p
+          className="v2-small"
+          style={{ margin: 0, color: "var(--v2-ink-3)" }}
         >
-          <div
-            aria-hidden="true"
-            style={{
-              display: "grid",
-              gridTemplateColumns: "0.7fr 1.8fr 1.2fr",
-              gap: "var(--v2-s-1)",
-              marginBottom: "var(--v2-s-2)",
-              textAlign: "center",
-            }}
-          >
-            <span className="v2-eyebrow">Sets</span>
-            <span
-              className="v2-eyebrow"
-              style={{ color: "var(--v2-c-weight)" }}
-            >
-              Weight
-            </span>
-            <span
-              className="v2-eyebrow"
-              style={{ color: "var(--v2-c-reps)" }}
-            >
-              Reps
-            </span>
-          </div>
-
-          <div role="list" aria-label={locale === "ko" ? "세트 편집" : "Edit sets"}>
-            {addDraft.repsPerSet.map((setReps, index) => (
-              <AddExerciseSetRow
-                key={`add-set-${index}`}
-                index={index}
-                setReps={setReps}
-                weightKg={addDraft.weightKg}
-                incrementKg={addDraftIncrementKg}
-                locale={locale}
-                disableDelete={addDraft.repsPerSet.length <= 1}
-                exerciseId={addDraft.exerciseId}
-                exerciseName={addDraft.exerciseName}
-                setAddDraft={setAddDraft}
-                resolveWeightWithCurrentPreferences={resolveWeightWithCurrentPreferences}
-              />
-            ))}
-          </div>
-
-          <button
-            type="button"
-            className="v2-pressable v2-font-display"
-            style={{
-              width: "100%",
-              marginTop: "var(--v2-s-3)",
-              padding: "var(--v2-s-3)",
-              background: "var(--v2-paper-3)",
-              border: "none",
-              borderRadius: "var(--v2-r-2)",
-              color: "var(--v2-ink-2)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: "var(--v2-s-2)",
-              fontSize: "var(--v2-t-small)",
-              fontWeight: 700,
-              cursor: "pointer",
-            }}
-            onClick={() =>
-              setAddDraft((prev) => ({
-                ...prev,
-                repsPerSet: appendSetReps(prev.repsPerSet),
-              }))
-            }
-          >
-            <AppPlusMinusIcon kind="plus" size={14} />
-            <span>{copy.addSet}</span>
-          </button>
-        </div>
-
-        {showRuleInfo || showBodyweightInfo ? (
-          <div
-            style={{
-              background: "var(--v2-paper-2)",
-              borderRadius: "var(--v2-r-2)",
-              padding: "var(--v2-s-3) var(--v2-s-4)",
-              display: "flex",
-              flexDirection: "column",
-              gap: "var(--v2-s-1)",
-            }}
-          >
-            {showRuleInfo ? (
-              <span
-                className="v2-small"
-                style={{ color: "var(--v2-ink-2)" }}
-              >
-                {locale === "ko"
-                  ? `적용 Increment: ${addDraftIncrementKg.toFixed(2)}kg`
-                  : `Applied increment: ${addDraftIncrementKg.toFixed(2)}kg`}
-              </span>
-            ) : null}
-            {showBodyweightInfo ? (
-              <span
-                className="v2-small"
-                style={{ color: "var(--v2-ink-2)" }}
-              >
-                {locale === "ko"
-                  ? `총 부하(외부중량 + 체중): ${addDraftTotalLoadKg?.toFixed(2) ?? "-"}kg`
-                  : `Total load (external + bodyweight): ${addDraftTotalLoadKg?.toFixed(2) ?? "-"}kg`}
-              </span>
-            ) : null}
-          </div>
-        ) : null}
-
-        <label
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            gap: "var(--v2-s-1)",
-          }}
-        >
-          <span className="v2-eyebrow v2-font-display">
-            {locale === "ko" ? "메모" : "Memo"}
-          </span>
-          <AppTextarea
-            variant="workout"
-            value={addDraft.memo}
-            onChange={(event) => setAddDraft((prev) => ({ ...prev, memo: event.target.value }))}
-          />
-        </label>
+          {locale === "ko"
+            ? "운동 종목만 추가됩니다. 무게·횟수·메모는 운동 기록 화면에서 입력하세요."
+            : "Only the exercise is added. Enter weight, reps, and notes on the workout log screen."}
+        </p>
 
         <Link
           href="/exercises?context=session"

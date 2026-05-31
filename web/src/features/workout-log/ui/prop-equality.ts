@@ -150,10 +150,7 @@ export function areAddExerciseDraftsEqual(
   if (left === right) return true;
   return (
     left.exerciseId === right.exerciseId &&
-    left.exerciseName === right.exerciseName &&
-    left.weightKg === right.weightKg &&
-    left.memo === right.memo &&
-    areNumberArraysEqual(left.repsPerSet, right.repsPerSet)
+    left.exerciseName === right.exerciseName
   );
 }
 

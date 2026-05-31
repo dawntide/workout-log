@@ -59,18 +59,12 @@ export type WorkoutLogExerciseResponse = {
 export type AddExerciseDraft = {
   exerciseId: string | null;
   exerciseName: string;
-  weightKg: number;
-  repsPerSet: number[];
-  memo: string;
 };
 
 export function createDefaultAddExerciseDraft(): AddExerciseDraft {
   return {
     exerciseId: null,
     exerciseName: "",
-    weightKg: 0,
-    repsPerSet: [5, 5, 5],
-    memo: "",
   };
 }
 

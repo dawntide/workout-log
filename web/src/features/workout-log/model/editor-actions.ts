@@ -25,7 +25,6 @@ import {
 import type {
   AddExerciseDraft,
   WorkoutLogExerciseOption,
-  WorkoutLogRecentLogItem,
 } from "./types";
 
 export type ExerciseRowAction =
@@ -50,11 +49,6 @@ type ResolveWeightWithPreferences = (
   preferences: WorkoutPreferences,
 ) => number;
 
-type ResolveWeightWithCurrentPreferences = (
-  weightKg: number,
-  exerciseId: string | null | undefined,
-  exerciseName: string,
-) => number;
 
 type ExerciseActionUpdate = {
   draftUpdater: (prev: WorkoutRecordDraft) => WorkoutRecordDraft;
@@ -253,54 +247,20 @@ export function buildExerciseActionUpdate(
   }
 }
 
-function findRecentExerciseWeight(
-  recentLogItems: WorkoutLogRecentLogItem[],
-  exerciseName: string,
-  fallback = 50,
-) {
-  const normalizedName = exerciseName.trim().toLowerCase();
-  if (!normalizedName) return fallback;
-
-  for (const log of recentLogItems) {
-    for (const set of log.sets) {
-      if (
-        set.exerciseName.toLowerCase() === normalizedName &&
-        set.weightKg != null &&
-        set.weightKg > 0
-      ) {
-        return set.weightKg;
-      }
-    }
-  }
-
-  return fallback;
-}
-
 export function buildSelectedExerciseDraft(
   option: WorkoutLogExerciseOption | null,
-  recentLogItems: WorkoutLogRecentLogItem[],
-  resolveWeightWithCurrentPreferences: ResolveWeightWithCurrentPreferences,
 ) {
   const exerciseName = option?.name ?? "";
-  const baseWeight = exerciseName
-    ? findRecentExerciseWeight(recentLogItems, exerciseName)
-    : 50;
 
   return (prev: AddExerciseDraft): AddExerciseDraft => ({
     ...prev,
     exerciseId: option?.id ?? null,
     exerciseName,
-    weightKg: resolveWeightWithCurrentPreferences(
-      baseWeight,
-      option?.id ?? null,
-      exerciseName,
-    ),
   });
 }
 
 export function buildAddExerciseDraftUpdate(
   addDraft: AddExerciseDraft,
-  resolveWeightWithCurrentPreferences: ResolveWeightWithCurrentPreferences,
   locale: "ko" | "en",
 ) {
   if (!addDraft.exerciseId) {
@@ -324,21 +284,17 @@ export function buildAddExerciseDraftUpdate(
     };
   }
 
-  const snappedWeightKg = resolveWeightWithCurrentPreferences(
-    addDraft.weightKg,
-    addDraft.exerciseId,
-    exerciseName,
-  );
-
+  // 운동 종목만 추가한다. 무게/횟수/메모는 운동 기록 화면에서 입력하므로
+  // 여기서는 미수행 상태(reps 0)의 1세트 로우만 생성한다.
   return {
     ok: true as const,
     draftUpdater: (prev: WorkoutRecordDraft) =>
       addUserExercise(prev, {
         exerciseId: addDraft.exerciseId,
         exerciseName,
-        weightKg: snappedWeightKg,
-        repsPerSet: addDraft.repsPerSet,
-        memo: addDraft.memo,
+        weightKg: 0,
+        repsPerSet: [0],
+        memo: "",
       }),
   };
 }

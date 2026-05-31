@@ -7,11 +7,6 @@ import {
   useRef,
   useState,
 } from "react";
-import { computeBodyweightTotalLoadKg } from "@/lib/bodyweight-load";
-import {
-  resolveMinimumPlateIncrement,
-  resolveMinimumPlateIncrementKg,
-} from "@/lib/settings/workout-preferences";
 import { fetchWorkoutExerciseOptions } from "./client";
 import {
   buildAddExerciseDraftUpdate,
@@ -23,31 +18,23 @@ import {
   type WorkoutLogExerciseOption,
 } from "./types";
 
-import { useStore, useSetAtom, useAtomValue } from "jotai";
-import { draftAtom, workflowStateAtom, recentLogItemsAtom, workoutPreferencesAtom } from "../store/workout-log-atoms";
+import { useStore, useSetAtom } from "jotai";
+import { draftAtom, workflowStateAtom } from "../store/workout-log-atoms";
 
 type UseWorkoutLogAddExerciseControllerInput = {
   open: boolean;
   setOpen: Dispatch<SetStateAction<boolean>>;
   locale: "ko" | "en";
-  resolveWeightWithCurrentPreferences: (
-    weightKg: number,
-    exerciseId: string | null | undefined,
-    exerciseName: string,
-  ) => number;
 };
 
 export function useWorkoutLogAddExerciseController({
   open,
   setOpen,
   locale,
-  resolveWeightWithCurrentPreferences,
 }: UseWorkoutLogAddExerciseControllerInput) {
   const store = useStore();
   const setDraft = useSetAtom(draftAtom);
   const setWorkflowState = useSetAtom(workflowStateAtom);
-  const workoutPreferences = useAtomValue(workoutPreferencesAtom);
-  const recentLogItems = useAtomValue(recentLogItemsAtom);
   const [exerciseQuery, setExerciseQuery] = useState("");
   const deferredExerciseQuery = useDeferredValue(exerciseQuery);
   const [exerciseOptions, setExerciseOptions] = useState<WorkoutLogExerciseOption[]>([]);
@@ -56,24 +43,6 @@ export function useWorkoutLogAddExerciseController({
   const [addDraft, setAddDraft] = useState<AddExerciseDraft>(createDefaultAddExerciseDraft);
   const exerciseOptionsCacheRef = useRef(new Map<string, WorkoutLogExerciseOption[]>());
   const exerciseOptionsAbortRef = useRef<AbortController | null>(null);
-
-  const addDraftIncrementKg = useMemo(
-    () =>
-      resolveMinimumPlateIncrementKg(workoutPreferences, {
-        exerciseId: addDraft.exerciseId,
-        exerciseName: addDraft.exerciseName,
-      }),
-    [addDraft.exerciseId, addDraft.exerciseName, workoutPreferences],
-  );
-
-  const addDraftIncrementInfo = useMemo(
-    () =>
-      resolveMinimumPlateIncrement(workoutPreferences, {
-        exerciseId: addDraft.exerciseId,
-        exerciseName: addDraft.exerciseName,
-      }),
-    [addDraft.exerciseId, addDraft.exerciseName, workoutPreferences],
-  );
 
   const filteredExerciseOptions = useMemo(() => {
     const normalizedQuery = deferredExerciseQuery.trim().toLowerCase();
@@ -96,16 +65,6 @@ export function useWorkoutLogAddExerciseController({
         ? exerciseOptions.find((option) => option.id === addDraft.exerciseId) ?? null
         : null,
     [addDraft.exerciseId, exerciseOptions],
-  );
-
-  const addDraftTotalLoadKg = useMemo(
-    () =>
-      computeBodyweightTotalLoadKg(
-        addDraft.exerciseName,
-        addDraft.weightKg,
-        workoutPreferences.bodyweightKg,
-      ),
-    [addDraft.exerciseName, addDraft.weightKg, workoutPreferences.bodyweightKg],
   );
 
   const loadExerciseOptions = useCallback(
@@ -177,28 +136,18 @@ export function useWorkoutLogAddExerciseController({
 
   const selectExerciseOption = useCallback(
     (option: WorkoutLogExerciseOption | null) => {
-      setAddDraft(
-        buildSelectedExerciseDraft(
-          option,
-          recentLogItems,
-          resolveWeightWithCurrentPreferences,
-        ),
-      );
+      setAddDraft(buildSelectedExerciseDraft(option));
       setExerciseOptionsError(null);
       setExerciseQuery("");
     },
-    [recentLogItems, resolveWeightWithCurrentPreferences],
+    [],
   );
 
   const handleAddExercise = useCallback(() => {
     const draft = store.get(draftAtom);
     if (!draft) return;
 
-    const result = buildAddExerciseDraftUpdate(
-      addDraft,
-      resolveWeightWithCurrentPreferences,
-      locale,
-    );
+    const result = buildAddExerciseDraftUpdate(addDraft, locale);
     if (!result.ok) {
       setExerciseOptionsError(result.error);
       return;
@@ -214,7 +163,6 @@ export function useWorkoutLogAddExerciseController({
     addDraft,
     closeAddExerciseSheet,
     locale,
-    resolveWeightWithCurrentPreferences,
     setDraft,
     setWorkflowState,
     store,
@@ -230,9 +178,6 @@ export function useWorkoutLogAddExerciseController({
     exerciseOptionsLoading,
     filteredExerciseOptions,
     selectedExerciseOption,
-    addDraftIncrementKg,
-    addDraftIncrementInfo,
-    addDraftTotalLoadKg,
     openAddExerciseSheet,
     closeAddExerciseSheet,
     selectExerciseOption,
