@@ -195,13 +195,13 @@ export function CreateProgramSheet({
             {draft.rule.type === "NUMERIC" ? (
               <div style={{ display: "flex", flexDirection: "column", gap: "var(--v2-s-1)" }}>
                 <span className="v2-eyebrow" style={{ color: "var(--v2-ink-2)" }}>
-                  {locale === "ko" ? "세션 개수 (1~4)" : "Session Count (1-4)"}
+                  {locale === "ko" ? "세션 개수 (1~7)" : "Session Count (1-7)"}
                 </span>
                 <NumberPickerField
                   label={locale === "ko" ? "세션 개수" : "Session Count"}
                   value={draft.rule.count}
                   min={1}
-                  max={4}
+                  max={7}
                   step={1}
                   variant="workout-number"
                   onChange={onChangeSessionCount}
