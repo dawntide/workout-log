@@ -885,7 +885,7 @@ export function inferSessionDraftsFromTemplate(template: ProgramTemplate): Progr
 
 export function makeSessionKeys(rule: SessionRule): string[] {
   if (rule.type === "AB") return ["A", "B"];
-  const count = Math.min(4, Math.max(1, Math.floor(rule.count)));
+  const count = Math.min(7, Math.max(1, Math.floor(rule.count)));
   return Array.from({ length: count }, (_, index) => String(index + 1));
 }
 
