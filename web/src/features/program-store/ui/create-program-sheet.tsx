@@ -4,7 +4,7 @@ import dynamic from "next/dynamic";
 import ExerciseEditorRow from "@/features/program-store/ui/program-exercise-editor-row";
 import { V2Card, V2SecondaryBtn, V2Segmented } from "@/components/v2/primitives";
 import { AppSelect, AppTextInput } from "@/components/ui/form-controls";
-import { NumberPickerField } from "@/components/ui/number-picker-sheet";
+import { NumberKeypadField } from "@/components/ui/number-keypad-field";
 import { formatProgramDisplayName } from "@/features/program-store/model/view";
 import type { ExerciseOption } from "@/features/program-store/model/types";
 import type { ProgramStoreCreateDraft } from "@/features/program-store/model/use-program-store-sheet-entry-controller";
@@ -176,13 +176,11 @@ export function CreateProgramSheet({
               <span className="v2-eyebrow" style={{ color: "var(--v2-ink-2)" }}>
                 {locale === "ko" ? "세션 개수 (1~7)" : "Session Count (1-7)"}
               </span>
-              <NumberPickerField
-                label={locale === "ko" ? "세션 개수" : "Session Count"}
+              <NumberKeypadField
+                ariaLabel={locale === "ko" ? "세션 개수" : "Session Count"}
                 value={draft.rule.count}
                 min={1}
                 max={7}
-                step={1}
-                variant="workout-number"
                 onChange={onChangeSessionCount}
               />
             </div>
