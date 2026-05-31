@@ -2,7 +2,12 @@
 
 import dynamic from "next/dynamic";
 import ExerciseEditorRow from "@/features/program-store/ui/program-exercise-editor-row";
-import { V2Card, V2SecondaryBtn, V2Segmented } from "@/components/v2/primitives";
+import {
+  V2Card,
+  V2Chip,
+  V2SecondaryBtn,
+  V2Segmented,
+} from "@/components/v2/primitives";
 import { AppSelect, AppTextInput } from "@/components/ui/form-controls";
 import { NumberKeypadField } from "@/components/ui/number-keypad-field";
 import { formatProgramDisplayName } from "@/features/program-store/model/view";
@@ -100,15 +105,23 @@ export function CreateProgramSheet({
       footer={null}
     >
       {draft ? (
-        <div style={{ display: "flex", flexDirection: "column", gap: "var(--v2-s-4)" }}>
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: "var(--v2-s-4)",
+          }}
+        >
           {error ? (
             <div
               role="alert"
               className="v2-small"
               style={{
-                boxShadow: "inset 0 0 0 1px color-mix(in srgb, var(--v2-c-danger) 34%, var(--v2-hairline))",
+                boxShadow:
+                  "inset 0 0 0 1px color-mix(in srgb, var(--v2-c-danger) 34%, var(--v2-hairline))",
                 borderRadius: "var(--v2-r-1)",
-                background: "color-mix(in srgb, var(--v2-c-danger) 14%, var(--v2-paper))",
+                background:
+                  "color-mix(in srgb, var(--v2-c-danger) 14%, var(--v2-paper))",
                 color: "var(--v2-c-danger)",
                 padding: "var(--v2-s-2) var(--v2-s-4)",
                 lineHeight: 1.5,
@@ -118,7 +131,13 @@ export function CreateProgramSheet({
             </div>
           ) : null}
 
-          <label style={{ display: "flex", flexDirection: "column", gap: "var(--v2-s-1)" }}>
+          <label
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: "var(--v2-s-1)",
+            }}
+          >
             <span className="v2-eyebrow" style={{ color: "var(--v2-ink-2)" }}>
               {locale === "ko" ? "프로그램 이름" : "Program Name"}
             </span>
@@ -154,7 +173,9 @@ export function CreateProgramSheet({
             <AppSelect
               label={locale === "ko" ? "기반 공식 프로그램" : "Base Program"}
               value={draft.sourceTemplateSlug ?? ""}
-              onChange={(event) => onChangeSourceTemplate(event.target.value || null)}
+              onChange={(event) =>
+                onChangeSourceTemplate(event.target.value || null)
+              }
             >
               <option value="">{locale === "ko" ? "선택" : "Select"}</option>
               {publicTemplates.map((template) => (
@@ -172,7 +193,13 @@ export function CreateProgramSheet({
             >
               {locale === "ko" ? "세션 규칙" : "Session Rules"}
             </h2>
-            <div style={{ display: "flex", flexDirection: "column", gap: "var(--v2-s-1)" }}>
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: "var(--v2-s-1)",
+              }}
+            >
               <span className="v2-eyebrow" style={{ color: "var(--v2-ink-2)" }}>
                 {locale === "ko" ? "세션 개수 (1~7)" : "Session Count (1-7)"}
               </span>
@@ -186,17 +213,28 @@ export function CreateProgramSheet({
             </div>
           </V2Card>
 
-          <div style={{ display: "flex", flexDirection: "column", gap: "var(--v2-s-4)" }}>
-            <h2 className="v2-eyebrow" style={{ color: "var(--v2-ink-2)", margin: 0 }}>
-              {locale === "ko" ? "세션별 운동 배치" : "Exercise Layout by Session"}
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: "var(--v2-s-4)",
+            }}
+          >
+            <h2
+              className="v2-eyebrow"
+              style={{ color: "var(--v2-ink-2)", margin: 0 }}
+            >
+              {locale === "ko"
+                ? "세션별 운동 배치"
+                : "Exercise Layout by Session"}
             </h2>
             {draft.sessions.map((session) => (
-              <div
+              <section
                 key={session.id}
                 style={{
-                  padding: "var(--v2-s-2)",
-                  background: "var(--v2-paper-2)",
-                  borderRadius: "var(--v2-r-3)",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "var(--v2-s-2)",
                 }}
                 onDragOver={(event) => {
                   event.preventDefault();
@@ -206,15 +244,29 @@ export function CreateProgramSheet({
                   onSessionDrop(session.id, session.exercises.length);
                 }}
               >
-                <header style={{ marginBottom: "var(--v2-s-2)" }}>
-                  <span className="label label-program label-sm">
-                    {locale === "ko" ? `세션 ${session.key}` : `Session ${session.key}`}
-                  </span>
+                <header>
+                  <V2Chip tone="accent">
+                    {locale === "ko"
+                      ? `세션 ${session.key}`
+                      : `Session ${session.key}`}
+                  </V2Chip>
                 </header>
 
                 {session.exercises.length === 0 ? (
-                  <p style={{ fontSize: "var(--v2-t-small)", color: "var(--v2-ink-2)", margin: "var(--v2-s-1) 0" }}>
-                    {locale === "ko" ? "아직 추가된 운동이 없습니다." : "No exercises added yet."}
+                  <p
+                    style={{
+                      fontSize: "var(--v2-t-small)",
+                      color: "var(--v2-ink-3)",
+                      textAlign: "center",
+                      margin: 0,
+                      padding: "var(--v2-s-4) 0",
+                      background: "var(--v2-paper-2)",
+                      borderRadius: "var(--v2-r-3)",
+                    }}
+                  >
+                    {locale === "ko"
+                      ? "아직 추가된 운동이 없습니다."
+                      : "No exercises added yet."}
                   </p>
                 ) : null}
 
@@ -239,12 +291,11 @@ export function CreateProgramSheet({
                 <V2SecondaryBtn
                   full
                   icon="add"
-                  style={{ marginTop: "var(--v2-s-2)" }}
                   onClick={() => onAddExercise(session.id)}
                 >
                   {locale === "ko" ? "운동 추가" : "Add Exercise"}
                 </V2SecondaryBtn>
-              </div>
+              </section>
             ))}
           </div>
         </div>
