@@ -156,12 +156,17 @@ export function WorkoutExerciseCard({ exerciseId, onExerciseAction }: Props) {
     typeof recommendedWeightKg === "number" &&
     recommendedWeightKg > 0 &&
     typeof bodyweightKg === "number" &&
-    bodyweightKg > 0 &&
-    // 총부하 < 체중 = 밴드 보조 영역. 음수 추가중량 표기는 추후 과제이므로 제외.
-    recommendedWeightKg >= bodyweightKg
+    bodyweightKg > 0
   ) {
-    presWeightKg = recommendedWeightKg;
-    const added = Math.round((recommendedWeightKg - bodyweightKg) * 10) / 10;
+    // 권장 총부하(TM×%)에서 추가중량 = max(0, 총부하 - 체중).
+    // 총부하가 체중보다 가벼우면(밴드 보조 영역, 추후 과제) 추가중량을 0으로 보고
+    // 체중만 표기한다. 실제 권장값 적용(APPLY_TARGET_WEIGHTS)도 음수 추가중량을
+    // 0으로 클램프하므로, 유효 총무게 = 체중 + 추가중량으로 환산해 표기한다.
+    const added = Math.max(
+      0,
+      Math.round((recommendedWeightKg - bodyweightKg) * 10) / 10,
+    );
+    presWeightKg = Math.round((bodyweightKg + added) * 10) / 10;
     presWeightSuffix =
       added > 0 ? `(+${added})` : locale === "ko" ? "(체중)" : "(BW)";
   } else if (weightUniform && firstWeight > 0) {
