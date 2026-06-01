@@ -31,7 +31,7 @@ test("resolveLoggedTotalLoadKg prefers logged total load meta for bodyweight exe
   );
 });
 
-test("formatExerciseLoadLabel formats additional weight for pull-up", () => {
+test("formatExerciseLoadLabel shows total load first with added weight in parens", () => {
   assert.equal(
     formatExerciseLoadLabel({
       exerciseName: "Pull-Up",
@@ -39,7 +39,7 @@ test("formatExerciseLoadLabel formats additional weight for pull-up", () => {
       bodyweightKg: 70,
       source: "total",
     }),
-    "+22.5kg (총 92.5kg)",
+    "92.5kg (+22.5)",
   );
   assert.equal(
     formatExerciseLoadLabel({
@@ -48,7 +48,17 @@ test("formatExerciseLoadLabel formats additional weight for pull-up", () => {
       bodyweightKg: 70,
       source: "external",
     }),
-    "+20kg (총 90kg)",
+    "90kg (+20)",
+  );
+  assert.equal(
+    formatExerciseLoadLabel({
+      exerciseName: "Pull-Up",
+      weightKg: 0,
+      bodyweightKg: 70,
+      source: "external",
+      locale: "en",
+    }),
+    "70kg (BW)",
   );
   assert.equal(computeBodyweightTotalLoadKg("Pull-Up", 20, 70), 90);
 });

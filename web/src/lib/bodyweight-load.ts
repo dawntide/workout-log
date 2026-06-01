@@ -102,16 +102,25 @@ export function formatExerciseLoadLabel(input: {
       ? roundTo2(Math.max(0, weightKg))
       : computeBodyweightTotalLoadKg(input.exerciseName, weightKg, bodyweightKg);
 
-  const externalLabel =
+  // 추가중량 병기 라벨: 0보다 크면 `(+20)`, 없으면 체중만.
+  const addedLabel =
     externalWeightKg !== null && externalWeightKg > 0
+      ? `(+${formatKgValue(externalWeightKg).replace("kg", "")})`
+      : locale === "ko" ? "(체중)" : "(BW)";
+
+  // 총무게를 주(主) 표기로, 추가중량을 괄호로 병기한다.
+  // 총무게를 알 수 없으면 추가중량만 표기.
+  if (totalLoadKg === null) {
+    return externalWeightKg !== null && externalWeightKg > 0
       ? `+${formatKgValue(externalWeightKg).replace("kg", "")}kg`
       : locale === "ko" ? "체중만" : "Bodyweight only";
-
-  if (input.showTotal === false || totalLoadKg === null) {
-    return externalLabel;
   }
 
-  return locale === "ko"
-    ? `${externalLabel} (총 ${formatKgValue(totalLoadKg)})`
-    : `${externalLabel} (total ${formatKgValue(totalLoadKg)})`;
+  if (input.showTotal === false) {
+    return externalWeightKg !== null && externalWeightKg > 0
+      ? `+${formatKgValue(externalWeightKg).replace("kg", "")}kg`
+      : locale === "ko" ? "체중만" : "Bodyweight only";
+  }
+
+  return `${formatKgValue(totalLoadKg)} ${addedLabel}`;
 }

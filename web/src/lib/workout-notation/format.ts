@@ -20,6 +20,11 @@ export interface PrescriptionInput {
   reps: number;
   /** 처방 무게 (kg). 0 이하/null이면 weight 부분 생략, percent가 있으면 percent 사용 */
   weightKg?: number | null;
+  /**
+   * weight 뒤에 병기할 보조 라벨. 맨몸 운동에서 총무게(weightKg) 옆에 추가중량을
+   * 병기할 때 사용 (예: `(+10)`, `(체중)`). weightKg가 표시될 때만 적용된다.
+   */
+  weightSuffix?: string | null;
   /** 퍼센트 강도 (0-100). weightKg가 없을 때 fallback */
   percent?: number | null;
   /** RPE 처방값 (1-10). AMRAP 세트와는 동시 표기 가능 */
@@ -30,7 +35,7 @@ export interface PrescriptionInput {
 
 /** 처방을 문자열로 포맷. 색상 분리 없이 텍스트 한 줄. */
 export function formatPrescription(input: PrescriptionInput): string {
-  const { sets, reps, weightKg, percent, rpe, lastSetAmrap } = input;
+  const { sets, reps, weightKg, weightSuffix, percent, rpe, lastSetAmrap } = input;
   if (!Number.isFinite(sets) || !Number.isFinite(reps) || sets < 1 || reps < 1) {
     return "";
   }
@@ -39,7 +44,8 @@ export function formatPrescription(input: PrescriptionInput): string {
 
   let intensityPart = "";
   if (typeof weightKg === "number" && weightKg > 0) {
-    intensityPart = ` @ ${weightKg}kg`;
+    const suffix = weightSuffix ? ` ${weightSuffix}` : "";
+    intensityPart = ` @ ${weightKg}kg${suffix}`;
   } else if (typeof percent === "number" && percent > 0) {
     intensityPart = ` @ ${percent}%`;
   }

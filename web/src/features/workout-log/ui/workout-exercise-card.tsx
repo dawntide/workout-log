@@ -23,7 +23,9 @@ import {
 import {
   makeExerciseCardAtom,
   recentLogItemsAtom,
+  workoutPreferencesAtom,
 } from "@/features/workout-log/store/workout-log-atoms";
+import { isBodyweightExerciseName } from "@/lib/bodyweight-load";
 import type { ExerciseRowAction } from "@/features/workout-log/model/editor-actions";
 import { formatDateFriendly } from "@/features/workout-log/model/last-session-summary";
 import { useSetRowFocusChain } from "@/features/workout-log/model/use-set-row-focus-chain";
@@ -45,6 +47,7 @@ export function WorkoutExerciseCard({ exerciseId, onExerciseAction }: Props) {
   );
   const exerciseCard = useAtomValue(exerciseCardAtom);
   const recentLogItems = useAtomValue(recentLogItemsAtom);
+  const workoutPreferences = useAtomValue(workoutPreferencesAtom);
   const focusChain = useSetRowFocusChain();
   const cardRef = useRef<HTMLElement>(null);
 
@@ -140,12 +143,33 @@ export function WorkoutExerciseCard({ exerciseId, onExerciseAction }: Props) {
   // 무게가 세트마다 다르면(예: 5/3/1 램핑) 처방 칩에 단일 무게를 보여주지 않는다.
   const weightUniform =
     weightPerSet.length > 0 && weightPerSet.every((w) => w === firstWeight);
-  const planIntensity: { value: string; isPercent: boolean } | null =
-    weightUniform && firstWeight > 0
-      ? { value: `${firstWeight}kg`, isPercent: false }
-      : typeof firstPercent === "number" && firstPercent > 0
-        ? { value: `${firstPercent}%`, isPercent: true }
-        : null;
+
+  // 처방 강도 표기. 맨몸 운동(풀업/친업 등)은 권장 총부하(TM×%)를 총무게 기준으로
+  // 보여주고 추가중량(총무게-체중)을 병기한다. 그 외에는 단일 무게 또는 percent.
+  const isBodyweight = isBodyweightExerciseName(exercise.exerciseName);
+  const bodyweightKg = workoutPreferences.bodyweightKg;
+  let presWeightKg: number | undefined;
+  let presWeightSuffix: string | undefined;
+  let presPercent: number | undefined;
+  if (
+    isBodyweight &&
+    typeof recommendedWeightKg === "number" &&
+    recommendedWeightKg > 0 &&
+    typeof bodyweightKg === "number" &&
+    bodyweightKg > 0 &&
+    // 총부하 < 체중 = 밴드 보조 영역. 음수 추가중량 표기는 추후 과제이므로 제외.
+    recommendedWeightKg >= bodyweightKg
+  ) {
+    presWeightKg = recommendedWeightKg;
+    const added = Math.round((recommendedWeightKg - bodyweightKg) * 10) / 10;
+    presWeightSuffix =
+      added > 0 ? `(+${added})` : locale === "ko" ? "(체중)" : "(BW)";
+  } else if (weightUniform && firstWeight > 0) {
+    presWeightKg = firstWeight;
+  } else if (typeof firstPercent === "number" && firstPercent > 0) {
+    // percentPerSet은 0-1 비율로 저장된다(0.7 = 70%). 표기 시 100을 곱한다.
+    presPercent = Math.round(firstPercent * 100);
+  }
   const planAmrapPerSet = exercise.plannedSetMeta?.amrapPerSet;
   const lastSetAmrap = planAmrapPerSet?.at(-1) === true;
   const planRpePerSet = exercise.plannedSetMeta?.rpePerSet;
@@ -283,16 +307,9 @@ export function WorkoutExerciseCard({ exerciseId, onExerciseAction }: Props) {
             <PrescriptionInline
               sets={totalSets}
               reps={firstReps}
-              weightKg={
-                planIntensity && !planIntensity.isPercent
-                  ? firstWeight
-                  : undefined
-              }
-              percent={
-                planIntensity && planIntensity.isPercent
-                  ? firstPercent ?? undefined
-                  : undefined
-              }
+              weightKg={presWeightKg}
+              weightSuffix={presWeightSuffix}
+              percent={presPercent}
               rpe={planRpeUniform ? firstPlanRpe : undefined}
               lastSetAmrap={lastSetAmrap}
             />

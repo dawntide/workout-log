@@ -46,6 +46,7 @@ export function PrescriptionInline({
   sets,
   reps,
   weightKg,
+  weightSuffix,
   percent,
   rpe,
   lastSetAmrap,
@@ -56,12 +57,14 @@ export function PrescriptionInline({
     return null;
   }
   const repsText = `${reps}${lastSetAmrap ? "+" : ""}`;
-  const intensityText =
-    typeof weightKg === "number" && weightKg > 0
-      ? `${weightKg}kg`
-      : typeof percent === "number" && percent > 0
-        ? `${percent}%`
-        : null;
+  const isWeight = typeof weightKg === "number" && weightKg > 0;
+  const intensityText = isWeight
+    ? `${weightKg}kg`
+    : typeof percent === "number" && percent > 0
+      ? `${percent}%`
+      : null;
+  // 추가중량 병기는 weight 표기일 때만 (맨몸 운동 총무게 옆 `(+10)` 등).
+  const suffixText = isWeight && weightSuffix ? weightSuffix : null;
   const rpeText =
     typeof rpe === "number" && rpe > 0 ? `RPE ${rpe}` : null;
 
@@ -78,6 +81,7 @@ export function PrescriptionInline({
         <>
           <Token color="dim">@</Token>
           <Token color="weight">{intensityText}</Token>
+          {suffixText && <Token color="dim">{suffixText}</Token>}
         </>
       )}
       {rpeText && <Token color="warning">{rpeText}</Token>}

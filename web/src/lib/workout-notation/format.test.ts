@@ -29,6 +29,20 @@ test("formatPrescription: 무게 미정이면 percent fallback", () => {
   );
 });
 
+test("formatPrescription: weightSuffix는 무게 뒤에 병기 (맨몸 운동 총무게+추가)", () => {
+  assert.equal(
+    formatPrescription({ sets: 3, reps: 5, weightKg: 90, weightSuffix: "(+10)" }),
+    "3 × 5 @ 90kg (+10)",
+  );
+});
+
+test("formatPrescription: weightSuffix는 percent fallback에는 적용되지 않음", () => {
+  assert.equal(
+    formatPrescription({ sets: 3, reps: 5, percent: 70, weightSuffix: "(+10)" }),
+    "3 × 5 @ 70%",
+  );
+});
+
 test("formatPrescription: RPE 처방 추가", () => {
   assert.equal(
     formatPrescription({ sets: 3, reps: 5, weightKg: 100, rpe: 8 }),
