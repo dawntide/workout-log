@@ -3,6 +3,8 @@ type TargetWeightChipProps = {
   weightKg: number | null;
   lastDeltaKg: number | null;
   lastEventType: "INCREASE" | "HOLD" | "RESET" | null;
+  /** 맨몸 운동 총무게 뒤 추가중량 병기 (`(+20)`/`(체중)`). 없으면 미표시. */
+  weightSuffix?: string | null;
 };
 
 /**
@@ -15,6 +17,7 @@ export function TargetWeightChip({
   weightKg,
   lastDeltaKg,
   lastEventType,
+  weightSuffix,
 }: TargetWeightChipProps) {
   const arrowKey =
     lastEventType === "INCREASE"
@@ -59,7 +62,9 @@ export function TargetWeightChip({
           fontWeight: 700,
         }}
       >
-        {weightKg !== null ? `${weightKg}kg` : "—"}
+        {weightKg !== null
+          ? `${weightKg}kg${weightSuffix ? ` ${weightSuffix}` : ""}`
+          : "—"}
       </span>
       {hasDelta ? (
         <span

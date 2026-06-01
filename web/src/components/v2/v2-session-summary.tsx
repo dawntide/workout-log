@@ -6,6 +6,10 @@ import { useLocale } from "@/components/locale-provider";
 import type { ProgressionSummaryPayload } from "@/lib/progression/summary";
 import type { TrainingGoalKey } from "@/lib/settings/workout-preferences";
 import {
+  resolveLoggedTotalLoadKg,
+  resolveLoggedLoadDisplay,
+} from "@/lib/bodyweight-load";
+import {
   V2Card,
   V2Chip,
   V2PrimaryBtn,
@@ -22,6 +26,7 @@ export type V2SummarySet = {
   weightKg: number | null;
   rpe?: number | null;
   isExtra: boolean;
+  meta?: Record<string, unknown> | null;
 };
 
 export type V2SummaryLog = {
@@ -96,6 +101,8 @@ type ExerciseSummary = {
   name: string;
   setCount: number;
   topWeightKg: number;
+  /** 맨몸 운동 총무게 뒤 추가중량 병기 (`(+20)`/`(체중)`). */
+  topWeightSuffix: string | null;
   totalReps: number;
   volumeKg: number;
 };
@@ -161,13 +168,28 @@ function buildExerciseSummaries(sets: V2SummarySet[]): ExerciseSummary[] {
       name,
       setCount: 0,
       topWeightKg: 0,
+      topWeightSuffix: null,
       totalReps: 0,
       volumeKg: 0,
     };
     cur.setCount += 1;
-    const w = Number(s.weightKg ?? 0);
+    // 맨몸 운동은 총부하(체중+추가)로 top weight·볼륨을 집계한다.
+    const w = Number(
+      resolveLoggedTotalLoadKg({
+        exerciseName: name,
+        weightKg: s.weightKg,
+        meta: s.meta,
+      }) ?? 0,
+    );
     const r = Number(s.reps ?? 0);
-    if (Number.isFinite(w) && w > cur.topWeightKg) cur.topWeightKg = w;
+    if (Number.isFinite(w) && w > cur.topWeightKg) {
+      cur.topWeightKg = w;
+      cur.topWeightSuffix = resolveLoggedLoadDisplay({
+        exerciseName: name,
+        weightKg: s.weightKg,
+        meta: s.meta,
+      }).suffix;
+    }
     if (Number.isFinite(r)) cur.totalReps += r;
     if (Number.isFinite(w) && Number.isFinite(r) && w > 0 && r > 0) {
       cur.volumeKg += w * r;
@@ -192,14 +214,22 @@ function findTopEstOneRm(sets: V2SummarySet[]): {
   } | null = null;
   for (const s of sets) {
     if (s.isExtra) continue;
-    const w = Number(s.weightKg ?? 0);
+    const name = String(s.exerciseName ?? "").trim();
+    // 맨몸 운동은 총부하(체중+추가)로 e1RM을 추정한다.
+    const w = Number(
+      resolveLoggedTotalLoadKg({
+        exerciseName: name,
+        weightKg: s.weightKg,
+        meta: s.meta,
+      }) ?? 0,
+    );
     const r = Number(s.reps ?? 0);
     if (!Number.isFinite(w) || w <= 0 || !Number.isFinite(r) || r <= 0)
       continue;
     const e = epleyEstimate(w, r);
     if (!best || e > best.estOneRm) {
       best = {
-        exerciseName: String(s.exerciseName ?? "").trim(),
+        exerciseName: name,
         weightKg: w,
         reps: r,
         estOneRm: e,
@@ -800,7 +830,7 @@ export function V2SessionSummary({
                             {ex.setCount}
                             {locale === "ko" ? "세트" : " sets"}
                             {ex.topWeightKg > 0
-                              ? ` · ${ex.topWeightKg.toLocaleString()}kg`
+                              ? ` · ${ex.topWeightKg.toLocaleString()}kg${ex.topWeightSuffix ? ` ${ex.topWeightSuffix}` : ""}`
                               : ""}
                           </>
                         ) : (
@@ -808,7 +838,7 @@ export function V2SessionSummary({
                             {ex.setCount}
                             {locale === "ko" ? "세트" : " sets"}
                             {ex.topWeightKg > 0
-                              ? ` · top ${ex.topWeightKg.toLocaleString()}kg`
+                              ? ` · top ${ex.topWeightKg.toLocaleString()}kg${ex.topWeightSuffix ? ` ${ex.topWeightSuffix}` : ""}`
                               : ""}
                           </>
                         )}

@@ -19,6 +19,7 @@ import { resolveRequestLocale } from "@/lib/i18n/messages";
 import { upsertWorkoutLogService } from "@/server/services/workout-log/upsert-log";
 import { getSettingsSnapshot } from "@/server/services/settings/get-settings-snapshot";
 import { readWorkoutPreferences } from "@/lib/settings/workout-preferences";
+import { resolveLoggedTotalLoadKg } from "@/lib/bodyweight-load";
 
 type Ctx = { params: Promise<{ logId: string }> };
 
@@ -81,6 +82,7 @@ async function detectPersonalRecords(input: {
     reps: number | null;
     weightKg: number | null;
     isExtra: boolean | null;
+    meta: Record<string, unknown> | null;
   }>;
   performedAt: Date;
 }): Promise<PersonalRecordPayload[]> {
@@ -140,7 +142,14 @@ async function detectPersonalRecords(input: {
   const currentTop = new Map<MatchKey, Best>();
   for (const s of sets) {
     if (s.isExtra) continue;
-    const w = Number(s.weightKg ?? 0);
+    // 맨몸 운동은 총부하(체중+추가)로 e1RM을 비교한다 (통계 서비스와 일관).
+    const w = Number(
+      resolveLoggedTotalLoadKg({
+        exerciseName: s.exerciseName,
+        weightKg: s.weightKg,
+        meta: s.meta,
+      }) ?? 0,
+    );
     const r = Number(s.reps ?? 0);
     if (!Number.isFinite(w) || w <= 0 || !Number.isFinite(r) || r <= 0)
       continue;
@@ -168,6 +177,7 @@ async function detectPersonalRecords(input: {
       reps: workoutSet.reps,
       weightKg: workoutSet.weightKg,
       isExtra: workoutSet.isExtra,
+      meta: workoutSet.meta,
     })
     .from(workoutSet)
     .innerJoin(workoutLog, eq(workoutLog.id, workoutSet.logId))
@@ -211,7 +221,13 @@ async function detectPersonalRecords(input: {
   const priorBest = new Map<MatchKey, number>();
   for (const r of priorRows) {
     if (r.isExtra) continue;
-    const w = Number(r.weightKg ?? 0);
+    const w = Number(
+      resolveLoggedTotalLoadKg({
+        exerciseName: String(r.exerciseName ?? ""),
+        weightKg: r.weightKg,
+        meta: r.meta as Record<string, unknown> | null,
+      }) ?? 0,
+    );
     const reps = Number(r.reps ?? 0);
     if (!Number.isFinite(w) || w <= 0 || !Number.isFinite(reps) || reps <= 0)
       continue;
@@ -327,6 +343,7 @@ async function GETImpl(_req: Request, ctx: Ctx) {
         reps: s.reps,
         weightKg: s.weightKg,
         isExtra: s.isExtra,
+        meta: s.meta as Record<string, unknown> | null,
       })),
       performedAt: log.performedAt,
     });

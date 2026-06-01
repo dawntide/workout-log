@@ -25,7 +25,10 @@ import {
   recentLogItemsAtom,
   workoutPreferencesAtom,
 } from "@/features/workout-log/store/workout-log-atoms";
-import { isBodyweightExerciseName } from "@/lib/bodyweight-load";
+import {
+  isBodyweightExerciseName,
+  resolveLoggedTotalLoadKg,
+} from "@/lib/bodyweight-load";
 import type { ExerciseRowAction } from "@/features/workout-log/model/editor-actions";
 import { formatDateFriendly } from "@/features/workout-log/model/last-session-summary";
 import { useSetRowFocusChain } from "@/features/workout-log/model/use-set-row-focus-chain";
@@ -89,7 +92,15 @@ export function WorkoutExerciseCard({ exerciseId, onExerciseAction }: Props) {
       );
       const usableSets = matched
         .map((s) => ({
-          weightKg: s.weightKg ?? 0,
+          // 맨몸 운동은 저장된 추가중량 대신 총부하(체중+추가)로 환산해 표시한다.
+          weightKg:
+            resolveLoggedTotalLoadKg({
+              exerciseName: exercise.exerciseName,
+              weightKg: s.weightKg,
+              meta: s.meta as Record<string, unknown> | null | undefined,
+            }) ??
+            s.weightKg ??
+            0,
           reps: s.reps ?? 0,
           isAmrap: (s.meta as { amrap?: unknown })?.amrap === true,
         }))
@@ -369,6 +380,11 @@ export function WorkoutExerciseCard({ exerciseId, onExerciseAction }: Props) {
             </span>
             <PerformedHistoryInline
               sets={previousSession.sets}
+              load={{
+                exerciseName: exercise.exerciseName,
+                bodyweightKg,
+                locale,
+              }}
               chipStyle={{
                 padding: "var(--v2-s-1) var(--v2-s-2)",
                 borderRadius: "var(--v2-r-0)",

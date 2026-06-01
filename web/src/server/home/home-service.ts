@@ -23,7 +23,7 @@ import {
   type StrengthScoreResult,
 } from "@/server/stats/strength-score-service";
 import { getSettingsSnapshot } from "@/server/services/settings/get-settings-snapshot";
-import { resolveLoggedTotalLoadKg } from "@/lib/bodyweight-load";
+import { resolveLoggedTotalLoadKg, bodyweightAddedSuffix } from "@/lib/bodyweight-load";
 import {
   formatPerformedHistoryCompact,
   formatPlannedGroups,
@@ -317,6 +317,7 @@ export async function getHomeData(params: {
     todayKey,
     goal,
     goalMetrics,
+    bodyweightKg,
   });
 
   // PERF: 캐시 쓰기를 fire-and-forget으로 처리 → 응답 지연 없이 캐시 갱신
@@ -597,18 +598,19 @@ function buildHomeData(params: {
   todayKey: string;
   goal: TrainingGoalKey;
   goalMetrics: HomeGoalMetrics;
+  bodyweightKg: number | null;
 }): HomeData {
-  const { plans, logs, prs, volumeSeries, snapshot, recentLimit, locale, todayKey, goal, goalMetrics } = params;
+  const { plans, logs, prs, volumeSeries, snapshot, recentLimit, locale, todayKey, goal, goalMetrics, bodyweightKg } = params;
 
   const { exercises: plannedExercises, totalSets: totalPlannedSets, plannedWeightByExercise } = buildPlannedExercises(snapshot);
 
   return {
-    today: buildTodaySummary(plans, logs, plannedExercises, totalPlannedSets, locale, todayKey),
+    today: buildTodaySummary(plans, logs, plannedExercises, totalPlannedSets, locale, todayKey, bodyweightKg),
     planOverview: buildPlanOverview(plans, locale),
     weeklySummary: buildWeeklySummary(logs, locale, todayKey),
     recentLimit,
     recentSessions: buildRecentSessions(plans, logs, recentLimit, locale, todayKey),
-    lastSession: buildLastSession(plans, logs, plannedWeightByExercise, locale, todayKey),
+    lastSession: buildLastSession(plans, logs, plannedWeightByExercise, locale, todayKey, bodyweightKg),
     strengthProgress: buildStrengthProgress(prs, plannedExercises),
     volumeTrend: buildVolumeTrend(volumeSeries, locale),
     quickStats: buildQuickStats(logs, todayKey),
@@ -629,7 +631,7 @@ function resolveHighlightedPlan(plans: any[], logs: any[], todayKey: string) {
   return [...plans].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())[0] ?? null;
 }
 
-function buildTodaySummary(plans: any[], logs: any[], plannedExercises: any[], totalPlannedSets: number, locale: AppLocale, todayKey: string): HomeTodaySummary {
+function buildTodaySummary(plans: any[], logs: any[], plannedExercises: any[], totalPlannedSets: number, locale: AppLocale, todayKey: string, bodyweightKg: number | null): HomeTodaySummary {
   const copy = HOME_TEXT[locale];
   const plansById = new Map(plans.map((p) => [p.id, p.name]));
   const todayLogs = logs.filter((l) => toLocalDateKey(l.performedAt) === todayKey);
@@ -640,7 +642,7 @@ function buildTodaySummary(plans: any[], logs: any[], plannedExercises: any[], t
   const latestToday = todayLogs[0] ?? null;
   const loggedExercises = groupLoggedExercises(todaySets).map((ex) => ({
     name: ex.name,
-    bestSet: formatLoggedBestSet(ex.sets, ex.bestReps, ex.bestWeight),
+    bestSet: formatLoggedBestSet(ex.sets, ex.bestReps, ex.bestWeight, ex.name, bodyweightKg, locale),
   }));
   const highlightedPlan = resolveHighlightedPlan(plans, logs, todayKey);
   const activePlanId = latestToday?.planId ?? highlightedPlan?.id ?? null;
@@ -723,7 +725,7 @@ function buildRecentSessions(plans: any[], logs: any[], limit: number, locale: A
   }));
 }
 
-function buildLastSession(plans: any[], logs: any[], plannedWeightByExercise: Map<string, number>, locale: AppLocale, todayKey: string): HomeLastSession | null {
+function buildLastSession(plans: any[], logs: any[], plannedWeightByExercise: Map<string, number>, locale: AppLocale, todayKey: string, bodyweightKg: number | null): HomeLastSession | null {
   const copy = HOME_TEXT[locale];
   const lastLog = logs.find(l => toLocalDateKey(l.performedAt) !== todayKey);
   if (!lastLog) return null;
@@ -732,7 +734,7 @@ function buildLastSession(plans: any[], logs: any[], plannedWeightByExercise: Ma
   for (const s of lastLog.sets) totalVolume += (s.weightKg ?? 0) * (s.reps ?? 0);
   const exercises = groupLoggedExercises(lastLog.sets).map(ex => {
     const plannedWeight = plannedWeightByExercise.get(ex.name.toLowerCase());
-    return { name: ex.name, sets: ex.sets, bestSet: formatLoggedBestSet(ex.sets, ex.bestReps, ex.bestWeight), weightDelta: plannedWeight !== undefined && ex.bestWeight > 0 ? plannedWeight - ex.bestWeight : null };
+    return { name: ex.name, sets: ex.sets, bestSet: formatLoggedBestSet(ex.sets, ex.bestReps, ex.bestWeight, ex.name, bodyweightKg, locale), weightDelta: plannedWeight !== undefined && ex.bestWeight > 0 ? plannedWeight - ex.bestWeight : null };
   });
   return { id: lastLog.id, planName: lastLog.planId ? plansById.get(lastLog.planId) ?? copy.unassignedProgram : copy.unassignedProgram, date: formatDate(lastLog.performedAt, locale), totalSets: lastLog.sets.length, totalVolume: Math.round(totalVolume), exercises, href: `/workout/log?context=recent&logId=${encodeURIComponent(lastLog.id)}` };
 }
@@ -844,9 +846,21 @@ function groupLoggedExercises(sets: any[]) {
   return Array.from(grouped.entries()).map(([name, data]) => ({ name, ...data }));
 }
 
-function formatLoggedBestSet(sets: number, reps: number, weight: number) {
+function formatLoggedBestSet(
+  sets: number,
+  reps: number,
+  weight: number,
+  exerciseName?: string,
+  bodyweightKg?: number | null,
+  locale: AppLocale = "ko",
+) {
   // 히스토리 컨벤션: `Weight × Reps × Sets` compact (best 세트 기준 압축).
-  return formatPerformedHistoryCompact(weight, reps, sets);
+  // weight는 groupLoggedExercises에서 이미 총부하로 환산된 값. 맨몸 운동은
+  // 총무게 뒤에 추가중량을 병기한다 (`90kg (+20) × 5 × 3`).
+  const suffix = exerciseName
+    ? bodyweightAddedSuffix(exerciseName, weight, bodyweightKg ?? null, locale)
+    : null;
+  return formatPerformedHistoryCompact(weight, reps, sets, suffix);
 }
 
 // ─── Timezone Helpers ───────────────────────────────────────────────

@@ -4,6 +4,7 @@ import {
   formatPrescription,
   formatPerformedSet,
   formatPerformedHistoryLine,
+  formatPerformedHistoryCompact,
   formatPlannedGroups,
   summarizePerformedHistory,
 } from "./format";
@@ -41,6 +42,19 @@ test("formatPrescription: weightSuffix는 percent fallback에는 적용되지 �
     formatPrescription({ sets: 3, reps: 5, percent: 70, weightSuffix: "(+10)" }),
     "3 × 5 @ 70%",
   );
+});
+
+test("formatPerformedHistoryCompact: weightSuffix 병기 (맨몸 총무게)", () => {
+  assert.equal(
+    formatPerformedHistoryCompact(90, 5, 3, "(+20)"),
+    "90kg (+20) × 5 × 3",
+  );
+  assert.equal(
+    formatPerformedHistoryCompact(70, 5, 1, "(체중)"),
+    "70kg (체중) × 5",
+  );
+  // 무게 0이면 suffix 무시
+  assert.equal(formatPerformedHistoryCompact(0, 5, 2, "(+20)"), "— × 5 × 2");
 });
 
 test("formatPrescription: RPE 처방 추가", () => {

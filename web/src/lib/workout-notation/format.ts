@@ -100,13 +100,18 @@ export function summarizePerformedHistory(
   return { mode: "expanded", sets };
 }
 
-/** 수행 로그 compact 형식 문자열: `100kg × 5 × 3` (sets > 1) */
+/**
+ * 수행 로그 compact 형식 문자열: `100kg × 5 × 3` (sets > 1).
+ * weightSuffix가 주어지면 무게 토큰 뒤에 병기 (맨몸 운동 `90kg (+20) × 5 × 3`).
+ */
 export function formatPerformedHistoryCompact(
   weightKg: number,
   reps: number,
   sets: number,
+  weightSuffix?: string | null,
 ): string {
-  const weightToken = weightKg > 0 ? `${weightKg}kg` : "—";
+  const suffix = weightKg > 0 && weightSuffix ? ` ${weightSuffix}` : "";
+  const weightToken = (weightKg > 0 ? `${weightKg}kg` : "—") + suffix;
   if (sets > 1) {
     return `${weightToken} × ${reps} × ${sets}`;
   }

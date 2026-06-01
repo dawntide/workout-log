@@ -6,7 +6,11 @@ import { useLocale } from "@/components/locale-provider";
 import { BottomSheet } from "@/components/ui/bottom-sheet";
 import { apiGet, isAbortError } from "@/lib/api";
 import { formatPerformedHistoryLine } from "@/lib/workout-notation";
-import { draftAtom } from "@/features/workout-log/store/workout-log-atoms";
+import { bodyweightAddedSuffix } from "@/lib/bodyweight-load";
+import {
+  draftAtom,
+  workoutPreferencesAtom,
+} from "@/features/workout-log/store/workout-log-atoms";
 import { TargetWeightChip } from "@/features/progression/ui/target-weight-chip";
 import type {
   CycleOverviewResponse,
@@ -34,6 +38,7 @@ export function WorkoutLogSummarySheet({
   const { locale } = useLocale();
   const localeKey: "ko" | "en" = locale === "ko" ? "ko" : "en";
   const draft = useAtomValue(draftAtom);
+  const bodyweightKg = useAtomValue(workoutPreferencesAtom).bodyweightKg;
 
   const [overview, setOverview] = useState<CycleOverviewResponse | null>(null);
   const [loading, setLoading] = useState(false);
@@ -226,6 +231,12 @@ export function WorkoutLogSummarySheet({
                   weightKg={t.weightKg}
                   lastDeltaKg={t.lastDeltaKg}
                   lastEventType={t.lastEventType}
+                  weightSuffix={bodyweightAddedSuffix(
+                    t.label,
+                    t.weightKg,
+                    bodyweightKg,
+                    localeKey,
+                  )}
                 />
               ))}
             </div>

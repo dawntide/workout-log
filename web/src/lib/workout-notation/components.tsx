@@ -6,6 +6,30 @@ import type {
   PrescriptionInput,
 } from "./format";
 import { summarizePerformedHistory } from "./format";
+import { bodyweightAddedSuffix } from "@/lib/bodyweight-load";
+
+/**
+ * 맨몸 운동 총무게 병기 컨텍스트. weightKg는 이미 총무게(체중+추가)로 환산된 값이어야
+ * 하며, 이 컨텍스트가 주어지면 무게 토큰 뒤에 `(+20)`/`(체중)` 병기를 렌더한다.
+ */
+type BodyweightLoadContext = {
+  exerciseName?: string;
+  bodyweightKg?: number | null;
+  locale?: "ko" | "en";
+};
+
+function loadSuffix(
+  weightKg: number,
+  ctx: BodyweightLoadContext | undefined,
+): string | null {
+  if (!ctx?.exerciseName) return null;
+  return bodyweightAddedSuffix(
+    ctx.exerciseName,
+    weightKg,
+    ctx.bodyweightKg,
+    ctx.locale,
+  );
+}
 
 type TokenColor =
   | "weight"
@@ -97,12 +121,19 @@ export function PerformedSetInline({
   weightKg,
   reps,
   isAmrap,
+  load,
   style,
   className = "v2-mono-label",
-}: PerformedSetInput & { style?: CSSProperties; className?: string }) {
+}: PerformedSetInput & {
+  load?: BodyweightLoadContext;
+  style?: CSSProperties;
+  className?: string;
+}) {
+  const suffix = weightKg > 0 ? loadSuffix(weightKg, load) : null;
   return (
     <span className={className} style={{ ...INLINE_STYLE, ...style }}>
       <Token color="weight">{weightKg > 0 ? weightKg : "—"}</Token>
+      {suffix && <Token color="dim">{suffix}</Token>}
       <Token color="dim">×</Token>
       <Token color="reps">
         {reps}
@@ -123,12 +154,14 @@ export function PerformedSetInline({
  */
 export function PerformedHistoryInline({
   sets,
+  load,
   compactWrapperStyle,
   chipStyle,
   containerStyle,
   className = "v2-mono-label",
 }: {
   sets: PerformedSetInput[];
+  load?: BodyweightLoadContext;
   compactWrapperStyle?: CSSProperties;
   chipStyle?: CSSProperties;
   containerStyle?: CSSProperties;
@@ -136,12 +169,14 @@ export function PerformedHistoryInline({
 }) {
   const view = summarizePerformedHistory(sets);
   if (view.mode === "compact") {
+    const suffix = view.weightKg > 0 ? loadSuffix(view.weightKg, load) : null;
     return (
       <span
         className={className}
         style={{ ...INLINE_STYLE, ...chipStyle, ...compactWrapperStyle }}
       >
         <Token color="weight">{view.weightKg > 0 ? view.weightKg : "—"}</Token>
+        {suffix && <Token color="dim">{suffix}</Token>}
         <Token color="dim">×</Token>
         <Token color="reps">{view.reps}</Token>
         {view.sets > 1 && (
@@ -169,6 +204,7 @@ export function PerformedHistoryInline({
           weightKg={s.weightKg}
           reps={s.reps}
           isAmrap={s.isAmrap}
+          load={load}
           className={className}
           style={{ flexShrink: 0, ...chipStyle }}
         />
