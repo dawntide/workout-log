@@ -342,6 +342,7 @@ export type AppCopy = {
     oneRepMax: string;
     trainingMax: string;
     noStrengthBaselines: string;
+    currentProgress: string;
     viewHistory: string;
     saveInProgress: string;
     saveChanges: string;
@@ -752,6 +753,7 @@ export const appCopyByLocale: Record<AppLocale, AppCopy> = {
       oneRepMax: "예상 1RM",
       trainingMax: "TM",
       noStrengthBaselines: "저장된 시작 기준 1RM/TM이 없습니다.",
+      currentProgress: "현재 진행 상태",
       viewHistory: "수행 히스토리 보기",
       saveInProgress: "저장 중...",
       saveChanges: "변경사항 저장",
@@ -1160,6 +1162,7 @@ export const appCopyByLocale: Record<AppLocale, AppCopy> = {
       oneRepMax: "Estimated 1RM",
       trainingMax: "TM",
       noStrengthBaselines: "No starting 1RM/TM values are saved.",
+      currentProgress: "Current Progress",
       viewHistory: "View History",
       saveInProgress: "Saving...",
       saveChanges: "Save Changes",

@@ -14,6 +14,7 @@ import {
   rulesFor,
   targetsFor,
 } from "@/server/progression/reducer";
+import { readLastTargetEvents, type LastTargetEvent } from "@/server/progression/last-events";
 import { resolveRequestLocale } from "@/lib/i18n/messages";
 import { apiErrorResponse } from "@/app/api/_utils/error-response";
 
@@ -119,7 +120,14 @@ export async function GET(_req: Request, ctx: Ctx) {
       };
     }
 
-    return NextResponse.json({ program, state, effectiveRules });
+    const lastByTarget = await readLastTargetEvents(planId);
+    const targetsLastEvent: Record<string, LastTargetEvent> = {};
+    for (const key of ruleKeys) {
+      const pt = String(effectiveRules[key]?.progressionTarget ?? key).toUpperCase();
+      targetsLastEvent[key] = lastByTarget.get(pt) ?? { lastDeltaKg: null, lastEventType: null };
+    }
+
+    return NextResponse.json({ program, state, effectiveRules, targetsLastEvent });
   } catch (e) {
     console.error("[progression-state] error", e);
     return apiErrorResponse(e);

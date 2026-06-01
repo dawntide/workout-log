@@ -27,6 +27,7 @@ import {
   familyFallbackKeyForBaselineKey,
   selectDisplayStrengthBaselineKeys,
 } from "@/lib/program-store/model";
+import { TargetWeightChip } from "@/features/progression/ui/target-weight-chip";
 import type { PlanForManage } from "@/server/services/plans/get-plans-for-manage";
 
 // PERF: SSR로 주입된 initialPlans로 첫 화면 즉시 렌더 (스피너 없음).
@@ -42,6 +43,11 @@ type IncrementDraftEntry = {
   workKg: number;
 };
 type IncrementDraft = Record<string, IncrementDraftEntry>;
+
+type TargetLastEvent = {
+  lastDeltaKg: number | null;
+  lastEventType: "INCREASE" | "HOLD" | "RESET" | null;
+};
 
 type ProgressionStateApiResponse = {
   program: string | null;
@@ -62,6 +68,7 @@ type ProgressionStateApiResponse = {
       defaultResetFactor: number;
     }
   >;
+  targetsLastEvent?: Record<string, TargetLastEvent>;
 };
 
 const TARGET_LABELS: Record<string, string> = {
@@ -433,6 +440,12 @@ export function PlansManageContent({ initialPlans }: { initialPlans: Plan[] }) {
   const [strengthDraft, setStrengthDraft] = useState<StrengthBaselineDraft>({});
   const [incrementDraft, setIncrementDraft] = useState<IncrementDraft>({});
   const [incrementLoading, setIncrementLoading] = useState(false);
+  const [progressPosition, setProgressPosition] = useState<{
+    cycle: number;
+    week: number;
+    day: number;
+  } | null>(null);
+  const [lastEvents, setLastEvents] = useState<Record<string, TargetLastEvent>>({});
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
@@ -451,6 +464,28 @@ export function PlansManageContent({ initialPlans }: { initialPlans: Plan[] }) {
       })),
     [strengthDraft],
   );
+  const isAutoProgression = useMemo(
+    () => toRecord(managedPlan?.params).autoProgression === true,
+    [managedPlan],
+  );
+  const currentProgressRows = useMemo(() => {
+    const rows = Object.entries(incrementDraft).map(([key, entry]) => ({
+      key,
+      label: shortTargetLabel(key),
+      weightKg: entry.workKg > 0 ? entry.workKg : null,
+      lastDeltaKg: lastEvents[key]?.lastDeltaKg ?? null,
+      lastEventType: lastEvents[key]?.lastEventType ?? null,
+    }));
+    rows.sort((a, b) => {
+      const ai = TARGET_PRIORITY.indexOf(a.key);
+      const bi = TARGET_PRIORITY.indexOf(b.key);
+      if (ai === -1 && bi === -1) return a.key.localeCompare(b.key);
+      if (ai === -1) return 1;
+      if (bi === -1) return -1;
+      return ai - bi;
+    });
+    return rows;
+  }, [incrementDraft, lastEvents]);
   const isSettled = useQuerySettled(loadKey, loading);
   const filteredPlans = useMemo(() => {
     const normalizedQuery = searchQuery.trim().toLowerCase();
@@ -514,6 +549,8 @@ export function PlansManageContent({ initialPlans }: { initialPlans: Plan[] }) {
     setNameDraft(plan.name);
     setStrengthDraft(createStrengthBaselineDraft(plan.params));
     setIncrementDraft({});
+    setProgressPosition(null);
+    setLastEvents({});
     setManagePlanId(plan.id);
 
     const planParams = toRecord(plan.params);
@@ -544,6 +581,14 @@ export function PlansManageContent({ initialPlans }: { initialPlans: Plan[] }) {
         };
       }
       setIncrementDraft(draft);
+      if (res.state) {
+        setProgressPosition({
+          cycle: res.state.cycle,
+          week: res.state.week,
+          day: res.state.day,
+        });
+      }
+      setLastEvents(res.targetsLastEvent ?? {});
     } catch {
       setIncrementDraft({});
     } finally {
@@ -909,6 +954,49 @@ export function PlansManageContent({ initialPlans }: { initialPlans: Plan[] }) {
                 placeholder={copy.plansManage.planNamePlaceholder}
               />
             </V2Stack>
+
+            {/* ── Current progression ── */}
+            {isAutoProgression && currentProgressRows.length > 0 ? (
+              <V2Stack gap={2}>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "baseline",
+                    justifyContent: "space-between",
+                    gap: "var(--v2-s-2)",
+                  }}
+                >
+                  <span className="v2-eyebrow" style={{ color: "var(--v2-ink-3)" }}>
+                    {copy.plansManage.currentProgress}
+                  </span>
+                  {progressPosition ? (
+                    <span
+                      className="v2-mono-label"
+                      style={{ color: "var(--v2-ink-3)", fontSize: "var(--v2-t-eyebrow)" }}
+                    >
+                      {`C${progressPosition.cycle}W${progressPosition.week}D${progressPosition.day}`}
+                    </span>
+                  ) : null}
+                </div>
+                <div
+                  style={{
+                    display: "flex",
+                    flexWrap: "wrap",
+                    gap: "var(--v2-s-2)",
+                  }}
+                >
+                  {currentProgressRows.map((row) => (
+                    <TargetWeightChip
+                      key={row.key}
+                      label={row.label}
+                      weightKg={row.weightKg}
+                      lastDeltaKg={row.lastDeltaKg}
+                      lastEventType={row.lastEventType}
+                    />
+                  ))}
+                </div>
+              </V2Stack>
+            ) : null}
 
             {/* ── Strength baselines ── */}
             <V2Stack gap={2}>

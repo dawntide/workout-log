@@ -7,11 +7,11 @@ import { BottomSheet } from "@/components/ui/bottom-sheet";
 import { apiGet, isAbortError } from "@/lib/api";
 import { formatPerformedHistoryLine } from "@/lib/workout-notation";
 import { draftAtom } from "@/features/workout-log/store/workout-log-atoms";
+import { TargetWeightChip } from "@/features/progression/ui/target-weight-chip";
 import type {
   CycleOverviewResponse,
   CycleOverviewSession,
   CycleOverviewSessionExercise,
-  CycleOverviewTarget,
 } from "@/app/api/plans/[planId]/cycle-overview/route";
 
 type WorkoutLogSummarySheetProps = {
@@ -220,7 +220,13 @@ export function WorkoutLogSummarySheet({
               }}
             >
               {overview.targets.map((t) => (
-                <TargetWeightChip key={t.progressionTarget} target={t} />
+                <TargetWeightChip
+                  key={t.progressionTarget}
+                  label={t.label}
+                  weightKg={t.weightKg}
+                  lastDeltaKg={t.lastDeltaKg}
+                  lastEventType={t.lastEventType}
+                />
               ))}
             </div>
           </section>
@@ -329,82 +335,6 @@ export function WorkoutLogSummarySheet({
         ) : null}
       </div>
     </BottomSheet>
-  );
-}
-
-function TargetWeightChip({ target }: { target: CycleOverviewTarget }) {
-  const arrowKey =
-    target.lastEventType === "INCREASE"
-      ? "arrow_upward"
-      : target.lastEventType === "RESET"
-        ? "arrow_downward"
-        : null;
-  const arrowColor =
-    target.lastEventType === "INCREASE"
-      ? "var(--v2-c-success)"
-      : target.lastEventType === "RESET"
-        ? "var(--v2-c-danger)"
-        : "var(--v2-ink-3)";
-  const hasDelta =
-    arrowKey !== null &&
-    target.lastDeltaKg !== null &&
-    Math.abs(target.lastDeltaKg) > 0;
-  return (
-    <div
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: "var(--v2-s-2)",
-        padding: "var(--v2-s-2) var(--v2-s-3)",
-        background: "var(--v2-paper-2)",
-        borderRadius: "var(--v2-r-2)",
-        minHeight: "var(--v2-s-8)",
-      }}
-    >
-      <span
-        style={{
-          fontSize: "var(--v2-t-12)",
-          color: "var(--v2-ink)",
-          fontWeight: 700,
-        }}
-      >
-        {target.label}
-      </span>
-      <span
-        className="v2-mono-label"
-        style={{
-          fontSize: "var(--v2-t-14)",
-          color: "var(--v2-c-weight)",
-          fontWeight: 700,
-        }}
-      >
-        {target.weightKg !== null ? `${target.weightKg}kg` : "—"}
-      </span>
-      {hasDelta ? (
-        <span
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: "2px",
-            color: arrowColor,
-            fontSize: "var(--v2-t-eyebrow)",
-          }}
-        >
-          <span
-            className="material-symbols-outlined"
-            style={{ fontSize: "var(--v2-t-14)" }}
-            aria-hidden
-          >
-            {arrowKey}
-          </span>
-          <span className="v2-mono-label">
-            {target.lastDeltaKg! > 0
-              ? `+${target.lastDeltaKg}`
-              : `${target.lastDeltaKg}`}
-          </span>
-        </span>
-      ) : null}
-    </div>
   );
 }
 
