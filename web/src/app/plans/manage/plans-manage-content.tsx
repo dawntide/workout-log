@@ -6,7 +6,7 @@ import { useLocale } from "@/components/locale-provider";
 import { BottomSheet } from "@/components/ui/bottom-sheet";
 import { useAppDialog } from "@/components/ui/app-dialog-provider";
 import { AppTextInput } from "@/components/ui/form-controls";
-import { NumberPickerField } from "@/components/ui/number-picker-sheet";
+import { NumberKeypadField } from "@/components/ui/number-keypad-field";
 import {
   V2Card,
   V2Chip,
@@ -1096,14 +1096,12 @@ export function PlansManageContent({ initialPlans }: { initialPlans: Plan[] }) {
                     >
                       {currentProgressRows.map((row) => (
                         <StrengthEditField key={row.key} label={row.label}>
-                          <NumberPickerField
-                            label={`${row.label} TM`}
+                          <NumberKeypadField
+                            ariaLabel={`${row.label} TM`}
                             value={adjustDraft[row.key] ?? 0}
                             min={0}
                             max={500}
-                            step={2.5}
-                            unit="kg"
-                            formatValue={formatKg}
+                            allowDecimal
                             onChange={(value) =>
                               setAdjustDraft((prev) => ({ ...prev, [row.key]: value }))
                             }
@@ -1183,14 +1181,12 @@ export function PlansManageContent({ initialPlans }: { initialPlans: Plan[] }) {
                               {row.oneRepMaxKg > 0 ? `${formatKg(row.oneRepMaxKg)} kg` : "—"}
                             </span>
                           ) : (
-                            <NumberPickerField
-                              label={`${row.label} ${copy.plansManage.oneRepMax}`}
+                            <NumberKeypadField
+                              ariaLabel={`${row.label} ${copy.plansManage.oneRepMax}`}
                               value={row.oneRepMaxKg}
                               min={0}
                               max={500}
-                              step={0.5}
-                              unit="kg"
-                              formatValue={formatKg}
+                              allowDecimal
                               onChange={(value) => {
                                 setStrengthDraft((prev) => ({
                                   ...prev,
@@ -1209,14 +1205,12 @@ export function PlansManageContent({ initialPlans }: { initialPlans: Plan[] }) {
                               {row.trainingMaxKg > 0 ? `${formatKg(row.trainingMaxKg)} kg` : "—"}
                             </span>
                           ) : (
-                            <NumberPickerField
-                              label={`${row.label} ${copy.plansManage.trainingMax}`}
+                            <NumberKeypadField
+                              ariaLabel={`${row.label} ${copy.plansManage.trainingMax}`}
                               value={row.trainingMaxKg}
                               min={0}
                               max={500}
-                              step={0.5}
-                              unit="kg"
-                              formatValue={formatKg}
+                              allowDecimal
                               onChange={(value) => {
                                 setStrengthDraft((prev) => ({
                                   ...prev,
@@ -1287,14 +1281,12 @@ export function PlansManageContent({ initialPlans }: { initialPlans: Plan[] }) {
                                 : `Increase (default ${formatKg(row.defaultIncreaseKg)}kg)`
                             }
                           >
-                            <NumberPickerField
-                              label={`${label} ${locale === "ko" ? "증량" : "Increase"}`}
+                            <NumberKeypadField
+                              ariaLabel={`${label} ${locale === "ko" ? "증량" : "Increase"}`}
                               value={row.increaseKg}
                               min={0}
                               max={20}
-                              step={2.5}
-                              unit="kg"
-                              formatValue={formatKg}
+                              allowDecimal
                               onChange={(value) => {
                                 setIncrementDraft((prev) => ({
                                   ...prev,
@@ -1310,14 +1302,12 @@ export function PlansManageContent({ initialPlans }: { initialPlans: Plan[] }) {
                                 : `Decrease (default ${Math.round((1 - row.defaultResetFactor) * 100)}%)`
                             }
                           >
-                            <NumberPickerField
-                              label={`${label} ${locale === "ko" ? "감량" : "Decrease"}`}
+                            <NumberKeypadField
+                              ariaLabel={`${label} ${locale === "ko" ? "감량" : "Decrease"}`}
                               value={row.decreaseKg}
                               min={0}
                               max={20}
-                              step={2.5}
-                              unit="kg"
-                              formatValue={formatKg}
+                              allowDecimal
                               onChange={(value) => {
                                 setIncrementDraft((prev) => ({
                                   ...prev,
