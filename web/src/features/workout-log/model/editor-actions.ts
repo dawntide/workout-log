@@ -1,5 +1,6 @@
 import type { WorkoutDraftData } from "@/lib/storage/workoutDraftStore";
 import type { WorkoutPreferences } from "@/lib/settings/workout-preferences";
+import { computeExternalLoadFromTotalKg } from "@/lib/bodyweight-load";
 import {
   addUserExercise,
   patchSeedExercise,
@@ -98,21 +99,36 @@ export function buildExerciseActionUpdate(
       // "권장값" 버튼. AUTO 는 프로그램 세트별 처방 무게로, CUSTOM/USER 는 권장값으로 균일 채움.
       const length = exercise.set.repsPerSet.length;
       const targets = exercise.plannedSetMeta?.targetWeightKgPerSet ?? [];
+      // 프로그램 처방 무게(targetWeightKg = TM × %)는 맨몸 운동(풀업/친업 등)에서
+      // 체중을 포함한 총부하다. 하지만 무게 입력 필드는 외부 추가 중량만 받으므로,
+      // 로드 시점의 시드 가중치 규칙(applyWorkoutLogWeightRulesToDraft)과 동일하게
+      // 맨몸 운동이면 체중을 빼서 외부 부하로 변환한다. 변환 불가(맨몸 아님/체중 미설정)
+      // 시에는 원래 총부하 값을 그대로 사용한다. USER 입력값은 이미 외부 부하이므로 변환하지 않는다.
+      const toExternalLoad = (totalKg: number) =>
+        exercise.source === "PROGRAM"
+          ? computeExternalLoadFromTotalKg(
+              exercise.exerciseName,
+              totalKg,
+              preferences.bodyweightKg,
+            ) ?? totalKg
+          : totalKg;
       const firstValidTarget = targets.find(
         (entry): entry is number =>
           typeof entry === "number" && Number.isFinite(entry) && entry > 0,
       );
-      const fallbackBase =
+      const prescribedBase =
         firstValidTarget ??
         (typeof exercise.prescribedWeightKg === "number" && exercise.prescribedWeightKg > 0
           ? exercise.prescribedWeightKg
-          : exercise.set.weightKg);
+          : null);
+      const fallbackBase =
+        prescribedBase !== null ? toExternalLoad(prescribedBase) : exercise.set.weightKg;
       const isAuto = exercise.source === "PROGRAM" && exercise.badge !== "CUSTOM";
       const weightKgPerSet = Array.from({ length }, (_, setIndex) => {
         const target = isAuto ? targets[setIndex] : null;
         const base =
           typeof target === "number" && Number.isFinite(target) && target >= 0
-            ? target
+            ? toExternalLoad(target)
             : fallbackBase;
         return resolveWeightWithPreferences(
           Math.max(0, Number(base) || 0),
