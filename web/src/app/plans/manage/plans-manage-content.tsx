@@ -1102,6 +1102,7 @@ export function PlansManageContent({ initialPlans }: { initialPlans: Plan[] }) {
                             min={0}
                             max={500}
                             allowDecimal
+                            step={2.5}
                             onChange={(value) =>
                               setAdjustDraft((prev) => ({ ...prev, [row.key]: value }))
                             }
@@ -1187,6 +1188,7 @@ export function PlansManageContent({ initialPlans }: { initialPlans: Plan[] }) {
                               min={0}
                               max={500}
                               allowDecimal
+                              step={0.5}
                               onChange={(value) => {
                                 setStrengthDraft((prev) => ({
                                   ...prev,
@@ -1211,6 +1213,7 @@ export function PlansManageContent({ initialPlans }: { initialPlans: Plan[] }) {
                               min={0}
                               max={500}
                               allowDecimal
+                              step={0.5}
                               onChange={(value) => {
                                 setStrengthDraft((prev) => ({
                                   ...prev,
@@ -1287,6 +1290,7 @@ export function PlansManageContent({ initialPlans }: { initialPlans: Plan[] }) {
                               min={0}
                               max={20}
                               allowDecimal
+                              step={2.5}
                               onChange={(value) => {
                                 setIncrementDraft((prev) => ({
                                   ...prev,
@@ -1308,6 +1312,7 @@ export function PlansManageContent({ initialPlans }: { initialPlans: Plan[] }) {
                               min={0}
                               max={20}
                               allowDecimal
+                              step={2.5}
                               onChange={(value) => {
                                 setIncrementDraft((prev) => ({
                                   ...prev,

@@ -1,13 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import { BottomSheet } from "@/components/ui/bottom-sheet";
-import { AppNumberStepper, AppTextInput } from "@/components/ui/form-controls";
+import { AppTextInput } from "@/components/ui/form-controls";
+import { NumberKeypadField } from "@/components/ui/number-keypad-field";
 import { EmptyStateRows, NoticeStateRows } from "@/components/ui/settings-state";
 import {
   V2NavRow,
   V2PrimaryBtn,
   V2SecondaryBtn,
+  V2Stack,
 } from "@/components/v2/primitives";
 import {
   V2SettingsFootnote,
@@ -55,6 +57,18 @@ function dedupeRules(rules: MinimumPlateRule[]) {
     map.set(toRuleKey(rule), rule);
   }
   return Array.from(map.values()).sort(compareRules);
+}
+
+/** label(eyebrow)을 위, iOS 키패드 입력을 아래로 쌓는 래퍼. 운동 기록/플랜 관리 화면과 동일한 패턴. */
+function LabeledKeypadField({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <V2Stack gap={1}>
+      <span className="v2-eyebrow" style={{ color: "var(--v2-ink-3)" }}>
+        {label}
+      </span>
+      {children}
+    </V2Stack>
+  );
 }
 
 type MinimumPlatePageContentProps = {
@@ -249,15 +263,17 @@ export function MinimumPlatePageContent({ initialSnapshot, initialExercises }: M
       <section>
         <V2SettingsSection title={locale === "ko" ? "기본값 조절" : "Adjust Default"} description={locale === "ko" ? "스테퍼로 조절한 뒤 저장 버튼으로 반영합니다." : "Adjust it with the stepper, then save the change."} />
         <div style={{ background: "var(--v2-paper)", borderRadius: "var(--v2-r-4)", padding: "var(--v2-s-4)", display: "flex", flexDirection: "column", gap: "var(--v2-s-2)" }}>
-          <AppNumberStepper
-            label={locale === "ko" ? "기본 최소 원판 (kg)" : "Default Minimum Plate (kg)"}
-            value={defaultDraftKg}
-            min={0.25}
-            max={25}
-            step={0.25}
-            inputMode="decimal"
-            onChange={(next) => setDefaultDraftKg(normalizeIncrementKg(next, DEFAULT_MINIMUM_PLATE_KG))}
-          />
+          <LabeledKeypadField label={locale === "ko" ? "기본 최소 원판 (kg)" : "Default Minimum Plate (kg)"}>
+            <NumberKeypadField
+              ariaLabel={locale === "ko" ? "기본 최소 원판 (kg)" : "Default Minimum Plate (kg)"}
+              value={defaultDraftKg}
+              min={0.25}
+              max={25}
+              allowDecimal
+              step={0.25}
+              onChange={(next) => setDefaultDraftKg(normalizeIncrementKg(next, DEFAULT_MINIMUM_PLATE_KG))}
+            />
+          </LabeledKeypadField>
           <V2PrimaryBtn
             full
             onClick={() => {
@@ -491,20 +507,22 @@ export function MinimumPlatePageContent({ initialSnapshot, initialExercises }: M
           </div>
 
           <div style={{ background: "var(--v2-paper)", borderRadius: "var(--v2-r-4)", padding: "var(--v2-s-4)" }}>
-            <AppNumberStepper
-              label={locale === "ko" ? "최소 원판 Increment (kg)" : "Minimum Plate Increment (kg)"}
-              value={ruleDraft.incrementKg}
-              min={0.25}
-              max={25}
-              step={0.25}
-              inputMode="decimal"
-              onChange={(next) =>
-                setRuleDraft((prev) => ({
-                  ...prev,
-                  incrementKg: normalizeIncrementKg(next, DEFAULT_MINIMUM_PLATE_KG),
-                }))
-              }
-            />
+            <LabeledKeypadField label={locale === "ko" ? "최소 원판 Increment (kg)" : "Minimum Plate Increment (kg)"}>
+              <NumberKeypadField
+                ariaLabel={locale === "ko" ? "최소 원판 Increment (kg)" : "Minimum Plate Increment (kg)"}
+                value={ruleDraft.incrementKg}
+                min={0.25}
+                max={25}
+                allowDecimal
+                step={0.25}
+                onChange={(next) =>
+                  setRuleDraft((prev) => ({
+                    ...prev,
+                    incrementKg: normalizeIncrementKg(next, DEFAULT_MINIMUM_PLATE_KG),
+                  }))
+                }
+              />
+            </LabeledKeypadField>
           </div>
 
           {sheetError ? <p className="v2-font-text" style={{ margin: 0, color: "var(--v2-c-danger)", fontSize: "var(--v2-t-small)" }}>{sheetError}</p> : null}
