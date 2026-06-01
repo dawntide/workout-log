@@ -10,7 +10,9 @@ import {
 } from "@/server/db/schema";
 import {
   LoggedSetInput,
+  ProgressionEventType,
   ProgressionProgram,
+  ProgressionRuntimeState,
   reduceProgressionState,
   resolveAutoProgressionProgram,
 } from "./reducer";
@@ -67,6 +69,102 @@ function pickAggregateEventType(
   if (counts.reset === max) return "RESET";
   if (counts.hold === max) return "HOLD";
   return "INCREASE";
+}
+
+// 저장된 progress_event.meta.targetDecisionsOverride를 사용자 결정 맵으로 복원.
+// rebuild/replay가 과거 이벤트를 재계산할 때, 그 로그에서 사용자가 직접 고른
+// 증감량 결정을 잃지 않도록 영속화된 결정을 다시 읽어 온다.
+export function readStoredDecisionsFromMeta(
+  meta: unknown,
+): Record<string, ProgressionTargetDecision> | null {
+  if (!meta || typeof meta !== "object" || Array.isArray(meta)) return null;
+  const raw = (meta as Record<string, unknown>).targetDecisionsOverride;
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+  const out: Record<string, ProgressionTargetDecision> = {};
+  for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
+    const trimmedKey = String(key).trim();
+    if (!trimmedKey || !value || typeof value !== "object") continue;
+    const entry = value as { mode?: unknown; workKg?: unknown };
+    const mode =
+      entry.mode === "hold" || entry.mode === "increase" || entry.mode === "reset"
+        ? entry.mode
+        : null;
+    if (!mode) continue;
+    const workKg = typeof entry.workKg === "number" ? entry.workKg : Number(entry.workKg);
+    if (!Number.isFinite(workKg) || workKg < 0) continue;
+    out[trimmedKey] = { mode, workKg: snapTo2p5(workKg) };
+  }
+  return Object.keys(out).length > 0 ? out : null;
+}
+
+type AppliedProgression = {
+  nextState: ProgressionRuntimeState;
+  eventType: ProgressionEventType;
+  reason: string;
+  appliedDecisions: Record<string, ProgressionTargetDecision>;
+};
+
+// reducer가 계산한 기본 진행 결과 위에, 사용자가 운동별로 고른 절대 workKg 결정을
+// 덮어쓴다. 키가 매칭되는 타겟만 override하고 그 외는 reducer 기본값을 유지한다.
+// decisions가 없거나 매칭이 하나도 없으면 reducer 결과를 그대로 돌려준다.
+export function applyTargetDecisionsToReduced(
+  reduced: ReturnType<typeof reduceProgressionState>,
+  decisions: Record<string, ProgressionTargetDecision> | null,
+): AppliedProgression {
+  const appliedDecisions: Record<string, ProgressionTargetDecision> = {};
+  if (!decisions) {
+    return {
+      nextState: reduced.nextState,
+      eventType: reduced.eventType,
+      reason: reduced.reason,
+      appliedDecisions,
+    };
+  }
+
+  const nextTargets = { ...reduced.nextState.targets };
+  for (const key of Object.keys(nextTargets)) {
+    const target = nextTargets[key];
+    if (!target) continue;
+    const decision = readDecision(decisions, key, target.progressionTarget);
+    if (!decision) continue;
+    nextTargets[key] = {
+      ...target,
+      workKg: decision.workKg,
+      successStreak: 0,
+      failureStreak: 0,
+    };
+    appliedDecisions[key] = decision;
+  }
+
+  if (Object.keys(appliedDecisions).length === 0) {
+    return {
+      nextState: reduced.nextState,
+      eventType: reduced.eventType,
+      reason: reduced.reason,
+      appliedDecisions,
+    };
+  }
+
+  const eventType = pickAggregateEventType(appliedDecisions);
+  return {
+    nextState: { ...reduced.nextState, targets: nextTargets },
+    eventType,
+    reason: `override:per-target:${eventType.toLowerCase()}`,
+    appliedDecisions,
+  };
+}
+
+// progress_event.meta 합성 — reducer 기본 meta + (있으면) 사용자 override 결정.
+export function buildProgressionEventMeta(
+  reduced: ReturnType<typeof reduceProgressionState>,
+  appliedDecisions: Record<string, ProgressionTargetDecision>,
+) {
+  return {
+    ...toProgressionEventMeta(reduced),
+    ...(Object.keys(appliedDecisions).length > 0
+      ? { targetDecisionsOverride: appliedDecisions }
+      : {}),
+  };
 }
 
 type ResolvedAutoProgressionContext =
@@ -226,7 +324,10 @@ export async function applyAutoProgressionFromLog(input: ApplyAutoProgressionInp
   const currentLog = logRows[0];
   if (!currentLog) return { applied: false, reason: "skip:log-missing" as const };
 
-  async function applySingleFromState(beforeState: Record<string, unknown>) {
+  async function applySingleFromState(
+    beforeState: Record<string, unknown>,
+    decisions: Record<string, ProgressionTargetDecision> | null,
+  ) {
     const reduced = reduceProgressionState({
       program: resolved.progressionProgram,
       previousState: beforeState,
@@ -235,63 +336,32 @@ export async function applyAutoProgressionFromLog(input: ApplyAutoProgressionInp
       logId: input.logId,
     });
 
-    let finalNextState = reduced.nextState;
-    let finalEventType = reduced.eventType;
-    let finalReason = reduced.reason;
-
-    const prevTargets = ((beforeState as Record<string, unknown>).targets ?? {}) as Record<string, Record<string, unknown>>;
-
-    // 사용자가 sheet에서 운동별로 결정한 mode + 절대 workKg.
-    // 키가 매칭되는 타겟만 override; 그 외는 reducer가 계산한 기본값 유지.
-    const decisions = input.progressionTargetDecisions ?? null;
-    const appliedDecisions: Record<string, ProgressionTargetDecision> = {};
-    if (decisions) {
-      const nextTargets = { ...reduced.nextState.targets };
-      for (const key of Object.keys(nextTargets)) {
-        const target = nextTargets[key];
-        if (!target) continue;
-        const decision = readDecision(decisions, key, target.progressionTarget);
-        if (!decision) continue;
-        nextTargets[key] = {
-          ...target,
-          workKg: decision.workKg,
-          successStreak: 0,
-          failureStreak: 0,
-        };
-        appliedDecisions[key] = decision;
-        // 이전 상태에 있던 타겟인지 확인 — prev 참조 보존만 위한 노옵
-        void prevTargets[key];
-      }
-      if (Object.keys(appliedDecisions).length > 0) {
-        finalNextState = { ...reduced.nextState, targets: nextTargets };
-        finalEventType = pickAggregateEventType(appliedDecisions);
-        finalReason = `override:per-target:${finalEventType.toLowerCase()}`;
-      }
-    }
+    // 사용자가 sheet에서 운동별로 결정한 mode + 절대 workKg를 reducer 결과 위에 덮어쓴다.
+    const applied = applyTargetDecisionsToReduced(reduced, decisions);
 
     await input.tx.insert(planProgressEvent).values({
       planId: resolved.planId,
       logId: input.logId,
       userId: input.userId,
-      eventType: finalEventType,
+      eventType: applied.eventType,
       programSlug: resolved.templateSlug,
-      reason: finalReason,
+      reason: applied.reason,
       beforeState,
-      afterState: finalNextState,
-      meta: {
-        ...toProgressionEventMeta(reduced),
-        ...(Object.keys(appliedDecisions).length > 0
-          ? { targetDecisionsOverride: appliedDecisions }
-          : {}),
-      },
+      afterState: applied.nextState,
+      meta: buildProgressionEventMeta(reduced, applied.appliedDecisions),
     });
     await upsertAutoProgressionRuntimeState({
       tx: input.tx,
       planId: resolved.planId,
       userId: input.userId,
-      nextState: finalNextState,
+      nextState: applied.nextState,
     });
-    return { ...reduced, nextState: finalNextState, eventType: finalEventType, reason: finalReason };
+    return {
+      ...reduced,
+      nextState: applied.nextState,
+      eventType: applied.eventType,
+      reason: applied.reason,
+    };
   }
 
   const existingEventRows = await input.tx
@@ -299,6 +369,7 @@ export async function applyAutoProgressionFromLog(input: ApplyAutoProgressionInp
       id: planProgressEvent.id,
       beforeState: planProgressEvent.beforeState,
       afterState: planProgressEvent.afterState,
+      meta: planProgressEvent.meta,
     })
     .from(planProgressEvent)
     .where(
@@ -324,7 +395,7 @@ export async function applyAutoProgressionFromLog(input: ApplyAutoProgressionInp
       .limit(1);
     const runtime = runtimeRows[0] ?? null;
     const beforeState = (runtime?.state ?? {}) as Record<string, unknown>;
-    const reduced = await applySingleFromState(beforeState);
+    const reduced = await applySingleFromState(beforeState, input.progressionTargetDecisions ?? null);
     return {
       applied: true,
       reason: reduced.reason,
@@ -344,7 +415,7 @@ export async function applyAutoProgressionFromLog(input: ApplyAutoProgressionInp
       .limit(1);
     const runtime = runtimeRows[0] ?? null;
     const beforeState = (runtime?.state ?? {}) as Record<string, unknown>;
-    const reduced = await applySingleFromState(beforeState);
+    const reduced = await applySingleFromState(beforeState, input.progressionTargetDecisions ?? null);
     return {
       applied: true,
       reason: reduced.reason,
@@ -353,13 +424,18 @@ export async function applyAutoProgressionFromLog(input: ApplyAutoProgressionInp
     };
   }
 
-  const replayFirst = reduceProgressionState({
+  // 현재 수정 중인 로그: 새로 전달된 결정이 있으면 그것을, 없으면 기존에 저장된
+  // 사용자 결정을 보존해 재적용한다 (수정만으로 사용자 선택이 사라지지 않도록).
+  const replayFirstDecisions =
+    input.progressionTargetDecisions ?? readStoredDecisionsFromMeta(existingEvent.meta);
+  const replayFirstReduced = reduceProgressionState({
     program: resolved.progressionProgram,
     previousState: existingEvent.beforeState ?? {},
     planParams: resolved.params,
     sets: toLoggedSetRows(input.sets),
     logId: input.logId,
   });
+  const replayFirst = applyTargetDecisionsToReduced(replayFirstReduced, replayFirstDecisions);
   await input.tx
     .update(planProgressEvent)
     .set({
@@ -367,7 +443,7 @@ export async function applyAutoProgressionFromLog(input: ApplyAutoProgressionInp
       reason: replayFirst.reason,
       beforeState: existingEvent.beforeState ?? {},
       afterState: replayFirst.nextState,
-      meta: toProgressionEventMeta(replayFirst),
+      meta: buildProgressionEventMeta(replayFirstReduced, replayFirst.appliedDecisions),
     })
     .where(eq(planProgressEvent.id, existingEvent.id));
 
@@ -376,6 +452,7 @@ export async function applyAutoProgressionFromLog(input: ApplyAutoProgressionInp
     .select({
       eventId: planProgressEvent.id,
       logId: planProgressEvent.logId,
+      meta: planProgressEvent.meta,
       performedAt: workoutLog.performedAt,
     })
     .from(planProgressEvent)
@@ -415,17 +492,19 @@ export async function applyAutoProgressionFromLog(input: ApplyAutoProgressionInp
       sets: toLoggedSetRows(laterSets),
       logId,
     });
+    // 이 로그에 저장돼 있던 사용자 결정을 복원해 재적용.
+    const applied = applyTargetDecisionsToReduced(reduced, readStoredDecisionsFromMeta(row.meta));
 
     const beforeReplayState = runningState;
-    runningState = reduced.nextState;
+    runningState = applied.nextState;
     await input.tx
       .update(planProgressEvent)
       .set({
-        eventType: reduced.eventType,
-        reason: reduced.reason,
+        eventType: applied.eventType,
+        reason: applied.reason,
         beforeState: beforeReplayState,
         afterState: runningState,
-        meta: toProgressionEventMeta(reduced),
+        meta: buildProgressionEventMeta(reduced, applied.appliedDecisions),
       })
       .where(eq(planProgressEvent.id, row.eventId));
   }
@@ -461,6 +540,22 @@ export async function rebuildAutoProgressionForPlan(input: {
     .from(workoutLog)
     .where(eq(workoutLog.planId, resolved.planId))
     .orderBy(asc(workoutLog.performedAt), asc(workoutLog.id));
+
+  // 기존 이벤트를 지우기 전에, 각 로그에서 사용자가 직접 고른 증감량 결정을 수집한다.
+  // 재계산 후 같은 로그에 다시 적용해 사용자 선택이 rebuild로 사라지지 않게 한다.
+  const priorEventRows = await input.tx
+    .select({
+      logId: planProgressEvent.logId,
+      meta: planProgressEvent.meta,
+    })
+    .from(planProgressEvent)
+    .where(eq(planProgressEvent.planId, resolved.planId));
+  const decisionsByLogId = new Map<string, Record<string, ProgressionTargetDecision>>();
+  for (const row of priorEventRows) {
+    if (!row.logId) continue;
+    const stored = readStoredDecisionsFromMeta(row.meta);
+    if (stored) decisionsByLogId.set(row.logId, stored);
+  }
 
   await input.tx.delete(planProgressEvent).where(eq(planProgressEvent.planId, resolved.planId));
 
@@ -507,20 +602,22 @@ export async function rebuildAutoProgressionForPlan(input: {
       sets: toLoggedSetRows(setsByLogId.get(log.id) ?? []),
       logId: log.id,
     });
+    // 이 로그에 저장돼 있던 사용자 결정을 복원해 재적용.
+    const applied = applyTargetDecisionsToReduced(reduced, decisionsByLogId.get(log.id) ?? null);
 
     await input.tx.insert(planProgressEvent).values({
       planId: resolved.planId,
       logId: log.id,
       userId: input.userId,
-      eventType: reduced.eventType,
+      eventType: applied.eventType,
       programSlug: resolved.templateSlug,
-      reason: reduced.reason,
+      reason: applied.reason,
       beforeState: runningState,
-      afterState: reduced.nextState,
-      meta: toProgressionEventMeta(reduced),
+      afterState: applied.nextState,
+      meta: buildProgressionEventMeta(reduced, applied.appliedDecisions),
     });
 
-    runningState = reduced.nextState;
+    runningState = applied.nextState;
   }
 
   await upsertAutoProgressionRuntimeState({
