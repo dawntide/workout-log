@@ -19,7 +19,6 @@ import {
   V2Hairline,
   V2IconBtn,
   V2SecondaryBtn,
-  V2Textarea,
 } from "@/components/v2/primitives";
 import {
   inferProgressionTargetFromExerciseName,
@@ -131,9 +130,6 @@ const ProgramExerciseEditorRow = memo(function ProgramExerciseEditorRow({
   const deferredExerciseQuery = useDeferredValue(exerciseQuery);
   const [exercisePickerOpen, setExercisePickerOpen] = useState(
     () => exercise.exerciseName.trim().length === 0,
-  );
-  const [memoVisibleManual, setMemoVisibleManual] = useState<boolean | null>(
-    null,
   );
   const exerciseInputRef = useRef<HTMLInputElement | null>(null);
   const lastResolvedExerciseNameRef = useRef(
@@ -275,15 +271,6 @@ const ProgramExerciseEditorRow = memo(function ProgramExerciseEditorRow({
     : locale === "ko"
       ? "운동 선택"
       : "Select exercise";
-
-  const memoValue = exercise.note ?? "";
-  const memoVisible = memoVisibleManual ?? memoValue.trim().length > 0;
-  const toggleMemo = () => {
-    setMemoVisibleManual((prev) => {
-      const current = prev ?? memoValue.trim().length > 0;
-      return !current;
-    });
-  };
 
   return (
     <article
@@ -790,7 +777,7 @@ const ProgramExerciseEditorRow = memo(function ProgramExerciseEditorRow({
             </div>
           ) : null}
 
-          {/* 운동기록 카드의 하단 칩 액션 행을 따라 변경·메모를 한 줄에 배치 */}
+          {/* 운동기록 카드의 하단 칩 액션 행을 따라 운동 변경 액션을 배치 */}
           <div
             style={{
               display: "flex",
@@ -810,28 +797,7 @@ const ProgramExerciseEditorRow = memo(function ProgramExerciseEditorRow({
             >
               {copy.programExerciseEditor.change}
             </ChipButton>
-            <ChipButton
-              icon="edit_note"
-              onClick={toggleMemo}
-              tone={memoVisible ? "accent" : undefined}
-              style={{ flex: 1, justifyContent: "center", minWidth: 0 }}
-            >
-              {locale === "ko" ? "메모" : "Memo"}
-            </ChipButton>
           </div>
-
-          {memoVisible ? (
-            <V2Textarea
-              size="sm"
-              value={memoValue}
-              onChange={(event) =>
-                onPatch(sessionId, exercise.id, { note: event.target.value })
-              }
-              placeholder={locale === "ko" ? "세션 메모" : "Session note"}
-              rows={2}
-              style={{ resize: "none" }}
-            />
-          ) : null}
         </div>
       )}
     </article>
