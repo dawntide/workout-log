@@ -446,6 +446,7 @@ export function PlansManageContent({ initialPlans }: { initialPlans: Plan[] }) {
     day: number;
   } | null>(null);
   const [lastEvents, setLastEvents] = useState<Record<string, TargetLastEvent>>({});
+  const [showStartingBaseline, setShowStartingBaseline] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
@@ -551,6 +552,7 @@ export function PlansManageContent({ initialPlans }: { initialPlans: Plan[] }) {
     setIncrementDraft({});
     setProgressPosition(null);
     setLastEvents({});
+    setShowStartingBaseline(false);
     setManagePlanId(plan.id);
 
     const planParams = toRecord(plan.params);
@@ -1006,7 +1008,27 @@ export function PlansManageContent({ initialPlans }: { initialPlans: Plan[] }) {
               >
                 {copy.plansManage.strengthBaselines}
               </span>
-              {strengthRows.length > 0 ? (
+              {isAutoProgression ? (
+                <p
+                  className="v2-small"
+                  style={{ margin: 0, color: "var(--v2-ink-2)" }}
+                >
+                  {copy.plansManage.startingBaselineHint}
+                </p>
+              ) : null}
+              {isAutoProgression ? (
+                <V2SecondaryBtn
+                  full
+                  icon={showStartingBaseline ? "expand_less" : "expand_more"}
+                  onClick={() => setShowStartingBaseline((prev) => !prev)}
+                >
+                  {showStartingBaseline
+                    ? copy.plansManage.hideStartingBaseline
+                    : copy.plansManage.showStartingBaseline}
+                </V2SecondaryBtn>
+              ) : null}
+              {!isAutoProgression || showStartingBaseline ? (
+                strengthRows.length > 0 ? (
                 <V2Stack gap={2}>
                   {strengthRows.map((row) => (
                     <StrengthEditRow key={row.key} label={row.label}>
@@ -1067,7 +1089,8 @@ export function PlansManageContent({ initialPlans }: { initialPlans: Plan[] }) {
                   title={copy.plansManage.noStrengthBaselines}
                   tone="inset"
                 />
-              )}
+                )
+              ) : null}
             </V2Stack>
 
             {/* ── Increment overrides ── */}
