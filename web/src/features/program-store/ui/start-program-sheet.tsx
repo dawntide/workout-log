@@ -3,7 +3,7 @@
 import { memo } from "react";
 import dynamic from "next/dynamic";
 import { V2Card, V2Chip, V2SecondaryBtn } from "@/components/v2/primitives";
-import { NumberPickerField } from "@/components/ui/number-picker-sheet";
+import { NumberKeypadField } from "@/components/ui/number-keypad-field";
 import { formatProgramDisplayName } from "@/features/program-store/model/view";
 import type { StartProgramDraft } from "@/features/program-store/model/use-program-store-start-program-controller";
 
@@ -116,15 +116,13 @@ export const StartProgramSheet = memo(function StartProgramSheet({
               >
                 {target.label} 1RM (kg)
               </span>
-              <NumberPickerField
-                label={`${target.label} 1RM`}
+              <NumberKeypadField
+                ariaLabel={`${target.label} 1RM`}
                 value={Number(draft.oneRmInputs[target.key]) || 0}
                 min={0}
                 max={500}
                 step={0.5}
-                unit="kg"
-                variant="workout-number"
-                formatValue={(value) => value.toFixed(1)}
+                allowDecimal
                 onChange={(value) => onChangeOneRmInput(target.key, value)}
               />
               {draft.recommendations[target.key] ? (
