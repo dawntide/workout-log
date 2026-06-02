@@ -414,3 +414,42 @@ test("PR-D gzclp(flag 없음): 기존 LP 유지 — stage 안 굴림(forward-onl
   assert.equal(result.nextState.targets.D1_s0?.failureStreak, 1);
   assert.equal(result.nextState.targets.D1_s0?.stage, undefined);
 });
+
+// PR-E(한계2 texas 주간 모델): v2에서 I(강도일) 슬롯만 reducer에 도달한다(처방이 V/R엔 progressionKey
+// 미부착). I day 성공 → 즉시 증량(매주 1회), 실패 누적 → reset(×resetFactor). 비-v2는 기존 3회-연속 LP.
+test("PR-E texas(v2): I day 성공 → 즉시 증량(주간 1회)", () => {
+  const result = reduceProgressionState({
+    program: "texas-method",
+    previousState: { cycle: 1, week: 1, day: 1, targets: { I_s0: { progressionTarget: "SQUAT", workKg: 100, successStreak: 0, failureStreak: 0 } }, lastAppliedLogId: null },
+    planParams: { progressionModel: "v2" },
+    logId: "log-tx-1",
+    sets: [gzSet("I_s0", "SQUAT", 5, 5, 100)],
+  });
+  assert.equal(result.nextState.targets.I_s0?.workKg, 102.5); // +2.5 즉시
+  assert.equal(result.eventType, "INCREASE");
+});
+
+test("PR-E texas(v2): I day 실패 누적 → reset(×0.9)", () => {
+  const result = reduceProgressionState({
+    program: "texas-method",
+    previousState: { cycle: 1, week: 1, day: 1, targets: { I_s0: { progressionTarget: "SQUAT", workKg: 100, successStreak: 0, failureStreak: 2 } }, lastAppliedLogId: null },
+    planParams: { progressionModel: "v2" },
+    logId: "log-tx-2",
+    sets: [gzSet("I_s0", "SQUAT", 3, 5, 100)], // 목표 5 중 3 → 실패
+  });
+  assert.equal(result.nextState.targets.I_s0?.workKg, 90); // 100 × 0.9
+  assert.equal(result.nextState.targets.I_s0?.failureStreak, 0); // reset
+  assert.equal(result.eventType, "RESET");
+});
+
+test("PR-E texas(flag 없음): I 1회 성공으론 증량 안 함(기존 3회-연속 LP, forward-only)", () => {
+  const result = reduceProgressionState({
+    program: "texas-method",
+    previousState: { cycle: 1, week: 1, day: 1, targets: { I_s0: { progressionTarget: "SQUAT", workKg: 100, successStreak: 0, failureStreak: 0 } }, lastAppliedLogId: null },
+    planParams: {}, // 비-v2
+    logId: "log-tx-3",
+    sets: [gzSet("I_s0", "SQUAT", 5, 5, 100)],
+  });
+  assert.equal(result.nextState.targets.I_s0?.workKg, 100); // 1회론 증량 X
+  assert.equal(result.nextState.targets.I_s0?.successStreak, 1);
+});

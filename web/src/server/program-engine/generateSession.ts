@@ -103,6 +103,8 @@ export type PlannedExercise = {
   // 비-v2/타 family에는 부착하지 않는다.
   tier?: "T1" | "T2" | "T3" | null;
   stage?: number | null;
+  // texas 주간(v2): 슬롯 요일 역할. 처방 무게 파생(V/R=I×계수)·UI 배지에 쓴다.
+  texasRole?: "volume" | "recovery" | "intensity" | null;
 };
 
 export type { PlannedSet };
@@ -990,8 +992,8 @@ export function plannedExercisesFromSlottedLpManualSession(
       if (!exerciseName) return null;
 
       // 원본(미-fork) 정의는 slot이 없다 → note/index에서 동적 생성(fork draft와 동일한 인덱스 진행키).
-      let slot: { progressionKey?: string; startWeightKg?: number; tier?: string } | null =
-        (item?.slot as { progressionKey?: string; startWeightKg?: number; tier?: string } | null) ?? null;
+      let slot: { progressionKey?: string; startWeightKg?: number; tier?: string; texasRole?: string } | null =
+        (item?.slot as { progressionKey?: string; startWeightKg?: number; tier?: string; texasRole?: string } | null) ?? null;
       if ((!slot || !slot.progressionKey) && family && sessionKey) {
         const firstSet = (Array.isArray(item?.sets) ? item.sets[0] : null) ?? {};
         const note = String(firstSet?.note ?? item?.note ?? "");
@@ -1031,6 +1033,41 @@ export function plannedExercisesFromSlottedLpManualSession(
           : null;
       const effectiveKg = slotWorkKg !== null && slotWorkKg > 0 ? slotWorkKg : startWeightKg;
 
+      // texas 주간(v2) 표시 역할 게이트.
+      const isTexasV2 = family === "texas-method" && effectiveParams?.progressionModel === "v2";
+      const txRole: "volume" | "recovery" | "intensity" | null =
+        isTexasV2 &&
+        (slot?.texasRole === "volume" || slot?.texasRole === "recovery" || slot?.texasRole === "intensity")
+          ? slot.texasRole
+          : null;
+      // texas 주간(v2) V/R: 같은 target의 I workKg × 계수(볼륨 0.9 / 회복 0.8)로 무게를 파생한다.
+      // progressionKey를 흘리지 않아(null) reducer는 I 슬롯만 굴린다 → I 무게가 오르면 다음 주
+      // V/R도 자동으로 따라 오른다. I workKg가 아직 없으면(첫 주기) seed 무게(effectiveKg) 폴백.
+      if (txRole === "volume" || txRole === "recovery") {
+        const iKg = Number(effectiveParams?.texasIntensityByTarget?.[progressionTarget ?? ""]) || 0;
+        const factor = txRole === "volume" ? 0.9 : 0.8;
+        const derivedKg = iKg > 0 ? roundToNearest2p5(iKg * factor) : effectiveKg;
+        const txSets = setRows.map((s: any) => {
+          const base = mapManualSet(s);
+          if (derivedKg !== null && derivedKg > 0) base.targetWeightKg = derivedKg;
+          return base;
+        });
+        return {
+          exerciseId: typeof item?.exerciseId === "string" ? item.exerciseId : null,
+          exerciseName,
+          role: "MAIN" as const,
+          sets: txSets,
+          sourceBlockTarget: progressionTarget ?? "CUSTOM",
+          order: toNumberOrNull(item?.order) ?? index,
+          rowType: "AUTO" as const,
+          progressionTarget: progressionTarget ?? null,
+          progressionKey: null,
+          tier: null,
+          stage: null,
+          texasRole: txRole,
+        } satisfies PlannedExercise;
+      }
+
       // gzclp v2 stage 변형: stage>0이면 tier별 강등 스킴(T1 6×2/10×1, T2 3×8/3×6)으로 세트 도출.
       // stage 0/비-v2는 저장 세트 그대로 → T2 비균일(3×10/3×8) seed 구조 보존.
       const stageScheme = resolveGzclpStageScheme(effectiveParams, family, slot?.tier, slotKey);
@@ -1067,6 +1104,7 @@ export function plannedExercisesFromSlottedLpManualSession(
         progressionKey: slotKey,
         tier: gzTier,
         stage: gzStage,
+        texasRole: txRole,
       } satisfies PlannedExercise;
     })
     .filter((exercise: PlannedExercise | null): exercise is PlannedExercise => Boolean(exercise));
@@ -1230,6 +1268,24 @@ function pickManualSession(definition: any, sessionKey: string) {
   return sessions.find((s: any) => s.key === sessionKey) ?? null;
 }
 
+// texas 주간 모델(v2): I(강도일) 슬롯 workKg를 progressionTarget별로 모은다. I 슬롯키는 `I_s{n}`
+// 규약(sessionKey "I"). 처방이 같은 target의 V/R 슬롯을 이 값×계수(0.9/0.8)로 파생하는 데 쓴다.
+function extractTexasIntensityByTarget(runtimeState: unknown): Record<string, number> {
+  const out: Record<string, number> = {};
+  const targets =
+    runtimeState && typeof runtimeState === "object" && !Array.isArray(runtimeState)
+      ? (runtimeState as { targets?: unknown }).targets
+      : null;
+  if (!targets || typeof targets !== "object") return out;
+  for (const [key, value] of Object.entries(targets as Record<string, unknown>)) {
+    if (!/^I_s\d+$/.test(key)) continue;
+    const tgt = (value as { progressionTarget?: unknown })?.progressionTarget;
+    const wk = Number((value as { workKg?: unknown })?.workKg);
+    if (typeof tgt === "string" && tgt && Number.isFinite(wk) && wk > 0) out[tgt] = wk;
+  }
+  return out;
+}
+
 function mergePlanParamsWithRuntimeState(planParams: unknown, runtimeState: unknown) {
   const baseParams = (planParams ?? {}) as Record<string, unknown>;
   const runtimeTrainingMax = extractTrainingMaxOverridesFromState(runtimeState);
@@ -1240,9 +1296,13 @@ function mergePlanParamsWithRuntimeState(planParams: unknown, runtimeState: unkn
   const runtimeLightBlockMode = runtimeRecord?.lightBlockMode === true;
   const runtimeStageByKey = extractStageOverridesFromState(runtimeState);
   const hasStageOverride = Object.keys(runtimeStageByKey).length > 0;
+  // texas 주간 모델(v2): I 슬롯 workKg by target. 처방이 V/R = I×계수 파생에 쓴다.
+  const texasIntensityByTarget =
+    baseParams.progressionModel === "v2" ? extractTexasIntensityByTarget(runtimeState) : {};
+  const hasTexasIntensity = Object.keys(texasIntensityByTarget).length > 0;
 
   const hasTmOverride = Object.keys(runtimeTrainingMax).length > 0;
-  if (!hasTmOverride && !runtimeLightBlockMode && !hasStageOverride) return baseParams;
+  if (!hasTmOverride && !runtimeLightBlockMode && !hasStageOverride && !hasTexasIntensity) return baseParams;
 
   const existingTrainingMax =
     typeof baseParams.trainingMaxKg === "object" && baseParams.trainingMaxKg
@@ -1265,6 +1325,9 @@ function mergePlanParamsWithRuntimeState(planParams: unknown, runtimeState: unkn
   }
   if (runtimeLightBlockMode) {
     next.lightBlockMode = true;
+  }
+  if (hasTexasIntensity) {
+    next.texasIntensityByTarget = texasIntensityByTarget;
   }
   return next;
 }

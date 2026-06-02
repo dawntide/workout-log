@@ -272,10 +272,11 @@ function defaultStartPlanParamsFromTemplate(template: ProgramTemplate) {
     }
   }
 
-  // 한계2: gzclp는 신규 시작/재시작부터 정석 stage 머신(v2)을 기본 적용한다(T1/T2 실패 시
-  // rep 스킴 강등 5×3→6×2→10×1, T3 마지막 세트 AMRAP≥25 증량). forward-only — 기존 플랜은
-  // params에 progressionModel이 없어 그대로 단순 LP를 유지하므로 진행 중 체감 변화가 없다.
-  if (resolveProgramFamily(template) === "gzclp") {
+  // 한계2: gzclp·texas는 신규 시작/재시작부터 정석 모델(v2)을 기본 적용한다. gzclp=tier별 stage
+  // 강등(5×3→6×2→10×1)+T3 AMRAP, texas=주간 모델(I 강도일이 V/R을 I×0.9/0.8로 파생). forward-only
+  // — 기존 플랜은 params에 progressionModel이 없어 그대로 단순 LP를 유지하므로 체감 변화가 없다.
+  const progressionFamily = resolveProgramFamily(template);
+  if (progressionFamily === "gzclp" || progressionFamily === "texas-method") {
     params.progressionModel = "v2";
   }
 

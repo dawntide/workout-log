@@ -45,6 +45,8 @@ export type WorkoutExerciseModel = {
   // (T1/T2만 0=5×3 → 1=6×2 → 2=10×1; T3는 null). UI 배지 전용 — 비-v2/타 family엔 부재.
   tier?: string | null;
   stage?: number | null;
+  // texas 주간(v2): 슬롯 요일 역할(volume/recovery/intensity). UI 배지 전용.
+  texasRole?: string | null;
   set: WorkoutSetModel;
   note: WorkoutNoteModel;
 };
@@ -160,6 +162,7 @@ type SnapshotExercise = {
   progressionKey?: string | null;
   tier?: string | null;
   stage?: number | null;
+  texasRole?: string | null;
   sets?: SnapshotSet[];
 };
 
@@ -576,6 +579,7 @@ function toSeedExercise(exercise: SnapshotExercise, index: number): WorkoutExerc
     progressionTarget: typeof exercise.progressionTarget === "string" ? exercise.progressionTarget : null,
     tier: typeof exercise.tier === "string" ? exercise.tier : null,
     stage: typeof exercise.stage === "number" ? exercise.stage : null,
+    texasRole: typeof exercise.texasRole === "string" ? exercise.texasRole : null,
     set: {
       count: repsPerSet.length,
       reps: repsPerSet[0] ?? 5,

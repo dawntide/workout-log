@@ -42,6 +42,13 @@ type Props = {
 const ROW_GRID =
   "var(--v2-s-6) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) var(--v2-s-6)";
 
+// texas 주간(v2) 요일 역할 라벨. 처방이 흘린 exercise.texasRole을 배지로 표시한다.
+const TEXAS_ROLE_LABEL: Record<string, { ko: string; en: string }> = {
+  volume: { ko: "볼륨일", en: "Volume" },
+  recovery: { ko: "회복일", en: "Recovery" },
+  intensity: { ko: "강도일", en: "Intensity" },
+};
+
 export function WorkoutExerciseCard({ exerciseId, onExerciseAction }: Props) {
   const { locale } = useLocale();
   const exerciseCardAtom = useMemo(
@@ -296,6 +303,12 @@ export function WorkoutExerciseCard({ exerciseId, onExerciseAction }: Props) {
             {typeof exercise.stage === "number" && exercise.stage > 0 ? (
               <V2Chip tone="warning" icon="trending_down">
                 {locale === "ko" ? `강등 ${exercise.stage}` : `Stage ${exercise.stage}`}
+              </V2Chip>
+            ) : null}
+            {/* texas 주간(v2): 요일 역할 배지. 강도일은 PR 시도일이라 강조(accent), 볼륨·회복일은 neutral. */}
+            {exercise.texasRole && TEXAS_ROLE_LABEL[exercise.texasRole] ? (
+              <V2Chip tone={exercise.texasRole === "intensity" ? "accent" : "neutral"}>
+                {TEXAS_ROLE_LABEL[exercise.texasRole][locale]}
               </V2Chip>
             ) : null}
           </div>
