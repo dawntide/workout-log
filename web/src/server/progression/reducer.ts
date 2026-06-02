@@ -685,6 +685,47 @@ export function reduceProgressionState(input: {
       continue;
     }
 
+    // 한계2 texas 주간 모델(v2 옵트인). 처방이 V/R(볼륨·회복일) 슬롯엔 progressionKey를 흘리지
+    // 않아(reducer 미도달) 여기엔 I(강도일) 슬롯만 도달한다. I day 성공 → 즉시 증량(매주 1회),
+    // 실패 누적 → reset(×resetFactor). V/R 무게는 처방이 I workKg×계수(0.9/0.8)로 파생하므로
+    // reducer는 I만 굴린다(슬롯 독립 LP 대신 I가 주간 전체를 끄는 단일 기준).
+    if (input.program === "texas-method" && isProgressionModelV2(input.planParams)) {
+      const txRule = rulesFor(
+        input.program,
+        progressionTarget,
+        readIncrementOverride(input.planParams, key, progressionTarget),
+      );
+      if (success) {
+        next.workKg = toPositiveRounded2p5(next.workKg + txRule.increaseKg);
+        next.successStreak = 0;
+        next.failureStreak = 0;
+        eventType = "INCREASE";
+        reason = `increase:weekly:+${txRule.increaseKg}kg`;
+      } else {
+        next.failureStreak += 1;
+        next.successStreak = 0;
+        reason = "hold:intensity-fail";
+        if (next.failureStreak >= txRule.failResetThreshold) {
+          next.workKg = toPositiveRounded2p5(next.workKg * txRule.resetFactor);
+          next.failureStreak = 0;
+          eventType = "RESET";
+          reason = `reset:intensity-fail:*${txRule.resetFactor}`;
+        }
+      }
+      state.targets[key] = next;
+      decisions.push({
+        key,
+        target: outcome.displayTarget,
+        progressionTarget,
+        outcome: success ? "SUCCESS" : "FAIL",
+        eventType,
+        reason,
+        before,
+        after: next,
+      });
+      continue;
+    }
+
     const rule = rulesFor(
       input.program,
       progressionTarget,

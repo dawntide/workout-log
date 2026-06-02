@@ -320,3 +320,68 @@ test("PR-D4: texas/비-gzclp는 tier/stage 미부착(gzclp 전용 배지)", () =
   assert.equal(out[0]!.tier, null);
   assert.equal(out[0]!.stage, null);
 });
+
+// PR-E(한계2 texas 주간 모델): I(강도일)가 진행 기준. V/R은 같은 target의 I workKg × 계수
+// (볼륨 0.9 / 회복 0.8)로 파생하고 progressionKey를 흘리지 않아 reducer가 I만 굴린다.
+// v2 옵트인 + slot.texasRole 게이팅. 비-v2는 기존 슬롯 독립 LP 유지.
+test("PR-E texas(v2): I 슬롯은 자체 workKg + intensity 역할 + progressionKey 유지", () => {
+  const i = {
+    exerciseName: "Back Squat",
+    rowType: "AUTO",
+    progressionTarget: "SQUAT",
+    slot: { role: { ko: "강도일", en: "I" }, sessionKey: "I", texasRole: "intensity", progressionKey: "I_s0", startWeightKg: 100 },
+    sets: [{ reps: 5, targetWeightKg: 100 }],
+  };
+  const out = plannedExercisesFromSlottedLpManualSession({ key: "I", items: [i] }, { progressionModel: "v2", trainingMaxKg: { I_s0: 105 } }, {}, "texas-method");
+  assert.equal(out[0]!.progressionKey, "I_s0"); // I는 진행 추적
+  assert.equal(out[0]!.sets[0]!.targetWeightKg, 105); // 자체 workKg
+  assert.equal(out[0]!.texasRole, "intensity");
+});
+
+test("PR-E texas(v2): V/R은 I workKg×계수(0.9/0.8)로 파생, progressionKey 없음", () => {
+  const mk = (role: string, sessionKey: string, key: string) => ({
+    exerciseName: "Back Squat",
+    rowType: "AUTO",
+    progressionTarget: "SQUAT",
+    slot: { role: { ko: role, en: role }, sessionKey, texasRole: role, progressionKey: key, startWeightKg: 90 },
+    sets: [{ reps: 5, targetWeightKg: 90 }],
+  });
+  const params = { progressionModel: "v2", trainingMaxKg: {}, texasIntensityByTarget: { SQUAT: 100 } };
+
+  const outV = plannedExercisesFromSlottedLpManualSession({ key: "V", items: [mk("volume", "V", "V_s0")] }, params, {}, "texas-method");
+  assert.equal(outV[0]!.sets[0]!.targetWeightKg, 90); // 100 × 0.9
+  assert.equal(outV[0]!.progressionKey, null); // 진행 추적 안 함(reducer 미도달)
+  assert.equal(outV[0]!.texasRole, "volume");
+
+  const outR = plannedExercisesFromSlottedLpManualSession({ key: "R", items: [mk("recovery", "R", "R_s0")] }, params, {}, "texas-method");
+  assert.equal(outR[0]!.sets[0]!.targetWeightKg, 80); // 100 × 0.8
+  assert.equal(outR[0]!.progressionKey, null);
+  assert.equal(outR[0]!.texasRole, "recovery");
+});
+
+test("PR-E texas(v2): I workKg 미존재(첫 주기)면 V는 seed 무게 폴백", () => {
+  const v = {
+    exerciseName: "Back Squat",
+    rowType: "AUTO",
+    progressionTarget: "SQUAT",
+    slot: { role: { ko: "volume", en: "volume" }, sessionKey: "V", texasRole: "volume", progressionKey: "V_s0", startWeightKg: 120 },
+    sets: [{ reps: 5, targetWeightKg: 120 }],
+  };
+  const out = plannedExercisesFromSlottedLpManualSession({ key: "V", items: [v] }, { progressionModel: "v2", trainingMaxKg: {} }, {}, "texas-method");
+  assert.equal(out[0]!.sets[0]!.targetWeightKg, 120); // texasIntensityByTarget 없음 → seed 폴백
+  assert.equal(out[0]!.texasRole, "volume");
+});
+
+test("PR-E texas(비-v2): 슬롯 독립 LP 유지(파생 안 함), texasRole null", () => {
+  const v = {
+    exerciseName: "Back Squat",
+    rowType: "AUTO",
+    progressionTarget: "SQUAT",
+    slot: { role: { ko: "volume", en: "volume" }, sessionKey: "V", texasRole: "volume", progressionKey: "V_s0", startWeightKg: 120 },
+    sets: [{ reps: 5, targetWeightKg: 120 }],
+  };
+  const out = plannedExercisesFromSlottedLpManualSession({ key: "V", items: [v] }, { trainingMaxKg: { V_s0: 122.5 } }, {}, "texas-method");
+  assert.equal(out[0]!.sets[0]!.targetWeightKg, 122.5); // 슬롯 독립 workKg
+  assert.equal(out[0]!.progressionKey, "V_s0"); // 진행 추적(기존)
+  assert.equal(out[0]!.texasRole, null); // 비-v2 배지 없음
+});
