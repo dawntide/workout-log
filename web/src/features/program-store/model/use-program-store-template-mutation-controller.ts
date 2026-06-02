@@ -7,6 +7,7 @@ import {
   hasAtLeastOneExercise,
   isOperatorTemplate,
   makeForkSlug,
+  resolveProgramFamily,
   toManualDefinition,
   type ProgramListItem,
   type ProgramSessionDraft,
@@ -212,9 +213,7 @@ export function useProgramStoreTemplateMutationController({
 
         const definition = toManualDefinition(draft.sessions, {
           operatorStyle: isOperatorTemplate(draft.baseTemplate),
-          programFamily: isOperatorTemplate(draft.baseTemplate)
-            ? "operator"
-            : null,
+          programFamily: resolveProgramFamily(draft.baseTemplate),
         });
         await putProgramVersionDefinition(fork.version.id, definition);
 

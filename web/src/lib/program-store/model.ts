@@ -1,4 +1,9 @@
 import { mapExerciseNameToTarget } from "@/lib/strength-engine/target-mapping";
+import {
+  ASYMPTOTE_SESSIONS,
+  ASYMPTOTE_SESSION_LABELS,
+} from "./asymptote-blueprint";
+import { lookupProgramFamily } from "./program-registry";
 
 export type ProgramTemplate = {
   id: string;
@@ -36,6 +41,20 @@ export type ProgramRowType = "AUTO" | "CUSTOM";
 export type ProgramProgressionTarget = "SQUAT" | "BENCH" | "DEADLIFT" | "OHP" | "PULL";
 export type ProgramSetRepDefaults = { sets: number; reps: number };
 
+// 슬롯형 프로그램(asymptote 등)에서 이 행이 차지하는 슬롯의 흐름 메타.
+// 운동명은 유저가 교체해도, 슬롯의 흐름(coef·amrap)과 역할 설명은 슬롯에 종속된다.
+export type ProgramSlotMeta = {
+  role: { ko: string; en: string }; // 슬롯 역할 라벨(중강도/볼륨/폭발/메인/보조/T1…) — 유저에게 노출
+  sessionKey: string; // 어느 세션 슬롯인지
+  coef?: number; // TM 대비 슬롯 계수(asymptote 등 흐름 강도)
+  amrap?: boolean; // 검증(AMRAP) 슬롯 여부
+  assistance?: "main" | "fsl" | "bbb"; // 531 메인/보조(FSL·BBB) 슬롯 구분
+  tier?: "T1" | "T2" | "T3"; // gzclp 계층
+  texasRole?: "volume" | "recovery" | "intensity"; // texas 요일 역할
+  progressionKey?: string; // 슬롯 독립 진행 키(gzclp/texas per-slot LP). 운동명 교체에 면역.
+  startWeightKg?: number; // 슬롯 시작 워킹 무게(reducer workKg가 생기기 전 첫 세션 폴백)
+};
+
 export type ProgramExerciseDraft = {
   id: string;
   exerciseName: string;
@@ -46,6 +65,7 @@ export type ProgramExerciseDraft = {
   sets: number;
   reps: number;
   note: string;
+  slot?: ProgramSlotMeta | null; // 슬롯형 프로그램에서만 채워진다
 };
 
 export type ProgramSessionDraft = {
@@ -70,6 +90,7 @@ type ManualDefinitionSession = {
     rowType?: ProgramRowType;
     progressionTarget?: ProgramProgressionTarget;
     slotRole?: "ANCHOR" | "FLEX" | "CUSTOM";
+    slot?: ProgramSlotMeta | null;
     sets: Array<{
       setNumber: number;
       reps: number;
@@ -643,6 +664,45 @@ export function isOperatorTemplate(template: ProgramTemplate | null | undefined)
   );
 }
 
+export type ProgramFlowStyle = "uniform" | "slotted";
+
+// 프로그램의 자동진행 "무게 흐름"이 모든 운동에 균일한가(uniform), 세션마다 슬롯별로 다른가(slotted).
+//  - uniform(operator 등): 운동 구성 자유. 각 AUTO 운동이 같은 주차 스킴을 따른다.
+//  - slotted(asymptote 등): 슬롯마다 흐름이 달라, 운동을 슬롯에 끼워넣어야 흐름이 유지된다.
+export function programFlowStyle(
+  template: ProgramTemplate | null | undefined,
+): ProgramFlowStyle {
+  if (!template) return "uniform";
+  const definition = template.latestVersion?.definition ?? {};
+  const familyHint =
+    String(definition?.programFamily ?? "").trim().toLowerCase() ||
+    (definition?.operatorStyle === true ? "operator" : "");
+  const entry = lookupProgramFamily({
+    slug: template.slug,
+    kind: definition?.kind,
+    family: familyHint,
+  });
+  return entry?.flowStyle ?? "uniform";
+}
+
+// 커스터마이즈 fork를 저장할 때 보존할 자동진행 family. 처방 엔진(generateSession)과 진행 리듀서가
+// 이 값으로 해당 프로그램의 무게 흐름을 되살린다. 미지원 family는 null(=수동 manual로 저장).
+export function resolveProgramFamily(
+  template: ProgramTemplate | null | undefined,
+): string | null {
+  if (!template) return null;
+  const definition = template.latestVersion?.definition ?? {};
+  const familyHint =
+    String(definition?.programFamily ?? "").trim().toLowerCase() ||
+    (definition?.operatorStyle === true ? "operator" : "");
+  const entry = lookupProgramFamily({
+    slug: template.slug,
+    kind: definition?.kind,
+    family: familyHint,
+  });
+  return entry?.family ?? null;
+}
+
 function manualExerciseKey(exerciseName: string) {
   return `EX_${exerciseName
     .trim()
@@ -779,6 +839,7 @@ function sessionDraftFromManual(session: any): ProgramSessionDraft {
         sets: Math.max(1, sets.length || Number(item?.setsCount) || 1),
         reps: Math.max(1, Number(first?.reps) || Number(item?.reps) || 5),
         note: typeof first?.note === "string" ? first.note : "",
+        slot: (item?.slot as ProgramSlotMeta | null | undefined) ?? null,
       };
     }),
   };
@@ -790,6 +851,7 @@ function createFixedExerciseDraft(
   progressionTarget: ProgramProgressionTarget | null,
   sets = 3,
   reps = 5,
+  slot: ProgramSlotMeta | null = null,
 ): ProgramExerciseDraft {
   return {
     id: uid("exercise"),
@@ -801,11 +863,11 @@ function createFixedExerciseDraft(
     sets,
     reps,
     note: "",
+    slot,
   };
 }
 
 export function resolveOperatorExerciseDefaults(
-  exerciseName: string,
   rowType: ProgramRowType | null | undefined,
 ): ProgramSetRepDefaults {
   if (rowType === "CUSTOM") {
@@ -816,35 +878,113 @@ export function resolveOperatorExerciseDefaults(
 }
 
 function asymptoteSessionDrafts(): ProgramSessionDraft[] {
-  return [
-    {
+  // 슬롯 구성은 asymptote-blueprint(단일 진실원)에서 가져온다. 각 슬롯의 흐름 메타(coef·amrap·
+  // 역할 라벨)를 draft에 실어, 커스터마이즈 시트가 슬롯 역할을 표시하고 저장 시 보존할 수 있게 한다.
+  return Object.entries(ASYMPTOTE_SESSIONS).map(([sessionNum, rows]) => {
+    const sessionKey = ASYMPTOTE_SESSION_LABELS[Number(sessionNum)] ?? sessionNum;
+    return {
       id: uid("session"),
-      key: "A",
-      exercises: [
-        createFixedExerciseDraft("Back Squat", "AUTO", "SQUAT", 4, 3),
-        createFixedExerciseDraft("Bench Press", "AUTO", "BENCH", 4, 5),
-        createFixedExerciseDraft("Weighted Pull-Up", "AUTO", "PULL", 4, 3),
-      ],
-    },
-    {
+      key: sessionKey,
+      exercises: rows.map((row) =>
+        createFixedExerciseDraft(row.name, "AUTO", row.target, row.sets, row.reps, {
+          role: row.role,
+          coef: row.coef,
+          amrap: row.amrap,
+          sessionKey,
+        }),
+      ),
+    };
+  });
+}
+
+// gzclp/texas note("T1 main"/"volume day"…)에서 슬롯 역할·진행키·시작무게를 만든다.
+// 진행키는 sessionKey+tier/role 기반(슬롯 고정 ID) — 운동명을 바꿔도 진행 정체성이 유지된다.
+function buildSlottedLpSlot(
+  note: string,
+  family: string,
+  sessionKey: string,
+  index: number,
+  startWeightKg: number,
+): ProgramSlotMeta {
+  const n = note.toLowerCase();
+  if (family === "gzclp") {
+    const tier: "T1" | "T2" | "T3" = n.includes("t1")
+      ? "T1"
+      : n.includes("t2")
+        ? "T2"
+        : n.includes("t3")
+          ? "T3"
+          : index === 0
+            ? "T1"
+            : index === 1
+              ? "T2"
+              : "T3";
+    const label = tier === "T1" ? "T1 · 메인" : tier === "T2" ? "T2 · 볼륨" : "T3 · 보조";
+    return {
+      role: { ko: label, en: tier },
+      sessionKey,
+      tier,
+      progressionKey: `${sessionKey}_${tier}`,
+      startWeightKg: startWeightKg > 0 ? startWeightKg : undefined,
+    };
+  }
+  // texas: 요일 역할(볼륨/회복/강도)
+  const texasRole: "volume" | "recovery" | "intensity" | undefined = n.includes("volume")
+    ? "volume"
+    : n.includes("recovery")
+      ? "recovery"
+      : n.includes("intensity")
+        ? "intensity"
+        : undefined;
+  const label =
+    texasRole === "volume"
+      ? "볼륨일"
+      : texasRole === "recovery"
+        ? "회복일"
+        : texasRole === "intensity"
+          ? "강도일"
+          : sessionKey;
+  return {
+    role: { ko: label, en: texasRole ?? sessionKey },
+    sessionKey,
+    texasRole,
+    progressionKey: `${sessionKey}_${texasRole ?? index}`,
+    startWeightKg: startWeightKg > 0 ? startWeightKg : undefined,
+  };
+}
+
+function slottedLpSessionDrafts(sessions: any[], family: string): ProgramSessionDraft[] {
+  return sessions.map((session: any) => {
+    const sessionKey = String(session?.key ?? "").trim() || "D1";
+    const items = Array.isArray(session?.items) ? session.items : [];
+    return {
       id: uid("session"),
-      key: "B",
-      exercises: [
-        createFixedExerciseDraft("Back Squat", "AUTO", "SQUAT", 5, 5),
-        createFixedExerciseDraft("Deadlift", "AUTO", "DEADLIFT", 3, 3),
-        createFixedExerciseDraft("Weighted Pull-Up", "AUTO", "PULL", 3, 8),
-      ],
-    },
-    {
-      id: uid("session"),
-      key: "C",
-      exercises: [
-        createFixedExerciseDraft("Back Squat", "AUTO", "SQUAT", 6, 3),
-        createFixedExerciseDraft("Bench Press", "AUTO", "BENCH", 4, 3),
-        createFixedExerciseDraft("Overhead Press", "AUTO", "OHP", 4, 5),
-      ],
-    },
-  ];
+      key: sessionKey,
+      exercises: items.map((item: any, idx: number) => {
+        const name =
+          String(item?.exerciseName ?? item?.name ?? "").trim() || `Exercise ${idx + 1}`;
+        const target = inferProgressionTargetFromExerciseName(name);
+        const setRows = Array.isArray(item?.sets) ? item.sets : [];
+        const first = setRows[0] ?? {};
+        const note = String(first?.note ?? item?.note ?? "");
+        const startWeightKg = Number(first?.targetWeightKg) || 0;
+        // fork 재편집 시 기존 slot 보존(progressionKey 안정), 원본 seed는 note에서 추론.
+        const existing = (item?.slot ?? null) as ProgramSlotMeta | null;
+        const slot =
+          existing && existing.progressionKey
+            ? existing
+            : buildSlottedLpSlot(note, family, sessionKey, idx, startWeightKg);
+        return createFixedExerciseDraft(
+          name,
+          "AUTO",
+          target,
+          Math.max(1, setRows.length || 1),
+          Math.max(1, Number(first?.reps) || 5),
+          slot,
+        );
+      }),
+    };
+  });
 }
 
 function operatorSessionDrafts(): ProgramSessionDraft[] {
@@ -888,6 +1028,15 @@ function sessionKeysFromTargets(targets: string[]): string[] {
 
 export function inferSessionDraftsFromTemplate(template: ProgramTemplate): ProgramSessionDraft[] {
   const definition = template.latestVersion?.definition ?? {};
+  // gzclp/texas: kind=manual이지만 슬롯(tier/요일)별 독립 진행이라, sessionDraftFromManual 대신
+  // 슬롯 메타(tier·진행키·시작무게)를 주입하는 전용 빌더를 먼저 탄다.
+  const slottedLpFamily = resolveProgramFamily(template);
+  if (
+    (slottedLpFamily === "gzclp" || slottedLpFamily === "texas-method") &&
+    Array.isArray(definition.sessions)
+  ) {
+    return slottedLpSessionDrafts(definition.sessions, slottedLpFamily);
+  }
   if (definition?.kind === "manual" && Array.isArray(definition.sessions)) {
     const mapped = definition.sessions.map(sessionDraftFromManual).filter((entry: ProgramSessionDraft) => entry.key);
     if (mapped.length > 0) return mapped;
@@ -903,11 +1052,36 @@ export function inferSessionDraftsFromTemplate(template: ProgramTemplate): Progr
   if (definition?.kind === "531") {
     const modules: string[] = Array.isArray(definition.modules) ? definition.modules as string[] : ["SQUAT", "BENCH", "DEADLIFT", "OHP"];
     const dayLabels = ["D1", "D2", "D3", "D4"];
-    return modules.slice(0, 4).map((target, i) => ({
-      id: uid("session"),
-      key: dayLabels[i] ?? `D${i + 1}`,
-      exercises: [createFixedExerciseDraft(defaultExerciseNameForTarget(target), "AUTO", target as ProgramProgressionTarget)],
-    }));
+    const assistance531 = String(definition.assistance ?? "NONE").trim().toUpperCase();
+    return modules.slice(0, 4).map((target, i) => {
+      const sessionKey = dayLabels[i] ?? `D${i + 1}`;
+      const exerciseName = defaultExerciseNameForTarget(target);
+      const exercises: ProgramExerciseDraft[] = [
+        createFixedExerciseDraft(exerciseName, "AUTO", target as ProgramProgressionTarget, 3, 5, {
+          role: { ko: "메인 5/3/1", en: "Main 5/3/1" },
+          sessionKey,
+          assistance: "main",
+        }),
+      ];
+      if (assistance531 === "FSL") {
+        exercises.push(
+          createFixedExerciseDraft(exerciseName, "AUTO", target as ProgramProgressionTarget, 5, 5, {
+            role: { ko: "보조 · FSL 5×5", en: "Assist · FSL 5×5" },
+            sessionKey,
+            assistance: "fsl",
+          }),
+        );
+      } else if (assistance531 === "BBB") {
+        exercises.push(
+          createFixedExerciseDraft(exerciseName, "AUTO", target as ProgramProgressionTarget, 5, 10, {
+            role: { ko: "보조 · BBB 5×10", en: "Assist · BBB 5×10" },
+            sessionKey,
+            assistance: "bbb",
+          }),
+        );
+      }
+      return { id: uid("session"), key: sessionKey, exercises };
+    });
   }
 
   const targets = normalizeTargets(definition);
@@ -972,7 +1146,7 @@ export function createEmptyExerciseDraft(
   defaultSlug: string | null = null,
   rowType: ProgramRowType | null = null,
 ): ProgramExerciseDraft {
-  const operatorDefaults = rowType && isOperatorAutoRowType(rowType) ? resolveOperatorExerciseDefaults("", rowType) : null;
+  const operatorDefaults = rowType && isOperatorAutoRowType(rowType) ? resolveOperatorExerciseDefaults(rowType) : null;
   return {
     id: uid("exercise"),
     exerciseName: "",
@@ -1051,6 +1225,7 @@ export function toManualDefinition(
       role: "MAIN",
       rowType: exercise.rowType ?? undefined,
       progressionTarget: exercise.progressionTarget ?? undefined,
+      slot: exercise.slot ?? undefined,
       sets: Array.from({ length: Math.max(1, exercise.sets) }, (_, index) => ({
         setNumber: index + 1,
         reps: Math.max(1, Math.round(exercise.reps)),

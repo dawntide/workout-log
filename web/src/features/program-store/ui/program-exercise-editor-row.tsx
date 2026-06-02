@@ -98,13 +98,13 @@ function operatorRowTypeHelp(
 ) {
   if (rowType === "AUTO") {
     return locale === "ko"
-      ? "Operator 자동 행입니다. 선택한 운동과 진행 타겟 기준으로 중량, 반복수, 세트가 자동 적용됩니다."
-      : "This is an Operator auto row. Weight, reps, and sets follow the selected exercise and progression target automatically.";
+      ? "선택한 프로그램의 자동 진행을 따릅니다. 중량·반복·세트가 진행 상황에 따라 자동 적용됩니다."
+      : "Follows the selected program's auto progression. Weight, reps, and sets are applied automatically as you progress.";
   }
   if (rowType === "CUSTOM") {
     return locale === "ko"
-      ? "Operator 자동 로직을 따르지 않는 자유 행입니다. 이 경우만 세트와 반복수를 직접 입력합니다."
-      : "This row does not follow the Operator auto logic. Only custom rows require manual set and rep input.";
+      ? "자동 진행을 따르지 않는 자유 행입니다. 세트와 반복수를 직접 입력합니다."
+      : "A free row that does not follow auto progression. Enter sets and reps manually.";
   }
   return locale === "ko" ? "행 타입을 선택하세요." : "Choose a row type.";
 }
@@ -183,13 +183,9 @@ const ProgramExerciseEditorRow = memo(function ProgramExerciseEditorRow({
 
   const operatorAutoRow =
     operatorStyle && isOperatorAutoRowType(exercise.rowType ?? null);
-  const operatorAutoDefaults = useMemo(() => {
-    if (!operatorAutoRow) return null;
-    return resolveOperatorExerciseDefaults(
-      exercise.exerciseName,
-      exercise.rowType ?? "AUTO",
-    );
-  }, [exercise.exerciseName, exercise.rowType, operatorAutoRow]);
+  // 슬롯형 행: 슬롯 메타가 있으면 구조(이동·삭제·행타입·진행타겟)를 잠그고 운동명 교체만 허용한다.
+  // 슬롯 구조가 깨지면 진행 리듀서의 세션별 AMRAP 게이팅과 어긋나므로 보호한다.
+  const isSlotLocked = operatorStyle && Boolean(exercise.slot);
 
   const patchExerciseName = useCallback(
     (nextExerciseName: string) => {
@@ -205,10 +201,7 @@ const ProgramExerciseEditorRow = memo(function ProgramExerciseEditorRow({
                 ? (inferredTarget ?? exercise.progressionTarget ?? null)
                 : null,
               ...(nextExerciseName.trim()
-                ? resolveOperatorExerciseDefaults(
-                    nextExerciseName,
-                    exercise.rowType ?? "AUTO",
-                  )
+                ? resolveOperatorExerciseDefaults(exercise.rowType ?? "AUTO")
                 : {}),
             }
           : { exerciseName: nextExerciseName },
@@ -344,25 +337,27 @@ const ProgramExerciseEditorRow = memo(function ProgramExerciseEditorRow({
             </div>
           ) : null}
         </div>
-        <div style={{ display: "flex", gap: "var(--v2-s-1)" }}>
-          <V2IconBtn
-            icon="expand_less"
-            label={locale === "ko" ? "운동 위로 이동" : "Move exercise up"}
-            onClick={() => onMove(sessionId, exercise.id, "up")}
-            disabled={!canMoveUp}
-          />
-          <V2IconBtn
-            icon="expand_more"
-            label={locale === "ko" ? "운동 아래로 이동" : "Move exercise down"}
-            onClick={() => onMove(sessionId, exercise.id, "down")}
-            disabled={!canMoveDown}
-          />
-          <V2IconBtn
-            icon="delete"
-            label={locale === "ko" ? "운동 삭제" : "Delete exercise"}
-            onClick={() => onDelete(sessionId, exercise.id)}
-          />
-        </div>
+        {!isSlotLocked ? (
+          <div style={{ display: "flex", gap: "var(--v2-s-1)" }}>
+            <V2IconBtn
+              icon="expand_less"
+              label={locale === "ko" ? "운동 위로 이동" : "Move exercise up"}
+              onClick={() => onMove(sessionId, exercise.id, "up")}
+              disabled={!canMoveUp}
+            />
+            <V2IconBtn
+              icon="expand_more"
+              label={locale === "ko" ? "운동 아래로 이동" : "Move exercise down"}
+              onClick={() => onMove(sessionId, exercise.id, "down")}
+              disabled={!canMoveDown}
+            />
+            <V2IconBtn
+              icon="delete"
+              label={locale === "ko" ? "운동 삭제" : "Delete exercise"}
+              onClick={() => onDelete(sessionId, exercise.id)}
+            />
+          </div>
+        ) : null}
       </div>
 
       <V2Hairline />
@@ -640,6 +635,7 @@ const ProgramExerciseEditorRow = memo(function ProgramExerciseEditorRow({
                 </span>
                 <AppSelect
                   value={exercise.rowType ?? "CUSTOM"}
+                  disabled={isSlotLocked}
                   onChange={(event) => {
                     const nextValue = String(event.target.value ?? "")
                       .trim()
@@ -662,10 +658,7 @@ const ProgramExerciseEditorRow = memo(function ProgramExerciseEditorRow({
                               inferredTarget ??
                               exercise.progressionTarget ??
                               null,
-                            ...resolveOperatorExerciseDefaults(
-                              exercise.exerciseName,
-                              nextRowType,
-                            ),
+                            ...resolveOperatorExerciseDefaults(nextRowType),
                           }
                         : { rowType: nextRowType, progressionTarget: null },
                     );
@@ -691,6 +684,7 @@ const ProgramExerciseEditorRow = memo(function ProgramExerciseEditorRow({
                   </span>
                   <AppSelect
                     value={exercise.progressionTarget ?? ""}
+                    disabled={isSlotLocked}
                     onChange={(event) =>
                       onPatch(sessionId, exercise.id, {
                         progressionTarget: (String(event.target.value ?? "")
@@ -714,15 +708,13 @@ const ProgramExerciseEditorRow = memo(function ProgramExerciseEditorRow({
               <div className="v2-small" style={{ color: "var(--v2-ink-2)" }}>
                 {operatorRowTypeHelp(exercise.rowType, locale)}
               </div>
-              {operatorAutoDefaults ? (
+              {operatorAutoRow && exercise.slot ? (
                 <div className="v2-small" style={{ color: "var(--v2-ink-2)" }}>
-                  {locale === "ko"
-                    ? "Operator 자동 설정:"
-                    : "Operator defaults:"}{" "}
+                  {locale === "ko" ? "이 슬롯: " : "This slot: "}
                   <strong>
-                    {operatorAutoDefaults.sets}
+                    {exercise.slot.role[locale]} · {exercise.sets}
                     {locale === "ko" ? "세트 x " : " sets x "}
-                    {operatorAutoDefaults.reps}
+                    {exercise.reps}
                     {locale === "ko" ? "회" : " reps"}
                   </strong>
                 </div>

@@ -6,7 +6,11 @@ import { V2Card, V2SecondaryBtn } from "@/components/v2/primitives";
 import { AppTextInput } from "@/components/ui/form-controls";
 import type { ExerciseOption } from "@/features/program-store/model/types";
 import type { ProgramStoreCustomizeDraft } from "@/features/program-store/model/use-program-store-sheet-entry-controller";
-import type { ProgramExerciseDraft, ProgramTemplate } from "@/lib/program-store/model";
+import {
+  programFlowStyle,
+  type ProgramExerciseDraft,
+  type ProgramTemplate,
+} from "@/lib/program-store/model";
 
 const BottomSheet = dynamic(
   () => import("@/components/ui/bottom-sheet").then((mod) => mod.BottomSheet),
@@ -98,6 +102,10 @@ export function CustomizeProgramSheet({
   onDropExercise,
   onAddExercise,
 }: CustomizeProgramSheetProps) {
+  // 슬롯형(asymptote 등)은 슬롯 구성이 고정 — 운동 추가/삭제를 막고 슬롯별 운동 교체만 허용한다.
+  const isSlotted = draft
+    ? programFlowStyle(draft.baseTemplate) === "slotted"
+    : false;
   return (
     <BottomSheet
       open={Boolean(draft)}
@@ -181,6 +189,12 @@ export function CustomizeProgramSheet({
                     : "Session order stays fixed, and you can swap, add, or remove exercises inside each day."}
                 </p>
               </>
+            ) : isSlotted ? (
+              <p style={{ fontSize: "var(--v2-t-small)", color: "var(--v2-ink-2)", margin: 0, lineHeight: 1.5 }}>
+                {locale === "ko"
+                  ? "슬롯 구성이 고정된 프로그램입니다. 각 슬롯의 운동만 교체할 수 있고, 슬롯의 흐름(중량·반복·세트)은 그대로 유지됩니다."
+                  : "This program has a fixed slot layout. You can only swap the exercise in each slot; the slot's flow (load, reps, sets) stays intact."}
+              </p>
             ) : (
               <p style={{ fontSize: "var(--v2-t-small)", color: "var(--v2-ink-2)", margin: 0, lineHeight: 1.5 }}>
                 {locale === "ko"
@@ -265,14 +279,16 @@ export function CustomizeProgramSheet({
                       </div>
                     ))}
 
-                    <V2SecondaryBtn
-                      full
-                      icon="add"
-                      style={{ marginTop: "var(--v2-s-2)" }}
-                      onClick={() => onAddExercise(session.id)}
-                    >
-                      {locale === "ko" ? "운동 추가" : "Add Exercise"}
-                    </V2SecondaryBtn>
+                    {!isSlotted ? (
+                      <V2SecondaryBtn
+                        full
+                        icon="add"
+                        style={{ marginTop: "var(--v2-s-2)" }}
+                        onClick={() => onAddExercise(session.id)}
+                      >
+                        {locale === "ko" ? "운동 추가" : "Add Exercise"}
+                      </V2SecondaryBtn>
+                    ) : null}
                   </div>
                 );
               })}

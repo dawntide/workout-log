@@ -269,6 +269,16 @@ export function targetsFor(program: ProgressionProgram): ProgressionTarget[] {
   return ["SQUAT", "BENCH", "OHP", "DEADLIFT", "PULL"];
 }
 
+// 고정 family target 집합이 아니라 슬롯/운동별 동적 진행 키를 쓰는 프로그램.
+// operator(per-exercise EX_ 키), gzclp(per-tier 슬롯), texas-method(per-요일 슬롯)가 여기 속한다.
+// 이들은 같은 운동이라도 슬롯마다 독립된 workKg로 LP 진행한다.
+// asymptote/531은 블록 기반이라 고정 family target을 쓴다(여기 포함되지 않음).
+export function usesDynamicProgressionKeys(program: ProgressionProgram): boolean {
+  return (
+    program === "operator" || program === "gzclp" || program === "texas-method"
+  );
+}
+
 function initTargetState(progressionTarget: ProgressionTarget, initialWorkKg: number): TargetRuntimeState {
   return {
     progressionTarget,
@@ -293,7 +303,7 @@ function deriveInitialState(input: {
   const prev = (input.previousState ?? {}) as Partial<ProgressionRuntimeState>;
   const previousTargets = prev.targets ?? {};
   const keys =
-    input.program === "operator"
+    usesDynamicProgressionKeys(input.program)
       ? Array.from(new Set([...Object.keys(previousTargets), ...Array.from(input.outcomes.keys())]))
       : targetsFor(input.program);
 
@@ -378,6 +388,7 @@ export function resolveAutoProgressionProgram(programSlug: string, definition?: 
   if (kind === "stronglifts-5x5" || family === "stronglifts-5x5") return "stronglifts-5x5";
   if (kind === "texas-method" || family === "texas-method") return "texas-method";
   if (kind === "gzclp" || family === "gzclp") return "gzclp";
+  if (kind === "531" || family === "wendler-531") return "wendler-531";
   if (kind === "asymptote" || family === "asymptote") return "asymptote";
   return null;
 }
@@ -507,7 +518,7 @@ export function reduceProgressionState(input: {
     program: input.program,
   });
   const keysToProcess =
-    input.program === "operator"
+    usesDynamicProgressionKeys(input.program)
       ? Array.from(new Set([...Object.keys(state.targets), ...Array.from(outcomes.keys())]))
       : targetsFor(input.program);
   const decisions: TargetDecision[] = [];

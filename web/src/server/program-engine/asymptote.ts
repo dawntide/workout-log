@@ -1,8 +1,23 @@
 // Asymptote Protocol — DB와 무관한 순수 계산 헬퍼.
+// 세션 구성(슬롯)은 @/lib/program-store/asymptote-blueprint(단일 진실원)에서 가져온다.
+// 무게 계산·AMRAP 판정 등 server 전용 로직만 여기 남는다.
 // `web/docs/asymptote-protocol.md` §4·§5 및 `web/docs/asymptote-test-guide.md`에 대응.
-// 테스트에서도 import 가능하도록 generateSession.ts에서 분리.
 
-export type AsymptoteLift = "SQUAT" | "BENCH" | "DEADLIFT" | "OHP" | "PULL";
+import {
+  ASYMPTOTE_SESSIONS,
+  ASYMPTOTE_SESSION_LABELS,
+  ASYMPTOTE_AMRAP_TARGETS_BY_SESSION,
+  type AsymptoteLift,
+  type AsymptoteLiftRow,
+} from "@/lib/program-store/asymptote-blueprint";
+
+// 슬롯 구성은 청사진이 단일 진실원. 기존 import 경로(이 모듈) 호환을 위해 re-export.
+export {
+  ASYMPTOTE_SESSIONS,
+  ASYMPTOTE_SESSION_LABELS,
+  ASYMPTOTE_AMRAP_TARGETS_BY_SESSION,
+};
+export type { AsymptoteLift, AsymptoteLiftRow };
 
 export const ASYMPTOTE_CYCLE_COEF: Record<number, number> = {
   1: 0.925,
@@ -17,47 +32,6 @@ export const ASYMPTOTE_LIGHT_CYCLE_COEF: Record<number, number> = {
   3: 0.925,
   4: 0.80,
 };
-
-export type AsymptoteLiftRow = {
-  target: AsymptoteLift;
-  name: string;
-  sets: number;
-  reps: number;
-  coef: number;
-  amrap: boolean;
-  note?: string;
-};
-
-export const ASYMPTOTE_SESSIONS: Record<number, AsymptoteLiftRow[]> = {
-  1: [
-    { target: "SQUAT", name: "Back Squat", sets: 4, reps: 3, coef: 0.875, amrap: true },
-    { target: "BENCH", name: "Bench Press", sets: 4, reps: 5, coef: 0.775, amrap: false },
-    { target: "PULL", name: "Weighted Pull-Up", sets: 4, reps: 3, coef: 0.85, amrap: true },
-  ],
-  2: [
-    { target: "SQUAT", name: "Back Squat", sets: 5, reps: 5, coef: 0.70, amrap: false },
-    { target: "DEADLIFT", name: "Deadlift", sets: 3, reps: 3, coef: 0.80, amrap: false },
-    { target: "PULL", name: "Weighted Pull-Up", sets: 3, reps: 8, coef: 0.65, amrap: false },
-  ],
-  3: [
-    { target: "SQUAT", name: "Back Squat", sets: 6, reps: 3, coef: 0.75, amrap: false, note: "explosive" },
-    { target: "BENCH", name: "Bench Press", sets: 4, reps: 3, coef: 0.85, amrap: true },
-    { target: "OHP", name: "Overhead Press", sets: 4, reps: 5, coef: 0.75, amrap: false },
-  ],
-};
-
-export const ASYMPTOTE_SESSION_LABELS: Record<number, string> = { 1: "A", 2: "B", 3: "C" };
-
-// 세션별 AMRAP 대상 리프트. ASYMPTOTE_SESSIONS(단일 진실원)에서 파생하므로
-// 손으로 재타이핑하던 reducer의 맵과 silent drift가 불가능하다(audit §3.7).
-// 결과: { 1: ["SQUAT","PULL"], 2: [], 3: ["BENCH"] }
-export const ASYMPTOTE_AMRAP_TARGETS_BY_SESSION: Record<number, AsymptoteLift[]> =
-  Object.fromEntries(
-    Object.entries(ASYMPTOTE_SESSIONS).map(([session, rows]) => [
-      Number(session),
-      rows.filter((row) => row.amrap).map((row) => row.target),
-    ]),
-  );
 
 // Asymptote 전용 floor 라운딩 (protocol §4.4: DOWN to 2.5 kg).
 export function floorToMultiple2p5(value: number): number {

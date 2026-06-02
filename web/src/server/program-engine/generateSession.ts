@@ -20,6 +20,18 @@ import {
 } from "./asymptote";
 import { roundToNearest2p5 } from "./round";
 import { mapExerciseNameToTarget as inferTargetFromExerciseName } from "@/lib/strength-engine/target-mapping";
+import {
+  lookupProgramFamily,
+  type ProgramFamilyEntry,
+} from "@/lib/program-store/program-registry";
+import {
+  wendler531WeekSets,
+  WENDLER_531_FSL_SETS,
+  WENDLER_531_FSL_REPS,
+  WENDLER_531_BBB_SETS,
+  WENDLER_531_BBB_REPS,
+  WENDLER_531_BBB_PERCENT,
+} from "@/lib/program-store/wendler531-blueprint";
 
 type AccessoryPatch = {
   op: "ADD_ACCESSORY";
@@ -423,39 +435,10 @@ function generate531(def: LogicDefinitionV1, ctx: GeneratorCtx): PlannedExercise
     : normalizeTargets(def, ["SQUAT", "BENCH", "DEADLIFT", "OHP"]);
   const target = targets[(ctx.day - 1) % targets.length] ?? targets[0];
   const tm = requireTrainingMaxKg(ctx.params, ctx.defaults, target);
-  const weekInCycle = ((ctx.week - 1) % 4) + 1;
   const progressionTarget = normalizeProgressionTarget(target);
 
-  // 공식 5/3/1 메인 세트 테이블 (TM 기준 %)
-  // Week 1: 3×5 (65/75/85%), Week 2: 3×3 (70/80/90%)
-  // Week 3: 5/3/1 (75/85/95%), Week 4: 딜로드 3×5 (40/50/60%)
-  const mainTable: Record<
-    number,
-    Array<{ reps: number; percent: number; note?: string; amrap?: boolean }>
-  > = {
-    1: [
-      { reps: 5, percent: 0.65 },
-      { reps: 5, percent: 0.75 },
-      { reps: 5, percent: 0.85, note: "5+", amrap: true },
-    ],
-    2: [
-      { reps: 3, percent: 0.70 },
-      { reps: 3, percent: 0.80 },
-      { reps: 3, percent: 0.90, note: "3+", amrap: true },
-    ],
-    3: [
-      { reps: 5, percent: 0.75 },
-      { reps: 3, percent: 0.85 },
-      { reps: 1, percent: 0.95, note: "1+", amrap: true },
-    ],
-    4: [
-      { reps: 5, percent: 0.40, note: "deload" },
-      { reps: 5, percent: 0.50 },
-      { reps: 5, percent: 0.60 },
-    ],
-  };
-
-  const weekSets = mainTable[weekInCycle] ?? mainTable[1];
+  // 공식 5/3/1 메인 세트 테이블은 wendler531-blueprint(단일 진실원)에서 가져온다.
+  const weekSets = wendler531WeekSets(ctx.week);
   const firstSetPercent = weekSets[0]?.percent ?? 0.65;
 
   const exercises: PlannedExercise[] = [
@@ -782,6 +765,257 @@ function plannedExercisesFromOperatorManualSession(
     .filter((exercise: PlannedExercise | null): exercise is PlannedExercise => Boolean(exercise));
 }
 
+// 슬롯형(asymptote) 커스터마이즈 프로그램의 처방. generateAsymptote(LOGIC 경로)와 동일한 사이클
+// 흐름을 쓰되, 고정 ASYMPTOTE_SESSIONS 대신 manual 세션의 각 item이 들고 있는 슬롯 메타(slot.coef·
+// amrap·sessionKey)를 사용한다. 따라서 유저가 슬롯의 운동명을 바꿔도 흐름은 슬롯에 종속되어 유지된다.
+// progressionKey는 family(target)로 둬 reducer의 asymptote AMRAP 게이팅과 호환된다.
+export function plannedExercisesFromAsymptoteManualSession(
+  manualSession: any,
+  week: number,
+  effectiveParams: any,
+  defaults: any,
+): PlannedExercise[] {
+  const items = Array.isArray(manualSession?.items) ? manualSession.items : [];
+  const cycleInBlock = ((week - 1) % 4) + 1;
+  const lightBlockMode =
+    (effectiveParams as Record<string, unknown> | undefined)?.lightBlockMode === true;
+  const cycleCoef =
+    (lightBlockMode ? ASYMPTOTE_LIGHT_CYCLE_COEF : ASYMPTOTE_CYCLE_COEF)[cycleInBlock] ??
+    ASYMPTOTE_CYCLE_COEF[1]!;
+  const isAmrapCycle = cycleInBlock === 3 && !lightBlockMode;
+  const cycleBaseRpe = lightBlockMode ? null : cycleInBlock === 1 ? 6 : cycleInBlock === 2 ? 7 : 8;
+
+  return items
+    .map((item: any, index: number) => {
+      const exerciseName = String(item?.exerciseName ?? item?.name ?? "").trim();
+      if (!exerciseName) return null;
+
+      const rowType = normalizeManualRowType(
+        item?.rowType ?? item?.slotRole ?? item?.meta?.rowType ?? item?.meta?.slotRole,
+      );
+      const progressionTarget =
+        normalizeProgressionTarget(item?.progressionTarget ?? item?.meta?.progressionTarget) ??
+        inferTargetFromExerciseName(exerciseName);
+      const slot = item?.slot as
+        | { coef: number; amrap: boolean; sessionKey: string }
+        | null
+        | undefined;
+
+      // AUTO + 슬롯: 슬롯 흐름(coef·sets·reps·amrap)에 블록 사이클 계수를 곱해 처방.
+      if (rowType === "AUTO" && slot && progressionTarget) {
+        const setRows = Array.isArray(item?.sets) ? item.sets : [];
+        const setCount = Math.max(1, setRows.length || 1);
+        const reps = Math.max(1, Number(setRows[0]?.reps) || 1);
+        const tm = resolveAsymptoteTm(progressionTarget, effectiveParams, defaults);
+        const workingWeightKg =
+          tm !== null ? floorToMultiple2p5(tm * cycleCoef * slot.coef) : null;
+        const baseTag = `Asymptote C${cycleInBlock}${String(slot.sessionKey ?? "")}${lightBlockMode ? " · light" : ""}`;
+
+        const sets: PlannedSet[] = Array.from({ length: setCount }, (_, setIdx) => {
+          const isLastSet = setIdx === setCount - 1;
+          const isAmrapSet = isAmrapCycle && slot.amrap === true && isLastSet;
+          const set: PlannedSet = {
+            reps,
+            percent: cycleCoef * slot.coef,
+            amrap: isAmrapSet,
+            note: isAmrapSet ? `${baseTag} · AMRAP ${reps}+` : baseTag,
+          };
+          if (workingWeightKg !== null) set.targetWeightKg = workingWeightKg;
+          if (cycleBaseRpe !== null && !isAmrapSet) set.rpe = cycleBaseRpe;
+          return set;
+        });
+
+        return {
+          exerciseId: typeof item?.exerciseId === "string" ? item.exerciseId : null,
+          exerciseName,
+          role: "MAIN" as const,
+          sourceBlockTarget: progressionTarget,
+          order: toNumberOrNull(item?.order) ?? index,
+          rowType: "AUTO" as const,
+          progressionTarget,
+          progressionKey: progressionTarget,
+          sets,
+        } satisfies PlannedExercise;
+      }
+
+      // CUSTOM(또는 슬롯 없는 행): 저장된 세트를 그대로 통과(수동).
+      const setRows = Array.isArray(item?.sets) && item.sets.length > 0 ? item.sets : [item];
+      return {
+        exerciseId: typeof item?.exerciseId === "string" ? item.exerciseId : null,
+        exerciseName,
+        role: item?.role === "ASSIST" ? "ASSIST" : "MAIN",
+        sets: setRows.map(mapManualSet),
+        sourceBlockTarget: progressionTarget ?? "CUSTOM",
+        order: toNumberOrNull(item?.order) ?? index,
+        rowType: rowType ?? "CUSTOM",
+        progressionTarget: progressionTarget ?? null,
+        progressionKey: null,
+      } satisfies PlannedExercise;
+    })
+    .filter((exercise: PlannedExercise | null): exercise is PlannedExercise => Boolean(exercise));
+}
+
+// 531 슬롯형 커스터마이즈 처방. 세션의 각 item이 메인/보조(FSL·BBB) 슬롯을 들고 있고, generate531과
+// 동일한 주차 메인 테이블(wendler531WeekSets)·보조 규칙을 입혀 처방한다. progressionKey=target(메인)으로
+// reducer의 wendler-531 진행과 호환된다. 보조(ASSIST)는 진행 추적하지 않는다(progressionKey=null).
+export function plannedExercisesFrom531ManualSession(
+  manualSession: any,
+  week: number,
+  effectiveParams: any,
+  defaults: any,
+): PlannedExercise[] {
+  const items = Array.isArray(manualSession?.items) ? manualSession.items : [];
+  const weekSets = wendler531WeekSets(week);
+  const firstSetPercent = weekSets[0]?.percent ?? 0.65;
+
+  return items
+    .map((item: any, index: number) => {
+      const exerciseName = String(item?.exerciseName ?? item?.name ?? "").trim();
+      if (!exerciseName) return null;
+
+      const slot = item?.slot as { assistance?: string } | null | undefined;
+      const assistance = String(slot?.assistance ?? "main").toLowerCase();
+      const progressionTarget =
+        normalizeProgressionTarget(item?.progressionTarget ?? item?.meta?.progressionTarget) ??
+        inferTargetFromExerciseName(exerciseName);
+      const tm = progressionTarget
+        ? pickTrainingMaxKg(effectiveParams, defaults, progressionTarget)
+        : null;
+
+      // 보조: FSL(첫세트% 5×5) / BBB(TM50% 5×10). 진행 추적 안 함.
+      if (assistance === "fsl" || assistance === "bbb") {
+        const isFsl = assistance === "fsl";
+        const setCount = isFsl ? WENDLER_531_FSL_SETS : WENDLER_531_BBB_SETS;
+        const reps = isFsl ? WENDLER_531_FSL_REPS : WENDLER_531_BBB_REPS;
+        const percent = isFsl ? firstSetPercent : WENDLER_531_BBB_PERCENT;
+        const note = isFsl ? "FSL" : "BBB";
+        const sets: PlannedSet[] = Array.from({ length: setCount }, () => {
+          const set: PlannedSet = { reps, percent, note };
+          if (tm !== null) set.targetWeightKg = roundToNearest2p5(tm * percent);
+          return set;
+        });
+        return {
+          exerciseId: typeof item?.exerciseId === "string" ? item.exerciseId : null,
+          exerciseName,
+          role: "ASSIST" as const,
+          sourceBlockTarget: progressionTarget ? `${progressionTarget}_${note}` : "ASSIST",
+          order: toNumberOrNull(item?.order) ?? index,
+          rowType: "AUTO" as const,
+          progressionTarget: progressionTarget ?? null,
+          progressionKey: null,
+          sets,
+        } satisfies PlannedExercise;
+      }
+
+      // 메인: 주차 메인 테이블 % (generate531과 동일하게 buildPercentSets 재사용 → 무게 일치).
+      const sets: PlannedSet[] =
+        tm !== null
+          ? buildPercentSets(tm, weekSets)
+          : weekSets.map((row) => ({
+              reps: row.reps,
+              percent: row.percent,
+              amrap: row.amrap === true,
+              note: row.note,
+            }));
+      return {
+        exerciseId: typeof item?.exerciseId === "string" ? item.exerciseId : null,
+        exerciseName,
+        role: "MAIN" as const,
+        sourceBlockTarget: progressionTarget ?? "CUSTOM",
+        order: toNumberOrNull(item?.order) ?? index,
+        rowType: "AUTO" as const,
+        progressionTarget: progressionTarget ?? null,
+        progressionKey: progressionTarget,
+        sets,
+      } satisfies PlannedExercise;
+    })
+    .filter((exercise: PlannedExercise | null): exercise is PlannedExercise => Boolean(exercise));
+}
+
+// gzclp/texas 등 per-slot LP 슬롯형 커스터마이즈 처방. 각 item의 slot.progressionKey로 reducer가
+// 굴린 슬롯별 workKg를 읽어 무게를 채우고(없으면 저장 무게 폴백), 저장 sets 구조(reps/AMRAP)는 유지한다.
+// progressionKey=슬롯 키로 흘려보내 reducer per-slot 진행과 호환된다(같은 운동·다른 tier 독립).
+export function plannedExercisesFromSlottedLpManualSession(
+  manualSession: any,
+  effectiveParams: any,
+  defaults: any,
+): PlannedExercise[] {
+  const items = Array.isArray(manualSession?.items) ? manualSession.items : [];
+  return items
+    .map((item: any, index: number) => {
+      const exerciseName = String(item?.exerciseName ?? item?.name ?? "").trim();
+      if (!exerciseName) return null;
+
+      const slot = item?.slot as
+        | { progressionKey?: string; startWeightKg?: number }
+        | null
+        | undefined;
+      const slotKey = slot?.progressionKey ? String(slot.progressionKey) : null;
+      const rowType = normalizeManualRowType(
+        item?.rowType ?? item?.slotRole ?? item?.meta?.rowType ?? item?.meta?.slotRole,
+      );
+      const progressionTarget =
+        normalizeProgressionTarget(item?.progressionTarget ?? item?.meta?.progressionTarget) ??
+        inferTargetFromExerciseName(exerciseName);
+
+      const setRows = Array.isArray(item?.sets) && item.sets.length > 0 ? item.sets : [item];
+
+      // CUSTOM 행 또는 슬롯 키 없음 → 저장 세트 그대로 통과(진행 추적 안 함).
+      if (rowType === "CUSTOM" || !slotKey) {
+        return {
+          exerciseId: typeof item?.exerciseId === "string" ? item.exerciseId : null,
+          exerciseName,
+          role: item?.role === "ASSIST" ? "ASSIST" : "MAIN",
+          sets: setRows.map(mapManualSet),
+          sourceBlockTarget: progressionTarget ?? "CUSTOM",
+          order: toNumberOrNull(item?.order) ?? index,
+          rowType: rowType ?? "CUSTOM",
+          progressionTarget: progressionTarget ?? null,
+          progressionKey: null,
+        } satisfies PlannedExercise;
+      }
+
+      // AUTO 슬롯 무게: reducer workKg → 슬롯 시작무게 → 저장 세트 무게 순으로 폴백.
+      const slotWorkKg = pickTrainingMaxKgByKeys(effectiveParams, defaults, [slotKey]);
+      const startWeightKg =
+        typeof slot?.startWeightKg === "number" && slot.startWeightKg > 0
+          ? slot.startWeightKg
+          : null;
+      const effectiveKg = slotWorkKg !== null && slotWorkKg > 0 ? slotWorkKg : startWeightKg;
+      const sets: PlannedSet[] = setRows.map((s: any) => {
+        const base = mapManualSet(s);
+        if (effectiveKg !== null && effectiveKg > 0) base.targetWeightKg = effectiveKg;
+        return base;
+      });
+      return {
+        exerciseId: typeof item?.exerciseId === "string" ? item.exerciseId : null,
+        exerciseName,
+        role: "MAIN" as const,
+        sets,
+        sourceBlockTarget: progressionTarget ?? "CUSTOM",
+        order: toNumberOrNull(item?.order) ?? index,
+        rowType: "AUTO" as const,
+        progressionTarget: progressionTarget ?? null,
+        progressionKey: slotKey,
+      } satisfies PlannedExercise;
+    })
+    .filter((exercise: PlannedExercise | null): exercise is PlannedExercise => Boolean(exercise));
+}
+
+// manual 정의 → 레지스트리 엔트리(처방 플래너·무게 오버라이드 모드). operator 마커는 하위호환.
+export function resolveManualEntry(
+  manualDefinition: Record<string, unknown>,
+): ProgramFamilyEntry | null {
+  const familyHint =
+    manualDefinition.operatorStyle === true
+      ? "operator"
+      : String(manualDefinition.programFamily ?? "");
+  return lookupProgramFamily({
+    family: familyHint,
+    kind: String(manualDefinition.kind ?? ""),
+  });
+}
+
 function plannedExercisesFromBlocks(snapshot: any, week: number, day: number, planParams: any) {
   const blocks = Array.isArray(snapshot.blocks) ? snapshot.blocks : [];
   const exercises: PlannedExercise[] = [];
@@ -952,12 +1186,15 @@ function mergePlanParamsWithRuntimeState(planParams: unknown, runtimeState: unkn
   return next;
 }
 
-function applyManualRuntimeWeightOverrides(
-  programSlug: string,
+// uniform LP(greyskull/SS/SL 등)의 처방 무게 채우기: reducer가 family 키로 굴린 workKg를
+// 운동명→target 매핑으로 각 세트에 덮어쓴다. fork는 새 slug를 받으므로 slug가 아니라 레지스트리의
+// weightOverrideMode("family-target")로 판정해야 fork 후에도 무게가 흐른다.
+export function applyManualRuntimeWeightOverrides(
+  entry: ProgramFamilyEntry | null,
   exercises: PlannedExercise[],
   runtimeState: unknown,
 ) {
-  if (String(programSlug).trim().toLowerCase() !== "greyskull-lp") return exercises;
+  if (entry?.weightOverrideMode !== "family-target") return exercises;
   const runtimeTrainingMax = extractTrainingMaxOverridesFromState(runtimeState);
   if (Object.keys(runtimeTrainingMax).length < 1) return exercises;
 
@@ -1143,25 +1380,43 @@ export async function generateAndSaveSession(input: {
           snapshot.manualError = `Manual session '${chosenKey}' not found in program definition`;
         }
         const manualDefinition = (version.definition ?? {}) as Record<string, unknown>;
-        const isOperatorManual =
-          manualDefinition.operatorStyle === true ||
-          String(manualDefinition.programFamily ?? "").trim().toLowerCase() === "operator";
-        snapshot.exercises = isOperatorManual
-          ? plannedExercisesFromOperatorManualSession(
-              snapshot.manualSession,
-              sessionCtx.week,
-              effectivePlanParams,
-              p.params ?? {},
-              version.defaults ?? {},
-            )
-          : plannedExercisesFromManualSession(snapshot.manualSession);
-        snapshot.exercises = isOperatorManual
-          ? snapshot.exercises
-          : applyManualRuntimeWeightOverrides(
-              template.slug,
-              snapshot.exercises,
-              runtimeState,
-            );
+        const manualEntry = resolveManualEntry(manualDefinition);
+        const manualPlanner = manualEntry?.manualPlanner ?? "generic";
+        if (manualPlanner === "operator") {
+          snapshot.exercises = plannedExercisesFromOperatorManualSession(
+            snapshot.manualSession,
+            sessionCtx.week,
+            effectivePlanParams,
+            p.params ?? {},
+            version.defaults ?? {},
+          );
+        } else if (manualPlanner === "asymptote") {
+          snapshot.exercises = plannedExercisesFromAsymptoteManualSession(
+            snapshot.manualSession,
+            sessionCtx.week,
+            effectivePlanParams,
+            version.defaults ?? {},
+          );
+        } else if (manualPlanner === "wendler-531") {
+          snapshot.exercises = plannedExercisesFrom531ManualSession(
+            snapshot.manualSession,
+            sessionCtx.week,
+            effectivePlanParams,
+            version.defaults ?? {},
+          );
+        } else if (manualPlanner === "slotted-lp") {
+          snapshot.exercises = plannedExercisesFromSlottedLpManualSession(
+            snapshot.manualSession,
+            effectivePlanParams,
+            version.defaults ?? {},
+          );
+        } else {
+          snapshot.exercises = applyManualRuntimeWeightOverrides(
+            manualEntry,
+            plannedExercisesFromManualSession(snapshot.manualSession),
+            runtimeState,
+          );
+        }
       }
 
       snapshot.program = {
@@ -1292,25 +1547,42 @@ export function previewSessionExercises(
 
     const manualDefinition =
       (input.rootVersion.definition ?? {}) as Record<string, unknown>;
-    const isOperatorManual =
-      manualDefinition.operatorStyle === true ||
-      String(manualDefinition.programFamily ?? "")
-        .trim()
-        .toLowerCase() === "operator";
+    const manualEntry = resolveManualEntry(manualDefinition);
+    const manualPlanner = manualEntry?.manualPlanner ?? "generic";
 
-    let exercises = isOperatorManual
-      ? plannedExercisesFromOperatorManualSession(
-          manualSession,
-          input.week,
-          effectivePlanParams,
-          (input.planParams ?? {}) as Record<string, unknown>,
-          input.rootVersion.defaults ?? {},
-        )
-      : plannedExercisesFromManualSession(manualSession);
-
-    if (!isOperatorManual && input.rootTemplateSlug) {
+    let exercises: PlannedExercise[];
+    if (manualPlanner === "operator") {
+      exercises = plannedExercisesFromOperatorManualSession(
+        manualSession,
+        input.week,
+        effectivePlanParams,
+        (input.planParams ?? {}) as Record<string, unknown>,
+        input.rootVersion.defaults ?? {},
+      );
+    } else if (manualPlanner === "asymptote") {
+      exercises = plannedExercisesFromAsymptoteManualSession(
+        manualSession,
+        input.week,
+        effectivePlanParams,
+        input.rootVersion.defaults ?? {},
+      );
+    } else if (manualPlanner === "wendler-531") {
+      exercises = plannedExercisesFrom531ManualSession(
+        manualSession,
+        input.week,
+        effectivePlanParams,
+        input.rootVersion.defaults ?? {},
+      );
+    } else if (manualPlanner === "slotted-lp") {
+      exercises = plannedExercisesFromSlottedLpManualSession(
+        manualSession,
+        effectivePlanParams,
+        input.rootVersion.defaults ?? {},
+      );
+    } else {
+      exercises = plannedExercisesFromManualSession(manualSession);
       exercises = applyManualRuntimeWeightOverrides(
-        input.rootTemplateSlug,
+        manualEntry,
         exercises,
         input.runtimeState,
       );

@@ -187,9 +187,8 @@ test("extractOneRmTargetsFromTemplate keeps operator manual auto slots per exerc
 });
 
 test("resolveOperatorExerciseDefaults returns operator main defaults", () => {
-  assert.deepEqual(resolveOperatorExerciseDefaults("Pull-Up", "AUTO"), { sets: 3, reps: 5 });
-  assert.deepEqual(resolveOperatorExerciseDefaults("Bench Press", "AUTO"), { sets: 3, reps: 5 });
-  assert.deepEqual(resolveOperatorExerciseDefaults("Face Pull", "CUSTOM"), { sets: 3, reps: 8 });
+  assert.deepEqual(resolveOperatorExerciseDefaults("AUTO"), { sets: 3, reps: 5 });
+  assert.deepEqual(resolveOperatorExerciseDefaults("CUSTOM"), { sets: 3, reps: 8 });
 });
 
 test("createEmptyExerciseDraft uses operator defaults when auto row type is provided", () => {
