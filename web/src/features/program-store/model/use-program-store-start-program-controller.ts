@@ -5,6 +5,7 @@ import { apiGet, apiPatch, apiPost, isAbortError } from "@/lib/api";
 import {
   extractOneRmTargetsFromTemplate,
   isOperatorTemplate,
+  resolveProgramFamily,
   type OneRmTarget,
   type ProgramTemplate,
 } from "@/lib/program-store/model";
@@ -269,6 +270,13 @@ function defaultStartPlanParamsFromTemplate(template: ProgramTemplate) {
       params.schedule = manualKeys;
       params.sessionsPerWeek = manualKeys.length;
     }
+  }
+
+  // 한계2: gzclp는 신규 시작/재시작부터 정석 stage 머신(v2)을 기본 적용한다(T1/T2 실패 시
+  // rep 스킴 강등 5×3→6×2→10×1, T3 마지막 세트 AMRAP≥25 증량). forward-only — 기존 플랜은
+  // params에 progressionModel이 없어 그대로 단순 LP를 유지하므로 진행 중 체감 변화가 없다.
+  if (resolveProgramFamily(template) === "gzclp") {
+    params.progressionModel = "v2";
   }
 
   return params;

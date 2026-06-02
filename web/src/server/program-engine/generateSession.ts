@@ -98,6 +98,11 @@ export type PlannedExercise = {
   rowType?: "AUTO" | "CUSTOM" | null;
   progressionTarget?: "SQUAT" | "BENCH" | "DEADLIFT" | "OHP" | "PULL" | null;
   progressionKey?: string | null;
+  // gzclp 정석(v2) 슬롯형 처방의 표시 메타. tier=계층(T1/T2/T3), stage=현재 강등 단계
+  // (T1/T2만 0=5×3 → 1=6×2 → 2=10×1; T3는 AMRAP이라 stage 무의미 → null). UI 배지 전용이라
+  // 비-v2/타 family에는 부착하지 않는다.
+  tier?: "T1" | "T2" | "T3" | null;
+  stage?: number | null;
 };
 
 export type { PlannedSet };
@@ -1032,8 +1037,16 @@ export function plannedExercisesFromSlottedLpManualSession(
       // gzclp 정석(v2) T3: 마지막 세트는 AMRAP. reducer가 실측 reps≥25면 증량(plannedRef.amrap로 전달)
       // 한다. mapManualSet이 amrap을 버리므로 여기서 명시 주입한다. 비-v2/타 tier엔 부착하지 않는다
       // (forward-only — 기존 유저의 AMRAP 표시·진행 동작을 갑자기 바꾸지 않음).
-      const injectT3Amrap =
-        family === "gzclp" && effectiveParams?.progressionModel === "v2" && slot?.tier === "T3";
+      const isV2Gzclp = family === "gzclp" && effectiveParams?.progressionModel === "v2";
+      const injectT3Amrap = isV2Gzclp && slot?.tier === "T3";
+      // UI 배지용 표시 메타. tier=슬롯 계층, stage=T1/T2의 현재 강등 단계(reducer 파생, 0=기본).
+      // T3는 stage 무의미(AMRAP)이므로 null. 비-v2/타 family는 전부 null이라 배지가 뜨지 않는다.
+      const gzTier: "T1" | "T2" | "T3" | null =
+        isV2Gzclp && (slot?.tier === "T1" || slot?.tier === "T2" || slot?.tier === "T3")
+          ? slot.tier
+          : null;
+      const gzStage =
+        gzTier === "T1" || gzTier === "T2" ? Number(effectiveParams?.stageByKey?.[slotKey]) || 0 : null;
       const sets: PlannedSet[] = stageScheme
         ? buildGzclpStageSets(stageScheme, setRows, effectiveKg)
         : setRows.map((s: any, sIdx: number) => {
@@ -1052,6 +1065,8 @@ export function plannedExercisesFromSlottedLpManualSession(
         rowType: "AUTO" as const,
         progressionTarget: progressionTarget ?? null,
         progressionKey: slotKey,
+        tier: gzTier,
+        stage: gzStage,
       } satisfies PlannedExercise;
     })
     .filter((exercise: PlannedExercise | null): exercise is PlannedExercise => Boolean(exercise));

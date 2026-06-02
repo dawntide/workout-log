@@ -41,6 +41,10 @@ export type WorkoutExerciseModel = {
   // userExercises(사용자 추가 운동)엔 없음(진행 추적 안 함).
   progressionKey?: string | null;
   progressionTarget?: string | null;
+  // gzclp 정석(v2) 슬롯형 처방의 표시 메타. tier=계층(T1/T2/T3), stage=현재 강등 단계
+  // (T1/T2만 0=5×3 → 1=6×2 → 2=10×1; T3는 null). UI 배지 전용 — 비-v2/타 family엔 부재.
+  tier?: string | null;
+  stage?: number | null;
   set: WorkoutSetModel;
   note: WorkoutNoteModel;
 };
@@ -154,6 +158,8 @@ type SnapshotExercise = {
   slotRole?: string | null;
   progressionTarget?: string | null;
   progressionKey?: string | null;
+  tier?: string | null;
+  stage?: number | null;
   sets?: SnapshotSet[];
 };
 
@@ -568,6 +574,8 @@ function toSeedExercise(exercise: SnapshotExercise, index: number): WorkoutExerc
     plannedSetMeta,
     progressionKey: typeof exercise.progressionKey === "string" ? exercise.progressionKey : null,
     progressionTarget: typeof exercise.progressionTarget === "string" ? exercise.progressionTarget : null,
+    tier: typeof exercise.tier === "string" ? exercise.tier : null,
+    stage: typeof exercise.stage === "number" ? exercise.stage : null,
     set: {
       count: repsPerSet.length,
       reps: repsPerSet[0] ?? 5,
