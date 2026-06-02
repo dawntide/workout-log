@@ -822,6 +822,7 @@ export async function runSeed(options: SeedRunOptions = {}) {
           startDate: "2026-01-05",
           schedule: ["V", "R", "I"],
           sessionKeyMode: "DATE",
+          autoProgression: true,
         },
       });
     }
@@ -835,6 +836,7 @@ export async function runSeed(options: SeedRunOptions = {}) {
           startDate: "2026-01-05",
           schedule: ["D1", "D2", "D3", "D4"],
           sessionKeyMode: "DATE",
+          autoProgression: true,
         },
       });
     }

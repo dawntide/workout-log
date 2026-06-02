@@ -104,25 +104,49 @@ test("gzclp 통합: 원본→draft(슬롯주입)→저장→플래너 — 진행
     },
   };
 
-  // 1) 커스터마이즈 진입 → draft에 슬롯 메타 주입(note→tier/진행키/시작무게)
+  // 1) 커스터마이즈 진입 → draft에 슬롯 메타 주입(note→tier 역할 + 인덱스 진행키 + 시작무게)
   const drafts = inferSessionDraftsFromTemplate(template as never);
   const squat = drafts[0]!.exercises[0]!;
-  assert.equal(squat.slot?.tier, "T1");
-  assert.equal(squat.slot?.progressionKey, "D1_T1");
+  assert.equal(squat.slot?.tier, "T1"); // 표시용 tier는 note에서
+  assert.equal(squat.slot?.progressionKey, "D1_s0"); // 진행키는 인덱스(표류 면역)
   assert.equal(squat.slot?.startWeightKg, 100);
   assert.equal(drafts[0]!.exercises[1]!.slot?.tier, "T2");
-  assert.equal(drafts[0]!.exercises[1]!.slot?.progressionKey, "D1_T2");
+  assert.equal(drafts[0]!.exercises[1]!.slot?.progressionKey, "D1_s1");
 
   // 2) 저장(toManualDefinition) — 슬롯 정체성 보존(targetWeightKg는 0으로 평탄화돼도 slot.startWeightKg가 남음)
   const def = toManualDefinition(drafts, { programFamily: "gzclp" });
   const session = def.sessions[0]!;
-  assert.equal((session.items[0]!.slot as { progressionKey?: string })?.progressionKey, "D1_T1");
+  assert.equal((session.items[0]!.slot as { progressionKey?: string })?.progressionKey, "D1_s0");
 
   // 3) 처방 — reducer workKg 없으면 startWeightKg(100), 있으면 그 값
   const out0 = plannedExercisesFromSlottedLpManualSession(session, { trainingMaxKg: {} }, {});
   assert.equal(out0[0]!.sets[0]!.targetWeightKg, 100); // startWeightKg 폴백
-  assert.equal(out0[0]!.progressionKey, "D1_T1");
+  assert.equal(out0[0]!.progressionKey, "D1_s0");
 
-  const out1 = plannedExercisesFromSlottedLpManualSession(session, { trainingMaxKg: { D1_T1: 105 } }, {});
+  const out1 = plannedExercisesFromSlottedLpManualSession(session, { trainingMaxKg: { D1_s0: 105 } }, {});
   assert.equal(out1[0]!.sets[0]!.targetWeightKg, 105); // reducer 진행 무게
+});
+
+test("원본(slot 없는 정의) + family 전달 → 플래너가 동적 슬롯키(인덱스) 생성 + 진행", () => {
+  // 원본 미-fork 정의는 sessions에 slot 메타가 없다. slug로 slotted-lp 라우팅된 뒤 family가 넘어오면
+  // 플래너가 note/index로 슬롯키를 동적 생성해 fork와 동일하게 진행한다.
+  const session = {
+    key: "D1",
+    items: [
+      { exerciseName: "Back Squat", sets: [{ reps: 3, targetWeightKg: 100, note: "T1 main" }] },
+      { exerciseName: "Bench Press", sets: [{ reps: 10, targetWeightKg: 60, note: "T2 volume" }] },
+    ],
+  };
+  const out0 = plannedExercisesFromSlottedLpManualSession(session, { trainingMaxKg: {} }, {}, "gzclp");
+  assert.equal(out0[0]!.progressionKey, "D1_s0"); // 동적 슬롯키
+  assert.equal(out0[0]!.sets[0]!.targetWeightKg, 100); // seed 무게 폴백
+  assert.equal(out0[1]!.progressionKey, "D1_s1");
+
+  const out1 = plannedExercisesFromSlottedLpManualSession(session, { trainingMaxKg: { D1_s0: 107.5 } }, {}, "gzclp");
+  assert.equal(out1[0]!.sets[0]!.targetWeightKg, 107.5); // reducer 진행 무게
+
+  // family 미전달(라우팅 전) → 동적 안 함 → 진행 추적 0, 저장 무게 통과
+  const outNoFam = plannedExercisesFromSlottedLpManualSession(session, { trainingMaxKg: {} }, {});
+  assert.equal(outNoFam[0]!.progressionKey, null);
+  assert.equal(outNoFam[0]!.sets[0]!.targetWeightKg, 100);
 });

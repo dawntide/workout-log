@@ -24,6 +24,7 @@ import {
   lookupProgramFamily,
   type ProgramFamilyEntry,
 } from "@/lib/program-store/program-registry";
+import { buildSlottedLpSlot } from "@/lib/program-store/model";
 import {
   wendler531WeekSets,
   WENDLER_531_FSL_SETS,
@@ -939,17 +940,24 @@ export function plannedExercisesFromSlottedLpManualSession(
   manualSession: any,
   effectiveParams: any,
   defaults: any,
+  family?: string | null,
 ): PlannedExercise[] {
   const items = Array.isArray(manualSession?.items) ? manualSession.items : [];
+  const sessionKey = String(manualSession?.key ?? "").trim();
   return items
     .map((item: any, index: number) => {
       const exerciseName = String(item?.exerciseName ?? item?.name ?? "").trim();
       if (!exerciseName) return null;
 
-      const slot = item?.slot as
-        | { progressionKey?: string; startWeightKg?: number }
-        | null
-        | undefined;
+      // 원본(미-fork) 정의는 slot이 없다 → note/index에서 동적 생성(fork draft와 동일한 인덱스 진행키).
+      let slot: { progressionKey?: string; startWeightKg?: number } | null =
+        (item?.slot as { progressionKey?: string; startWeightKg?: number } | null) ?? null;
+      if ((!slot || !slot.progressionKey) && family && sessionKey) {
+        const firstSet = (Array.isArray(item?.sets) ? item.sets[0] : null) ?? {};
+        const note = String(firstSet?.note ?? item?.note ?? "");
+        const startW = Number(firstSet?.targetWeightKg) || 0;
+        slot = buildSlottedLpSlot(note, family, sessionKey, index, startW);
+      }
       const slotKey = slot?.progressionKey ? String(slot.progressionKey) : null;
       const rowType = normalizeManualRowType(
         item?.rowType ?? item?.slotRole ?? item?.meta?.rowType ?? item?.meta?.slotRole,
@@ -1003,8 +1011,11 @@ export function plannedExercisesFromSlottedLpManualSession(
 }
 
 // manual 정의 → 레지스트리 엔트리(처방 플래너·무게 오버라이드 모드). operator 마커는 하위호환.
+// slug를 함께 받아, 원본(미-fork) gzclp/texas처럼 정의에 programFamily가 없어도 slug로 레지스트리를
+// 잡는다(fork는 family, 원본은 slug). 그래야 원본도 처방이 slotted-lp 라우팅을 탄다.
 export function resolveManualEntry(
   manualDefinition: Record<string, unknown>,
+  slug?: string | null,
 ): ProgramFamilyEntry | null {
   const familyHint =
     manualDefinition.operatorStyle === true
@@ -1013,6 +1024,7 @@ export function resolveManualEntry(
   return lookupProgramFamily({
     family: familyHint,
     kind: String(manualDefinition.kind ?? ""),
+    slug: slug ?? "",
   });
 }
 
@@ -1380,7 +1392,7 @@ export async function generateAndSaveSession(input: {
           snapshot.manualError = `Manual session '${chosenKey}' not found in program definition`;
         }
         const manualDefinition = (version.definition ?? {}) as Record<string, unknown>;
-        const manualEntry = resolveManualEntry(manualDefinition);
+        const manualEntry = resolveManualEntry(manualDefinition, template.slug);
         const manualPlanner = manualEntry?.manualPlanner ?? "generic";
         if (manualPlanner === "operator") {
           snapshot.exercises = plannedExercisesFromOperatorManualSession(
@@ -1409,6 +1421,7 @@ export async function generateAndSaveSession(input: {
             snapshot.manualSession,
             effectivePlanParams,
             version.defaults ?? {},
+            manualEntry?.family,
           );
         } else {
           snapshot.exercises = applyManualRuntimeWeightOverrides(
@@ -1547,7 +1560,7 @@ export function previewSessionExercises(
 
     const manualDefinition =
       (input.rootVersion.definition ?? {}) as Record<string, unknown>;
-    const manualEntry = resolveManualEntry(manualDefinition);
+    const manualEntry = resolveManualEntry(manualDefinition, input.rootTemplateSlug);
     const manualPlanner = manualEntry?.manualPlanner ?? "generic";
 
     let exercises: PlannedExercise[];
@@ -1578,6 +1591,7 @@ export function previewSessionExercises(
         manualSession,
         effectivePlanParams,
         input.rootVersion.defaults ?? {},
+        manualEntry?.family,
       );
     } else {
       exercises = plannedExercisesFromManualSession(manualSession);

@@ -897,15 +897,18 @@ function asymptoteSessionDrafts(): ProgramSessionDraft[] {
   });
 }
 
-// gzclp/texas note("T1 main"/"volume day"…)에서 슬롯 역할·진행키·시작무게를 만든다.
-// 진행키는 sessionKey+tier/role 기반(슬롯 고정 ID) — 운동명을 바꿔도 진행 정체성이 유지된다.
-function buildSlottedLpSlot(
+// gzclp/texas note("T1 main"/"volume day"…)에서 슬롯 역할·시작무게를 만든다.
+// 진행키는 sessionKey+슬롯인덱스 기반(`{sessionKey}_s{index}`) 고정 ID — 운동명/note가 바뀌어도
+// 진행 정체성이 유지된다(note 리워딩 표류 면역). server의 원본(미-fork) 동적 추론도 이 함수를 재사용한다.
+export function buildSlottedLpSlot(
   note: string,
   family: string,
   sessionKey: string,
   index: number,
   startWeightKg: number,
 ): ProgramSlotMeta {
+  const progressionKey = `${sessionKey}_s${index}`;
+  const startW = startWeightKg > 0 ? startWeightKg : undefined;
   const n = note.toLowerCase();
   if (family === "gzclp") {
     const tier: "T1" | "T2" | "T3" = n.includes("t1")
@@ -920,13 +923,7 @@ function buildSlottedLpSlot(
               ? "T2"
               : "T3";
     const label = tier === "T1" ? "T1 · 메인" : tier === "T2" ? "T2 · 볼륨" : "T3 · 보조";
-    return {
-      role: { ko: label, en: tier },
-      sessionKey,
-      tier,
-      progressionKey: `${sessionKey}_${tier}`,
-      startWeightKg: startWeightKg > 0 ? startWeightKg : undefined,
-    };
+    return { role: { ko: label, en: tier }, sessionKey, tier, progressionKey, startWeightKg: startW };
   }
   // texas: 요일 역할(볼륨/회복/강도)
   const texasRole: "volume" | "recovery" | "intensity" | undefined = n.includes("volume")
@@ -944,13 +941,7 @@ function buildSlottedLpSlot(
         : texasRole === "intensity"
           ? "강도일"
           : sessionKey;
-  return {
-    role: { ko: label, en: texasRole ?? sessionKey },
-    sessionKey,
-    texasRole,
-    progressionKey: `${sessionKey}_${texasRole ?? index}`,
-    startWeightKg: startWeightKg > 0 ? startWeightKg : undefined,
-  };
+  return { role: { ko: label, en: texasRole ?? sessionKey }, sessionKey, texasRole, progressionKey, startWeightKg: startW };
 }
 
 function slottedLpSessionDrafts(sessions: any[], family: string): ProgramSessionDraft[] {
