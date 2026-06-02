@@ -33,6 +33,7 @@ export type TargetRuntimeState = {
   successStreak: number;
   failureStreak: number;
   amrapReps?: number | null;
+  stage?: number; // gzclp tier별 stage 인덱스(0=5×3 → 1=6×2 → 2=10×1). PR-D에서 전환 로직.
 };
 
 export type IncrementOverride = {
@@ -320,6 +321,7 @@ function deriveInitialState(input: {
         parseProgressionTarget(key) ??
         "SQUAT";
       const amrapRepsRaw = toFiniteNumber((prevTarget as Partial<TargetRuntimeState>).amrapReps);
+      const stageRaw = toFiniteNumber((prevTarget as Partial<TargetRuntimeState>).stage);
       const next: TargetRuntimeState = {
         progressionTarget,
         workKg: toPositiveRounded2p5(workKg),
@@ -328,6 +330,11 @@ function deriveInitialState(input: {
       };
       if (amrapRepsRaw !== null && amrapRepsRaw >= 0) {
         next.amrapReps = Math.floor(amrapRepsRaw);
+      }
+      // stage(gzclp 강등 단계)는 명시 복원이 필수 — 이 리터럴은 스프레드가 아니라 명시 필드만
+      // 재구성하므로, 빠뜨리면 DB엔 저장되나 다음 reduce에서 유실되는 silent-drop이 된다.
+      if (stageRaw !== null && stageRaw >= 0) {
+        next.stage = Math.floor(stageRaw);
       }
       baseTargets[key] = next;
       continue;

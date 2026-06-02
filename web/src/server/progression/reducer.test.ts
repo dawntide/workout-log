@@ -268,3 +268,60 @@ test("operator: distinct exercise progression keys stay independent within same 
   assert.equal(result.nextState.targets.EX_BARBELL_ROW?.workKg, 80);
   assert.notEqual(result.nextState.targets.EX_PULL_UP?.workKg, result.nextState.targets.EX_BARBELL_ROW?.workKg);
 });
+
+// PR-C(한계2 인프라): TargetRuntimeState.stage 영속. 아직 stage 전환 로직(PR-D)은 없지만,
+// deriveInitialState 명시 복원 → reduce 본문 `{...before}` 스프레드를 거쳐 silent-drop 없이
+// 다음 사이클로 넘어가는지 회귀 고정한다.
+test("PR-C 인프라: TargetRuntimeState.stage가 reduce 사이클을 거쳐 영속한다(silent-drop 방지)", () => {
+  const result = reduceProgressionState({
+    program: "gzclp",
+    previousState: {
+      cycle: 1,
+      week: 1,
+      day: 1,
+      targets: {
+        D1_s0: { progressionTarget: "SQUAT", workKg: 100, successStreak: 0, failureStreak: 0, stage: 2 },
+      },
+      lastAppliedLogId: null,
+    },
+    planParams: {},
+    logId: "log-stage-1",
+    sets: [
+      {
+        exerciseName: "Back Squat",
+        reps: 3,
+        weightKg: 100,
+        meta: { plannedRef: { reps: 3, progressionTarget: "SQUAT", progressionKey: "D1_s0", progressionLabel: "Back Squat" } },
+      },
+    ],
+  });
+
+  assert.equal(result.nextState.targets.D1_s0?.stage, 2);
+});
+
+test("PR-C 인프라: stage 없는 구(舊) state도 크래시 없이 통과한다(stage undefined 유지, 후방호환)", () => {
+  const result = reduceProgressionState({
+    program: "gzclp",
+    previousState: {
+      cycle: 1,
+      week: 1,
+      day: 1,
+      targets: {
+        D1_s0: { progressionTarget: "SQUAT", workKg: 100, successStreak: 0, failureStreak: 0 },
+      },
+      lastAppliedLogId: null,
+    },
+    planParams: {},
+    logId: "log-stage-2",
+    sets: [
+      {
+        exerciseName: "Back Squat",
+        reps: 3,
+        weightKg: 100,
+        meta: { plannedRef: { reps: 3, progressionTarget: "SQUAT", progressionKey: "D1_s0", progressionLabel: "Back Squat" } },
+      },
+    ],
+  });
+
+  assert.equal(result.nextState.targets.D1_s0?.stage, undefined);
+});
