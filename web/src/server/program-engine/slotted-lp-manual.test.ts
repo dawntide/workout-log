@@ -264,3 +264,59 @@ test("PR-D: texas는 gzclp stage 변형 영향 안 받음(family 가드)", () =>
   assert.equal(out[0]!.sets.length, 1); // 저장 그대로 — texas는 stage 변형 미적용
   assert.equal(out[0]!.sets[0]!.reps, 5);
 });
+
+// PR-D4(한계2 gzclp 활성화): 처방이 UI 배지용 tier/stage 표시 메타를 노출. v2 옵트인 + gzclp일 때만
+// 부착하고, T3는 AMRAP이라 stage=null. 비-v2/타 family는 전부 null이라 배지가 뜨지 않는다.
+test("PR-D4 gzclp(v2): T1/T2 처방에 tier + 현재 stage 노출 (UI 배지용)", () => {
+  const t1 = {
+    exerciseName: "Back Squat",
+    rowType: "AUTO",
+    progressionTarget: "SQUAT",
+    slot: { role: { ko: "T1", en: "T1" }, sessionKey: "D1", tier: "T1", progressionKey: "D1_s0", startWeightKg: 100 },
+    sets: [{ reps: 3, targetWeightKg: 100 }, { reps: 3, targetWeightKg: 100 }, { reps: 3, targetWeightKg: 100 }],
+  };
+
+  // v2 + stage 1 → tier "T1", stage 1
+  const s1 = plannedExercisesFromSlottedLpManualSession({ key: "D1", items: [t1] }, { progressionModel: "v2", trainingMaxKg: { D1_s0: 102.5 }, stageByKey: { D1_s0: 1 } }, {}, "gzclp");
+  assert.equal(s1[0]!.tier, "T1");
+  assert.equal(s1[0]!.stage, 1);
+
+  // v2 + stage 미설정 → stage 0 (기본, 배지 미표시 대상)
+  const s0 = plannedExercisesFromSlottedLpManualSession({ key: "D1", items: [t1] }, { progressionModel: "v2", trainingMaxKg: { D1_s0: 102.5 } }, {}, "gzclp");
+  assert.equal(s0[0]!.tier, "T1");
+  assert.equal(s0[0]!.stage, 0);
+
+  // 비-v2 → tier/stage 모두 null
+  const v1 = plannedExercisesFromSlottedLpManualSession({ key: "D1", items: [t1] }, { trainingMaxKg: { D1_s0: 102.5 } }, {}, "gzclp");
+  assert.equal(v1[0]!.tier, null);
+  assert.equal(v1[0]!.stage, null);
+});
+
+test("PR-D4 gzclp(v2): T3는 tier만 T3, stage=null(AMRAP이라 강등 무의미)", () => {
+  const t3 = {
+    exerciseName: "Lat Pulldown",
+    rowType: "AUTO",
+    progressionTarget: "ROW",
+    slot: { role: { ko: "T3", en: "T3" }, sessionKey: "D1", tier: "T3", progressionKey: "D1_s2", startWeightKg: 40 },
+    sets: [{ reps: 15, targetWeightKg: 40 }, { reps: 15, targetWeightKg: 40 }, { reps: 15, targetWeightKg: 40 }],
+  };
+  const out = plannedExercisesFromSlottedLpManualSession({ key: "D1", items: [t3] }, { progressionModel: "v2", trainingMaxKg: { D1_s2: 42.5 }, stageByKey: { D1_s2: 2 } }, {}, "gzclp");
+  assert.equal(out[0]!.tier, "T3");
+  assert.equal(out[0]!.stage, null);
+});
+
+test("PR-D4: texas/비-gzclp는 tier/stage 미부착(gzclp 전용 배지)", () => {
+  const session = {
+    key: "I",
+    items: [{
+      exerciseName: "Back Squat",
+      rowType: "AUTO",
+      progressionTarget: "SQUAT",
+      slot: { role: { ko: "I", en: "I" }, sessionKey: "I", tier: "T1", progressionKey: "I_s0", startWeightKg: 100 },
+      sets: [{ reps: 5, targetWeightKg: 100 }],
+    }],
+  };
+  const out = plannedExercisesFromSlottedLpManualSession(session, { progressionModel: "v2", trainingMaxKg: { I_s0: 100 } }, {}, "texas-method");
+  assert.equal(out[0]!.tier, null);
+  assert.equal(out[0]!.stage, null);
+});
