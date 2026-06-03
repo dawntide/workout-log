@@ -46,6 +46,9 @@ function parsePositiveInt(raw, fallback) {
 
 const maxAttempts = parsePositiveInt(process.env.DB_MIGRATE_MAX_ATTEMPTS, 30);
 const delayMs = parsePositiveInt(process.env.DB_MIGRATE_RETRY_DELAY_MS, 2000);
+// Bound each connection attempt so an unreachable DB fails fast instead of
+// hanging on the OS TCP timeout (~133s per attempt) across every retry.
+const connectTimeoutMs = parsePositiveInt(process.env.DB_MIGRATE_CONNECT_TIMEOUT_MS, 10000);
 const useAdvisoryLock = process.env.DB_MIGRATE_USE_ADVISORY_LOCK !== "0";
 const advisoryLockId = parsePositiveInt(process.env.DB_MIGRATE_LOCK_ID, 872341);
 const advisoryLockMaxWaitMs = parsePositiveInt(process.env.DB_MIGRATE_LOCK_MAX_WAIT_MS, 180000);
@@ -223,7 +226,7 @@ async function releaseAdvisoryLock(client, lockHeld) {
   }
 }
 
-const pool = new Pool({ connectionString });
+const pool = new Pool({ connectionString, connectionTimeoutMillis: connectTimeoutMs });
 const db = drizzle(pool);
 const runId = randomUUID();
 let telemetryActive = false;

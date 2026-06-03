@@ -21,6 +21,8 @@ jobs:
     name: DB Seed (${{ matrix.env }})
     if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
+    # Backstop: an unreachable DB should fail the job quickly, not burn ~45min.
+    timeout-minutes: 15
     strategy:
       matrix:
         include:
