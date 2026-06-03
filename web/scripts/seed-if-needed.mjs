@@ -33,6 +33,9 @@ function parseTrackedFiles(raw) {
 
 const maxAttempts = parsePositiveInt(process.env.DB_SEED_CHECK_MAX_ATTEMPTS, 20);
 const retryDelayMs = parsePositiveInt(process.env.DB_SEED_CHECK_RETRY_DELAY_MS, 1500);
+// Bound each connection attempt so an unreachable DB fails fast instead of
+// hanging on the OS TCP timeout (~133s per attempt → ~45min across all retries).
+const connectTimeoutMs = parsePositiveInt(process.env.DB_SEED_CONNECT_TIMEOUT_MS, 10000);
 const useAdvisoryLock = process.env.DB_SEED_USE_ADVISORY_LOCK !== "0";
 const advisoryLockId = parsePositiveInt(process.env.DB_SEED_LOCK_ID, 872342);
 const advisoryLockMaxWaitMs = parsePositiveInt(process.env.DB_SEED_LOCK_MAX_WAIT_MS, 180000);
@@ -239,7 +242,7 @@ async function runSeedScript() {
 
 export async function syncSeedIfNeeded() {
   const signature = buildSeedSignature(trackedFiles);
-  const pool = new Pool({ connectionString });
+  const pool = new Pool({ connectionString, connectionTimeoutMillis: connectTimeoutMs });
   let lockClient = null;
   let lockHeld = false;
   let lockWaitMs = 0;
