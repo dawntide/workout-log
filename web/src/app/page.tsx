@@ -7,6 +7,8 @@ import { V2HomeDashboard } from "@/components/v2/v2-home-dashboard";
 import { V2OnboardingRedirect } from "@/components/v2/v2-onboarding-redirect";
 import HomeLoading from "./loading";
 
+// 인증·사용자별 데이터 페이지 — 정적 prerender 금지(세션 쿠키 기반 요청별 동적 렌더).
+export const dynamic = "force-dynamic";
 
 async function HomeContent() {
   const userId = await requireAuthenticatedUserId();
