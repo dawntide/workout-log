@@ -64,6 +64,7 @@ export function PrHistoryScreen({
       <div
         style={{
           display: "grid",
+          gridTemplateColumns: "minmax(0, 1fr)",
           gap: "var(--v2-s-5)",
           paddingBottom: "var(--v2-s-8)",
         }}

@@ -391,12 +391,17 @@ var(--layout-max-wide)  /* 와이드 모드 */
   <SectionA />
   <SectionB />
 </AppPage>
+
+// ✅ OK — 하단여백용 grid wrapper 를 쓸 땐 minmax(0,1fr) 로 track 폭을 부모에 고정
+//          (없으면 자식 min-content 가 부모를 밀어내 좁은 화면에서 가로 overflow)
+<div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr)",
+              gap: "var(--v2-s-5)", paddingBottom: "var(--v2-s-8)" }}>…</div>
 ```
 
 **예외**:
 - 섹션 *내부* 간격(헤딩-콘텐츠, 카드 리스트 등)은 해당 컨테이너의 `gap`/`margin` 으로 제어한다. 이 규칙은 `.app-page` *직속* 섹션 사이 간격에만 적용된다.
 - 페이지 헤더(`V2SectionHeader`)는 제목-본문 분리를 위해 자체 `marginBottom: var(--v2-s-4)` (16px) 을 유지한다(헤더 다음 간격만 36px). 그 외 섹션은 추가 margin 없이 위임.
-- 하단 여백이 필요하면 마지막 섹션의 margin 대신 단일 wrapper(`paddingBottom: var(--v2-s-8)`)로 감싸도 된다. 단 그 wrapper 의 `gap` 도 `var(--v2-s-5)` 로 맞춰 `.app-page` 와 동일 리듬을 유지한다(현재 stats·exercise-detail·pr-history·calendar 화면 패턴).
+- 하단 여백이 필요하면 마지막 섹션의 margin 대신 단일 wrapper(`paddingBottom: var(--v2-s-8)`)로 감싸도 된다. 단 그 wrapper 의 `gap` 도 `var(--v2-s-5)` 로 맞추고, **`display: grid` 면 `grid-template-columns: minmax(0, 1fr)` 를 반드시 함께 둔다** — 생략하면 grid item 의 `min-width: auto` 때문에 자식 min-content 가 부모 폭을 밀어내 좁은 화면에서 가로 overflow 가 난다 (현재 stats·exercise-detail·pr-history·calendar 화면 패턴).
 
 ### 3-3. Border Radius 기준
 
