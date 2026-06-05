@@ -211,7 +211,13 @@ function WorkoutLogScreenContent({
             } else {
               router.replace("/workout/log");
             }
-            router.refresh();
+            // router.refresh() 를 호출하지 않는다.
+            // 저장 server action(submitWorkoutLogAction)이 이미 revalidatePath 로
+            // 홈/캘린더/기록/통계의 Router Cache 를 무효화하므로 신선도는 보장된다.
+            // 여기서 refresh 하면 떠나는 기록 화면의 부트스트랩 effect 가 재실행되며
+            // (force-dynamic 페이지가 새 initialContext/initialPlans 참조를 내려줘
+            //  setLoading(true)) 로딩 스켈레톤이 한 번 깜빡인다 — 저장→축하 사이의
+            // 부자연스러운 재로드의 원인이었다.
           }, 600);
         },
         [router],
