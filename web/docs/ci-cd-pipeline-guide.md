@@ -84,7 +84,8 @@ PR 열림 / 푸시
 ### `db-migrate.yml` — DB 마이그레이션 (main 머지 후)
 
 - `CI` 워크플로우가 main 브랜치에서 성공했을 때만 실행된다.
-- prod(`SUPABASE_DIRECT_URL`)와 dev(`SUPABASE_DEV_DIRECT_URL`) 두 환경에 병렬 마이그레이션한다.
+- prod와 dev 두 환경에 병렬 마이그레이션한다. 둘 다 **같은 prod 인스턴스**(`SUPABASE_DIRECT_URL`)를 쓰되, dev는 `DB_SCHEMA=dev` matrix로 prod 인스턴스의 `dev` 스키마에 격리 적용한다(별도 dev 프로젝트는 Supabase free plan의 활성 2개 제한으로 폐기). advisory lock id를 prod/dev로 분리해 같은 인스턴스에서의 충돌을 피한다.
+- dev 스키마용 마이그레이션은 `web/src/server/db/migrations-dev/`에 별도 생성하며, 추적 테이블은 `drizzle_dev` 스키마로 분리된다. 자세한 격리 설계는 [reference 메모리/PR #392·#393] 참고.
 
 ### `deploy.yml` — 배포 확인 (마이그레이션 후)
 
@@ -154,8 +155,8 @@ GitHub → Repository Settings → Secrets and variables → Actions
 
 | Secret | 설명 | 사용처 |
 |--------|------|--------|
-| `SUPABASE_DIRECT_URL` | prod DB 직접 연결 URL | db-migrate.yml |
-| `SUPABASE_DEV_DIRECT_URL` | dev DB 직접 연결 URL | db-migrate.yml |
+| `SUPABASE_DIRECT_URL` | prod DB 직접 연결 URL (prod=`public`, dev=`dev` 스키마 공용) | db-migrate.yml, db-seed.yml |
+| ~~`SUPABASE_DEV_DIRECT_URL`~~ | 폐기 — dev는 prod 인스턴스의 `dev` 스키마로 이전(`DB_SCHEMA=dev` matrix로 대체) | — |
 | `SUPABASE_SERVICE_ROLE_KEY` | 백업 스토리지 업로드용 | db-backup.yml |
 | `VERCEL_TOKEN` | Vercel API 인증 토큰 | deploy.yml |
 | `VERCEL_PROJECT_ID` | Vercel 프로젝트 ID | deploy.yml |

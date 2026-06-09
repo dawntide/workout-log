@@ -96,6 +96,7 @@ DATABASE_URL=postgres://app:app@127.0.0.1:5432/workoutlog  # 또는 Supabase poo
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 WORKOUT_AUTH_USER_ID=local-user
 NEXT_PUBLIC_DISABLE_SW=1
+# DB_SCHEMA=dev   # (선택) prod 인스턴스의 dev 스키마로 격리 개발 시 — DATABASE_URL을 prod 풀러로 두고 함께 설정
 ```
 
-Supabase 사용 시 풀러/다이렉트 URL은 [로컬 개발 가이드](web/docs/local-dev-after-clone-guide.md) 참고. 브랜치/커밋 규칙은 [CONTRIBUTING.md](CONTRIBUTING.md).
+Supabase 사용 시 풀러/다이렉트 URL은 [로컬 개발 가이드](web/docs/local-dev-after-clone-guide.md) 참고. dev DB는 별도 프로젝트가 아니라 prod 인스턴스의 `dev` 스키마로 격리됨(`DB_SCHEMA=dev`) — CI/CD 동작은 [CI/CD 파이프라인 가이드](web/docs/ci-cd-pipeline-guide.md) 참고. 브랜치/커밋 규칙은 [CONTRIBUTING.md](CONTRIBUTING.md).
