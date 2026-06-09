@@ -27,8 +27,14 @@ jobs:
         include:
           - env: prod
             secret: SUPABASE_DIRECT_URL
+            schema: ""
+            lock_id: "872341"
+          # dev: 별도 dev 프로젝트를 폐기하고 prod와 동일 인스턴스의 dev 스키마로 격리.
+          #      advisory lock id를 분리해 prod 마이그레이션과의 직렬화/충돌을 피한다.
           - env: dev
-            secret: SUPABASE_DEV_DIRECT_URL
+            secret: SUPABASE_DIRECT_URL
+            schema: dev
+            lock_id: "872343"
     defaults:
       run:
         working-directory: web
@@ -39,5 +45,7 @@ jobs:
       - name: Run DB migrations
         env:
           DATABASE_URL: ${{ secrets[matrix.secret] }}
+          DB_SCHEMA: ${{ matrix.schema }}
+          DB_MIGRATE_LOCK_ID: ${{ matrix.lock_id }}
           DB_MIGRATE_RUNNER: github-actions-${{ matrix.env }}
         run: node scripts/migrate.mjs

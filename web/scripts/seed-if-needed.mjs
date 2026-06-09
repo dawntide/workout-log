@@ -13,6 +13,10 @@ if (!connectionString) {
   process.exit(1);
 }
 
+// DB_SCHEMA가 설정되면(예: "dev") 메타/카운트 raw 쿼리가 해당 스키마를 보도록 한다.
+// (자식 seed.ts는 schema.ts 경유라 자동 한정되지만, 이 스크립트의 직접 쿼리는 별도.)
+const dbSchema = (process.env.DB_SCHEMA ?? "").trim() || null;
+
 function parsePositiveInt(raw, fallback) {
   const parsed = Number.parseInt(raw ?? "", 10);
   if (!Number.isFinite(parsed) || parsed < 1) return fallback;
@@ -243,6 +247,13 @@ async function runSeedScript() {
 export async function syncSeedIfNeeded() {
   const signature = buildSeedSignature(trackedFiles);
   const pool = new Pool({ connectionString, connectionTimeoutMillis: connectTimeoutMs });
+  // dev 스키마 격리: seed_run_state·base data count 쿼리가 dev 스키마를 보도록
+  // search_path를 설정. seed는 DIRECT(session) 연결이라 SET이 유지된다.
+  if (dbSchema) {
+    pool.on("connect", (client) => {
+      client.query(`SET search_path TO "${dbSchema}", public`);
+    });
+  }
   let lockClient = null;
   let lockHeld = false;
   let lockWaitMs = 0;

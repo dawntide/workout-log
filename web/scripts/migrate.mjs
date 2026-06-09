@@ -28,6 +28,14 @@ preloadEnvFile(".env.local", originalEnvKeys);
 const migrateEnabled = process.env.DB_MIGRATE_ENABLED !== "0";
 const connectionString = process.env.DATABASE_URL;
 
+// DB_SCHEMA가 설정되면(예: "dev") 해당 스키마 전용 마이그레이션 폴더/추적 테이블을
+// 쓴다. drizzle.config.ts와 동일한 규칙이어야 drizzle-kit/이 스크립트가 같은 이력을 본다.
+const dbSchema = (process.env.DB_SCHEMA ?? "").trim() || null;
+const migrationsFolder = dbSchema
+  ? `./src/server/db/migrations-${dbSchema}`
+  : "./src/server/db/migrations";
+const migrationsSchema = dbSchema ? `drizzle_${dbSchema}` : "drizzle";
+
 if (!migrateEnabled) {
   console.log("[migrate] DB_MIGRATE_ENABLED=0, skipping migrations");
   process.exit(0);
@@ -227,6 +235,14 @@ async function releaseAdvisoryLock(client, lockHeld) {
 }
 
 const pool = new Pool({ connectionString, connectionTimeoutMillis: connectTimeoutMs });
+// dev 스키마 격리: 모든 연결의 search_path를 해당 스키마 우선으로 둔다. drizzle migrate의
+// DDL은 스키마 한정이지만, 텔레메트리(migration_run_log)·advisory lock 등 직접 쿼리가
+// dev 스키마에 적용되도록 보장한다. db-migrate는 DIRECT(session) 연결이라 SET이 유지됨.
+if (dbSchema) {
+  pool.on("connect", (client) => {
+    client.query(`SET search_path TO "${dbSchema}", public`);
+  });
+}
 const db = drizzle(pool);
 const runId = randomUUID();
 let telemetryActive = false;
@@ -251,7 +267,7 @@ try {
     try {
       lockWaitMs = await acquireAdvisoryLock(lockClient);
       lockHeld = useAdvisoryLock;
-      await migrate(db, { migrationsFolder: "./src/server/db/migrations" });
+      await migrate(db, { migrationsFolder, migrationsSchema, migrationsTable: "__drizzle_migrations" });
       console.log("[migrate] migrations applied");
     } finally {
       await releaseAdvisoryLock(lockClient, lockHeld);

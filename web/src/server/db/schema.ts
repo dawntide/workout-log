@@ -6,6 +6,7 @@ import {
   numeric,
   jsonb,
   pgEnum,
+  pgSchema,
   pgTable,
   text,
   timestamp,
@@ -15,13 +16,26 @@ import {
 import { sql } from "drizzle-orm";
 
 /**
+ * 스키마 격리: DB_SCHEMA가 설정되면(예: "dev") 모든 테이블/enum을 해당 스키마에
+ * 한정해 발행한다. 미설정(prod)이면 기존처럼 기본(public) 스키마를 쓴다.
+ * Supabase prod 인스턴스 하나를 dev 환경과 물리적으로 분리하기 위한 장치.
+ * 주의: 빌드/마이그레이션/런타임이 같은 DB_SCHEMA 값을 공유해야 쿼리가 일치한다.
+ */
+const schemaName = process.env.DB_SCHEMA?.trim() || undefined;
+const appSchema = schemaName ? pgSchema(schemaName) : undefined;
+// 삼항의 두 분기(pgSchema().table vs pgTable)는 TName 타입 파라미터만 달라
+// union이 호출 불가가 되므로, 발행 SQL이 동일한 pgTable/pgEnum 시그니처로 캐스팅한다.
+const table = (appSchema ? appSchema.table.bind(appSchema) : pgTable) as typeof pgTable;
+const dbEnum = (appSchema ? appSchema.enum.bind(appSchema) : pgEnum) as typeof pgEnum;
+
+/**
  * Enums
  */
-export const programType = pgEnum("program_type", ["LOGIC", "MANUAL"]);
-export const visibilityType = pgEnum("visibility_type", ["PUBLIC", "PRIVATE"]);
+export const programType = dbEnum("program_type", ["LOGIC", "MANUAL"]);
+export const visibilityType = dbEnum("visibility_type", ["PUBLIC", "PRIVATE"]);
 
-export const planType = pgEnum("plan_type", ["SINGLE", "COMPOSITE", "MANUAL"]);
-export const moduleTarget = pgEnum("module_target", [
+export const planType = dbEnum("plan_type", ["SINGLE", "COMPOSITE", "MANUAL"]);
+export const moduleTarget = dbEnum("module_target", [
   "SQUAT",
   "BENCH",
   "DEADLIFT",
@@ -30,14 +44,14 @@ export const moduleTarget = pgEnum("module_target", [
   "CUSTOM",
 ]);
 
-export const overrideScope = pgEnum("override_scope", [
+export const overrideScope = dbEnum("override_scope", [
   "PLAN",
   "WEEK",
   "SESSION",
   "EXERCISE",
 ]);
 
-export const sessionStatus = pgEnum("session_status", ["PLANNED", "DONE", "SKIPPED"]);
+export const sessionStatus = dbEnum("session_status", ["PLANNED", "DONE", "SKIPPED"]);
 
 /**
  * program_template: top-level template definition (e.g., 5/3/1, Operator, Candito, Manual)
@@ -46,7 +60,7 @@ export const sessionStatus = pgEnum("session_status", ["PLANNED", "DONE", "SKIPP
  * - ownerUserId: for PRIVATE templates
  * - parentTemplateId: points to the original template if this is a fork
  */
-export const programTemplate = pgTable(
+export const programTemplate = table(
   "program_template",
   {
     id: uuid("id").defaultRandom().primaryKey(),
@@ -79,7 +93,7 @@ export const programTemplate = pgTable(
  * Fork support:
  * - parentVersionId: points to the version that was forked
  */
-export const programVersion = pgTable(
+export const programVersion = table(
   "program_version",
   {
     id: uuid("id").defaultRandom().primaryKey(),
@@ -115,7 +129,7 @@ export const programVersion = pgTable(
 /**
  * plan: user's instance of a program or composite of modules
  */
-export const plan = pgTable(
+export const plan = table(
   "plan",
   {
     id: uuid("id").defaultRandom().primaryKey(),
@@ -146,7 +160,7 @@ export const plan = pgTable(
 /**
  * plan_runtime_state: per-plan mutable runtime state for auto progression.
  */
-export const planRuntimeState = pgTable(
+export const planRuntimeState = table(
   "plan_runtime_state",
   {
     id: uuid("id").defaultRandom().primaryKey(),
@@ -169,7 +183,7 @@ export const planRuntimeState = pgTable(
 /**
  * plan_module: for COMPOSITE plans, mapping each target lift/module to a program version.
  */
-export const planModule = pgTable(
+export const planModule = table(
   "plan_module",
   {
     id: uuid("id").defaultRandom().primaryKey(),
@@ -199,7 +213,7 @@ export const planModule = pgTable(
 /**
  * plan_override: store changes as JSON patch-like document.
  */
-export const planOverride = pgTable(
+export const planOverride = table(
   "plan_override",
   {
     id: uuid("id").defaultRandom().primaryKey(),
@@ -228,7 +242,7 @@ export const planOverride = pgTable(
 /**
  * generated_session: materialized/snapshotted planned session
  */
-export const generatedSession = pgTable(
+export const generatedSession = table(
   "generated_session",
   {
     id: uuid("id").defaultRandom().primaryKey(),
@@ -264,7 +278,7 @@ export const generatedSession = pgTable(
 /**
  * exercise: canonical exercise dictionary
  */
-export const exercise = pgTable(
+export const exercise = table(
   "exercise",
   {
     id: uuid("id").defaultRandom().primaryKey(),
@@ -280,7 +294,7 @@ export const exercise = pgTable(
 /**
  * exercise_alias: user-facing aliases mapped to canonical exercise
  */
-export const exerciseAlias = pgTable(
+export const exerciseAlias = table(
   "exercise_alias",
   {
     id: uuid("id").defaultRandom().primaryKey(),
@@ -299,7 +313,7 @@ export const exerciseAlias = pgTable(
 /**
  * workout_log: 실제 수행 기록
  */
-export const workoutLog = pgTable(
+export const workoutLog = table(
   "workout_log",
   {
     id: uuid("id").defaultRandom().primaryKey(),
@@ -341,7 +355,7 @@ export const workoutLog = pgTable(
 /**
  * plan_progress_event: append-only progression decisions triggered by logs.
  */
-export const planProgressEvent = pgTable(
+export const planProgressEvent = table(
   "plan_progress_event",
   {
     id: uuid("id").defaultRandom().primaryKey(),
@@ -372,7 +386,7 @@ export const planProgressEvent = pgTable(
 /**
  * workout_set: 정규화된 세트 이벤트
  */
-export const workoutSet = pgTable(
+export const workoutSet = table(
   "workout_set",
   {
     id: uuid("id").defaultRandom().primaryKey(),
@@ -406,7 +420,7 @@ export const workoutSet = pgTable(
 /**
  * stats_cache: cached aggregate payloads for expensive stats queries
  */
-export const statsCache = pgTable(
+export const statsCache = table(
   "stats_cache",
   {
     id: uuid("id").defaultRandom().primaryKey(),
@@ -431,7 +445,7 @@ export const statsCache = pgTable(
 /**
  * user_setting: per-user persisted settings (primitive JSON values)
  */
-export const userSetting = pgTable(
+export const userSetting = table(
   "user_setting",
   {
     id: uuid("id").defaultRandom().primaryKey(),
@@ -451,7 +465,7 @@ export const userSetting = pgTable(
 /**
  * ux_event_log: client UX event stream persisted server-side for cross-device continuity
  */
-export const uxEventLog = pgTable(
+export const uxEventLog = table(
   "ux_event_log",
   {
     id: uuid("id").defaultRandom().primaryKey(),
@@ -479,7 +493,7 @@ export const uxEventLog = pgTable(
 /**
  * migration_run_log: migration execution telemetry for deploy/ops alerts
  */
-export const migrationRunLog = pgTable(
+export const migrationRunLog = table(
   "migration_run_log",
   {
     id: bigserial("id", { mode: "number" }).primaryKey(),
@@ -510,7 +524,7 @@ export const migrationRunLog = pgTable(
  * 기존 모든 도메인 테이블의 user_id (text) 컬럼은 이 테이블의 id (uuid)를
  * 문자열로 저장한다. id는 string으로 select되어 호환됨.
  */
-export const appUser = pgTable(
+export const appUser = table(
   "app_user",
   {
     id: uuid("id").defaultRandom().primaryKey(),
@@ -532,7 +546,7 @@ export const appUser = pgTable(
  * - userId: app_user.id 참조 (문자열)
  * - expiresAt: 만료 시각 (TTL)
  */
-export const authSession = pgTable(
+export const authSession = table(
   "auth_session",
   {
     token: text("token").primaryKey(),
@@ -548,7 +562,7 @@ export const authSession = pgTable(
   ],
 );
 
-export const passwordResetToken = pgTable(
+export const passwordResetToken = table(
   "password_reset_token",
   {
     tokenHash: text("token_hash").primaryKey(),
@@ -565,7 +579,7 @@ export const passwordResetToken = pgTable(
   ],
 );
 
-export const emailVerificationToken = pgTable(
+export const emailVerificationToken = table(
   "email_verification_token",
   {
     tokenHash: text("token_hash").primaryKey(),
@@ -582,7 +596,7 @@ export const emailVerificationToken = pgTable(
   ],
 );
 
-export const authEventLog = pgTable(
+export const authEventLog = table(
   "auth_event_log",
   {
     id: bigserial("id", { mode: "number" }).primaryKey(),
@@ -609,7 +623,7 @@ export const authEventLog = pgTable(
  * - userId references app_user.id (text)
  * - email/emailVerified are snapshots from the provider; refreshed on each login
  */
-export const authOauthAccount = pgTable(
+export const authOauthAccount = table(
   "auth_oauth_account",
   {
     id: uuid("id").defaultRandom().primaryKey(),

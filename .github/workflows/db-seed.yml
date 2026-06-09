@@ -28,8 +28,13 @@ jobs:
         include:
           - env: prod
             secret: SUPABASE_DIRECT_URL
+            schema: ""
+            lock_id: "872342"
+          # dev: prod와 동일 인스턴스의 dev 스키마로 seed. lock id·seed_key를 분리한다.
           - env: dev
-            secret: SUPABASE_DEV_DIRECT_URL
+            secret: SUPABASE_DIRECT_URL
+            schema: dev
+            lock_id: "872344"
     defaults:
       run:
         working-directory: web
@@ -40,6 +45,8 @@ jobs:
       - name: Run idempotent seed sync
         env:
           DATABASE_URL: ${{ secrets[matrix.secret] }}
+          DB_SCHEMA: ${{ matrix.schema }}
+          DB_SEED_LOCK_ID: ${{ matrix.lock_id }}
           DB_SEED_RUNNER: github-actions-${{ matrix.env }}
           DB_SEED_KEY: ${{ matrix.env }}
         run: pnpm db:seed:sync
