@@ -235,14 +235,11 @@ async function releaseAdvisoryLock(client, lockHeld) {
 }
 
 const pool = new Pool({ connectionString, connectionTimeoutMillis: connectTimeoutMs });
-// dev 스키마 격리: 모든 연결의 search_path를 해당 스키마 우선으로 둔다. drizzle migrate의
-// DDL은 스키마 한정이지만, 텔레메트리(migration_run_log)·advisory lock 등 직접 쿼리가
-// dev 스키마에 적용되도록 보장한다. db-migrate는 DIRECT(session) 연결이라 SET이 유지됨.
-if (dbSchema) {
-  pool.on("connect", (client) => {
-    client.query(`SET search_path TO "${dbSchema}", public`);
-  });
-}
+// 주의: 여기서 search_path를 dev로 바꾸지 않는다. 마이그레이션 SQL은 이미 스키마
+// 한정(dev.*)이라 search_path가 불필요하고, 텔레메트리(migration_run_log)는 prod/dev가
+// 공유하는 운영 메타라 기본 search_path(public)에 둔다. dev로 바꾸면 텔레메트리 테이블이
+// dev에 먼저 생성되어 마이그레이션의 CREATE TABLE "dev"."migration_run_log"와 "already
+// exists" 충돌을 일으킨다(첫 부트스트랩에서 발견). 추적 테이블은 migrationsSchema로 분리됨.
 const db = drizzle(pool);
 const runId = randomUUID();
 let telemetryActive = false;
