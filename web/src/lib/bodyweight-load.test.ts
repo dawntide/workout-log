@@ -8,6 +8,7 @@ import {
   bodyweightAddedSuffix,
   resolveLoggedLoadDisplay,
   prescriptionToExternalLoadKg,
+  sessionHasBodyweightAmrap,
 } from "./bodyweight-load";
 
 test("computeExternalLoadFromTotalKg subtracts bodyweight for pull-up", () => {
@@ -126,5 +127,30 @@ test("resolveLoggedLoadDisplay: 로그 세트를 총무게+추가 병기로 환�
       locale: "ko",
     }),
     { totalKg: 90, suffix: null },
+  );
+});
+
+test("sessionHasBodyweightAmrap: 풀업 AMRAP 세트가 있으면 true", () => {
+  const exercises = [
+    { exerciseName: "Back Squat", plannedSetMeta: { amrapPerSet: [false, false, false, true] } },
+    { exerciseName: "Weighted Pull-Up", plannedSetMeta: { amrapPerSet: [false, false, false, true] } },
+  ];
+  assert.equal(sessionHasBodyweightAmrap(exercises), true);
+});
+
+test("sessionHasBodyweightAmrap: 맨몸 운동에 AMRAP 세트가 없으면 false", () => {
+  const exercises = [
+    { exerciseName: "Weighted Pull-Up", plannedSetMeta: { amrapPerSet: [false, false, false] } },
+    { exerciseName: "Back Squat", plannedSetMeta: { amrapPerSet: [true] } }, // 스쿼트 AMRAP은 맨몸 아님
+  ];
+  assert.equal(sessionHasBodyweightAmrap(exercises), false);
+});
+
+test("sessionHasBodyweightAmrap: plannedSetMeta 없거나 빈 세션은 false", () => {
+  assert.equal(sessionHasBodyweightAmrap([]), false);
+  assert.equal(sessionHasBodyweightAmrap([{ exerciseName: "Pull-Up" }]), false);
+  assert.equal(
+    sessionHasBodyweightAmrap([{ exerciseName: "Pull-Up", plannedSetMeta: { amrapPerSet: null } }]),
+    false,
   );
 });

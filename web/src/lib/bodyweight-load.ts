@@ -33,6 +33,22 @@ export function isBodyweightExerciseName(exerciseName: string): boolean {
   );
 }
 
+// 하이브리드(Asymptote × Async) 체중 확인 게이트: 이번 세션에 "맨몸 운동(풀업 등)의 AMRAP 세트"가
+// 있는가. 풀업 AMRAP은 총중량(체중+추가)으로 TM을 좌우하므로, 그 직전이 체중을 갱신할 "중요한 순간".
+// 처방 draft의 운동(이름 + plannedSetMeta.amrapPerSet)을 그대로 받는 순수 함수.
+export function sessionHasBodyweightAmrap(
+  exercises: ReadonlyArray<{
+    exerciseName: string;
+    plannedSetMeta?: { amrapPerSet?: boolean[] | null } | null;
+  }>,
+): boolean {
+  return exercises.some((exercise) => {
+    if (!isBodyweightExerciseName(exercise.exerciseName)) return false;
+    const amrapPerSet = exercise.plannedSetMeta?.amrapPerSet;
+    return Array.isArray(amrapPerSet) && amrapPerSet.some(Boolean);
+  });
+}
+
 export function computeBodyweightTotalLoadKg(
   exerciseName: string,
   externalWeightKg: number,

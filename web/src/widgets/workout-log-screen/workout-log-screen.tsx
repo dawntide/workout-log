@@ -22,6 +22,10 @@ import { readWorkoutLogQueryContext } from "@/features/workout-log/model/query-c
 import { useWorkoutLogSaveController } from "@/features/workout-log/model/use-workout-log-save-controller";
 import { applyWorkoutLogWeightRulesToDraft } from "@/lib/workout-record/weight-rules";
 import { migrateWorkoutRecordDraft } from "@/entities/workout-record";
+import { sessionHasBodyweightAmrap } from "@/lib/bodyweight-load";
+import { readWorkoutPreferences } from "@/lib/settings/workout-preferences";
+import { apiPatch } from "@/lib/api";
+import { BodyweightCheckBanner } from "./bodyweight-check-banner";
 import { formatDateFriendly } from "@/features/workout-log/model/last-session-summary";
 import { parseSessionKey } from "@/lib/session-key";
 import { WorkoutLogOverlaySheets } from "@/features/workout-log/ui/workout-log-overlay-sheets";
@@ -226,6 +230,39 @@ function WorkoutLogScreenContent({
 
   const isEditingExistingLog = Boolean(query.logId);
 
+  // 하이브리드 체중 확인: 검증(풀업 AMRAP) 세션 진입 시 1회 "업데이트/유지" 안내.
+  // "유지"는 한 탭(쓰기 없음), "업데이트"만 prefs.bodyweight.kg를 갱신 → 모니터가 읽음.
+  const [bodyweightKg, setBodyweightKg] = useState<number | null>(
+    () => readWorkoutPreferences(initialSettings as Record<string, string | number | boolean | null>).bodyweightKg,
+  );
+  const [bodyweightSubmitting, setBodyweightSubmitting] = useState(false);
+  const [bodyweightDismissedKey, setBodyweightDismissedKey] = useState<string | null>(null);
+  const currentSessionKey = draft?.session.sessionKey ?? null;
+  const showBodyweightCheck =
+    !isEditingExistingLog &&
+    Boolean(draft) &&
+    currentSessionKey !== null &&
+    bodyweightDismissedKey !== currentSessionKey &&
+    sessionHasBodyweightAmrap(draft?.seedExercises ?? []);
+  const handleBodyweightUpdate = useCallback(
+    async (kg: number) => {
+      setBodyweightSubmitting(true);
+      try {
+        await apiPatch("/api/settings", { key: "prefs.bodyweight.kg", value: kg });
+        setBodyweightKg(kg);
+      } catch {
+        // 저장 실패해도 안내는 닫는다 — 다음 검증 세션에 다시 권고된다.
+      } finally {
+        setBodyweightSubmitting(false);
+        setBodyweightDismissedKey(currentSessionKey);
+      }
+    },
+    [currentSessionKey],
+  );
+  const handleBodyweightKeep = useCallback(() => {
+    setBodyweightDismissedKey(currentSessionKey);
+  }, [currentSessionKey]);
+
   const handleDateChange = useCallback(
     (newDateKey: string) => {
       if (!/^\d{4}-\d{2}-\d{2}$/.test(newDateKey)) return;
@@ -329,6 +366,16 @@ function WorkoutLogScreenContent({
             titleAriaExpanded={!isEditingExistingLog && planSheetOpen}
             titleAriaHasPopup="dialog"
           />
+
+          {showBodyweightCheck ? (
+            <BodyweightCheckBanner
+              currentKg={bodyweightKg}
+              locale={locale}
+              submitting={bodyweightSubmitting}
+              onUpdate={handleBodyweightUpdate}
+              onKeep={handleBodyweightKeep}
+            />
+          ) : null}
 
           <div
             style={{
