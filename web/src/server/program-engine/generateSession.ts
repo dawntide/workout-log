@@ -16,6 +16,7 @@ import {
   ASYMPTOTE_LIGHT_CYCLE_COEF,
   ASYMPTOTE_SESSIONS,
   ASYMPTOTE_SESSION_LABELS,
+  asymptoteShouldDeferAmrap,
   floorToMultiple2p5,
 } from "./asymptote";
 import { roundToNearest2p5 } from "./round";
@@ -86,6 +87,9 @@ type PlannedSet = {
   rpe?: number;
   amrap?: boolean;
   note?: string;
+  // 하이브리드(Asymptote × Async): AMRAP이 아닌 작업 세트의 "그라인딩 정지" 가이드.
+  // true면 UI/유저는 렙 타겟을 다 못 채워도 바가 느려지는 첫 렙에서 멈춘다(자동 보정).
+  stopOnGrind?: boolean;
 };
 
 export type PlannedExercise = {
@@ -569,6 +573,8 @@ function generateAsymptote(_def: LogicDefinitionV1, ctx: GeneratorCtx): PlannedE
     (lightBlockMode ? ASYMPTOTE_LIGHT_CYCLE_COEF : ASYMPTOTE_CYCLE_COEF)[cycleInBlock] ??
     ASYMPTOTE_CYCLE_COEF[1]!;
   const isAmrapCycle = cycleInBlock === 3 && !lightBlockMode;
+  // 하이브리드 연속일 AMRAP 가드: 직전 세션과의 간격(일). 미지정이면 보류하지 않음(기존 동작).
+  const restDayGap = toNumberOrNull((ctx.params as Record<string, unknown> | undefined)?.restDayGap);
   const session = ASYMPTOTE_SESSIONS[sessionInCycle] ?? ASYMPTOTE_SESSIONS[1]!;
   const sessionLabel = ASYMPTOTE_SESSION_LABELS[sessionInCycle] ?? "A";
   // 처방 RPE: light block은 비움(회복 주간). 일반 cycle은 강도 점증:
@@ -586,13 +592,17 @@ function generateAsymptote(_def: LogicDefinitionV1, ctx: GeneratorCtx): PlannedE
     const workingWeightKg = tm !== null ? floorToMultiple2p5(tm * cycleCoef * row.coef) : null;
     const sets: PlannedSet[] = Array.from({ length: row.sets }, (_, setIdx) => {
       const isLastSet = setIdx === row.sets - 1;
-      const isAmrapSet = isAmrapCycle && row.amrap && isLastSet;
+      const amrapEligible = isAmrapCycle && row.amrap && isLastSet;
+      const deferAmrap = asymptoteShouldDeferAmrap({ amrapEligible, restDayGap });
+      const isAmrapSet = amrapEligible && !deferAmrap;
       const baseTag = `Asymptote C${cycleInBlock}${sessionLabel}${lightBlockMode ? " · light" : ""}`;
       const note = isAmrapSet
         ? `${baseTag} · AMRAP ${row.reps}+`
-        : row.note
-          ? `${baseTag} · ${row.note}`
-          : baseTag;
+        : deferAmrap
+          ? `${baseTag} · AMRAP 보류(연속일) · 그라인딩 정지`
+          : row.note
+            ? `${baseTag} · ${row.note} · 그라인딩 정지`
+            : `${baseTag} · 그라인딩 정지`;
       const set: PlannedSet = {
         reps: row.reps,
         percent: cycleCoef * row.coef,
@@ -601,6 +611,8 @@ function generateAsymptote(_def: LogicDefinitionV1, ctx: GeneratorCtx): PlannedE
       };
       if (workingWeightKg !== null) set.targetWeightKg = workingWeightKg;
       if (cycleBaseRpe !== null && !isAmrapSet) set.rpe = cycleBaseRpe;
+      // 비-AMRAP 작업 세트는 그라인딩-정지 가이드(자동 보정 밸브).
+      if (!isAmrapSet) set.stopOnGrind = true;
       return set;
     });
 
@@ -792,6 +804,8 @@ export function plannedExercisesFromAsymptoteManualSession(
     ASYMPTOTE_CYCLE_COEF[1]!;
   const isAmrapCycle = cycleInBlock === 3 && !lightBlockMode;
   const cycleBaseRpe = lightBlockMode ? null : cycleInBlock === 1 ? 6 : cycleInBlock === 2 ? 7 : 8;
+  // 하이브리드 연속일 AMRAP 가드: 직전 세션과의 간격(일). 미지정이면 보류하지 않음(기존 동작).
+  const restDayGap = toNumberOrNull((effectiveParams as Record<string, unknown> | undefined)?.restDayGap);
 
   return items
     .map((item: any, index: number) => {
@@ -821,15 +835,22 @@ export function plannedExercisesFromAsymptoteManualSession(
 
         const sets: PlannedSet[] = Array.from({ length: setCount }, (_, setIdx) => {
           const isLastSet = setIdx === setCount - 1;
-          const isAmrapSet = isAmrapCycle && slot.amrap === true && isLastSet;
+          const amrapEligible = isAmrapCycle && slot.amrap === true && isLastSet;
+          const deferAmrap = asymptoteShouldDeferAmrap({ amrapEligible, restDayGap });
+          const isAmrapSet = amrapEligible && !deferAmrap;
           const set: PlannedSet = {
             reps,
             percent: cycleCoef * slot.coef,
             amrap: isAmrapSet,
-            note: isAmrapSet ? `${baseTag} · AMRAP ${reps}+` : baseTag,
+            note: isAmrapSet
+              ? `${baseTag} · AMRAP ${reps}+`
+              : deferAmrap
+                ? `${baseTag} · AMRAP 보류(연속일) · 그라인딩 정지`
+                : `${baseTag} · 그라인딩 정지`,
           };
           if (workingWeightKg !== null) set.targetWeightKg = workingWeightKg;
           if (cycleBaseRpe !== null && !isAmrapSet) set.rpe = cycleBaseRpe;
+          if (!isAmrapSet) set.stopOnGrind = true;
           return set;
         });
 
