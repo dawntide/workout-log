@@ -8,7 +8,9 @@ import {
   getProgramDescription,
   getProgramDetailInfo,
   inferSessionDraftsFromTemplate,
+  isAsymptoteTemplate,
   isOperatorTemplate,
+  ASYMPTOTE_HYBRID_TM_PERCENT,
   resolveOperatorExerciseDefaults,
   selectDisplayStrengthBaselineKeys,
   toManualDefinition,
@@ -224,6 +226,18 @@ const asymptoteTemplate: ProgramTemplate = {
     defaults: { tmPercent: 0.83 },
   },
 };
+
+test("isAsymptoteTemplate detects asymptote templates, rejects operator", () => {
+  assert.equal(isAsymptoteTemplate(asymptoteTemplate), true);
+  assert.equal(isAsymptoteTemplate(operatorTemplate), false);
+  assert.equal(isAsymptoteTemplate(null), false);
+});
+
+test("ASYMPTOTE_HYBRID_TM_PERCENT은 0.87 (저장된 0.83보다 덜 보수적인 하이브리드 시작 배수)", () => {
+  assert.equal(ASYMPTOTE_HYBRID_TM_PERCENT, 0.87);
+  // 시작 시 적용되는 배수는 저장 defaults(0.83)가 아니라 하이브리드 0.87이어야 한다.
+  assert.notEqual(ASYMPTOTE_HYBRID_TM_PERCENT, asymptoteTemplate.latestVersion?.defaults?.tmPercent);
+});
 
 test("getProgramDetailInfo returns full asymptote stats, sessions, modules, and progression", () => {
   const info = getProgramDetailInfo(asymptoteTemplate, "ko");

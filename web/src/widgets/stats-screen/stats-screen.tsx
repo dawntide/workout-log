@@ -12,6 +12,7 @@ import { useLocale } from "@/components/locale-provider";
 import { APP_ROUTES } from "@/lib/app-routes";
 import { GoalSection } from "@/widgets/goal-aware/home-goal-section";
 import { WeeklyVolumeSection } from "./weekly-volume-section";
+import { AsymptoteMonitorSection } from "./asymptote-monitor-section";
 
 const Stats1RMDetailed = dynamic(
   () =>
@@ -254,6 +255,7 @@ export function StatsScreen({
   initialSelectedPlanId,
   goal,
   goalMetrics,
+  asymptoteMonitor,
 }: StatsScreenProps) {
   const { locale } = useLocale();
   const searchParams = useSearchParams();
@@ -362,6 +364,10 @@ export function StatsScreen({
         </header>
 
         <GoalSection goal={goal} metrics={goalMetrics} />
+
+        {asymptoteMonitor ? (
+          <AsymptoteMonitorSection data={asymptoteMonitor} locale={locale} />
+        ) : null}
 
         <WeeklyVolumeSection data={initialVolumeWeekly} locale={locale} />
 

@@ -5,6 +5,10 @@
 
 export type AsymptoteLift = "SQUAT" | "BENCH" | "DEADLIFT" | "OHP" | "PULL";
 
+// 하이브리드(Asymptote × Async) 초기 TM 배수 — Async(공격적)와 원본 Asymptote(0.83 보수)의 절충.
+// 플랜 시작 시 (최근 추정 1RM × 이 값)으로 TM을 잡는다. lib 단일 소스(서버/클라이언트 공유).
+export const ASYMPTOTE_HYBRID_TM_PERCENT = 0.87;
+
 /** 슬롯이 그 세션에서 맡는 역할(중강도/볼륨/폭발…). 커스터마이즈 시트에서 유저에게 노출된다. */
 export type AsymptoteSlotRole = { ko: string; en: string };
 

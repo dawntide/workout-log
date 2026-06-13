@@ -4,9 +4,11 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   ASYMPTOTE_MONITOR_WINDOW,
+  aggregateDriverExposures,
   asymptoteDriverTrend,
   epleyE1rm,
   type DriverExposure,
+  type LoggedSetRow,
 } from "./asymptote-monitor";
 
 test("epleyE1rm: w*(1+reps/30), 비유효 입력은 0", () => {
@@ -73,6 +75,34 @@ test("풀업 총중량(BW+추중량)으로 e1RM 계산", () => {
   // 첫 노출 e1RM = (20+68)*(1+3/30) = 96.8
   assert.equal(out.points[0]!.e1rm, Math.round((20 + 68) * 1.1 * 10) / 10);
   assert.equal(out.trend, "RISING");
+});
+
+test("aggregateDriverExposures: 드라이버 버킷팅 + 일자별 탑세트 + 풀업 BW 보정", () => {
+  const rows: LoggedSetRow[] = [
+    { performedAt: "2026-06-01", exerciseName: "Back Squat", weightKg: 80, reps: 5 },
+    { performedAt: "2026-06-01", exerciseName: "Back Squat", weightKg: 90, reps: 3 }, // 같은 날 더 무거움 → 탑세트
+    { performedAt: "2026-06-01", exerciseName: "Bench Press", weightKg: 70, reps: 5 },
+    { performedAt: "2026-06-01", exerciseName: "Weighted Pull-Up", weightKg: 20, reps: 5 },
+    { performedAt: "2026-06-01", exerciseName: "Bicep Curl", weightKg: 15, reps: 12 }, // 비드라이버 → 무시
+    { performedAt: "2026-06-03", exerciseName: "Back Squat", weightKg: 92.5, reps: 3 },
+  ];
+  const out = aggregateDriverExposures(rows, 70);
+
+  assert.equal(out.SQUAT.length, 2, "스쿼트 2일");
+  assert.equal(out.SQUAT[0]!.weightKg, 90, "6-01 탑세트 = 90×3 (e1rm 99 > 80×5의 93.3)");
+  assert.equal(out.SQUAT[0]!.reps, 3);
+  assert.equal(out.SQUAT[0]!.bodyweightKg, undefined, "스쿼트는 BW 미적용");
+  assert.equal(out.BENCH.length, 1);
+  assert.equal(out.PULL.length, 1);
+  assert.equal(out.PULL[0]!.bodyweightKg, 70, "풀업은 BW 보정");
+});
+
+test("aggregateDriverExposures: bodyweightKg 없으면 풀업도 추중량만", () => {
+  const rows: LoggedSetRow[] = [
+    { performedAt: "2026-06-01", exerciseName: "Weighted Pull-Up", weightKg: 20, reps: 5 },
+  ];
+  const out = aggregateDriverExposures(rows, null);
+  assert.equal(out.PULL[0]!.bodyweightKg, undefined);
 });
 
 test("정렬: 입력 순서 무관하게 performedAt 오름차순 처리", () => {

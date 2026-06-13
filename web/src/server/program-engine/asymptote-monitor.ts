@@ -3,6 +3,8 @@
 // N세션(기본 7) 이동평균으로 평활해, AMRAP 전에 정체/하락 조짐을 본다.
 // 순수 함수 — DB/UI 비의존. e1rm-service 등에서 모은 탑세트 노출을 입력으로 받는다.
 
+import { mapExerciseNameToTarget } from "@/lib/strength-engine/target-mapping";
+
 // 드라이버 한 노출(세션의 탑세트). 풀업은 bodyweightKg를 주면 총중량(BW+추중량)으로 환산한다.
 export type DriverExposure = {
   performedAt: string; // ISO 또는 YYYY-MM-DD (정렬용)
@@ -78,4 +80,53 @@ export function asymptoteDriverTrend(
     latest > prior + band ? "RISING" : latest < prior - band ? "FALLING" : "FLAT";
 
   return { points, latestMovingAvg: latest, trend };
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// 로그 세트 → 드라이버별 노출 집계 (서비스 레이어가 DB 행을 먹이는 순수 어댑터)
+// ──────────────────────────────────────────────────────────────────────────────
+
+export type DriverKey = "SQUAT" | "BENCH" | "PULL";
+export const ASYMPTOTE_DRIVERS: DriverKey[] = ["SQUAT", "BENCH", "PULL"];
+
+export type LoggedSetRow = {
+  performedAt: string | Date;
+  exerciseName: string;
+  weightKg: number | null;
+  reps: number | null;
+};
+
+function toDayKey(performedAt: string | Date): string {
+  const d = performedAt instanceof Date ? performedAt : new Date(performedAt);
+  return Number.isNaN(d.getTime()) ? String(performedAt).slice(0, 10) : d.toISOString().slice(0, 10);
+}
+
+// 로그 세트들을 드라이버(SQ/BP/PULL)별 "일자별 탑세트(최대 e1RM)" 노출 시계열로 집계한다.
+// 풀업은 bodyweightKg를 더해 총중량으로 환산(BW 미설정이면 추중량만). 비-드라이버 종목은 무시.
+export function aggregateDriverExposures(
+  rows: LoggedSetRow[],
+  bodyweightKg: number | null,
+): Record<DriverKey, DriverExposure[]> {
+  const bestByDriverDay = new Map<string, { driver: DriverKey; exposure: DriverExposure; e1rm: number }>();
+  for (const row of rows) {
+    const target = mapExerciseNameToTarget(String(row.exerciseName ?? ""));
+    if (target !== "SQUAT" && target !== "BENCH" && target !== "PULL") continue;
+    const weightKg = Number(row.weightKg ?? 0);
+    const reps = Number(row.reps ?? 0);
+    if (!(weightKg > 0) || !(reps > 0)) continue;
+    const bw = target === "PULL" && bodyweightKg && bodyweightKg > 0 ? bodyweightKg : undefined;
+    const day = toDayKey(row.performedAt);
+    const exposure: DriverExposure = { performedAt: day, weightKg, reps, bodyweightKg: bw };
+    const e1rm = exposureE1rm(exposure);
+    const key = `${target}|${day}`;
+    const current = bestByDriverDay.get(key);
+    if (!current || e1rm > current.e1rm) bestByDriverDay.set(key, { driver: target, exposure, e1rm });
+  }
+
+  const out: Record<DriverKey, DriverExposure[]> = { SQUAT: [], BENCH: [], PULL: [] };
+  for (const { driver, exposure } of bestByDriverDay.values()) out[driver].push(exposure);
+  for (const driver of ASYMPTOTE_DRIVERS) {
+    out[driver].sort((a, b) => a.performedAt.localeCompare(b.performedAt));
+  }
+  return out;
 }

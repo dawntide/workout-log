@@ -25,6 +25,10 @@ import {
   type StrengthScoreResult,
 } from "@/server/stats/strength-score-service";
 import { fetchVolumeSeries, type VolumeSeriesResult } from "@/server/stats/volume-series-service";
+import {
+  fetchAsymptoteDriverMonitor,
+  type AsymptoteMonitorResult,
+} from "@/server/stats/asymptote-monitor-service";
 
 type SearchParams = Record<string, string | string[] | undefined>;
 
@@ -85,6 +89,8 @@ export type StatsPageBootstrap = {
   initialSelectedPlanId: string;
   goal: TrainingGoalKey;
   goalMetrics: StatsGoalMetrics;
+  // 하이브리드 드라이버 e1RM 모니터. asymptote 플랜이 없으면 null(섹션 미표시).
+  asymptoteMonitor: AsymptoteMonitorResult | null;
 };
 
 const STATS_GOAL_METRICS_RANGE_DAYS = 56;
@@ -137,12 +143,18 @@ export async function getStatsPageBootstrap(
   const prefs = readWorkoutPreferences(settings);
   const goal = prefs.trainingGoalPrimary;
   const goalMetricsPromise = fetchStatsGoalMetrics(userId, goal, prefs.bodyweightKg);
+  // asymptote 플랜이 없으면 즉시 null로 떨어지는 경량 조회 → 모든 경로에서 병렬로 함께 해소.
+  const asymptoteMonitorPromise = fetchAsymptoteDriverMonitor({
+    userId,
+    bodyweightKg: prefs.bodyweightKg,
+  });
 
   if (defer1rmBootstrap) {
-    const [bundle, volumeWeekly, goalMetrics] = await Promise.all([
+    const [bundle, volumeWeekly, goalMetrics, asymptoteMonitor] = await Promise.all([
       fetchStatsBundle({ userId, days: 90 }),
       fetchWeeklyVolumeForBootstrap(userId),
       goalMetricsPromise,
+      asymptoteMonitorPromise,
     ]);
     return {
       initialBundle: bundle,
@@ -154,12 +166,13 @@ export async function getStatsPageBootstrap(
       initialSelectedPlanId: selectedPlanId,
       goal,
       goalMetrics,
+      asymptoteMonitor,
     };
   }
 
   // PERF: exerciseId/exerciseName이 URL에 이미 있으면 4개 fetch를 모두 병렬로 실행
   if (selectedExerciseId || selectedExerciseName) {
-    const [bundle, filterOptions, initialE1rm, volumeWeekly, goalMetrics] = await Promise.all([
+    const [bundle, filterOptions, initialE1rm, volumeWeekly, goalMetrics, asymptoteMonitor] = await Promise.all([
       fetchStatsBundle({ userId, days: 90 }),
       fetchStats1RMFilterOptions(userId),
       fetchE1rmStats({
@@ -173,6 +186,7 @@ export async function getStatsPageBootstrap(
       }),
       fetchWeeklyVolumeForBootstrap(userId),
       goalMetricsPromise,
+      asymptoteMonitorPromise,
     ]);
     return {
       initialBundle: bundle,
@@ -185,6 +199,7 @@ export async function getStatsPageBootstrap(
       initialSelectedPlanId: selectedPlanId,
       goal,
       goalMetrics,
+      asymptoteMonitor,
     };
   }
 
@@ -197,7 +212,7 @@ export async function getStatsPageBootstrap(
     .limit(1);
   const initialExerciseId = firstExerciseRows[0]?.id ?? "";
 
-  const [bundle, filterOptions, initialE1rm, volumeWeekly, goalMetrics] = await Promise.all([
+  const [bundle, filterOptions, initialE1rm, volumeWeekly, goalMetrics, asymptoteMonitor] = await Promise.all([
     fetchStatsBundle({ userId, days: 90 }),
     fetchStats1RMFilterOptions(userId),
     initialExerciseId
@@ -213,6 +228,7 @@ export async function getStatsPageBootstrap(
       : Promise.resolve(null),
     fetchWeeklyVolumeForBootstrap(userId),
     goalMetricsPromise,
+    asymptoteMonitorPromise,
   ]);
 
   return {
@@ -226,5 +242,6 @@ export async function getStatsPageBootstrap(
     initialSelectedPlanId: selectedPlanId,
     goal,
     goalMetrics,
+    asymptoteMonitor,
   };
 }

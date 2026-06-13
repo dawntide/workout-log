@@ -3,7 +3,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { apiGet, apiPatch, apiPost, isAbortError } from "@/lib/api";
 import {
+  ASYMPTOTE_HYBRID_TM_PERCENT,
   extractOneRmTargetsFromTemplate,
+  isAsymptoteTemplate,
   isOperatorTemplate,
   resolveProgramFamily,
   type OneRmTarget,
@@ -285,6 +287,11 @@ function defaultStartPlanParamsFromTemplate(template: ProgramTemplate) {
 
 function resolveStartTmPercent(template: ProgramTemplate) {
   const tmPercentRaw = Number(template.latestVersion?.defaults?.tmPercent);
+  // 하이브리드: 앱의 asymptote는 Async 레이어가 얹힌 엔진이라 시작 TM을 0.87로 잡는다(원본 0.83보다
+  // 덜 보수적). 저장된 defaults.tmPercent(0.83)를 의도적으로 오버라이드.
+  if (isAsymptoteTemplate(template)) {
+    return ASYMPTOTE_HYBRID_TM_PERCENT;
+  }
   if (isOperatorTemplate(template)) {
     if (
       !Number.isFinite(tmPercentRaw) ||

@@ -1,8 +1,11 @@
 import { mapExerciseNameToTarget } from "@/lib/strength-engine/target-mapping";
 import {
+  ASYMPTOTE_HYBRID_TM_PERCENT,
   ASYMPTOTE_SESSIONS,
   ASYMPTOTE_SESSION_LABELS,
 } from "./asymptote-blueprint";
+
+export { ASYMPTOTE_HYBRID_TM_PERCENT };
 import { lookupProgramFamily } from "./program-registry";
 
 export type ProgramTemplate = {
@@ -661,6 +664,19 @@ export function isOperatorTemplate(template: ProgramTemplate | null | undefined)
     kind === "operator" ||
     template.latestVersion?.definition?.operatorStyle === true ||
     String(template.latestVersion?.definition?.programFamily ?? "").trim().toLowerCase() === "operator"
+  );
+}
+
+// 앱의 asymptote 프로그램(= Asymptote × Async 하이브리드 엔진). slug/kind/family로 판별.
+export function isAsymptoteTemplate(template: ProgramTemplate | null | undefined) {
+  if (!template) return false;
+  const slug = String(template.slug ?? "").trim().toLowerCase();
+  const kind = String(template.latestVersion?.definition?.kind ?? "").trim().toLowerCase();
+  return (
+    slug === "asymptote-protocol" ||
+    slug === "asymptote" ||
+    kind === "asymptote" ||
+    String(template.latestVersion?.definition?.programFamily ?? "").trim().toLowerCase() === "asymptote"
   );
 }
 

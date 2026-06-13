@@ -7,15 +7,17 @@ import {
   ASYMPTOTE_SESSIONS,
   ASYMPTOTE_SESSION_LABELS,
   ASYMPTOTE_AMRAP_TARGETS_BY_SESSION,
+  ASYMPTOTE_HYBRID_TM_PERCENT,
   type AsymptoteLift,
   type AsymptoteLiftRow,
 } from "@/lib/program-store/asymptote-blueprint";
 
-// 슬롯 구성은 청사진이 단일 진실원. 기존 import 경로(이 모듈) 호환을 위해 re-export.
+// 슬롯 구성·하이브리드 상수는 청사진이 단일 진실원. 기존 import 경로(이 모듈) 호환을 위해 re-export.
 export {
   ASYMPTOTE_SESSIONS,
   ASYMPTOTE_SESSION_LABELS,
   ASYMPTOTE_AMRAP_TARGETS_BY_SESSION,
+  ASYMPTOTE_HYBRID_TM_PERCENT,
 };
 export type { AsymptoteLift, AsymptoteLiftRow };
 
@@ -90,10 +92,6 @@ export function deriveAsymptoteAuxTms(sqTmKg: number, bpTmKg: number): { dlTmKg:
 //      강등한다. 해당 리프트는 이번 블록 AMRAP 결측 → reducer가 TM을 유지(안전 강등).
 // 두 규칙 모두 순수 함수로 노출해 처방 레이어가 조합한다.
 // ──────────────────────────────────────────────────────────────────────────────
-
-// 하이브리드 권장 초기 TM 배수 — Async(공격적)와 Asymptote(0.83 보수적)의 절충.
-// 엔진 계산이 아니라 플랜 초기화(최근 추정 1RM × 배수) 단계에서 참조하는 상수.
-export const ASYMPTOTE_HYBRID_TM_PERCENT = 0.87;
 
 // AMRAP(거시 진행 신호)을 신뢰하려면 필요한 직전 세션과의 최소 휴식일. 미만이면 보류.
 export const ASYMPTOTE_AMRAP_MIN_REST_DAYS = 2;
