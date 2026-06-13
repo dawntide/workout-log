@@ -936,6 +936,20 @@ export function reduceProgressionState(input: {
       didAdvanceSession = true;
     }
 
+    // 하이브리드 트리거 조기 디로드 (asymptote-async-hybrid.md §3.3):
+    // 드라이버(SQ/BP/PULL) 중 2개 이상이 최근 노출에서 그라인딩으로 렙 급감(failureStreak ≥ 2)이면
+    // 빌드 사이클(week 1~3) 중에 즉시 디로드 사이클(week 4)로 점프해 누적 피로를 끊는다. 고정
+    // 사이클4(바닥 보험)는 유지하되 트리거가 그것을 앞당기는 천장 역할. 정상 진행(streak 0)엔 미발동.
+    if (!completedBlock && loggedTargets.length > 0 && state.week >= 1 && state.week < 4) {
+      const drivers: ProgressionTarget[] = ["SQUAT", "BENCH", "PULL"];
+      const regressed = drivers.filter((d) => (state.targets[d]?.failureStreak ?? 0) >= 2).length;
+      if (regressed >= 2) {
+        // 디로드 사이클 선두로 점프. 블록은 week4/day3에서 평소대로 완료(TM 유지)된다.
+        state.week = 4;
+        state.day = 1;
+      }
+    }
+
     if (completedBlock && loggedTargets.length > 0) {
       let triggerLight = false;
 

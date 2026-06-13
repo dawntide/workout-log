@@ -1,4 +1,4 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { buildSessionKey } from "@/lib/session-key";
 import { db } from "@/server/db/client";
 import {
@@ -9,6 +9,7 @@ import {
   planRuntimeState,
   programTemplate,
   programVersion,
+  workoutLog,
 } from "@/server/db/schema";
 import { extractTrainingMaxOverridesFromState, extractStageOverridesFromState } from "@/server/progression/reducer";
 import {
@@ -16,6 +17,7 @@ import {
   ASYMPTOTE_LIGHT_CYCLE_COEF,
   ASYMPTOTE_SESSIONS,
   ASYMPTOTE_SESSION_LABELS,
+  asymptoteDayGap,
   asymptoteShouldDeferAmrap,
   floorToMultiple2p5,
 } from "./asymptote";
@@ -1393,6 +1395,27 @@ export function applyManualRuntimeWeightOverrides(
  *     }
  *   ]
  */
+// 하이브리드(Asymptote × Async) 연속일 AMRAP 가드용 restDayGap: 생성 중인 세션 날짜와 직전 수행
+// 세션(같은 플랜) 사이의 일 간격(plan timezone 기준). 직전 세션 없음/조회 실패면 null(가드 비활성).
+async function resolveRestDayGapDays(input: {
+  planId: string;
+  sessionDate: string;
+  timezone: string;
+}): Promise<number | null> {
+  try {
+    const tz = input.timezone || "UTC";
+    const rows = await db
+      .select({
+        lastDate: sql<string | null>`max((${workoutLog.performedAt} at time zone ${tz})::date)::text`,
+      })
+      .from(workoutLog)
+      .where(eq(workoutLog.planId, input.planId));
+    return asymptoteDayGap(input.sessionDate, rows[0]?.lastDate ?? null);
+  } catch {
+    return null;
+  }
+}
+
 export async function generateAndSaveSession(input: {
   userId: string;
   planId: string;
@@ -1429,6 +1452,17 @@ export async function generateAndSaveSession(input: {
     runtimeState,
   });
   const sessionKey = sessionCtx.sessionKey;
+
+  // 하이브리드 연속일 AMRAP 가드 입력. asymptote 처방만 소비하며, 값이 없으면 가드 비활성
+  // (다른 프로그램·preview 경로 동작 불변). 세션 생성은 유저 액션이라 단건 인덱스 조회 1회는 무해.
+  const restDayGap = await resolveRestDayGapDays({
+    planId: input.planId,
+    sessionDate: sessionCtx.sessionDate,
+    timezone: sessionCtx.timezone,
+  });
+  if (restDayGap !== null) {
+    (effectivePlanParams as Record<string, unknown>).restDayGap = restDayGap;
+  }
 
   // overrides + (modules 또는 version/template) 병렬 조회
   let snapshot: any = {

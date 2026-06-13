@@ -125,3 +125,14 @@ export function asymptoteSetGuidance(input: {
 }): AsymptoteSetGuidance {
   return input.amrapEligible && !asymptoteShouldDeferAmrap(input) ? "AMRAP" : "STOP_ON_GRIND";
 }
+
+// 두 'YYYY-MM-DD'(plan timezone 기준) 날짜 사이의 일(日) 간격. 연속일 AMRAP 가드의 restDayGap 입력.
+// lastDate 미상/파싱 불가/미래(음수)면 null(가드 비활성). 처방 레이어가 직전 세션 날짜와 함께 호출한다.
+export function asymptoteDayGap(sessionDate: string, lastDate: string | null | undefined): number | null {
+  if (!lastDate) return null;
+  const current = Date.parse(`${sessionDate}T00:00:00Z`);
+  const previous = Date.parse(`${lastDate}T00:00:00Z`);
+  if (!Number.isFinite(current) || !Number.isFinite(previous)) return null;
+  const gap = Math.round((current - previous) / 86_400_000);
+  return gap >= 0 ? gap : null;
+}

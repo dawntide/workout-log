@@ -6,6 +6,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   ASYMPTOTE_AMRAP_MIN_REST_DAYS,
+  asymptoteDayGap,
   asymptoteSetGuidance,
   asymptoteShouldDeferAmrap,
 } from "./asymptote";
@@ -46,6 +47,30 @@ test("asymptoteShouldDeferAmrap: 연속일 가드 매트릭스", () => {
 
 test("ASYMPTOTE_AMRAP_MIN_REST_DAYS 기본값은 2(48h)", () => {
   assert.equal(ASYMPTOTE_AMRAP_MIN_REST_DAYS, 2);
+});
+
+test("asymptoteDayGap: 세션 날짜 - 직전 세션 날짜 일 간격", () => {
+  assert.equal(asymptoteDayGap("2026-06-13", "2026-06-13"), 0, "같은 날 → 0");
+  assert.equal(asymptoteDayGap("2026-06-13", "2026-06-12"), 1, "연속일 → 1");
+  assert.equal(asymptoteDayGap("2026-06-13", "2026-06-11"), 2, "48h → 2");
+  assert.equal(asymptoteDayGap("2026-07-01", "2026-06-28"), 3, "월 경계 넘는 3일");
+  assert.equal(asymptoteDayGap("2026-06-13", null), null, "직전 세션 없음 → null");
+  assert.equal(asymptoteDayGap("2026-06-13", undefined), null, "undefined → null");
+  assert.equal(asymptoteDayGap("2026-06-13", "2026-06-20"), null, "미래(음수) → null");
+  assert.equal(asymptoteDayGap("2026-06-13", "garbage"), null, "파싱 불가 → null");
+});
+
+test("asymptoteDayGap → asymptoteShouldDeferAmrap 결합", () => {
+  // 직전 세션과 1일 → gap 1 < 2 → 보류
+  assert.equal(
+    asymptoteShouldDeferAmrap({ amrapEligible: true, restDayGap: asymptoteDayGap("2026-06-13", "2026-06-12") }),
+    true,
+  );
+  // 직전 세션과 2일 → gap 2 ≥ 2 → 진행
+  assert.equal(
+    asymptoteShouldDeferAmrap({ amrapEligible: true, restDayGap: asymptoteDayGap("2026-06-13", "2026-06-11") }),
+    false,
+  );
 });
 
 test("asymptoteSetGuidance: AMRAP vs STOP_ON_GRIND", () => {
