@@ -540,3 +540,85 @@ test("greyskull(flag 없음): 기존 단순 LP — AMRAP 무시(더블 안 함, 
   });
   assert.equal(result.nextState.targets.SQUAT?.workKg, 102.5); // 단순 LP 단일 +2.5 (더블 아님)
 });
+
+// SS/StrongLifts 정석(v2): uniform LP는 슬롯키가 없어 그동안 plannedRef를 못 흘려 rep 미달을
+// 감지하지 못했다(reps>0이면 무조건 성공 → 잘못 증량). reps-only plannedRef(progressionKey 없음)를
+// 흘리면 reducer 분기 추가 없이도 setWasCompleted가 reps>=plannedReps로 판정 → 한 세트라도 미달이면
+// 그 세션 실패. progressionKey를 안 넣어 family(SQUAT 등) 진행 키는 유지된다(슬롯키 오염 없음).
+function lpSet(exerciseName: string, reps: number, weightKg: number, plannedReps: number) {
+  return { exerciseName, reps, weightKg, meta: { plannedRef: { reps: plannedReps } } };
+}
+
+test("SS(v2): 3×5 중 한 세트라도 reps 미달이면 실패(증량 안 함)", () => {
+  const result = reduceProgressionState({
+    program: "starting-strength-lp",
+    previousState: { cycle: 1, week: 1, day: 1, targets: { SQUAT: { progressionTarget: "SQUAT", workKg: 100, successStreak: 0, failureStreak: 0 } }, lastAppliedLogId: null },
+    planParams: { progressionModel: "v2" },
+    logId: "log-ss-1",
+    sets: [lpSet("Back Squat", 5, 100, 5), lpSet("Back Squat", 5, 100, 5), lpSet("Back Squat", 3, 100, 5)],
+  });
+  assert.equal(result.nextState.targets.SQUAT?.workKg, 100); // 미달 → 증량 안 함
+  assert.equal(result.nextState.targets.SQUAT?.failureStreak, 1);
+  assert.notEqual(result.eventType, "INCREASE");
+});
+
+test("SS(v2): 3×5 전부 성공 → 증량(+2.5)", () => {
+  const result = reduceProgressionState({
+    program: "starting-strength-lp",
+    previousState: { cycle: 1, week: 1, day: 1, targets: { SQUAT: { progressionTarget: "SQUAT", workKg: 100, successStreak: 0, failureStreak: 0 } }, lastAppliedLogId: null },
+    planParams: { progressionModel: "v2" },
+    logId: "log-ss-2",
+    sets: [lpSet("Back Squat", 5, 100, 5), lpSet("Back Squat", 5, 100, 5), lpSet("Back Squat", 5, 100, 5)],
+  });
+  assert.equal(result.nextState.targets.SQUAT?.workKg, 102.5);
+  assert.equal(result.eventType, "INCREASE");
+});
+
+test("StrongLifts(v2): 5×5 중 마지막 세트 미달 → 실패(증량 안 함)", () => {
+  const result = reduceProgressionState({
+    program: "stronglifts-5x5",
+    previousState: { cycle: 1, week: 1, day: 1, targets: { BENCH: { progressionTarget: "BENCH", workKg: 60, successStreak: 0, failureStreak: 0 } }, lastAppliedLogId: null },
+    planParams: { progressionModel: "v2" },
+    logId: "log-sl-1",
+    sets: [
+      lpSet("Bench Press", 5, 60, 5),
+      lpSet("Bench Press", 5, 60, 5),
+      lpSet("Bench Press", 5, 60, 5),
+      lpSet("Bench Press", 5, 60, 5),
+      lpSet("Bench Press", 3, 60, 5),
+    ],
+  });
+  assert.equal(result.nextState.targets.BENCH?.workKg, 60);
+  assert.equal(result.nextState.targets.BENCH?.failureStreak, 1);
+});
+
+test("SS(v2): Power Clean 5×3 — 세트별 처방 reps(3)로 검증, 2렙은 미달", () => {
+  // 운동마다 처방 reps가 다르다(스쿼트 5, 파워클린 3). plannedRef.reps가 세트별로 흘러
+  // 파워클린은 3렙 충족·2렙 미달로 판정된다. plannedRef.progressionTarget으로 키를 고정.
+  const result = reduceProgressionState({
+    program: "starting-strength-lp",
+    previousState: { cycle: 1, week: 1, day: 1, targets: { DEADLIFT: { progressionTarget: "DEADLIFT", workKg: 50, successStreak: 0, failureStreak: 0 } }, lastAppliedLogId: null },
+    planParams: { progressionModel: "v2" },
+    logId: "log-pc-1",
+    sets: [
+      { exerciseName: "Power Clean", reps: 3, weightKg: 50, meta: { plannedRef: { reps: 3, progressionTarget: "DEADLIFT" } } },
+      { exerciseName: "Power Clean", reps: 3, weightKg: 50, meta: { plannedRef: { reps: 3, progressionTarget: "DEADLIFT" } } },
+      { exerciseName: "Power Clean", reps: 2, weightKg: 50, meta: { plannedRef: { reps: 3, progressionTarget: "DEADLIFT" } } },
+    ],
+  });
+  assert.equal(result.nextState.targets.DEADLIFT?.workKg, 50); // 미달 → 증량 안 함
+  assert.notEqual(result.eventType, "INCREASE");
+});
+
+test("SS(v2): rep 미달이 실패 임계(3연속)에 도달하면 ×0.9 디로드", () => {
+  const result = reduceProgressionState({
+    program: "starting-strength-lp",
+    previousState: { cycle: 1, week: 1, day: 1, targets: { SQUAT: { progressionTarget: "SQUAT", workKg: 100, successStreak: 0, failureStreak: 2 } }, lastAppliedLogId: null },
+    planParams: { progressionModel: "v2" },
+    logId: "log-ss-deload",
+    sets: [lpSet("Back Squat", 5, 100, 5), lpSet("Back Squat", 5, 100, 5), lpSet("Back Squat", 2, 100, 5)],
+  });
+  assert.equal(result.eventType, "RESET");
+  assert.equal(result.nextState.targets.SQUAT?.workKg, 90); // 100 × 0.9
+  assert.equal(result.nextState.targets.SQUAT?.failureStreak, 0);
+});

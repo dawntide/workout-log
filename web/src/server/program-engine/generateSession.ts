@@ -111,6 +111,9 @@ export type PlannedExercise = {
   stage?: number | null;
   // texas 주간(v2): 슬롯 요일 역할. 처방 무게 파생(V/R=I×계수)·UI 배지에 쓴다.
   texasRole?: "volume" | "recovery" | "intensity" | null;
+  // SS/StrongLifts 정석(v2): 메인 리프트가 고정 reps를 못 채우면 실패로 감지하도록 reps-only
+  // plannedRef를 흘릴지 마킹. progressionKey 없이 reps만 흘려 family 진행은 유지한다(저장 경로에서 소비).
+  enforcePlannedReps?: boolean;
 };
 
 export type { PlannedSet };
@@ -698,7 +701,7 @@ function mapManualSet(s: any): PlannedSet {
 
 export function plannedExercisesFromManualSession(
   manualSession: any,
-  options?: { injectAmrapLastMainSet?: boolean },
+  options?: { injectAmrapLastMainSet?: boolean; enforcePlannedReps?: boolean },
 ): PlannedExercise[] {
   const items = Array.isArray(manualSession?.items) ? manualSession.items : [];
   const out: PlannedExercise[] = [];
@@ -720,6 +723,8 @@ export function plannedExercisesFromManualSession(
       if (lastSet) (lastSet as PlannedSet).amrap = true;
     }
 
+    const progressionTarget = normalizeProgressionTarget(item?.progressionTarget ?? item?.meta?.progressionTarget);
+
     out.push({
       exerciseId: typeof item?.exerciseId === "string" ? item.exerciseId : null,
       exerciseName,
@@ -728,8 +733,15 @@ export function plannedExercisesFromManualSession(
       sourceBlockTarget: "MANUAL",
       order: toNumberOrNull(item?.order) ?? i,
       rowType: normalizeManualRowType(item?.rowType ?? item?.slotRole ?? item?.meta?.rowType ?? item?.meta?.slotRole),
-      progressionTarget: normalizeProgressionTarget(item?.progressionTarget ?? item?.meta?.progressionTarget),
+      progressionTarget,
       progressionKey: null,
+      // SS/StrongLifts 정석(v2): 메인 리프트가 고정 reps를 못 채우면 실패로 감지하도록 마킹.
+      // AMRAP 자기조절(greyskull)과 달리 "처방 reps 미달=실패". progressionTarget이 매핑되는
+      // MAIN 행에만 부착 — ASSIST·bodyweight 미매핑 행은 제외(저장 경로가 reps-only plannedRef로 소비).
+      enforcePlannedReps:
+        options?.enforcePlannedReps === true && role === "MAIN" && Boolean(progressionTarget)
+          ? true
+          : undefined,
     });
   }
 
@@ -1628,10 +1640,15 @@ export async function generateAndSaveSession(input: {
           const injectGreyskullAmrap =
             manualEntry?.family === "greyskull-lp" &&
             (effectivePlanParams as Record<string, unknown>)?.progressionModel === "v2";
+          const enforceUniformLpReps =
+            (manualEntry?.family === "starting-strength-lp" ||
+              manualEntry?.family === "stronglifts-5x5") &&
+            (effectivePlanParams as Record<string, unknown>)?.progressionModel === "v2";
           snapshot.exercises = applyManualRuntimeWeightOverrides(
             manualEntry,
             plannedExercisesFromManualSession(snapshot.manualSession, {
               injectAmrapLastMainSet: injectGreyskullAmrap,
+              enforcePlannedReps: enforceUniformLpReps,
             }),
             runtimeState,
           );
@@ -1803,8 +1820,13 @@ export function previewSessionExercises(
       const injectGreyskullAmrap =
         manualEntry?.family === "greyskull-lp" &&
         (effectivePlanParams as Record<string, unknown>)?.progressionModel === "v2";
+      const enforceUniformLpReps =
+        (manualEntry?.family === "starting-strength-lp" ||
+          manualEntry?.family === "stronglifts-5x5") &&
+        (effectivePlanParams as Record<string, unknown>)?.progressionModel === "v2";
       exercises = plannedExercisesFromManualSession(manualSession, {
         injectAmrapLastMainSet: injectGreyskullAmrap,
+        enforcePlannedReps: enforceUniformLpReps,
       });
       exercises = applyManualRuntimeWeightOverrides(
         manualEntry,

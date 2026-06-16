@@ -47,6 +47,9 @@ export type WorkoutExerciseModel = {
   stage?: number | null;
   // texas 주간(v2): 슬롯 요일 역할(volume/recovery/intensity). UI 배지 전용.
   texasRole?: string | null;
+  // SS/StrongLifts 정석(v2): 고정 reps 미달을 실패로 감지하기 위해 reps-only plannedRef를
+  // 흘릴지 마킹. progressionKey 없이 reps만 흘려 family 진행은 유지한다.
+  enforcePlannedReps?: boolean;
   set: WorkoutSetModel;
   note: WorkoutNoteModel;
 };
@@ -163,6 +166,7 @@ type SnapshotExercise = {
   tier?: string | null;
   stage?: number | null;
   texasRole?: string | null;
+  enforcePlannedReps?: boolean;
   sets?: SnapshotSet[];
 };
 
@@ -580,6 +584,7 @@ function toSeedExercise(exercise: SnapshotExercise, index: number): WorkoutExerc
     tier: typeof exercise.tier === "string" ? exercise.tier : null,
     stage: typeof exercise.stage === "number" ? exercise.stage : null,
     texasRole: typeof exercise.texasRole === "string" ? exercise.texasRole : null,
+    enforcePlannedReps: exercise.enforcePlannedReps === true ? true : undefined,
     set: {
       count: repsPerSet.length,
       reps: repsPerSet[0] ?? 5,
@@ -1155,6 +1160,16 @@ export function toWorkoutLogPayload(
         if (typeof plannedReps === "number" && plannedReps > 0) plannedRef.reps = plannedReps;
         if (amrapPerSet?.[index] === true) plannedRef.amrap = true;
         meta.plannedRef = plannedRef;
+      } else if (exercise.enforcePlannedReps && amrapPerSet?.[index] !== true) {
+        // SS/StrongLifts 정석(v2): 고정 reps 검증을 위해 reps-only plannedRef를 흘린다.
+        // progressionKey를 의도적으로 생략 → reducer가 family 폴백으로 진행하므로(슬롯키 오염 없음)
+        // family-state LP가 단절되지 않는다. AMRAP 세트는 처방 reps가 최소값이라 검증에서 제외.
+        const plannedReps = exercise.plannedSetMeta?.repsPerSet?.[index];
+        if (typeof plannedReps === "number" && plannedReps > 0) {
+          const plannedRef: Record<string, unknown> = { reps: plannedReps };
+          if (exercise.progressionTarget) plannedRef.progressionTarget = exercise.progressionTarget;
+          meta.plannedRef = plannedRef;
+        }
       }
 
       sets.push({

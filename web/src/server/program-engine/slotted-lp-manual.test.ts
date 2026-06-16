@@ -409,3 +409,26 @@ test("greyskull(v2): plannedExercisesFromManualSession이 메인 마지막 세�
   const v1 = plannedExercisesFromManualSession(session);
   assert.equal(v1[0]!.sets[2]!.amrap, undefined);
 });
+
+// SS/StrongLifts(v2): MAIN + progressionTarget 매핑 행에만 enforcePlannedReps 마킹.
+// ASSIST·progressionTarget 미매핑(bodyweight 등) 행은 제외 — 저장 경로가 이 마킹을 보고 reps-only
+// plannedRef를 흘릴지 결정한다. 비-옵션은 미부착(forward-only).
+test("SS/SL(enforcePlannedReps): MAIN+progressionTarget 행에만 마킹, ASSIST·미매핑 행은 제외", () => {
+  const session = {
+    key: "A",
+    items: [
+      { exerciseName: "Back Squat", role: "MAIN", progressionTarget: "SQUAT", sets: [{ reps: 5 }, { reps: 5 }, { reps: 5 }] },
+      { exerciseName: "Chin-Up", role: "ASSIST", sets: [{ reps: 8 }, { reps: 8 }] },
+      { exerciseName: "Mystery Lift", role: "MAIN", sets: [{ reps: 5 }] }, // MAIN이나 progressionTarget 미매핑
+    ],
+  };
+
+  const v2 = plannedExercisesFromManualSession(session, { enforcePlannedReps: true });
+  assert.equal(v2[0]!.enforcePlannedReps, true); // MAIN + progressionTarget
+  assert.notEqual(v2[1]!.enforcePlannedReps, true); // ASSIST 제외
+  assert.notEqual(v2[2]!.enforcePlannedReps, true); // progressionTarget 미매핑 제외(bodyweight 가드)
+
+  // 비-옵션: 마킹 안 함 — forward-only
+  const v1 = plannedExercisesFromManualSession(session);
+  assert.notEqual(v1[0]!.enforcePlannedReps, true);
+});

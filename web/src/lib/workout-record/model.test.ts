@@ -568,3 +568,116 @@ test("toWorkoutLogPayload: progressionKey 없는 사용자 추가 운동은 plan
   const meta0 = payload.sets[0]!.meta as { plannedRef?: unknown };
   assert.equal(meta0.plannedRef, undefined);
 });
+
+// SS/StrongLifts 정석(v2): uniform LP는 슬롯키(_s)가 없어 plannedRef를 못 흘려 rep 미달을 감지
+// 못했다. enforcePlannedReps 마킹 시 progressionKey 없는 reps-only plannedRef를 흘려 reducer의
+// setWasCompleted가 reps 미달을 실패로 판정하게 한다. progressionKey를 안 넣어야 family 진행이 유지된다.
+test("toWorkoutLogPayload: SS/SL(v2 enforcePlannedReps)은 progressionKey 없는 reps-only plannedRef를 흘린다", () => {
+  const session: GeneratedSessionLike = {
+    id: "session-ss",
+    planId: "plan-ss",
+    sessionKey: "2026-03-09@A",
+    snapshot: {
+      sessionKey: "2026-03-09@A",
+      sessionDate: "2026-03-09",
+      week: 1,
+      day: 1,
+      program: { slug: "starting-strength-lp", name: "Starting Strength" },
+      exercises: [
+        {
+          exerciseName: "Back Squat",
+          rowType: "AUTO",
+          progressionTarget: "SQUAT",
+          enforcePlannedReps: true,
+          sets: [
+            { reps: 5, targetWeightKg: 100 },
+            { reps: 5, targetWeightKg: 100 },
+            { reps: 5, targetWeightKg: 100 },
+          ],
+        },
+      ],
+    },
+  };
+  const draft = createWorkoutRecordDraft(session, "SS Plan", {
+    sessionDate: "2026-03-09",
+    timezone: "Asia/Seoul",
+  });
+  const payload = toWorkoutLogPayload(draft, {});
+
+  assert.equal(payload.sets.length, 3);
+  const meta0 = payload.sets[0]!.meta as {
+    plannedRef?: { progressionKey?: string; progressionTarget?: string; reps?: number };
+  };
+  assert.equal(meta0.plannedRef?.reps, 5);
+  assert.equal(meta0.plannedRef?.progressionTarget, "SQUAT");
+  assert.equal(meta0.plannedRef?.progressionKey, undefined); // 키 오염 방지(핵심) — family 진행 유지
+});
+
+test("toWorkoutLogPayload: enforcePlannedReps 없는 SS/SL(레거시)은 plannedRef 미부착(forward-only)", () => {
+  const session: GeneratedSessionLike = {
+    id: "session-ss-legacy",
+    planId: "plan-ss-legacy",
+    sessionKey: "2026-03-09@A",
+    snapshot: {
+      sessionKey: "2026-03-09@A",
+      sessionDate: "2026-03-09",
+      week: 1,
+      day: 1,
+      program: { slug: "starting-strength-lp", name: "Starting Strength" },
+      exercises: [
+        {
+          exerciseName: "Back Squat",
+          rowType: "AUTO",
+          progressionTarget: "SQUAT",
+          // enforcePlannedReps 없음 → 레거시 동작 유지
+          sets: [{ reps: 5, targetWeightKg: 100 }],
+        },
+      ],
+    },
+  };
+  const draft = createWorkoutRecordDraft(session, "SS Plan", {
+    sessionDate: "2026-03-09",
+    timezone: "Asia/Seoul",
+  });
+  const payload = toWorkoutLogPayload(draft, {});
+  const meta0 = payload.sets[0]!.meta as { plannedRef?: unknown };
+  assert.equal(meta0.plannedRef, undefined);
+});
+
+test("toWorkoutLogPayload: SS Power Clean 5×3은 세트별 reps=3으로 흘린다(progressionKey 없음)", () => {
+  const session: GeneratedSessionLike = {
+    id: "session-pc",
+    planId: "plan-pc",
+    sessionKey: "2026-03-09@B",
+    snapshot: {
+      sessionKey: "2026-03-09@B",
+      sessionDate: "2026-03-09",
+      week: 1,
+      day: 1,
+      program: { slug: "starting-strength-lp", name: "Starting Strength" },
+      exercises: [
+        {
+          exerciseName: "Power Clean",
+          rowType: "AUTO",
+          progressionTarget: "DEADLIFT",
+          enforcePlannedReps: true,
+          sets: [
+            { reps: 3, targetWeightKg: 50 },
+            { reps: 3, targetWeightKg: 50 },
+            { reps: 3, targetWeightKg: 50 },
+            { reps: 3, targetWeightKg: 50 },
+            { reps: 3, targetWeightKg: 50 },
+          ],
+        },
+      ],
+    },
+  };
+  const draft = createWorkoutRecordDraft(session, "SS Plan", {
+    sessionDate: "2026-03-09",
+    timezone: "Asia/Seoul",
+  });
+  const payload = toWorkoutLogPayload(draft, {});
+  const meta0 = payload.sets[0]!.meta as { plannedRef?: { reps?: number; progressionKey?: string } };
+  assert.equal(meta0.plannedRef?.reps, 3);
+  assert.equal(meta0.plannedRef?.progressionKey, undefined);
+});
