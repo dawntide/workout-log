@@ -274,10 +274,11 @@ function defaultStartPlanParamsFromTemplate(template: ProgramTemplate) {
     }
   }
 
-  // 한계2: gzclp·texas·greyskull·SS·StrongLifts는 신규 시작/재시작부터 정석 모델(v2)을 기본 적용한다.
+  // 한계2: gzclp·texas·greyskull·SS·StrongLifts·operator는 신규 시작/재시작부터 정석 모델(v2)을 적용한다.
   // gzclp=tier별 stage 강등(5×3→6×2→10×1)+T3 AMRAP, texas=주간 모델(I 강도일이 V/R을 I×0.9/0.8로
   // 파생), greyskull=메인 마지막 세트 AMRAP 자기조절(≥10 더블 프로그레션, <5 2연속 시 디로드),
-  // SS/StrongLifts=고정 reps 미달을 실패로 감지(reps-only plannedRef로 setWasCompleted가 검증).
+  // SS/StrongLifts=고정 reps 미달을 실패로 감지(reps-only plannedRef로 setWasCompleted가 검증),
+  // operator=블록 완주(W6D3) reps 미달을 실패로 감지해 블록 증량을 차단(TB 공식: W6 수행 기준 평가).
   // forward-only — 기존 플랜은 params에 progressionModel이 없어 그대로 단순 LP를 유지하므로 체감 변화가 없다.
   const progressionFamily = resolveProgramFamily(template);
   if (
@@ -285,7 +286,8 @@ function defaultStartPlanParamsFromTemplate(template: ProgramTemplate) {
     progressionFamily === "texas-method" ||
     progressionFamily === "greyskull-lp" ||
     progressionFamily === "starting-strength-lp" ||
-    progressionFamily === "stronglifts-5x5"
+    progressionFamily === "stronglifts-5x5" ||
+    progressionFamily === "operator"
   ) {
     params.progressionModel = "v2";
   }

@@ -526,6 +526,12 @@ function generateOperator(def: LogicDefinitionV1, ctx: GeneratorCtx): PlannedExe
 
   const scheme = operatorSchemeByWeek(weekInCycle);
 
+  // operator 정석(v2): 블록 완주(W6D3) 시 처방 reps 미달을 실패로 감지하기 위해 MAIN 행에
+  // enforcePlannedReps 마킹 → 저장 경로가 progressionKey 없는 reps-only plannedRef를 흘려
+  // setWasCompleted가 reps>=plannedReps로 검증한다. 블록 게이트(reducer)가 failureStreak로
+  // W6D3 미달 시 증량을 차단(TB 공식: 블록 완주=W6 수행 기준 평가). forward-only.
+  const enforceReps = (ctx.params as Record<string, unknown>)?.progressionModel === "v2";
+
   return targets.map((target, i) => {
     const setCount = target === "DEADLIFT" ? deadliftSets : mainSets;
     const tm = pickTrainingMaxKg(ctx.params, ctx.defaults, target);
@@ -541,6 +547,7 @@ function generateOperator(def: LogicDefinitionV1, ctx: GeneratorCtx): PlannedExe
         tm !== null
           ? buildRepeatedSets(setCount, scheme, tm)
           : buildRepeatedRepOnlySets(setCount, scheme),
+      enforcePlannedReps: enforceReps ? true : undefined,
     };
   });
 }
@@ -748,7 +755,7 @@ export function plannedExercisesFromManualSession(
   return out;
 }
 
-function plannedExercisesFromOperatorManualSession(
+export function plannedExercisesFromOperatorManualSession(
   manualSession: any,
   week: number,
   effectiveParams: any,
@@ -759,6 +766,10 @@ function plannedExercisesFromOperatorManualSession(
   const scheme = operatorSchemeByWeek(week);
   const mainSets = 3;
   const deadliftSets = 3;
+  // operator 정석(v2): AUTO(MAIN) 행에 enforcePlannedReps 마킹 → 저장 경로가 progressionKey 없는
+  // reps-only plannedRef를 흘려 블록 완주(W6D3) 시 reps 미달을 실패로 감지. CUSTOM 행은 제외
+  // (ASSIST·progressionTarget 미보장). EX_ progressionKey는 그대로 두되 plannedRef엔 안 실린다.
+  const enforceReps = (effectiveParams as Record<string, unknown>)?.progressionModel === "v2";
 
   return items
     .map((item: any, index: number) => {
@@ -792,6 +803,7 @@ function plannedExercisesFromOperatorManualSession(
             tm !== null
               ? buildRepeatedSets(setCount, scheme, tm)
               : buildRepeatedRepOnlySets(setCount, scheme),
+          enforcePlannedReps: enforceReps && Boolean(progressionTarget) ? true : undefined,
         } satisfies PlannedExercise;
       }
 

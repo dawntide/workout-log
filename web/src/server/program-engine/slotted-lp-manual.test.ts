@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   plannedExercisesFromManualSession,
+  plannedExercisesFromOperatorManualSession,
   plannedExercisesFromSlottedLpManualSession,
   resolveManualEntry,
 } from "./generateSession";
@@ -431,4 +432,23 @@ test("SS/SL(enforcePlannedReps): MAIN+progressionTarget 행에만 마킹, ASSIST
   // 비-옵션: 마킹 안 함 — forward-only
   const v1 = plannedExercisesFromManualSession(session);
   assert.notEqual(v1[0]!.enforcePlannedReps, true);
+});
+
+// operator(v2): AUTO(MAIN) 행에만 enforcePlannedReps 마킹, CUSTOM 행은 제외. 비-v2는 미마킹(forward-only).
+// operator는 EX_ progressionKey를 들지만, 마킹은 저장 경로에서 progressionKey 없는 reps-only plannedRef로만 소비된다.
+test("operator(enforcePlannedReps): v2면 AUTO 행에 마킹, CUSTOM 행은 제외, 비-v2는 미마킹", () => {
+  const session = {
+    key: "C1W6D3",
+    items: [
+      { exerciseName: "Back Squat", rowType: "AUTO", progressionTarget: "SQUAT", sets: [{ reps: 1 }] },
+      { exerciseName: "Face Pull", rowType: "CUSTOM", sets: [{ reps: 15 }] },
+    ],
+  };
+
+  const v2 = plannedExercisesFromOperatorManualSession(session, 6, { progressionModel: "v2" }, {}, {});
+  assert.equal(v2[0]!.enforcePlannedReps, true); // AUTO + progressionTarget
+  assert.notEqual(v2[1]!.enforcePlannedReps, true); // CUSTOM 제외
+
+  const v1 = plannedExercisesFromOperatorManualSession(session, 6, {}, {}, {});
+  assert.notEqual(v1[0]!.enforcePlannedReps, true); // 비-v2 미마킹(forward-only)
 });
