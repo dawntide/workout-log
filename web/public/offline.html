@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>오프라인 · Workout Log</title>
+    <meta name="theme-color" content="#16151c" />
+    <!--
+      서비스워커(/sw.js)가 install 시 precache 하고, 네비게이션 네트워크 실패 시
+      마지막 폴백으로 서빙한다. 오프라인 상태에서 떠야 하므로 외부 리소스(CDN 폰트 등)에
+      의존하지 않는다 — 시스템 폰트 + 동일하게 precache 되는 앱 아이콘만 사용한다.
+    -->
+    <style>
+      :root {
+        --paper: #fbf7ee;
+        --ink: #2b2a26;
+        --ink-3: #6f6a5e;
+        --accent: #5b4cdb;
+        --on-accent: #fbf7ee;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --paper: #16151c;
+          --ink: #ece9f2;
+          --ink-3: #9994ad;
+          --accent: #9b87ff;
+          --on-accent: #0e0d12;
+        }
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+      }
+      body {
+        background: var(--paper);
+        color: var(--ink);
+        font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo",
+          "Malgun Gothic", "Segoe UI", Roboto, sans-serif;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+        -webkit-font-smoothing: antialiased;
+        text-rendering: optimizeLegibility;
+      }
+      .wrap {
+        width: 100%;
+        max-width: 360px;
+        text-align: center;
+      }
+      .icon {
+        width: 88px;
+        height: 88px;
+        border-radius: 20px;
+        margin: 0 auto 24px;
+        display: block;
+      }
+      h1 {
+        font-size: 22px;
+        line-height: 1.3;
+        font-weight: 700;
+        margin: 0 0 8px;
+        letter-spacing: -0.01em;
+      }
+      p {
+        font-size: 15px;
+        line-height: 1.6;
+        color: var(--ink-3);
+        margin: 0 0 28px;
+      }
+      button {
+        appearance: none;
+        -webkit-appearance: none;
+        border: 0;
+        cursor: pointer;
+        background: var(--accent);
+        color: var(--on-accent);
+        font: inherit;
+        font-size: 16px;
+        font-weight: 600;
+        min-height: 48px;
+        width: 100%;
+        padding: 0 20px;
+        border-radius: 9999px;
+        letter-spacing: -0.01em;
+      }
+      button:active {
+        opacity: 0.88;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <img class="icon" src="/icons/icon-192.png" alt="Workout Log" width="88" height="88" />
+      <h1>오프라인 상태예요</h1>
+      <p>인터넷 연결이 끊겼어요.<br />연결을 확인한 뒤 다시 시도해 주세요.</p>
+      <button type="button" onclick="location.reload()">다시 시도</button>
+    </div>
+  </body>
+</html>

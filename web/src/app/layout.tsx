@@ -10,6 +10,7 @@ import { LocalePreferenceSync } from "@/components/locale-preference-sync";
 import { TimezonePreferenceSync } from "@/components/timezone-preference-sync";
 import { LocaleProvider } from "@/components/locale-provider";
 import { FontStylesheetLoader } from "@/components/font-stylesheet-loader";
+import { ServiceWorkerRegister } from "@/components/service-worker-register";
 import { resolveRequestLocale } from "@/lib/i18n/server";
 import type { AppLocale } from "@/lib/i18n/messages";
 
@@ -110,6 +111,7 @@ export default function RootLayout({
       </head>
       <body>
         <FontStylesheetLoader />
+        <ServiceWorkerRegister />
         {/* PPR: 동적 쿠키/헤더 읽기를 Suspense 안으로 격리 → 정적 쉘 즉시 서빙 */}
         <Suspense fallback={null}>
           <LocaleShell>{children}</LocaleShell>

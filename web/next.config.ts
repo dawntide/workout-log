@@ -98,9 +98,9 @@ const nextConfig: NextConfig = {
           },
         ],
       },
-      // PWA 아이콘 / manifest 중간 캐싱
+      // PWA 아이콘 / manifest(.webmanifest) / sw.js 중간 캐싱
       {
-        source: "/(icons|manifest.json|sw.js)(.*)",
+        source: "/(icons|manifest|sw.js)(.*)",
         headers: [
           {
             key: "Cache-Control",
