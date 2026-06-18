@@ -30,7 +30,7 @@ export function V2ActionDock({
         left: "max(12px, env(safe-area-inset-left))",
         right: "max(12px, env(safe-area-inset-right))",
         bottom: "calc(12px + env(safe-area-inset-bottom))",
-        background: "color-mix(in srgb, var(--v2-paper) 68%, transparent)",
+        background: "color-mix(in srgb, var(--v2-paper) 52%, transparent)",
         backdropFilter: "blur(20px) saturate(160%)",
         WebkitBackdropFilter: "blur(20px) saturate(160%)",
         borderRadius: "var(--v2-r-pill)",
