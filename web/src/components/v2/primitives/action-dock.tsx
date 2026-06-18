@@ -33,7 +33,11 @@ export function V2ActionDock({
         position: "fixed",
         left: "max(12px, env(safe-area-inset-left))",
         right: "max(12px, env(safe-area-inset-right))",
-        bottom: "calc(12px + env(safe-area-inset-bottom))",
+        // 홈 인디케이터(safe-area)가 있으면 그 영역이 곧 하단 여백이 된다.
+        // safe-area에서 10px 당겨 PWA standalone(주소창 없음)에서 네비를
+        // 홈 인디케이터 쪽으로 더 내린다. max 하한 12px 덕에 브라우저
+        // (safe-area=0)에서는 그대로 12px이 유지된다.
+        bottom: "max(12px, calc(env(safe-area-inset-bottom) - 10px))",
         background: "color-mix(in srgb, var(--v2-paper) 52%, transparent)",
         backdropFilter: "blur(20px) saturate(160%)",
         WebkitBackdropFilter: "blur(20px) saturate(160%)",
