@@ -28,6 +28,11 @@ export type GoogleOAuthConfig = {
 };
 
 export function isGoogleOAuthConfigured(): boolean {
+  // Vercel preview는 배포마다 도메인이 달라 WORKOUT_APP_URL 고정 콜백과
+  // 어긋난다 → start가 preview 도메인에 심은 state 쿠키를 콜백(다른 도메인)이
+  // 못 읽어 항상 state_mismatch로 실패한다. OAuth가 구조적으로 불가하므로
+  // 버튼을 숨긴다. preview는 이메일/비밀번호로, OAuth는 로컬/production에서 검증.
+  if (process.env.VERCEL_ENV === "preview") return false;
   return Boolean(
     (process.env.GOOGLE_OAUTH_CLIENT_ID ?? "").trim() &&
       (process.env.GOOGLE_OAUTH_CLIENT_SECRET ?? "").trim(),
