@@ -30,7 +30,7 @@ const PREFETCH_ROUTES = ["/", "/workout/log", "/stats", "/calendar", "/plans"];
 const TERM_TABS: TermTab[] = [
   { key: "home", label: "home", href: "/" },
   { key: "log", label: "log", href: "/workout/log" },
-  { key: "stats", label: "stats", href: "/stats" },
+  { key: "stats", label: "stats", href: APP_ROUTES.statsHome },
   { key: "cal", label: "cal", href: APP_ROUTES.calendarHome },
   { key: "store", label: "store", href: APP_ROUTES.programStore },
   { key: "more", label: "more", href: "/settings" },
