@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/settings-state";
 import { Toast } from "@/components/ui/toast";
 import { useLocale } from "@/components/locale-provider";
+import { useThemeSkin } from "@/components/use-theme-skin";
 import {
   useWorkoutLogAddExerciseController,
 } from "@/features/workout-log/model/use-workout-log-add-exercise-controller";
@@ -33,6 +34,7 @@ import {
   WorkoutLogStackedList,
   type WorkoutLogStackedListHandle,
 } from "@/features/workout-log/ui/workout-log-stacked-list";
+import { WorkoutLogTuiView } from "@/features/workout-log/ui/workout-log-tui-view";
 import { WorkoutLogSummarySheet } from "@/features/workout-log/ui/workout-log-summary-sheet";
 import { AppPage, StickyActionBar } from "@/components/ui/page-layout";
 import { V2SectionHeader } from "@/components/v2/primitives";
@@ -68,6 +70,7 @@ function WorkoutLogScreenContent({
   const router = useRouter();
   const pathname = usePathname();
   const { copy, locale } = useLocale();
+  const skin = useThemeSkin();
   const { alert } = useAppDialog();
   const browserTimezone = useMemo(
     () => Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
@@ -362,6 +365,38 @@ function WorkoutLogScreenContent({
       <EmptyStateRows className="v2-font-display" when={noPlan} label={copy.workoutLog.noPlans} />
 
       {!noPlan && ((isDraftLoaded && draft) || blockedMessage) ? (
+        skin === "terminal" ? (
+          // ── terminal 본문: TUI 테이블 + 저장(⏎, 셸 푸터) + BW notice.
+          //    DateNav·헤더는 후속. 시트/toast는 게이트 밖에서 양쪽 공유. ──
+          draft ? (
+            <>
+              {showBodyweightCheck ? (
+                <BodyweightCheckBanner
+                  currentKg={bodyweightKg}
+                  locale={locale}
+                  submitting={bodyweightSubmitting}
+                  onUpdate={handleBodyweightUpdate}
+                  onKeep={handleBodyweightKeep}
+                />
+              ) : null}
+              <WorkoutLogTuiView
+                onExerciseAction={handleExerciseAction}
+                onOpenAddExerciseSheet={openAddExerciseSheet}
+                onSave={requestSave}
+              />
+            </>
+          ) : (
+            <NoticeStateRows
+              message={blockedMessage}
+              tone="warning"
+              preferInline
+              label={locale === "ko" ? "기록 안내" : "Log notice"}
+              ariaLabel={
+                locale === "ko" ? "기록 안내 상태" : "Log notice state"
+              }
+            />
+          )
+        ) : (
         <AppPage>
           <V2SectionHeader
             level="h1"
@@ -577,6 +612,7 @@ function WorkoutLogScreenContent({
           </>
           )}
         </AppPage>
+        )
       ) : null}
 
       <WorkoutLogSummarySheet

@@ -246,3 +246,23 @@
   right: var(--v2-s-3);
   z-index: 2;
 }
+
+/* ── Terminal(ironlog) 리스킨 ──────────────────────────────
+   색/폰트/radius(0)는 --v2-* remap으로 자동 적용(포크 없음, redesign-target §1).
+   여기선 터미널 고유 형태만: box 프레임(boxShadow inset, CSS border 금지) +
+   핸들/액션 버튼 톤. */
+:root[data-theme="terminal"] .mobile-bottom-sheet-panel {
+  box-shadow: inset 0 0 0 1px var(--term-line-box);
+}
+:root[data-theme="terminal"] .mobile-bottom-sheet-drag-handle-pill {
+  background-color: var(--term-dim);
+  opacity: 0.6;
+}
+:root[data-theme="terminal"] .mobile-bottom-sheet-btn {
+  background-color: var(--term-inset);
+  color: var(--term-dim);
+}
+:root[data-theme="terminal"] .mobile-bottom-sheet-btn--action {
+  background-color: var(--term-amber);
+  color: var(--term-bg);
+}

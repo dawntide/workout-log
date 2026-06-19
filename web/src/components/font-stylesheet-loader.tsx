@@ -9,6 +9,8 @@ const FONT_STYLESHEETS = [
   // PERF: Pretendard Variable (한글) — 자체 호스팅 CSS로 CDN DNS 왕복 제거
   // 폰트 파일은 CDN에서 서빙하되, CSS 자체는 동일 도메인 → HTTP/2 멀티플렉싱 활용
   "/fonts/pretendard-subset.css",
+  // ironlog terminal 테마 모노 폰트 (self-host @font-face) — terminal 활성 시에만 fetch
+  "/fonts/terminal-mono.css",
   // Material Symbols Outlined — variable 아이콘 폰트 (display=swap 포함)
   "https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap",
 ];

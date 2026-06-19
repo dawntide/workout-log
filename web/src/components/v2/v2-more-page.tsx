@@ -3,6 +3,8 @@
 import type { CSSProperties, ReactNode } from "react";
 import { useCallback, useEffect, useId, useMemo, useState } from "react";
 import { useLocale } from "@/components/locale-provider";
+import { useThemeSkin } from "@/components/use-theme-skin";
+import { SettingsTuiView } from "@/components/v2/settings-tui-view";
 import { NumberKeypadField } from "@/components/ui/number-keypad-field";
 import { V2Card, V2IconBtn, V2NavRow, V2PrimaryBtn, V2SecondaryBtn, V2Stack } from "@/components/v2/primitives";
 import { apiGet } from "@/lib/api";
@@ -10,15 +12,19 @@ import { createPersistServerSetting } from "@/lib/settings/settings-api";
 import { useSettingRowMutation } from "@/lib/settings/use-setting-row-mutation";
 import {
   applyThemePreferenceToDocument,
+  applyThemeSkinToDocument,
+  DEFAULT_THEME_SKIN,
   DEFAULT_TRAINING_GOAL_PRIMARY,
   normalizeLocalePreference,
   normalizeThemePreference,
+  normalizeThemeSkin,
   normalizeTrainingGoal,
   parseTrainingGoalSecondary,
   serializeTrainingGoalSecondary,
   SETTINGS_KEYS,
   type LocalePreference,
   type ThemePreference,
+  type ThemeSkin,
   type TrainingGoalKey,
 } from "@/lib/settings/workout-preferences";
 import type { SettingsSnapshot } from "@/server/services/settings/get-settings-snapshot";
@@ -39,7 +45,14 @@ type SettingsResponse = {
   settings: SettingsSnapshot;
 };
 
+// skin 분기 래퍼 — terminal이면 SettingsTuiView(테마 토글 포함), paper는 기존(무수정).
 export function V2MorePage() {
+  const skin = useThemeSkin();
+  if (skin === "terminal") return <SettingsTuiView />;
+  return <V2MorePagePaper />;
+}
+
+function V2MorePagePaper() {
   const { locale } = useLocale();
   const headingId = useId();
   const [me, setMe] = useState<MeResponse["user"] | null>(null);
@@ -242,6 +255,11 @@ export function V2MorePage() {
 
       {/* ── APP ──────────────────────────────────────────── */}
       <Section title={locale === "ko" ? "앱" : "App"}>
+        <ThemeSkinRow
+          snapshot={snapshot}
+          expanded={expandedRow === "theme-skin"}
+          onToggle={(next) => setExpandedRow(next ? "theme-skin" : null)}
+        />
         <ThemeRow
           snapshot={snapshot}
           expanded={expandedRow === "theme"}
@@ -330,6 +348,67 @@ function Section({
   );
 }
 
+/* ── ThemeSkinRow (paper | terminal 스킨) ───────────── */
+
+function ThemeSkinRow({
+  snapshot,
+  expanded,
+  onToggle,
+}: {
+  snapshot: SettingsSnapshot | null;
+  expanded: boolean;
+  onToggle: (next: boolean) => void;
+}) {
+  const { locale } = useLocale();
+  const serverSkin = normalizeThemeSkin(snapshot?.[SETTINGS_KEYS.themeSkin]);
+  const skin = useSettingRowMutation<string>({
+    key: SETTINGS_KEYS.themeSkin,
+    fallbackValue: DEFAULT_THEME_SKIN,
+    serverValue: serverSkin,
+    persistServer: createPersistServerSetting<string>(),
+    successMessage:
+      locale === "ko" ? "테마를 저장했습니다." : "Saved the theme.",
+    rollbackNotice:
+      locale === "ko" ? "테마 저장에 실패했습니다." : "Failed to save the theme.",
+  });
+
+  useEffect(() => {
+    applyThemeSkinToDocument(normalizeThemeSkin(skin.value));
+  }, [skin.value]);
+
+  const selected = normalizeThemeSkin(skin.value);
+  const options: Array<{ value: ThemeSkin; label: string }> = useMemo(
+    () => [
+      { value: "paper", label: locale === "ko" ? "페이퍼 (기본)" : "Paper (default)" },
+      { value: "terminal", label: locale === "ko" ? "터미널 (ironlog)" : "Terminal (ironlog)" },
+    ],
+    [locale],
+  );
+  const currentLabel = options.find((o) => o.value === selected)?.label ?? "—";
+
+  return (
+    <V2NavRow
+      icon="terminal"
+      label={locale === "ko" ? "테마" : "Theme"}
+      value={currentLabel}
+      expandable
+      expanded={expanded}
+      onExpandedChange={onToggle}
+      disabled={skin.pending}
+      expandedContent={
+        <OptionList
+          options={options}
+          selected={selected}
+          onSelect={(value) => {
+            void skin.commit(value);
+          }}
+          disabled={skin.pending}
+        />
+      }
+    />
+  );
+}
+
 /* ── ThemeRow ────────────────────────────────────────── */
 
 function ThemeRow({
@@ -378,7 +457,7 @@ function ThemeRow({
   return (
     <V2NavRow
       icon="contrast"
-      label={locale === "ko" ? "테마" : "Theme"}
+      label={locale === "ko" ? "화면 모드" : "Appearance"}
       value={currentLabel}
       expandable
       expanded={expanded}

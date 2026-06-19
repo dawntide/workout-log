@@ -1,0 +1,24 @@
+/* ironlog terminal 테마 모노 폰트 — self-host (P0-c)
+   - JetBrains Mono     : Latin·숫자·기호·box/block 글리프 (crisp 0/O·1/l/I)
+   - Nanum Gothic Coding: 한글 (unicode-range로 한글 코드포인트만 라우팅)
+   둘 다 OFL 1.1. paper 테마는 이 패밀리를 안 쓰므로 폰트 fetch 안 됨(terminal 활성 시에만).
+   ⚠️ 2-font 조합이라 한글/Latin 셀 폭이 완벽한 2:1은 아님 — Sarasa Mono K 융합 폰트가
+      후속 업그레이드(P0-c', redesign-target.md §4). */
+
+@font-face {
+  font-family: "JetBrains Mono";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/terminal/jetbrains-mono-latin-400.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Nanum Gothic Coding";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/terminal/nanum-gothic-coding-korean-400.woff2") format("woff2");
+  unicode-range: U+1100-11FF, U+3130-318F, U+A960-A97F, U+AC00-D7A3, U+D7B0-D7FF,
+    U+3000-303F, U+FF00-FFEF;
+}

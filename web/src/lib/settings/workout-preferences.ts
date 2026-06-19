@@ -2,11 +2,13 @@ import {
   computeBodyweightTotalLoadKg,
   isBodyweightExerciseName,
 } from "@/lib/bodyweight-load";
+import { setThemeSkin } from "./theme-skin-store";
 
 export type SettingValue = string | number | boolean | null;
 export type SettingsSnapshot = Record<string, SettingValue>;
 
 export type ThemePreference = "SYSTEM" | "LIGHT" | "DARK";
+export type ThemeSkin = "paper" | "terminal";
 export type LocalePreference = "ko" | "en";
 
 export type TrainingGoalKey =
@@ -33,6 +35,7 @@ export type MinimumPlateRule = {
 export type WorkoutPreferences = {
   locale: LocalePreference;
   theme: ThemePreference;
+  themeSkin: ThemeSkin;
   minimumPlateDefaultKg: number;
   minimumPlateRules: MinimumPlateRule[];
   bodyweightKg: number | null;
@@ -48,6 +51,7 @@ export type ResolvedMinimumPlateIncrement = {
 export const SETTINGS_KEYS = {
   locale: "prefs.locale",
   theme: "prefs.theme.mode",
+  themeSkin: "prefs.theme.skin",
   minimumPlateDefaultKg: "prefs.minimumPlate.defaultKg",
   minimumPlateRulesJson: "prefs.minimumPlate.rulesJson",
   bodyweightKg: "prefs.bodyweight.kg",
@@ -57,6 +61,7 @@ export const SETTINGS_KEYS = {
 
 export const DEFAULT_LOCALE_PREFERENCE: LocalePreference = "ko";
 export const DEFAULT_THEME_PREFERENCE: ThemePreference = "SYSTEM";
+export const DEFAULT_THEME_SKIN: ThemeSkin = "paper";
 export const DEFAULT_MINIMUM_PLATE_KG = 2.5;
 export const DEFAULT_BODYWEIGHT_KG: number | null = null;
 export const DEFAULT_TRAINING_GOAL_PRIMARY: TrainingGoalKey = "general";
@@ -91,6 +96,14 @@ export function normalizeThemePreference(value: unknown): ThemePreference {
   if (normalized === "LIGHT") return "LIGHT";
   if (normalized === "DARK") return "DARK";
   return "SYSTEM";
+}
+
+export function normalizeThemeSkin(value: unknown): ThemeSkin {
+  const normalized = String(value ?? "")
+    .trim()
+    .toLowerCase();
+  if (normalized === "terminal") return "terminal";
+  return "paper";
 }
 
 export function normalizeLocalePreference(value: unknown): LocalePreference {
@@ -210,6 +223,7 @@ export function serializeMinimumPlateRules(rules: MinimumPlateRule[]): string {
 export function readWorkoutPreferences(snapshot: SettingsSnapshot): WorkoutPreferences {
   const locale = normalizeLocalePreference(snapshot[SETTINGS_KEYS.locale]);
   const theme = normalizeThemePreference(snapshot[SETTINGS_KEYS.theme]);
+  const themeSkin = normalizeThemeSkin(snapshot[SETTINGS_KEYS.themeSkin]);
   const minimumPlateDefaultKg = normalizeIncrementKg(
     snapshot[SETTINGS_KEYS.minimumPlateDefaultKg],
     DEFAULT_MINIMUM_PLATE_KG,
@@ -227,6 +241,7 @@ export function readWorkoutPreferences(snapshot: SettingsSnapshot): WorkoutPrefe
   return {
     locale,
     theme,
+    themeSkin,
     minimumPlateDefaultKg,
     minimumPlateRules,
     bodyweightKg,
@@ -239,6 +254,7 @@ export function toDefaultWorkoutPreferences(): WorkoutPreferences {
   return {
     locale: DEFAULT_LOCALE_PREFERENCE,
     theme: DEFAULT_THEME_PREFERENCE,
+    themeSkin: DEFAULT_THEME_SKIN,
     minimumPlateDefaultKg: DEFAULT_MINIMUM_PLATE_KG,
     minimumPlateRules: [],
     bodyweightKg: DEFAULT_BODYWEIGHT_KG,
@@ -320,6 +336,28 @@ export function applyThemePreferenceToDocument(theme: ThemePreference) {
   // No theme-color injection: Safari uses natural frosted-glass,
   // blurring html { background-color: var(--v2-bg) } behind the pill.
   document.querySelectorAll(`meta[name="theme-color"][data-dynamic]`).forEach(m => m.remove());
+}
+
+export function applyThemeSkinToDocument(skin: ThemeSkin) {
+  if (typeof document === "undefined") return;
+  if (skin === "terminal") {
+    document.documentElement.setAttribute("data-theme", "terminal");
+  } else {
+    document.documentElement.removeAttribute("data-theme");
+  }
+  setThemeSkin(skin);
+}
+
+export function readThemeSkinFromLocalCache(): ThemeSkin {
+  if (typeof window === "undefined") return DEFAULT_THEME_SKIN;
+  const raw = window.localStorage.getItem(`${LOCAL_STORAGE_SETTING_PREFIX}${SETTINGS_KEYS.themeSkin}`);
+  if (!raw) return DEFAULT_THEME_SKIN;
+  try {
+    const parsed = JSON.parse(raw) as { value?: unknown };
+    return normalizeThemeSkin(parsed.value);
+  } catch {
+    return DEFAULT_THEME_SKIN;
+  }
 }
 
 export function readThemePreferenceFromLocalCache(): ThemePreference {

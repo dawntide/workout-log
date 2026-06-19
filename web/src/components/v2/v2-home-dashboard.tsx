@@ -13,6 +13,8 @@ import { APP_ROUTES } from "@/lib/app-routes";
 import { V2Hairline } from "@/components/v2/primitives";
 import { resolveStartHref } from "@/lib/workout/start-href";
 import { useLocale } from "@/components/locale-provider";
+import { useThemeSkin } from "@/components/use-theme-skin";
+import { HomeTuiView } from "@/components/v2/home-tui-view";
 import type { AppCopy, AppLocale } from "@/lib/i18n/messages";
 import type {
   HomeData,
@@ -486,7 +488,14 @@ const DECKS: { key: string; icon: string; label: string; labelEn: string }[] = [
 
 /* ─────────────────────────── Public API ─────────────────────────── */
 
+// skin 분기 래퍼 — terminal이면 HomeTuiView, paper는 기존 대시보드(무수정).
 export function V2HomeDashboard({ data }: { data: HomeData }) {
+  const skin = useThemeSkin();
+  if (skin === "terminal") return <HomeTuiView data={data} />;
+  return <V2HomeDashboardPaper data={data} />;
+}
+
+function V2HomeDashboardPaper({ data }: { data: HomeData }) {
   const { copy, locale } = useLocale();
   const searchParams = useSearchParams();
   const requestedDeck = searchParams.get("deck");

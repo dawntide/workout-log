@@ -39,9 +39,21 @@ const EARLY_THEME_BOOTSTRAP = `
 
     const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
     const resolvedDark = preference === "dark" || (preference !== "light" && prefersDark);
-    const backgroundColor = resolvedDark ? "#0e0d12" : "#f6f1e8";
+
+    // Theme skin (paper|terminal). terminal은 dark-only로 자체 캔버스를 가진다.
+    let skin = "paper";
+    try {
+      const rawSkin = window.localStorage.getItem("workout-log.setting.v1.prefs.theme.skin");
+      if (rawSkin) {
+        const v = String(JSON.parse(rawSkin)?.value ?? "").trim().toLowerCase();
+        if (v === "terminal") skin = "terminal";
+      }
+    } catch {}
+
+    const backgroundColor = skin === "terminal" ? "#0b0e0b" : (resolvedDark ? "#0e0d12" : "#f6f1e8");
 
     document.documentElement.setAttribute("data-theme-preference", preference);
+    if (skin === "terminal") document.documentElement.setAttribute("data-theme", "terminal");
     document.documentElement.style.backgroundColor = backgroundColor;
     document.body.style.backgroundColor = backgroundColor;
   } catch {}
@@ -82,12 +94,15 @@ async function LocaleShell({ children }: { children: React.ReactNode }) {
   return (
     <LocaleProvider initialLocale={initialLocale}>
       <AppLaunchSplash />
-      <AppShell initialLocale={initialLocale}>
-        <ThemePreferenceSync />
-        <LocalePreferenceSync />
-        <TimezonePreferenceSync />
-        {children}
-      </AppShell>
+      {/* 테마/로케일/타임존 sync는 AppShell 밖(sibling)에 둔다.
+          AppShell이 skin 토글로 paper↔terminal 트리를 전환하면 children이 remount되는데,
+          ThemePreferenceSync가 children 안에 있으면 재실행되며 서버 스냅샷(persist 전 구값)을
+          다시 적용해 방금 고른 skin을 되돌리는 race가 발생함(테마가 가끔 paper로 복귀).
+          sibling으로 빼면 토글 시 remount되지 않음. */}
+      <ThemePreferenceSync />
+      <LocalePreferenceSync />
+      <TimezonePreferenceSync />
+      <AppShell initialLocale={initialLocale}>{children}</AppShell>
     </LocaleProvider>
   );
 }

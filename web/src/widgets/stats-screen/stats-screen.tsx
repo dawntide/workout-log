@@ -9,6 +9,8 @@ import { AppPage } from "@/components/ui/page-layout";
 import type { Stats1RMDetailedRef } from "@/features/stats/ui/stats-1rm-detailed";
 import type { StatsPageBootstrap } from "@/server/services/stats/get-stats-page-bootstrap";
 import { useLocale } from "@/components/locale-provider";
+import { useThemeSkin } from "@/components/use-theme-skin";
+import { StatsTuiView } from "@/features/stats/ui/stats-tui-view";
 import { APP_ROUTES } from "@/lib/app-routes";
 import { GoalSection } from "@/widgets/goal-aware/home-goal-section";
 import { WeeklyVolumeSection } from "./weekly-volume-section";
@@ -258,6 +260,7 @@ export function StatsScreen({
   asymptoteMonitor,
 }: StatsScreenProps) {
   const { locale } = useLocale();
+  const skin = useThemeSkin();
   const searchParams = useSearchParams();
   const detailedRef = useRef<Stats1RMDetailedRef>(null);
   const detailedSectionRef = useRef<HTMLDivElement>(null);
@@ -282,6 +285,20 @@ export function StatsScreen({
       }
     });
   }, [searchParams]);
+
+  // terminal(ironlog) 본문 — 1RM 추세(SVG)·기간탭·메트릭·PR. paper는 아래 트리 그대로.
+  if (skin === "terminal") {
+    return (
+      <StatsTuiView
+        initialBundle={initialBundle}
+        initialExercises={initialExercises}
+        initialPlans={initialPlans}
+        initialE1rm={initialE1rm}
+        initialSelectedExerciseId={initialSelectedExerciseId}
+        initialSelectedPlanId={initialSelectedPlanId}
+      />
+    );
+  }
 
   return (
     <AppPage>

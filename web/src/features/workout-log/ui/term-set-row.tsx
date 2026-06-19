@@ -5,6 +5,8 @@ import {
   useEffect,
   useMemo,
   useRef,
+  useState,
+  type FocusEvent,
   type KeyboardEvent,
 } from "react";
 import { useAtomValue } from "jotai";
@@ -24,14 +26,15 @@ type Props = {
   onExerciseAction: (action: ExerciseRowAction) => void;
 };
 
+// terminal(ironlog) 세트행 — paper WorkoutSetRow의 model/dispatch/focus-chain을
+// 그대로 공유하고 표현만 TUI로 분기한다. 입력 셀은 공유 CellInput을 재사용해
+// iOS draft/snap/blur·Enter-advance·44px를 보존하고(focus ring=amber), 상태는
+// 색 + 글리프 이중 인코딩(✗ fail / ✓ done / ▮ active / · ghost, redesign-target §3).
+// 파생값·핸들러는 WorkoutSetRow와 동일 — 두 뷰가 같은 atom/action을 공유한다.
 const ROW_GRID =
   "var(--v2-s-6) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) var(--v2-s-6)";
 
-export function WorkoutSetRow({
-  exercise,
-  setIndex,
-  onExerciseAction,
-}: Props) {
+export function TermSetRow({ exercise, setIndex, onExerciseAction }: Props) {
   const { locale } = useLocale();
   const focusChain = useSetRowFocusChain();
   const programEntryState = useAtomValue(programEntryStateAtom);
@@ -39,7 +42,9 @@ export function WorkoutSetRow({
   const weightRef = useRef<HTMLInputElement>(null);
   const repsRef = useRef<HTMLInputElement>(null);
   const rpeRef = useRef<HTMLInputElement>(null);
+  const rowRef = useRef<HTMLDivElement>(null);
 
+  // 동일 registerCell 키 + 동일 SetRowFocusChainProvider 안 mount → paper와 focus chain 공유.
   useEffect(() => {
     focusChain.registerCell(exercise.id, setIndex, "weight", weightRef.current);
     focusChain.registerCell(exercise.id, setIndex, "reps", repsRef.current);
@@ -149,29 +154,53 @@ export function WorkoutSetRow({
     [focusChain, exercise.id, setIndex],
   );
 
-  const rowBackground = isComplete
-    ? "color-mix(in srgb, var(--v2-c-reps) 10%, var(--v2-paper))"
-    : isFailure
-      ? "color-mix(in srgb, var(--v2-c-danger) 12%, var(--v2-paper))"
-      : "var(--v2-paper)";
+  // 현재 입력 중인 행 = active. focus가 행 밖으로 나갈 때만 해제(셀 간 이동 시 깜빡임 방지).
+  const [rowActive, setRowActive] = useState(false);
+  const handleRowBlur = useCallback((e: FocusEvent<HTMLDivElement>) => {
+    const next = e.relatedTarget;
+    if (next instanceof Node && rowRef.current?.contains(next)) return;
+    setRowActive(false);
+  }, []);
+
+  // 상태 글리프: 색 + 글리프 이중 인코딩. active(미입력 + 포커스)는 amber ▮ 커서로 표시.
+  const status: "fail" | "done" | "active" | "ghost" = isFailure
+    ? "fail"
+    : isComplete
+      ? "done"
+      : rowActive
+        ? "active"
+        : "ghost";
+  const statusGlyph = { fail: "✗", done: "✓", active: "▮", ghost: "·" }[status];
+  const statusColor = {
+    fail: "var(--term-red)",
+    done: "var(--term-green)",
+    active: "var(--term-amber)",
+    ghost: "var(--term-ghost)",
+  }[status];
 
   return (
     <div
+      ref={rowRef}
+      onFocusCapture={() => setRowActive(true)}
+      onBlurCapture={handleRowBlur}
       style={{
         display: "grid",
         gridTemplateColumns: ROW_GRID,
         gap: "var(--v2-s-2)",
         alignItems: "center",
         padding: "var(--v2-s-1) var(--v2-s-2)",
-        borderRadius: "var(--v2-r-1)",
-        background: rowBackground,
         minHeight: "var(--v2-touch)",
+        // active 행 = +1 표면 + amber 좌바(boxShadow inset, border 금지). No-Line 준수.
+        background: rowActive ? "var(--term-sel)" : "transparent",
+        boxShadow: rowActive
+          ? "inset var(--v2-s-1) 0 0 var(--term-amber)"
+          : undefined,
       }}
     >
       <span
-        className="v2-mono-label"
+        aria-hidden
         style={{
-          color: "var(--v2-ink-3)",
+          color: rowActive ? "var(--term-amber)" : "var(--term-dim)",
           textAlign: "center",
         }}
       >
@@ -181,7 +210,7 @@ export function WorkoutSetRow({
         ref={weightRef}
         value={weightValue}
         placeholder="—"
-        color="var(--v2-c-weight)"
+        color="var(--term-cyan)"
         ariaLabel={
           locale === "ko"
             ? `세트 ${setIndex + 1} 중량`
@@ -190,12 +219,14 @@ export function WorkoutSetRow({
         onChange={handleWeightChange}
         onKeyDown={onKeyDown("weight")}
         allowDecimal
+        bg="transparent"
+        focusRing="var(--term-amber)"
       />
       <CellInput
         ref={repsRef}
         value={repsRaw}
         placeholder={plannedReps > 0 ? String(plannedReps) : "—"}
-        color="var(--v2-c-reps)"
+        color="var(--term-cyan)"
         ariaLabel={
           locale === "ko"
             ? `세트 ${setIndex + 1} 반복`
@@ -203,16 +234,20 @@ export function WorkoutSetRow({
         }
         onChange={handleRepsChange}
         onKeyDown={onKeyDown("reps")}
+        bg="transparent"
+        focusRing="var(--term-amber)"
       />
       <CellInput
         ref={rpeRef}
         value={rpeRaw}
         placeholder="—"
-        color="var(--v2-c-warning)"
+        color="var(--term-cyan)"
         ariaLabel={`Set ${setIndex + 1} RPE`}
         onChange={handleRpeChange}
         onKeyDown={onKeyDown("rpe")}
         allowDecimal
+        bg="transparent"
+        focusRing="var(--term-amber)"
       />
       <span
         aria-hidden
@@ -220,37 +255,10 @@ export function WorkoutSetRow({
           display: "inline-flex",
           alignItems: "center",
           justifyContent: "center",
-          color: isFailure
-            ? "var(--v2-c-danger)"
-            : isComplete
-              ? "var(--v2-c-success)"
-              : "var(--v2-ink-3)",
+          color: statusColor,
         }}
       >
-        {isFailure ? (
-          <span
-            className="material-symbols-outlined"
-            style={{ fontSize: "var(--v2-t-h2)" }}
-          >
-            close
-          </span>
-        ) : isComplete ? (
-          <span
-            className="material-symbols-outlined"
-            style={{ fontSize: "var(--v2-t-h2)" }}
-          >
-            check
-          </span>
-        ) : (
-          <span
-            style={{
-              width: "var(--v2-s-2)",
-              height: "var(--v2-s-2)",
-              borderRadius: "var(--v2-r-pill)",
-              background: "var(--v2-paper-3)",
-            }}
-          />
-        )}
+        {statusGlyph}
       </span>
     </div>
   );

@@ -197,6 +197,87 @@
   --v2-hairline: color-mix(in srgb, var(--v2-paper-4) 70%, transparent);
 }
 
+/* ─── Terminal 테마 "ironlog" — dark-only, mode 무관 (paper 무영향) ───
+   2축 모델: data-theme=paper|terminal(스킨) ⟂ data-theme-preference=light|dark|system(밝기).
+   terminal은 dark 고정 → data-theme-preference와 무관하게 항상 이 블록이 이김(소스 순서상 마지막, 동일 specificity).
+   grounding 확정값(redesign-target.md §3). --term-* 정의 후 --v2-*에 remap → 전 컴포넌트 cascade 리스킨(Tier-1). */
+:root[data-theme="terminal"] {
+  /* --term-* (Modern ANSI on green-near-black, WCAG 2.1 실측, Everforest/btop 교차검증) */
+  --term-bg: #0b0e0b;
+  --term-panel: #11150f;
+  --term-inset: #171c15;
+  --term-sel: #1e241b;
+  --term-fg: #c9d8c4;
+  --term-dim: #82997b;
+  --term-ghost: #3a5237;
+  --term-green: #6ee787;
+  --term-amber: #e3b341;
+  --term-cyan: #7fd1c4;
+  --term-red: #ff7b72;
+  --term-gold: #ffcf5c;
+  --term-blue: #79c0ff;
+  --term-track: #1e241c;
+  --term-cursor: #e3b341;
+  --term-line: rgba(110, 231, 135, 0.22);
+  --term-line-box: rgba(110, 231, 135, 0.3);
+  --term-scrim: rgba(11, 14, 11, 0.72);
+  --term-mono: "Sarasa Mono K", "JetBrains Mono", "Nanum Gothic Coding", "D2Coding", "Symbols Nerd Font Mono", ui-monospace, "Cascadia Code", Menlo, Consolas, monospace;
+
+  /* remap --v2-* → terminal (컴포넌트는 --v2-*만 읽으므로 cascade로 전부 리스킨) */
+  --v2-bg: var(--term-bg);
+  --v2-paper: var(--term-panel);
+  --v2-paper-2: var(--term-inset);
+  --v2-paper-3: var(--term-sel);
+  --v2-paper-4: #252c22;
+
+  --v2-ink: var(--term-fg);
+  --v2-ink-2: #aebfa8;
+  --v2-ink-3: var(--term-dim);
+  --v2-ink-4: var(--term-ghost);
+  --v2-ink-on-accent: var(--term-bg);
+
+  --v2-accent: var(--term-amber);
+  --v2-accent-2: #efc566;
+  --v2-accent-weak: rgba(227, 179, 65, 0.14);
+  --v2-accent-ink: var(--term-amber);
+
+  --v2-c-weight: var(--term-cyan);
+  --v2-c-reps: var(--term-cyan);
+  --v2-c-volume: var(--term-amber);
+  --v2-c-onerm: var(--term-cyan);
+  --v2-c-progress: var(--term-green);
+  --v2-c-pr: var(--term-gold);
+  --v2-c-danger: var(--term-red);
+  --v2-c-success: var(--term-green);
+  --v2-c-info: var(--term-cyan);
+  --v2-c-warning: var(--term-amber);
+
+  /* form: mono · sharp · flat (theme-level, mode 무관) */
+  --v2-f-display: var(--term-mono);
+  --v2-f-text: var(--term-mono);
+  --v2-f-num: var(--term-mono);
+
+  --v2-r-0: 0;
+  --v2-r-1: 0;
+  --v2-r-2: 0;
+  --v2-r-3: 0;
+  --v2-r-4: 0;
+  --v2-r-5: 0;
+  --v2-r-pill: 0;
+
+  --v2-shadow-soft: transparent;
+  --v2-shadow-med: transparent;
+  --v2-shadow-strong: transparent;
+  --v2-elev-1: none;
+  --v2-elev-2: none;
+  --v2-elev-3: none;
+  --v2-elev-sheet: none;
+
+  --v2-focus: rgba(227, 179, 65, 0.4);
+  --v2-overlay: var(--term-scrim);
+  --v2-hairline: var(--term-line);
+}
+
 /* ─── 타이포그래피 클래스 ─── */
 .v2-eyebrow {
   font-family: var(--v2-f-display);
