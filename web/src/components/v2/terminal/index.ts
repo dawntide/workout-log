@@ -4,3 +4,5 @@ export { TermShell } from "./term-shell";
 export type { TermTab, TermKeyHint } from "./term-shell";
 export { TermProgress } from "./term-progress";
 export type { TermProgressTone } from "./term-progress";
+export { TermBadge } from "./term-badge";
+export type { TermBadgeTone } from "./term-badge";

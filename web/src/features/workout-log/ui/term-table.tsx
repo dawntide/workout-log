@@ -10,6 +10,7 @@ import {
 import { useAtomValue } from "jotai";
 import { useLocale } from "@/components/locale-provider";
 import { V2Textarea } from "@/components/v2/primitives";
+import { TermBadge, type TermBadgeTone } from "@/components/v2/terminal";
 import {
   formatPerformedHistoryLine,
   formatPrescription,
@@ -230,28 +231,25 @@ export function TermTable({ exerciseId, onExerciseAction }: Props) {
     });
   };
 
-  // ── 배지: 한글 → Latin bracket(redesign-target §3/R7). border 없음, 리터럴 bracket. ──
-  const badges: { text: string; color: string }[] = [];
+  // ── 배지: 한글 → Latin bracket(redesign-target §3/R7). TermBadge(리터럴 bracket, 색=의미). ──
+  const badges: { text: string; tone: TermBadgeTone }[] = [];
   if (isUser) {
-    badges.push({ text: "USER", color: "var(--term-dim)" });
+    badges.push({ text: "USER", tone: "dim" });
   } else if (exercise.badge === "CUSTOM") {
-    badges.push({ text: "CUSTOM", color: "var(--term-amber)" });
+    badges.push({ text: "CUSTOM", tone: "accent" });
   } else {
-    badges.push({ text: "AUTO", color: "var(--term-cyan)" });
+    badges.push({ text: "AUTO", tone: "info" });
   }
   if (exercise.tier) {
-    badges.push({ text: exercise.tier, color: "var(--term-dim)" });
+    badges.push({ text: exercise.tier, tone: "dim" });
   }
   if (typeof exercise.stage === "number" && exercise.stage > 0) {
-    badges.push({ text: `STG${exercise.stage}`, color: "var(--term-amber)" });
+    badges.push({ text: `STG${exercise.stage}`, tone: "accent" });
   }
   if (exercise.texasRole && TEXAS_ROLE_TERM[exercise.texasRole]) {
     badges.push({
       text: TEXAS_ROLE_TERM[exercise.texasRole]!,
-      color:
-        exercise.texasRole === "intensity"
-          ? "var(--term-amber)"
-          : "var(--term-dim)",
+      tone: exercise.texasRole === "intensity" ? "accent" : "dim",
     });
   }
 
@@ -304,9 +302,9 @@ export function TermTable({ exerciseId, onExerciseAction }: Props) {
           }}
         >
           {badges.map((b, i) => (
-            <span key={i} style={{ color: b.color, whiteSpace: "nowrap" }}>
-              [{b.text}]
-            </span>
+            <TermBadge key={i} tone={b.tone}>
+              {b.text}
+            </TermBadge>
           ))}
         </span>
         <span
