@@ -82,7 +82,7 @@ pnpm -C web build
 - **No-Line Rule**: 1px 테두리 대신 배경색 전환(`--v2-paper` → `--v2-paper-2/3`)으로 계층 구분. divider는 `V2Hairline`.
 - **토큰만 사용**: 색상은 `--v2-*`, spacing은 4-pt 그리드(`--v2-s-1..9`), radius는 `--v2-r-*`. hex 하드코딩 / 비-4pt 값 금지.
 - **터치 영역**: 모든 인터랙티브 요소 최소 44×44px.
-- **아이콘**: Material Symbols Outlined (`<span className="material-symbols-outlined">name</span>`)만. custom SVG UI 아이콘 금지.
+- **아이콘**: Material Symbols Outlined (`<span className="material-symbols-outlined">name</span>`)만. custom SVG UI 아이콘 금지. **예외 — `terminal` 테마(ironlog) 한정**: Unicode/Nerd Font 글리프(box-drawing `┌─┐│`, block `▁▂▃█`, shade `░▒▓`, `✓ ▶ ★ · W` 등)를 TUI·데이터뷰 표현에 허용 — Material Symbols로 대체 불가하고 모노 그리드 정합에 필수. `paper` 테마에는 적용 안 됨(여전히 Material Symbols만). 상세: [redesign-target.md](web/docs/redesign-target.md) §5.
 - **SWR 캐시**: 데이터 fetch는 `apiGet`/`apiPost` ([web/src/lib/api.ts](web/src/lib/api.ts)) 사용.
 - **Auth**: 이메일/비밀번호 + PBKDF2 해시 + `wl_session` httpOnly cookie 세션. `WORKOUT_AUTH_USER_ID`는 로컬/dev fallback으로만 유지.
 - **Auth recovery**: `RESEND_API_KEY`, `RESEND_FROM`, `WORKOUT_APP_URL`로 비밀번호 재설정/이메일 인증 링크 발송. dev에서 Resend 미설정 시 서버 로그에 링크 출력.
