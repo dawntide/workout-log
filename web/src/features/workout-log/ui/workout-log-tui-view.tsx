@@ -3,7 +3,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useAtomValue } from "jotai";
 import { useLocale } from "@/components/locale-provider";
-import { TermLog, TermProgress, type TermLogEntry } from "@/components/v2/terminal";
+import {
+  TermLog,
+  TermProgress,
+  useRegisterTermFooter,
+  type TermFooterRegistration,
+  type TermLogEntry,
+} from "@/components/v2/terminal";
 import { SetRowFocusChainProvider } from "@/features/workout-log/model/use-set-row-focus-chain";
 import { useRestTimer } from "@/features/workout-log/model/use-rest-timer";
 import {
@@ -11,6 +17,7 @@ import {
   programEntryStateAtom,
   totalSetsCountAtom,
   visibleExercisesAtom,
+  workflowStateAtom,
 } from "@/features/workout-log/store/workout-log-atoms";
 import type { ExerciseRowAction } from "@/features/workout-log/model/editor-actions";
 import { TermTable } from "@/features/workout-log/ui/term-table";
@@ -23,6 +30,8 @@ import { TermTable } from "@/features/workout-log/ui/term-table";
 type Props = {
   onExerciseAction: (exerciseId: string, action: ExerciseRowAction) => void;
   onOpenAddExerciseSheet?: () => void;
+  /** 셸 푸터 [⏎]log 키힌트가 호출할 저장(=paper requestSave). */
+  onSave?: () => void;
 };
 
 // 세트 완료 시 시작하는 기본 휴식(초). 설정값이 생기면 그때 주입(현재 스키마 없음).
@@ -31,18 +40,24 @@ const DEFAULT_REST_SEC = 120;
 export function WorkoutLogTuiView({
   onExerciseAction,
   onOpenAddExerciseSheet,
+  onSave,
 }: Props) {
   return (
     <SetRowFocusChainProvider>
       <TuiViewContent
         onExerciseAction={onExerciseAction}
         onOpenAddExerciseSheet={onOpenAddExerciseSheet}
+        onSave={onSave}
       />
     </SetRowFocusChainProvider>
   );
 }
 
-function TuiViewContent({ onExerciseAction, onOpenAddExerciseSheet }: Props) {
+function TuiViewContent({
+  onExerciseAction,
+  onOpenAddExerciseSheet,
+  onSave,
+}: Props) {
   const { locale } = useLocale();
   const visibleExercises = useAtomValue(visibleExercisesAtom);
   const completedSets = useAtomValue(completedSetsCountAtom);
@@ -134,6 +149,56 @@ function TuiViewContent({ onExerciseAction, onOpenAddExerciseSheet }: Props) {
     }, 1200);
     return () => window.clearTimeout(captureId);
   }, [exercises, programEntryState]);
+
+  // ── 셸 푸터 등록: mode-accent + keyHints([⏎]log=저장, [r]rest) + statusRight(vol) ──
+  const workflowState = useAtomValue(workflowStateAtom);
+  const volumeKg = useMemo(() => {
+    let v = 0;
+    for (const ex of exercises) {
+      const repsArr = ex.set.repsPerSet;
+      for (let i = 0; i < repsArr.length; i++) {
+        const reps =
+          ex.source === "PROGRAM"
+            ? Number(
+                (programEntryState[ex.id]?.repsInputs?.[i] ?? "").trim() || 0,
+              )
+            : (repsArr[i] ?? 0);
+        const wt = ex.set.weightKgPerSet?.[i] ?? 0;
+        if (reps > 0 && wt > 0) v += wt * reps;
+      }
+    }
+    return v;
+  }, [exercises, programEntryState]);
+
+  const footer = useMemo<TermFooterRegistration>(() => {
+    const m =
+      workflowState === "saving"
+        ? { text: "-- SAVING --", tone: "saving" as const }
+        : restRunning
+          ? { text: "-- REST --", tone: "rest" as const }
+          : completedSets > 0
+            ? { text: "-- LOGGING --", tone: "logging" as const }
+            : { text: "-- NORMAL --", tone: "normal" as const };
+    return {
+      id: "workout-log",
+      mode: m.text,
+      modeTone: m.tone,
+      statusRight: `${completedSets}/${totalSets} · vol ${(volumeKg / 1000).toFixed(1)}t`,
+      keyHints: [
+        { key: "⏎", label: "log", onPress: onSave },
+        { key: "r", label: "rest", onPress: () => startRest(DEFAULT_REST_SEC) },
+      ],
+    };
+  }, [
+    workflowState,
+    restRunning,
+    completedSets,
+    totalSets,
+    volumeKg,
+    onSave,
+    startRest,
+  ]);
+  useRegisterTermFooter(footer);
 
   return (
     <section

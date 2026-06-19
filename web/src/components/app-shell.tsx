@@ -11,7 +11,12 @@ import { V2EmailVerificationBanner } from "@/components/v2/auth/v2-email-verific
 import type { AppLocale } from "@/lib/i18n/messages";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useThemeSkin } from "@/components/use-theme-skin";
-import { TermShell, type TermTab } from "@/components/v2/terminal";
+import {
+  TermShell,
+  TermKeyHintProvider,
+  useTermFooterRegistration,
+  type TermTab,
+} from "@/components/v2/terminal";
 import { APP_ROUTES } from "@/lib/app-routes";
 
 const NAV_HIDDEN_PATH_PREFIXES = [
@@ -134,14 +139,17 @@ export function AppShell({
       <AppDialogProvider>
         <V2BottomDockProvider>
           <ApiCacheWarmer />
-          <TermShell
-            path={termPath(pathname, deck)}
-            clock={clock}
-            tabs={TERM_TABS}
-            activeTab={activeTermTab(pathname, deck)}
-          >
-            {children}
-          </TermShell>
+          {/* 화면이 등록한 푸터(mode·keyHints·statusRight)를 셸이 읽어 렌더 */}
+          <TermKeyHintProvider>
+            <TermShellHost
+              path={termPath(pathname, deck)}
+              clock={clock}
+              tabs={TERM_TABS}
+              activeTab={activeTermTab(pathname, deck)}
+            >
+              {children}
+            </TermShellHost>
+          </TermKeyHintProvider>
         </V2BottomDockProvider>
       </AppDialogProvider>
     );
@@ -166,5 +174,37 @@ export function AppShell({
         </div>
       </V2BottomDockProvider>
     </AppDialogProvider>
+  );
+}
+
+// 셸 chrome 안에서 화면이 등록한 푸터(mode·keyHints·statusRight)를 읽어 TermShell에 전달.
+// TermKeyHintProvider 내부에 mount돼야 컨텍스트를 읽는다(= AppShell terminal 분기 안).
+function TermShellHost({
+  path,
+  clock,
+  tabs,
+  activeTab,
+  children,
+}: {
+  path: string;
+  clock: string;
+  tabs: TermTab[];
+  activeTab: string;
+  children: ReactNode;
+}) {
+  const footer = useTermFooterRegistration();
+  return (
+    <TermShell
+      path={path}
+      clock={clock}
+      tabs={tabs}
+      activeTab={activeTab}
+      mode={footer?.mode ?? "-- NORMAL --"}
+      modeTone={footer?.modeTone ?? "normal"}
+      statusRight={footer?.statusRight}
+      keyHints={footer?.keyHints ?? []}
+    >
+      {children}
+    </TermShell>
   );
 }

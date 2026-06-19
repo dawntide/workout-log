@@ -1,6 +1,10 @@
 "use client";
 
 import type { CSSProperties, ReactNode } from "react";
+import type {
+  TermKeyHintItem,
+  TermModeTone,
+} from "./term-keyhint-context";
 
 // ironlog terminal 셸 chrome (P0-d 골격) — redesign-target.md §6 TermShell.
 // data-theme="terminal" 컨텍스트에서만 사용(--term-* 토큰 의존).
@@ -8,9 +12,18 @@ import type { CSSProperties, ReactNode } from "react";
 // 치수는 var(--v2-*) 토큰만 → design-lint 위반 0.
 
 export type TermTab = { key: string; label: string; href?: string };
-export type TermKeyHint = { key: string; label: string };
 
 const TRAFFIC: ReadonlyArray<string> = ["#ff5f56", "#ffbd2e", "#27c93f"];
+
+// mode-accent (lualine 트릭): status 좌측 pill 색이 상태로 recolor (§6).
+const MODE_BG: Record<TermModeTone, string> = {
+  normal: "var(--term-dim)",
+  logging: "var(--term-amber)",
+  rest: "var(--term-cyan)",
+  saving: "var(--term-amber)",
+  pr: "var(--term-gold)",
+  fail: "var(--term-red)",
+};
 
 export function TermShell({
   appName = "ironlog",
@@ -19,6 +32,7 @@ export function TermShell({
   tabs = [],
   activeTab,
   mode = "-- NORMAL --",
+  modeTone = "normal",
   statusRight,
   keyHints = [],
   children,
@@ -29,8 +43,9 @@ export function TermShell({
   tabs?: TermTab[];
   activeTab?: string;
   mode?: string;
+  modeTone?: TermModeTone;
   statusRight?: string;
-  keyHints?: TermKeyHint[];
+  keyHints?: TermKeyHintItem[];
   children: ReactNode;
 }) {
   return (
@@ -125,10 +140,11 @@ export function TermShell({
       >
         <span
           style={{
-            background: "var(--term-amber)",
+            background: MODE_BG[modeTone],
             color: "var(--term-bg)",
             padding: "0 var(--v2-s-2)",
             whiteSpace: "nowrap",
+            transition: "background 120ms ease",
           }}
         >
           {mode}
@@ -155,6 +171,7 @@ export function TermShell({
             <button
               key={h.key}
               type="button"
+              onClick={h.onPress}
               style={{
                 minHeight: "var(--v2-touch)",
                 background: "transparent",

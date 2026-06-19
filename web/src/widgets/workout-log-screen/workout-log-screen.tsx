@@ -372,6 +372,7 @@ function WorkoutLogScreenContent({
             <WorkoutLogTuiView
               onExerciseAction={handleExerciseAction}
               onOpenAddExerciseSheet={openAddExerciseSheet}
+              onSave={requestSave}
             />
           ) : (
             <NoticeStateRows
