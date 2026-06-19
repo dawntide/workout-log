@@ -39,9 +39,21 @@ const EARLY_THEME_BOOTSTRAP = `
 
     const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
     const resolvedDark = preference === "dark" || (preference !== "light" && prefersDark);
-    const backgroundColor = resolvedDark ? "#0e0d12" : "#f6f1e8";
+
+    // Theme skin (paper|terminal). terminal은 dark-only로 자체 캔버스를 가진다.
+    let skin = "paper";
+    try {
+      const rawSkin = window.localStorage.getItem("workout-log.setting.v1.prefs.theme.skin");
+      if (rawSkin) {
+        const v = String(JSON.parse(rawSkin)?.value ?? "").trim().toLowerCase();
+        if (v === "terminal") skin = "terminal";
+      }
+    } catch {}
+
+    const backgroundColor = skin === "terminal" ? "#0b0e0b" : (resolvedDark ? "#0e0d12" : "#f6f1e8");
 
     document.documentElement.setAttribute("data-theme-preference", preference);
+    if (skin === "terminal") document.documentElement.setAttribute("data-theme", "terminal");
     document.documentElement.style.backgroundColor = backgroundColor;
     document.body.style.backgroundColor = backgroundColor;
   } catch {}
