@@ -3,6 +3,8 @@
 import { useMemo, type CSSProperties, type ReactNode } from "react";
 import Link from "next/link";
 import { useLocale } from "@/components/locale-provider";
+import { useThemeSkin } from "@/components/use-theme-skin";
+import { TermBadge } from "./terminal";
 import type { ProgressionSummaryPayload } from "@/lib/progression/summary";
 import type { TrainingGoalKey } from "@/lib/settings/workout-preferences";
 import {
@@ -402,6 +404,7 @@ export function V2SessionSummary({
   freshComplete?: boolean;
 }) {
   const { locale } = useLocale();
+  const skin = useThemeSkin();
 
   const summary = useMemo(() => {
     if (!log) return null;
@@ -469,6 +472,22 @@ export function V2SessionSummary({
   const topPrMatch =
     summary.topEstOneRm &&
     summary.prKeys.has(summary.topEstOneRm.exerciseName.trim().toLowerCase());
+
+  if (skin === "terminal") {
+    return (
+      <TermSessionSummaryBody
+        summary={summary}
+        notes={log.notes}
+        durationLabel={durationLabel}
+        performedAtLabel={performedAtLabel}
+        resolvedGoal={resolvedGoal}
+        heroTitle={heroTitle}
+        heroEyebrow={heroEyebrow}
+        freshComplete={freshComplete}
+        locale={locale}
+      />
+    );
+  }
 
   return (
     <div
@@ -949,6 +968,250 @@ export function V2SessionSummary({
         </Link>
       </div>
     </div>
+  );
+}
+
+/* ─── terminal(ironlog) 세션 요약 ─── */
+// paper 본문과 동일한 summary(useMemo)·라벨을 받아 표현만 TUI로. 콘페티/히어로 대신
+// 헤더 readout + 스탯 + records(★) + 운동별 + 노트 + [홈으로]. --term-* 토큰만.
+
+type SummaryData = {
+  exerciseSummaries: ExerciseSummary[];
+  totalVolume: number;
+  totalSets: number;
+  totalReps: number;
+  topEstOneRm: {
+    exerciseName: string;
+    weightKg: number;
+    reps: number;
+    estOneRm: number;
+  } | null;
+  prCards: PrCard[];
+  prKeys: Set<string>;
+};
+
+function TermSummaryCell({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: string;
+  tone?: "gold";
+}) {
+  return (
+    <span style={{ display: "flex", justifyContent: "space-between", gap: "var(--v2-s-2)" }}>
+      <span style={{ color: "var(--term-dim)" }}>{label}</span>
+      <span style={{ color: tone === "gold" ? "var(--term-gold)" : "var(--term-cyan)" }}>
+        {value}
+      </span>
+    </span>
+  );
+}
+
+function TermSessionSummaryBody({
+  summary,
+  notes,
+  durationLabel,
+  performedAtLabel,
+  resolvedGoal,
+  heroTitle,
+  heroEyebrow,
+  freshComplete,
+  locale,
+}: {
+  summary: SummaryData;
+  notes: string | null;
+  durationLabel: string | null;
+  performedAtLabel: string;
+  resolvedGoal: ResolvedGoal;
+  heroTitle: string;
+  heroEyebrow: string;
+  freshComplete: boolean;
+  locale: "ko" | "en";
+}) {
+  const ko = locale === "ko";
+  return (
+    <section
+      aria-label={ko ? "세션 요약" : "Session summary"}
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: "var(--v2-s-4)",
+        padding: "var(--v2-s-3) 0",
+      }}
+    >
+      {/* 헤더 */}
+      <div
+        className="v2-mono-label"
+        style={{ display: "flex", flexDirection: "column", gap: "var(--v2-s-1)" }}
+      >
+        <span style={{ color: freshComplete ? "var(--term-gold)" : "var(--term-dim)" }}>
+          {freshComplete ? "▸ " : ""}
+          {heroEyebrow}
+        </span>
+        <span style={{ color: "var(--term-fg)", fontSize: "var(--v2-t-20)" }}>
+          {heroTitle}
+        </span>
+        <span style={{ color: "var(--term-dim)" }}>
+          {performedAtLabel}
+          {durationLabel ? ` · ${durationLabel}` : ""}
+        </span>
+      </div>
+
+      {/* 스탯 readout */}
+      <div
+        className="v2-mono-label"
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr",
+          gap: "var(--v2-s-1) var(--v2-s-3)",
+        }}
+      >
+        <TermSummaryCell
+          label={ko ? "총 볼륨" : "volume"}
+          value={`${formatVolumeShort(summary.totalVolume)}kg`}
+        />
+        <TermSummaryCell label={ko ? "세트" : "sets"} value={String(summary.totalSets)} />
+        <TermSummaryCell label="reps" value={summary.totalReps.toLocaleString()} />
+        <TermSummaryCell label={ko ? "시간" : "time"} value={durationLabel ?? "—"} />
+        {summary.topEstOneRm ? (
+          <TermSummaryCell
+            label={ko ? "최고 e1RM" : "top e1RM"}
+            value={`${summary.topEstOneRm.estOneRm.toFixed(1)}kg`}
+            tone="gold"
+          />
+        ) : null}
+      </div>
+
+      {/* records (★) */}
+      {summary.prCards.length > 0 ? (
+        <div style={{ display: "flex", flexDirection: "column", gap: "var(--v2-s-1)" }}>
+          <span className="v2-mono-label" style={{ color: "var(--term-dim)" }}>
+            {ko ? "기록" : "records"}
+          </span>
+          {summary.prCards.map((p) => {
+            const isPersonal = p.source === "personal";
+            return (
+              <div
+                key={`${p.source}:${p.target}`}
+                className="v2-mono-label"
+                style={{ display: "flex", alignItems: "center", gap: "var(--v2-s-2)" }}
+              >
+                <span style={{ color: "var(--term-gold)" }}>★</span>
+                <span
+                  style={{
+                    flex: 1,
+                    minWidth: 0,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                    color: "var(--term-fg)",
+                  }}
+                >
+                  {p.target}
+                  <span style={{ color: "var(--term-dim)" }}>
+                    {" "}
+                    · {p.afterWorkKg.toFixed(1)}kg
+                    {(p.estOneRm ?? 0) > 0 ? ` · e1RM ${(p.estOneRm ?? 0).toFixed(1)}` : ""}
+                  </span>
+                </span>
+                <TermBadge tone={isPersonal ? "pr" : "success"}>
+                  {isPersonal ? (ko ? "새PR" : "PR") : `+${p.deltaKg.toFixed(1)}`}
+                </TermBadge>
+              </div>
+            );
+          })}
+        </div>
+      ) : null}
+
+      {/* 운동별 */}
+      {summary.exerciseSummaries.length > 0 ? (
+        <div style={{ display: "flex", flexDirection: "column", gap: "var(--v2-s-1)" }}>
+          <span className="v2-mono-label" style={{ color: "var(--term-dim)" }}>
+            {ko ? "운동별" : "by exercise"}
+          </span>
+          {summary.exerciseSummaries.map((ex, i) => {
+            const isPr = summary.prKeys.has(ex.name.trim().toLowerCase());
+            const metric =
+              resolvedGoal === "endurance"
+                ? `${ex.totalReps} reps`
+                : ex.volumeKg > 0
+                  ? `${formatVolumeShort(ex.volumeKg)}kg`
+                  : ex.topWeightKg > 0
+                    ? `${ex.topWeightKg.toLocaleString()}kg`
+                    : "—";
+            return (
+              <div
+                key={`${ex.name}-${i}`}
+                className="v2-mono-label"
+                style={{ display: "flex", alignItems: "center", gap: "var(--v2-s-2)" }}
+              >
+                <span style={{ color: "var(--term-ghost)", minWidth: "var(--v2-s-5)" }}>
+                  #{i + 1}
+                </span>
+                <span
+                  style={{
+                    flex: 1,
+                    minWidth: 0,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                    color: "var(--term-fg)",
+                  }}
+                >
+                  {ex.name}
+                  <span style={{ color: "var(--term-dim)" }}>
+                    {" "}
+                    · {ex.setCount}
+                    {ko ? "세트" : " sets"}
+                  </span>
+                </span>
+                {isPr ? <TermBadge tone="pr">PR</TermBadge> : null}
+                <span style={{ color: "var(--term-cyan)", whiteSpace: "nowrap" }}>
+                  {metric}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      ) : null}
+
+      {/* 노트 */}
+      {notes && notes.trim().length > 0 ? (
+        <div style={{ display: "flex", flexDirection: "column", gap: "var(--v2-s-1)" }}>
+          <span className="v2-mono-label" style={{ color: "var(--term-dim)" }}>
+            {ko ? "노트" : "notes"}
+          </span>
+          <p
+            className="v2-mono-label"
+            style={{ color: "var(--term-fg)", whiteSpace: "pre-wrap", margin: 0 }}
+          >
+            {notes}
+          </p>
+        </div>
+      ) : null}
+
+      {/* 액션 */}
+      <Link
+        href="/"
+        className="v2-mono-label"
+        style={{
+          minHeight: "var(--v2-touch)",
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: "0 var(--v2-s-3)",
+          background: "var(--term-sel)",
+          color: "var(--term-amber)",
+          textDecoration: "none",
+          boxShadow: "inset 0 0 0 1px var(--term-line-box)",
+          borderRadius: "var(--v2-r-2)",
+        }}
+      >
+        [{ko ? "홈으로" : "home"}]
+      </Link>
+    </section>
   );
 }
 
