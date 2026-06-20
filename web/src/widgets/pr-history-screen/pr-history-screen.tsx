@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { V2Card, V2Chip, V2Hairline, V2IconBtn } from "@/components/v2/primitives";
 import { AppPage } from "@/components/ui/page-layout";
 import { useLocale } from "@/components/locale-provider";
+import { useThemeSkin } from "@/components/use-theme-skin";
+import { PrHistoryTuiView } from "./pr-history-tui-view";
 import { APP_ROUTES } from "@/lib/app-routes";
 import type {
   PrHistoryBootstrap,
@@ -58,6 +60,19 @@ export function PrHistoryScreen({
 }: PrHistoryScreenProps) {
   const { locale } = useLocale();
   const router = useRouter();
+  const skin = useThemeSkin();
+
+  if (skin === "terminal") {
+    return (
+      <PrHistoryTuiView
+        exercises={exercises}
+        selected={selected}
+        prs={prs}
+        rangeFrom={rangeFrom}
+        rangeTo={rangeTo}
+      />
+    );
+  }
 
   return (
     <AppPage>
