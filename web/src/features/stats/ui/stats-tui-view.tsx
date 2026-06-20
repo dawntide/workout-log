@@ -6,6 +6,7 @@ import { EmptyStateRows, ErrorStateRows } from "@/components/ui/settings-state";
 import {
   TermBadge,
   TermLineChart,
+  TermProgress,
   TermSparkline,
 } from "@/components/v2/terminal";
 import { useStats1RMController } from "@/features/stats/model/use-stats-1rm-controller";
@@ -38,8 +39,11 @@ type StatsTuiViewProps = Pick<
   | "initialExercises"
   | "initialPlans"
   | "initialE1rm"
+  | "initialVolumeWeekly"
   | "initialSelectedExerciseId"
   | "initialSelectedPlanId"
+  | "goal"
+  | "goalMetrics"
 >;
 
 export function StatsTuiView({
@@ -47,8 +51,11 @@ export function StatsTuiView({
   initialExercises,
   initialPlans,
   initialE1rm,
+  initialVolumeWeekly,
   initialSelectedExerciseId,
   initialSelectedPlanId,
+  goal,
+  goalMetrics,
 }: StatsTuiViewProps) {
   const { locale } = useLocale();
   const c = useStats1RMController({
@@ -226,6 +233,32 @@ export function StatsTuiView({
         ) : null}
       </div>
 
+      {/* 주간 볼륨 추세 */}
+      {initialVolumeWeekly && initialVolumeWeekly.series.length > 1 ? (
+        <div
+          className="v2-mono-label"
+          style={{ display: "flex", alignItems: "center", gap: "var(--v2-s-2)" }}
+        >
+          <span style={{ color: "var(--term-dim)" }}>
+            {locale === "ko" ? "주간 볼륨" : "weekly vol"}
+          </span>
+          <TermSparkline
+            data={initialVolumeWeekly.series.map((p) => p.tonnage)}
+            width={20}
+            tone="accent"
+            markPeak
+          />
+          <span style={{ color: "var(--term-amber)", marginLeft: "auto" }}>
+            {formatKg(initialVolumeWeekly.series.at(-1)?.tonnage ?? 0)}
+          </span>
+        </div>
+      ) : null}
+
+      {/* 목표 지표 (goal-aware: 근력→Big3 · 근비대→근육볼륨 · 지구력→시간) */}
+      {goalMetrics ? (
+        <GoalMetric goal={goal} metrics={goalMetrics} locale={locale} />
+      ) : null}
+
       {/* PR 리스트 (90일) */}
       {initialBundle.prs90d.length > 0 ? (
         <div
@@ -313,6 +346,115 @@ function Stat({
       </span>
     </span>
   );
+}
+
+const GOAL_PANEL: CSSProperties = {
+  padding: "var(--v2-s-3)",
+  background: "var(--term-panel)",
+  boxShadow: "inset 0 0 0 1px var(--term-line-box)",
+  borderRadius: "var(--v2-r-2)",
+  display: "flex",
+  flexDirection: "column",
+  gap: "var(--v2-s-1)",
+};
+
+const MUSCLE_KO: Record<string, string> = {
+  Quad: "대퇴",
+  Hamstring: "햄스트링",
+  Glute: "둔근",
+  Back: "등",
+  Chest: "가슴",
+  Shoulder: "어깨",
+  Arm: "팔",
+  Core: "코어",
+  Other: "기타",
+};
+
+// 목표 지표 — goal별 분기(paper GoalSection의 terminal 대응). 근력/파워→Big3 토탈,
+// 근비대→근육군 볼륨 바, 지구력→운동 시간. general은 표시 안 함.
+function GoalMetric({
+  goal,
+  metrics,
+  locale,
+}: {
+  goal: StatsPageBootstrap["goal"];
+  metrics: NonNullable<StatsPageBootstrap["goalMetrics"]>;
+  locale: "ko" | "en";
+}) {
+  const ko = locale === "ko";
+  const between: CSSProperties = {
+    display: "flex",
+    justifyContent: "space-between",
+    gap: "var(--v2-s-2)",
+  };
+
+  if ((goal === "strength" || goal === "powerlifting") && metrics.strengthScore) {
+    const s = metrics.strengthScore;
+    return (
+      <div style={GOAL_PANEL}>
+        <div className="v2-mono-label" style={between}>
+          <span style={{ color: "var(--term-dim)" }}>{ko ? "3대 토탈" : "Big3"}</span>
+          <span style={{ color: "var(--term-gold)" }}>
+            {s.totalE1rmKg > 0 ? `${Math.round(s.totalE1rmKg)}kg` : "—"}
+            {s.totalBodyweightRatio !== null
+              ? ` · ${s.totalBodyweightRatio.toFixed(2)}×`
+              : ""}
+          </span>
+        </div>
+        {s.big3.map((lift) => (
+          <div key={lift.liftName} className="v2-mono-label" style={between}>
+            <span style={{ color: "var(--term-fg)" }}>{lift.liftName}</span>
+            <span style={{ color: "var(--term-cyan)" }}>
+              {lift.bestE1rmKg !== null ? `${Math.round(lift.bestE1rmKg)}kg` : "—"}
+            </span>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (goal === "hypertrophy" && metrics.muscleVolume) {
+    const totals = metrics.muscleVolume.totals
+      .filter((t) => t.tonnageKg > 0)
+      .slice(0, 6);
+    if (totals.length === 0) return null;
+    const max = totals.reduce((m, t) => Math.max(m, t.tonnageKg), 1);
+    return (
+      <div style={GOAL_PANEL}>
+        <div className="v2-mono-label" style={{ color: "var(--term-dim)" }}>
+          {ko ? "근육군 볼륨" : "muscle volume"}
+        </div>
+        {totals.map((t) => (
+          <TermProgress
+            key={t.muscleGroup}
+            ratio={t.tonnageKg / max}
+            tone="success"
+            label={(ko ? MUSCLE_KO[t.muscleGroup] : t.muscleGroup) ?? t.muscleGroup}
+            value={`${Math.round(t.tonnageKg)}kg`}
+          />
+        ))}
+      </div>
+    );
+  }
+
+  if (goal === "endurance" && metrics.endurance) {
+    const e = metrics.endurance;
+    return (
+      <div style={GOAL_PANEL}>
+        <div className="v2-mono-label" style={between}>
+          <span style={{ color: "var(--term-dim)" }}>
+            {ko ? "운동 시간" : "training time"}
+          </span>
+          <span style={{ color: "var(--term-cyan)" }}>
+            {Math.round(e.totals.totalMinutes)}min · avg{" "}
+            {Math.round(e.totals.averageSessionMinutes ?? 0)}min
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  return null;
 }
 
 function selectorStyle(color: string): CSSProperties {

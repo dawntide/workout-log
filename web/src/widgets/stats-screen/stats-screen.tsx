@@ -294,8 +294,11 @@ export function StatsScreen({
         initialExercises={initialExercises}
         initialPlans={initialPlans}
         initialE1rm={initialE1rm}
+        initialVolumeWeekly={initialVolumeWeekly}
         initialSelectedExerciseId={initialSelectedExerciseId}
         initialSelectedPlanId={initialSelectedPlanId}
+        goal={goal}
+        goalMetrics={goalMetrics}
       />
     );
   }
