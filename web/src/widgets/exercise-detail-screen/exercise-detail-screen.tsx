@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { V2Card, V2Chip, V2Hairline, V2IconBtn } from "@/components/v2/primitives";
 import { AppPage } from "@/components/ui/page-layout";
 import { useLocale } from "@/components/locale-provider";
+import { useThemeSkin } from "@/components/use-theme-skin";
+import { ExerciseDetailTuiView } from "./exercise-detail-tui-view";
 import {
   E1RMInteractiveChart,
   clampIndex,
@@ -339,6 +341,7 @@ export function ExerciseDetailScreen({
 }: ExerciseDetailScreenProps) {
   const { locale } = useLocale();
   const router = useRouter();
+  const skin = useThemeSkin();
   const [activeIndex, setActiveIndex] = useState<number>(() =>
     Math.max(0, e1rmSeries.length - 1),
   );
@@ -364,6 +367,23 @@ export function ExerciseDetailScreen({
         series: e1rmSeries,
       }
     : null;
+
+  if (skin === "terminal") {
+    return (
+      <ExerciseDetailTuiView
+        exercise={exercise}
+        bestE1rm={bestE1rm}
+        e1rmSeries={e1rmSeries}
+        recentSets={recentSets}
+        prHistory={prHistory}
+        sessions90d={sessions90d}
+        totalVolume90d={totalVolume90d}
+        avgRpe90d={avgRpe90d}
+        rangeFrom={rangeFrom}
+        rangeTo={rangeTo}
+      />
+    );
+  }
 
   return (
     <AppPage>
