@@ -15,6 +15,7 @@ import {
   SETTINGS_KEYS,
   type TrainingGoalKey,
 } from "@/lib/settings/workout-preferences";
+import { V2Icon } from "@/components/v2/primitives/v2-icon";
 import {
   V2PrimaryBtn,
   V2Segmented,
@@ -226,12 +227,7 @@ export function V2Onboarding() {
               marginLeft: -8,
             }}
           >
-            <span
-              className="material-symbols-outlined"
-              aria-hidden
-            >
-              {step === 0 ? "close" : "arrow_back"}
-            </span>
+            <V2Icon name={step === 0 ? "close" : "arrow_back"} />
           </button>
           <div style={{ flex: 1, display: "flex", gap: "var(--v2-s-1)" }}>
             {Array.from({ length: TOTAL_STEPS }).map((_, i) => (
@@ -369,17 +365,15 @@ function Welcome({ locale }: { locale: "ko" | "en" }) {
           marginBottom: "var(--v2-s-7)",
         }}
       >
-        <span
-          className="material-symbols-outlined"
+        <V2Icon
+          name="fitness_center"
           style={{
             fontSize: "var(--v2-t-display)",
             color: "var(--v2-accent)",
-            fontVariationSettings: "'FILL' 1, 'wght' 600",
           }}
-          aria-hidden
-        >
-          fitness_center
-        </span>
+          fill
+          weight={600}
+        />
       </div>
       <h1 className="v2-display" style={{ fontSize: "var(--v2-t-display)" }}>
         {locale === "ko" ? (
@@ -426,18 +420,16 @@ function Welcome({ locale }: { locale: "ko" | "en" }) {
             key={t}
             style={{ display: "flex", gap: "var(--v2-s-4)", alignItems: "flex-start" }}
           >
-            <span
-              className="material-symbols-outlined"
+            <V2Icon
+              name={ic}
               style={{
                 fontSize: "var(--v2-t-h2)",
                 color: "var(--v2-accent)",
                 marginTop: 1,
-                fontVariationSettings: "'FILL' 1, 'wght' 500",
               }}
-              aria-hidden
-            >
-              {ic}
-            </span>
+              fill
+              weight={500}
+            />
             <div>
               <div className="v2-h3" style={{ fontSize: "var(--v2-t-body)" }}>
                 {t}

@@ -4,6 +4,7 @@ import Link from "next/link";
 import dynamic from "next/dynamic";
 import { memo, type Dispatch, type SetStateAction } from "react";
 import { SearchSelectCombobox } from "@/components/ui/search-select-sheet";
+import { V2Icon } from "@/components/v2/primitives/v2-icon";
 import type { AddExerciseDraft, WorkoutLogExerciseOption } from "@/features/workout-log/model/types";
 import {
   areAddExerciseDraftsEqual,
@@ -163,17 +164,15 @@ export const AddExerciseSheet = memo(function AddExerciseSheet({
                     borderRadius: "var(--v2-r-2)",
                   }}
                 >
-                  <span
-                    className="material-symbols-outlined"
+                  <V2Icon
+                    name="check_circle"
+                    fill
                     style={{
                       fontSize: "var(--v2-t-18)",
                       color: "var(--v2-accent)",
-                      fontVariationSettings: "'FILL' 1",
                       flexShrink: 0,
                     }}
-                  >
-                    check_circle
-                  </span>
+                  />
                   <span
                     className="v2-body"
                     style={{
@@ -249,9 +248,7 @@ export const AddExerciseSheet = memo(function AddExerciseSheet({
             letterSpacing: "0.02em",
           }}
         >
-          <span className="material-symbols-outlined" style={{ fontSize: "var(--v2-t-16)" }}>
-            tune
-          </span>
+          <V2Icon name="tune" style={{ fontSize: "var(--v2-t-16)" }} />
           {locale === "ko" ? "운동종목 관리" : "Manage Exercises"}
         </Link>
       </div>

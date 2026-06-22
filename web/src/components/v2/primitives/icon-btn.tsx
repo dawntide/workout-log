@@ -51,7 +51,7 @@ export function V2IconBtn(props: ButtonProps | AnchorProps) {
   const baseStyle: CSSProperties = {
     width: size,
     height: size,
-    borderRadius: size / 2,
+    borderRadius: "var(--v2-r-pill)",
     background: TONE_BG[tone],
     border: "none",
     cursor: "pointer",

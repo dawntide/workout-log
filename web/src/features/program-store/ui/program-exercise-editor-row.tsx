@@ -20,6 +20,7 @@ import {
   V2IconBtn,
   V2SecondaryBtn,
 } from "@/components/v2/primitives";
+import { V2Icon } from "@/components/v2/primitives/v2-icon";
 import {
   inferProgressionTargetFromExerciseName,
   isOperatorAutoRowType,
@@ -400,15 +401,11 @@ const ProgramExerciseEditorRow = memo(function ProgramExerciseEditorRow({
                     justifyContent: "center",
                   }}
                 >
-                  <span
-                    className="material-symbols-outlined"
-                    style={{
-                      fontSize: "var(--v2-t-18)",
-                      fontVariationSettings: "'wght' 400",
-                    }}
-                  >
-                    search
-                  </span>
+                  <V2Icon
+                    name="search"
+                    weight={400}
+                    style={{ fontSize: "var(--v2-t-18)" }}
+                  />
                 </span>
                 <AppTextInput
                   ref={exerciseInputRef}
@@ -470,16 +467,11 @@ const ProgramExerciseEditorRow = memo(function ProgramExerciseEditorRow({
                       setExercisePickerOpen(true);
                     }}
                   >
-                    <span
-                      className="material-symbols-outlined"
-                      aria-hidden="true"
-                      style={{
-                        fontSize: "var(--v2-t-14)",
-                        fontVariationSettings: "'wght' 500",
-                      }}
-                    >
-                      close
-                    </span>
+                    <V2Icon
+                      name="close"
+                      weight={500}
+                      style={{ fontSize: "var(--v2-t-14)" }}
+                    />
                   </button>
                 ) : null}
               </div>
@@ -840,13 +832,7 @@ function ChipButton({
       }}
     >
       {icon ? (
-        <span
-          className="material-symbols-outlined"
-          style={{ fontSize: "var(--v2-t-16)" }}
-          aria-hidden
-        >
-          {icon}
-        </span>
+        <V2Icon name={icon} style={{ fontSize: "var(--v2-t-16)" }} />
       ) : null}
       <span className="v2-mono-label">{children}</span>
     </button>

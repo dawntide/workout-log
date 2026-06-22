@@ -1,5 +1,6 @@
 import type { ComponentPropsWithoutRef } from "react";
 import { useLocale } from "@/components/locale-provider";
+import { V2Icon } from "@/components/v2/primitives/v2-icon";
 
 type PlanSelectorButtonProps = Omit<ComponentPropsWithoutRef<"button">, "type"> & {
   planName: string;
@@ -39,7 +40,7 @@ export function PlanSelectorButton({ planName, disabled, ...props }: PlanSelecto
       </div>
       {!disabled && (
         <span aria-hidden="true" style={{ color: "var(--v2-ink-2)", flexShrink: 0 }}>
-          <span className="material-symbols-outlined" style={{ fontSize: "var(--v2-t-18)", fontVariationSettings: "'wght' 400" }}>unfold_more</span>
+          <V2Icon name="unfold_more" weight={400} style={{ fontSize: "var(--v2-t-18)" }} />
         </span>
       )}
     </button>

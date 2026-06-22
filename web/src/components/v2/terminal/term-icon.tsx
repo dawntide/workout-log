@@ -53,6 +53,14 @@ const NF_CODEPOINT: Record<string, number> = {
   leaderboard: 0xf0128, // md-chart-bar
   equalizer: 0xf0128,
   bar_chart: 0xf0128,
+
+  // ── 페이퍼 잔재 정리: 시트·공유·인증 raw Material 교체용 (FA) ──
+  visibility: 0xf06e, // fa-eye
+  visibility_off: 0xf070, // fa-eye-slash
+  settings: 0xf013, // fa-cog
+  new_releases: 0xf0f3, // fa-bell
+  notifications: 0xf0f3,
+  arrow_downward: 0xf063, // fa-arrow-down
 };
 
 const UNICODE_GLYPH: Record<string, string> = {

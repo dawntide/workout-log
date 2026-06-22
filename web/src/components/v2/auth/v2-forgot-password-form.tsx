@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import Link from "next/link";
 import { useLocale } from "@/components/locale-provider";
+import { V2Icon } from "@/components/v2/primitives/v2-icon";
 import { V2PrimaryBtn } from "../primitives";
 
 export function V2ForgotPasswordForm() {
@@ -64,9 +65,7 @@ export function V2ForgotPasswordForm() {
         <label style={{ display: "flex", flexDirection: "column", gap: "var(--v2-s-1)" }}>
           <span className="v2-label">{locale === "ko" ? "이메일" : "Email"}</span>
           <span style={inputShellStyle}>
-            <span className="material-symbols-outlined" style={{ color: "var(--v2-ink-3)", fontSize: "var(--v2-t-20)" }} aria-hidden>
-              mail
-            </span>
+            <V2Icon name="mail" style={{ color: "var(--v2-ink-3)", fontSize: "var(--v2-t-20)" }} />
             <input
               type="email"
               autoComplete="email"
@@ -151,9 +150,7 @@ function AuthFrame({
             marginBottom: 20,
           }}
         >
-          <span className="material-symbols-outlined" style={{ fontSize: "var(--v2-t-h1)", color: "var(--v2-accent)" }} aria-hidden>
-            lock_reset
-          </span>
+          <V2Icon name="lock_reset" style={{ fontSize: "var(--v2-t-h1)", color: "var(--v2-accent)" }} />
         </div>
         <h1 className="v2-display" style={{ fontSize: "var(--v2-t-h1)", lineHeight: 1.08 }}>
           {title}

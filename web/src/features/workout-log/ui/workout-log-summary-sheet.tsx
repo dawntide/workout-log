@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useAtomValue } from "jotai";
 import { useLocale } from "@/components/locale-provider";
 import { BottomSheet } from "@/components/ui/bottom-sheet";
+import { V2Icon } from "@/components/v2/primitives/v2-icon";
 import { apiGet, isAbortError } from "@/lib/api";
 import { formatPerformedHistoryLine } from "@/lib/workout-notation";
 import { bodyweightAddedSuffix } from "@/lib/bodyweight-load";
@@ -435,13 +436,7 @@ function SessionCard({
           }}
         >
           {badgeIcon ? (
-            <span
-              className="material-symbols-outlined"
-              style={{ fontSize: "var(--v2-t-14)" }}
-              aria-hidden
-            >
-              {badgeIcon}
-            </span>
+            <V2Icon name={badgeIcon} style={{ fontSize: "var(--v2-t-14)" }} />
           ) : null}
           <span className="v2-mono-label">{stateLabel}</span>
         </span>

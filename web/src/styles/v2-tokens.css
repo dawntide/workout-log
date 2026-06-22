@@ -425,6 +425,12 @@
   border-radius: 0 !important;
 }
 
+/* 5) Google 로고 브랜드 색(SVG path fill 인라인) → 단색. 인라인 fill은
+      presentation attribute라 CSS가 우선 → currentColor로 mono화. */
+[data-theme="terminal"] .v2-google-icon path {
+  fill: currentColor;
+}
+
 /* ─── 타이포그래피 클래스 ─── */
 .v2-eyebrow {
   font-family: var(--v2-f-display);

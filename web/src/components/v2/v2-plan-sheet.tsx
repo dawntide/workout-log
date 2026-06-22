@@ -7,6 +7,7 @@ import { useLocale } from "@/components/locale-provider";
 import { apiGet } from "@/lib/api";
 import { APP_ROUTES } from "@/lib/app-routes";
 import { V2Card } from "./primitives";
+import { V2Icon } from "@/components/v2/primitives/v2-icon";
 import { BottomSheet } from "@/components/ui/bottom-sheet";
 
 type PlanItem = {
@@ -397,13 +398,7 @@ export function V2PlanSheet({
               marginLeft: -8,
             }}
           >
-            <span
-              className="material-symbols-outlined"
-              style={{ fontSize: "var(--v2-t-20)" }}
-              aria-hidden
-            >
-              chevron_left
-            </span>
+            <V2Icon name="chevron_left" style={{ fontSize: "var(--v2-t-20)" }} />
           </button>
           <h1 id={headingId} className="v2-h1 v2-font-display" style={{ flex: 1 }}>
             {monthLabel}
@@ -425,13 +420,7 @@ export function V2PlanSheet({
               justifyContent: "center",
             }}
           >
-            <span
-              className="material-symbols-outlined"
-              style={{ fontSize: "var(--v2-t-20)" }}
-              aria-hidden
-            >
-              chevron_right
-            </span>
+            <V2Icon name="chevron_right" style={{ fontSize: "var(--v2-t-20)" }} />
           </button>
           {!isCurrentMonth && (
             <button
@@ -557,16 +546,13 @@ export function V2PlanSheet({
                     flexShrink: 0,
                   }}
                 >
-                  <span
-                    className="material-symbols-outlined"
+                  <V2Icon
+                    name="event_note"
                     style={{
                       fontSize: "var(--v2-t-h2)",
                       color: "var(--v2-accent)",
                     }}
-                    aria-hidden
-                  >
-                    event_note
-                  </span>
+                  />
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div
@@ -592,13 +578,10 @@ export function V2PlanSheet({
                     {relativeLabel(plan.lastPerformedAt, locale)}
                   </div>
                 </div>
-                <span
-                  className="material-symbols-outlined"
+                <V2Icon
+                  name="chevron_right"
                   style={{ fontSize: "var(--v2-t-20)", color: "var(--v2-ink-3)" }}
-                  aria-hidden
-                >
-                  chevron_right
-                </span>
+                />
               </div>
             </V2Card>
           </Link>
@@ -630,13 +613,11 @@ export function V2PlanSheet({
               gap: "var(--v2-s-1)",
             }}
           >
-            <span
-              className="material-symbols-outlined v2-font-display"
+            <V2Icon
+              name="calendar_month"
+              className="v2-font-display"
               style={{ fontSize: "var(--v2-t-18)" }}
-              aria-hidden
-            >
-              calendar_month
-            </span>
+            />
             {locale === "ko" ? "전체 캘린더" : "Full calendar"}
           </button>
         </Link>
@@ -664,13 +645,7 @@ export function V2PlanSheet({
               gap: "var(--v2-s-1)",
             }}
           >
-            <span
-              className="material-symbols-outlined"
-              style={{ fontSize: "var(--v2-t-18)" }}
-              aria-hidden
-            >
-              event_note
-            </span>
+            <V2Icon name="event_note" style={{ fontSize: "var(--v2-t-18)" }} />
             {locale === "ko" ? "플랜 관리" : "Manage plans"}
           </button>
         </Link>

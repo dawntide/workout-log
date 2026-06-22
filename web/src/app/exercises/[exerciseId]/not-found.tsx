@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { APP_ROUTES } from "@/lib/app-routes";
+import { V2Icon } from "@/components/v2/primitives/v2-icon";
 
 export default function ExerciseDetailNotFound() {
   return (
@@ -17,13 +18,10 @@ export default function ExerciseDetailNotFound() {
           gap: "var(--v2-s-3)",
         }}
       >
-        <span
-          className="material-symbols-outlined"
+        <V2Icon
+          name="search_off"
           style={{ fontSize: "var(--v2-t-h1)", color: "var(--v2-ink-3)" }}
-          aria-hidden
-        >
-          search_off
-        </span>
+        />
         <h1
           className="v2-h2"
           style={{ fontSize: "var(--v2-t-20)", letterSpacing: 0, margin: 0 }}

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useLocale } from "@/components/locale-provider";
+import { V2Icon } from "@/components/v2/primitives/v2-icon";
 import { V2PrimaryBtn, V2SecondaryBtn, V2TextField } from "./primitives";
 
 type Mode = "login" | "signup";
@@ -336,9 +337,7 @@ export function V2AuthForm({ mode }: { mode: Mode }) {
                   padding: 0,
                 }}
               >
-                <span className="material-symbols-outlined" style={{ fontSize: "var(--v2-t-18)" }} aria-hidden>
-                  {showPassword ? "visibility_off" : "visibility"}
-                </span>
+                <V2Icon name={showPassword ? "visibility_off" : "visibility"} style={{ fontSize: "var(--v2-t-18)" }} />
               </button>
             )}
           />
@@ -429,9 +428,7 @@ export function V2AuthForm({ mode }: { mode: Mode }) {
                 fontWeight: 700,
               }}
             >
-              <span className="material-symbols-outlined" style={{ fontSize: "var(--v2-t-16)" }} aria-hidden>
-                error
-              </span>
+              <V2Icon name="error" style={{ fontSize: "var(--v2-t-16)" }} />
               {error}
             </div>
           )}
@@ -625,9 +622,7 @@ function CheckboxRow({
         }}
       >
         {checked ? (
-          <span className="material-symbols-outlined" style={{ fontSize: "var(--v2-t-14)" }}>
-            check
-          </span>
+          <V2Icon name="check" style={{ fontSize: "var(--v2-t-14)" }} />
         ) : null}
       </span>
       <span style={{ flex: 1, minWidth: 0 }}>
@@ -680,6 +675,7 @@ function Divider({ label }: { label: string }) {
 function GoogleIcon() {
   return (
     <svg
+      className="v2-google-icon"
       viewBox="0 0 18 18"
       width={18}
       height={18}

@@ -3,6 +3,7 @@
 import React, { useState, useMemo } from "react";
 import { useLocale } from "@/components/locale-provider";
 import { V2IconBtn } from "@/components/v2/primitives";
+import { V2Icon } from "@/components/v2/primitives/v2-icon";
 import {
   monthGrid,
   getDayOfWeek,
@@ -80,17 +81,14 @@ export function CalendarRangePicker({
           value={startDate || "-"}
           active={Boolean(!isSelectingEnd && startDate)}
         />
-        <span
-          className="material-symbols-outlined"
-          aria-hidden="true"
+        <V2Icon
+          name="arrow_forward"
           style={{
             alignSelf: "center",
             color: "var(--v2-ink-3)",
             fontSize: "var(--v2-t-20)",
           }}
-        >
-          arrow_forward
-        </span>
+        />
         <RangeChip
           label={locale === "ko" ? "종료일" : "End"}
           value={
@@ -138,13 +136,7 @@ export function CalendarRangePicker({
             borderRadius: "var(--v2-r-1)",
           }}
         >
-          <span
-            className="material-symbols-outlined"
-            aria-hidden="true"
-            style={{ fontSize: "var(--v2-t-18)" }}
-          >
-            restart_alt
-          </span>
+          <V2Icon name="restart_alt" style={{ fontSize: "var(--v2-t-18)" }} />
           {locale === "ko" ? "초기화" : "Reset"}
         </button>
       </div>

@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import { useLocale } from "@/components/locale-provider";
+import { V2Icon } from "@/components/v2/primitives/v2-icon";
 
 type MeResponse = {
   user:
@@ -79,13 +80,10 @@ export function V2EmailVerificationBanner() {
         gap: "var(--v2-s-3)",
       }}
     >
-      <span
-        className="material-symbols-outlined"
+      <V2Icon
+        name="mark_email_unread"
         style={{ color: "var(--v2-c-warning)", fontSize: "var(--v2-t-20)", marginTop: 1 }}
-        aria-hidden
-      >
-        mark_email_unread
-      </span>
+      />
       <div style={{ flex: 1, minWidth: 0 }}>
         <div className="v2-font-display" style={{ fontSize: "var(--v2-t-small)", fontWeight: 700 }}>
           {locale === "ko" ? "이메일 인증을 완료해 주세요" : "Complete email verification"}
@@ -142,9 +140,7 @@ export function V2EmailVerificationBanner() {
           flexShrink: 0,
         }}
       >
-        <span className="material-symbols-outlined" style={{ fontSize: "var(--v2-t-18)" }} aria-hidden>
-          close
-        </span>
+        <V2Icon name="close" style={{ fontSize: "var(--v2-t-18)" }} />
       </button>
     </div>
   );

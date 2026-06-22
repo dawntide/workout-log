@@ -9,6 +9,7 @@ import {
   type TextareaHTMLAttributes,
 } from "react";
 import { NumberPickerField } from "./number-picker-sheet";
+import { V2Icon } from "@/components/v2/primitives/v2-icon";
 
 type ClassValue = string | null | undefined | false;
 
@@ -45,13 +46,12 @@ export function AppPlusMinusIcon({
 }) {
   const resolvedSize = typeof size === "number" ? `${size}px` : size;
   return (
-    <span
-      className={`material-symbols-outlined${className ? ` ${className}` : ""}`}
-      aria-hidden="true"
-      style={{ fontSize: resolvedSize, fontVariationSettings: "'FILL' 0, 'wght' 400", lineHeight: 1 }}
-    >
-      {kind === "plus" ? "add" : "remove"}
-    </span>
+    <V2Icon
+      name={kind === "plus" ? "add" : "remove"}
+      className={className || undefined}
+      weight={400}
+      style={{ fontSize: resolvedSize, lineHeight: 1 }}
+    />
   );
 }
 
@@ -155,7 +155,7 @@ export const AppSelect = forwardRef<
               flexShrink: 0,
             }}
           >
-            <span className="material-symbols-outlined" style={{ fontSize: "var(--v2-t-16)", fontVariationSettings: "'wght' 400", lineHeight: 1 }}>unfold_more</span>
+            <V2Icon name="unfold_more" weight={400} style={{ fontSize: "var(--v2-t-16)", lineHeight: 1 }} />
           </span>
         </span>
       </WrapperTag>
@@ -206,7 +206,7 @@ export const AppSelect = forwardRef<
           justifyContent: "center",
         }}
       >
-        <span className="material-symbols-outlined" style={{ fontSize: "var(--v2-t-14)", fontVariationSettings: "'wght' 400", lineHeight: 1 }}>expand_more</span>
+        <V2Icon name="expand_more" weight={400} style={{ fontSize: "var(--v2-t-14)", lineHeight: 1 }} />
       </span>
     </div>
   );

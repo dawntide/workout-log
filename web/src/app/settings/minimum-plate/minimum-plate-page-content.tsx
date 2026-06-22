@@ -11,6 +11,7 @@ import {
   V2SecondaryBtn,
   V2Stack,
 } from "@/components/v2/primitives";
+import { V2Icon } from "@/components/v2/primitives/v2-icon";
 import {
   V2SettingsFootnote,
   V2SettingsGroup,
@@ -372,7 +373,7 @@ export function MinimumPlatePageContent({ initialSnapshot, initialExercises }: M
                       justifyContent: "center",
                     }}
                   >
-                    <span className="material-symbols-outlined" style={{ fontSize: "var(--v2-t-18)", fontVariationSettings: "'wght' 400" }}>search</span>
+                    <V2Icon name="search" weight={400} style={{ fontSize: "var(--v2-t-18)" }} />
                   </span>
                   <AppTextInput
                     type="text"
@@ -425,7 +426,7 @@ export function MinimumPlatePageContent({ initialSnapshot, initialExercises }: M
                         setSheetError(null);
                       }}
                     >
-                      <span className="material-symbols-outlined" style={{ fontSize: "var(--v2-t-14)", fontVariationSettings: "'wght' 500" }}>close</span>
+                      <V2Icon name="close" weight={500} style={{ fontSize: "var(--v2-t-14)" }} />
                     </button>
                   ) : null}
                 </div>

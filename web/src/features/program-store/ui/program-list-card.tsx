@@ -6,6 +6,7 @@ import {
   V2SecondaryBtn,
   type V2ChipTone,
 } from "@/components/v2/primitives";
+import { V2Icon } from "@/components/v2/primitives/v2-icon";
 import { formatProgramDisplayName } from "@/features/program-store/model/view";
 import {
   getProgramDetailInfo,
@@ -272,12 +273,10 @@ export function ProgramListCard({
                   gap: "var(--v2-s-1)",
                 }}
               >
-                <span
-                  className="material-symbols-outlined"
+                <V2Icon
+                  name={meta.icon}
                   style={{ fontSize: "var(--v2-t-14)" }}
-                >
-                  {meta.icon}
-                </span>
+                />
                 {meta.value}
               </span>
             </div>

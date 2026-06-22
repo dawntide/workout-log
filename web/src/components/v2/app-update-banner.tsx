@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useLocale } from "@/components/locale-provider";
+import { V2Icon } from "@/components/v2/primitives/v2-icon";
 
 /**
  * 새 배포(서비스워커 업데이트) 감지 배너.
@@ -110,13 +111,10 @@ export function V2AppUpdateBanner() {
         gap: "var(--v2-s-3)",
       }}
     >
-      <span
-        className="material-symbols-outlined"
+      <V2Icon
+        name="new_releases"
         style={{ color: "var(--v2-accent-ink)", fontSize: "var(--v2-t-20)", marginTop: 1 }}
-        aria-hidden
-      >
-        new_releases
-      </span>
+      />
       <div style={{ flex: 1, minWidth: 0 }}>
         <div className="v2-font-display" style={{ fontSize: "var(--v2-t-small)", fontWeight: 700 }}>
           {isKo ? "새 버전이 준비됐어요" : "A new version is ready"}
@@ -161,9 +159,7 @@ export function V2AppUpdateBanner() {
           flexShrink: 0,
         }}
       >
-        <span className="material-symbols-outlined" style={{ fontSize: "var(--v2-t-18)" }} aria-hidden>
-          close
-        </span>
+        <V2Icon name="close" style={{ fontSize: "var(--v2-t-18)" }} />
       </button>
     </div>
   );

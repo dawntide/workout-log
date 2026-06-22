@@ -4,6 +4,7 @@ import { useCallback } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useLocale } from "@/components/locale-provider";
+import { V2Icon } from "@/components/v2/primitives/v2-icon";
 
 function titleFromPathname(pathname: string, locale: "ko" | "en") {
   if (pathname === "/") return locale === "ko" ? "홈" : "Home";
@@ -52,7 +53,7 @@ export function TopBackButton() {
           aria-label={locale === "ko" ? "설정" : "Settings"}
           aria-current={isSettingsRoute ? "page" : undefined}
         >
-          <span aria-hidden="true" className="material-symbols-outlined" style={{ fontSize: "var(--v2-t-h2)", fontVariationSettings: "'wght' 400" }}>settings</span>
+          <V2Icon name="settings" weight={400} style={{ fontSize: "var(--v2-t-h2)" }} />
         </Link>
       </div>
     </div>

@@ -6,6 +6,7 @@ import { toSettingsDeepLinkHref } from "@/lib/settings/settings-deeplink";
 import type { SettingsSearchEntry } from "@/lib/settings/settings-search-index";
 import { searchSettingsIndex, splitSearchTokens } from "@/lib/settings/settings-search";
 import { V2NavRow } from "@/components/v2/primitives";
+import { V2Icon } from "@/components/v2/primitives/v2-icon";
 import {
   V2RowIcon,
   V2SettingsFootnote,
@@ -133,7 +134,7 @@ export function SettingsSearchPanel({ index }: SettingsSearchPanelProps) {
       <V2SettingsSection title={locale === "ko" ? "검색" : "Search"} />
       <div>
         <span aria-hidden="true">
-          <span className="material-symbols-outlined" style={{ fontSize: "var(--v2-t-18)", fontVariationSettings: "'wght' 400" }}>search</span>
+          <V2Icon name="search" weight={400} style={{ fontSize: "var(--v2-t-18)" }} />
         </span>
         <input
           type="search"

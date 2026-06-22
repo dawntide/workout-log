@@ -5,6 +5,7 @@ import { useLocale } from "@/components/locale-provider";
 import type { BottomSheetPrimaryAction } from "@/components/ui/bottom-sheet-action-header";
 import { BottomSheet } from "@/components/ui/bottom-sheet";
 import { SearchInput } from "@/components/ui/search-input";
+import { V2Icon } from "@/components/v2/primitives/v2-icon";
 
 export type SearchSelectOption = {
   key: string;
@@ -114,7 +115,7 @@ export function SearchSelectCombobox({
                 >
                   <span style={{ flex: 1 }}>{option.label}</span>
                   {option.active && (
-                    <span className="material-symbols-outlined" style={{ fontSize: "var(--v2-t-18)", fontVariationSettings: "'FILL' 1, 'wght' 500", flexShrink: 0, color: "var(--v2-accent)" }}>check</span>
+                    <V2Icon name="check" fill weight={500} style={{ fontSize: "var(--v2-t-18)", flexShrink: 0, color: "var(--v2-accent)" }} />
                   )}
                 </button>
               ))

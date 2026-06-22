@@ -5,6 +5,7 @@ import { memo } from "react";
 import type { ReactNode } from "react";
 import { useLocale } from "@/components/locale-provider";
 import { V2Card, V2Chip, V2Hairline, V2PrimaryBtn } from "@/components/v2/primitives";
+import { V2Icon } from "@/components/v2/primitives/v2-icon";
 
 export type SessionCardExercise = {
   name: string;
@@ -162,7 +163,7 @@ function TodayCard({
             }}
           >
             <span>{ctaLabel}</span>
-            <span className="material-symbols-outlined" style={{ fontSize: "var(--v2-t-20)", fontVariationSettings: "'wght' 400" }} aria-hidden>chevron_right</span>
+            <V2Icon name="chevron_right" weight={400} style={{ fontSize: "var(--v2-t-20)" }} />
           </div>
         ) : ctaHref ? (
           <V2PrimaryBtn as="a" href={ctaHref} icon="chevron_right" full style={{ marginTop: "var(--v2-s-4)" }}>

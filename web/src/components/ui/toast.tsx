@@ -1,6 +1,7 @@
 "use client";
 
 import { memo, useEffect } from "react";
+import { V2Icon } from "@/components/v2/primitives/v2-icon";
 
 type ToastTone = "success" | "neutral";
 
@@ -69,13 +70,11 @@ export const Toast = memo(function Toast({
           whiteSpace: "nowrap",
         }}
       >
-        <span
-          className="material-symbols-outlined"
-          style={{ fontSize: "var(--v2-t-20)", fontVariationSettings: "'FILL' 1" }}
-          aria-hidden="true"
-        >
-          {ICON_BY_TONE[tone]}
-        </span>
+        <V2Icon
+          name={ICON_BY_TONE[tone]}
+          fill
+          style={{ fontSize: "var(--v2-t-20)" }}
+        />
         <span style={{ fontSize: "var(--v2-t-14)", lineHeight: 1.3 }}>{message}</span>
       </div>
     </div>

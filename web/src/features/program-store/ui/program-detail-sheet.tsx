@@ -10,6 +10,7 @@ import {
   V2SecondaryBtn,
   type V2ChipTone,
 } from "@/components/v2/primitives";
+import { V2Icon } from "@/components/v2/primitives/v2-icon";
 import {
   getProgramDescription,
   getProgramDetailInfo,
@@ -132,16 +133,14 @@ function StatBentoCell({
       }}
     >
       {icon && (
-        <span
-          className="material-symbols-outlined"
+        <V2Icon
+          name={icon}
           style={{
             fontSize: "var(--v2-t-h2)",
             color: "var(--v2-accent)",
             marginBottom: 2,
           }}
-        >
-          {icon}
-        </span>
+        />
       )}
       {children}
       {value && (
@@ -194,12 +193,10 @@ function ArchitectureGrid({ items }: { items: ArchItem[] }) {
               flexShrink: 0,
             }}
           >
-            <span
-              className="material-symbols-outlined"
+            <V2Icon
+              name={item.icon}
               style={{ fontSize: "var(--v2-t-20)", color: "var(--v2-accent)" }}
-            >
-              {item.icon}
-            </span>
+            />
           </div>
           <div>
             <p
@@ -890,12 +887,10 @@ export function ProgramDetailSheet({
             <span className="v2-eyebrow">
               {locale === "ko" ? "프로그램 메타" : "Technical Logbook"}
             </span>
-            <span
-              className="material-symbols-outlined"
+            <V2Icon
+              name="info"
               style={{ fontSize: "var(--v2-t-16)", color: "var(--v2-ink-3)" }}
-            >
-              info
-            </span>
+            />
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
             {logbookStats.map((stat) => (

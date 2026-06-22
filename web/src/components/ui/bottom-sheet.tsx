@@ -4,6 +4,7 @@ import type { PointerEvent as ReactPointerEvent, ReactNode } from "react";
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { MINIMAL_COPY_MODE } from "@/lib/ui/minimal-copy";
+import { V2Icon } from "@/components/v2/primitives/v2-icon";
 import { BottomSheetActionHeader, type BottomSheetPrimaryAction } from "./bottom-sheet-action-header";
 
 const SHEET_STACK_EVENT = "mobile-bottom-sheet-stack-change";
@@ -538,13 +539,7 @@ export function BottomSheet({
                 onPointerDown={(e) => e.stopPropagation()}
                 aria-label={closeLabel}
               >
-                <span
-                  className="material-symbols-outlined"
-                  aria-hidden="true"
-                  style={{ fontSize: "var(--v2-t-20)", fontVariationSettings: "'wght' 500" }}
-                >
-                  close
-                </span>
+                <V2Icon name="close" weight={500} style={{ fontSize: "var(--v2-t-20)" }} />
               </button>
             ) : null}
           </div>
@@ -568,7 +563,7 @@ export function BottomSheet({
                 {hasDescription ? <p>{description}</p> : null}
               </div>
               <button type="button" className="mobile-bottom-sheet-btn" onClick={handleClose} aria-label={closeLabel}>
-                <span className="material-symbols-outlined" aria-hidden="true" style={{ fontSize: "var(--v2-t-20)", fontVariationSettings: "'wght' 500" }}>close</span>
+                <V2Icon name="close" weight={500} style={{ fontSize: "var(--v2-t-20)" }} />
               </button>
             </header>
           ))}

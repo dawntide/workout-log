@@ -3,6 +3,7 @@ import { APP_ROUTES } from "@/lib/app-routes";
 import { getAppCopy, resolveRequestLocale } from "@/lib/i18n/messages";
 import { AppPage, PageSection } from "@/components/ui/page-layout";
 import { V2SecondaryBtn, V2SectionHeader } from "@/components/v2/primitives";
+import { V2Icon } from "@/components/v2/primitives/v2-icon";
 
 type SearchParams = Record<string, string | string[] | undefined>;
 
@@ -46,7 +47,7 @@ function SettingRow({ item }: { item: SettingItem }) {
         textDecoration: "none",
       }}
     >
-      <span className="material-symbols-outlined" aria-hidden="true">{item.iconSymbol}</span>
+      <V2Icon name={item.iconSymbol} />
       <div style={{ flex: 1, minWidth: 0 }}>
         <div className="v2-body" style={{ fontWeight: 700 }}>{item.label}</div>
         <div className="v2-small" style={{ color: "var(--v2-ink-2)" }}>{item.description}</div>

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { V2Icon } from "@/components/v2/primitives/v2-icon";
 
 function cx(...values: Array<string | false | null | undefined>) {
   return values.filter(Boolean).join(" ");
@@ -183,12 +184,7 @@ export function ActionLinkRow({
     >
       {icon ? (
         <span className="app-action-row__icon-wrap" aria-hidden="true">
-          <span
-            className="material-symbols-outlined app-action-row__icon"
-            style={{ fontVariationSettings: "'FILL' 0, 'wght' 300" }}
-          >
-            {icon}
-          </span>
+          <V2Icon name={icon} className="app-action-row__icon" weight={300} />
         </span>
       ) : null}
 
@@ -203,12 +199,7 @@ export function ActionLinkRow({
       </div>
 
       <span className="app-action-row__chevron" aria-hidden="true">
-        <span
-          className="material-symbols-outlined"
-          style={{ fontVariationSettings: "'FILL' 0, 'wght' 300" }}
-        >
-          chevron_right
-        </span>
+        <V2Icon name="chevron_right" weight={300} />
       </span>
     </Link>
   );
@@ -225,12 +216,7 @@ export function StateBlock({
   return (
     <div className={cx("app-state-block", className)} data-tone={tone}>
       <div className="app-state-block__icon" aria-hidden="true">
-        <span
-          className="material-symbols-outlined"
-          style={{ fontVariationSettings: "'FILL' 1, 'wght' 400" }}
-        >
-          {icon}
-        </span>
+        <V2Icon name={icon} fill weight={400} />
       </div>
       <div className="app-state-block__body">
         <div className="app-state-block__title">{title}</div>

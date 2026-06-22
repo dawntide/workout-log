@@ -3,6 +3,7 @@
 import dynamic from "next/dynamic";
 import { memo } from "react";
 import { V2PrimaryBtn, V2SecondaryBtn } from "@/components/v2/primitives";
+import { V2Icon } from "@/components/v2/primitives/v2-icon";
 import { getMonth, getYear } from "@/lib/date-utils";
 
 const MonthYearPickerSheet = dynamic(
@@ -101,17 +102,15 @@ const MoveDateConflictSheet = memo(function MoveDateConflictSheet({
             gap: "var(--v2-s-2)",
           }}
         >
-          <span
-            className="material-symbols-outlined"
+          <V2Icon
+            name="warning"
             style={{
               fontSize: "var(--v2-t-20)",
               color: "var(--v2-c-danger)",
               flexShrink: 0,
               marginTop: 1,
             }}
-          >
-            warning
-          </span>
+          />
           <p
             className="v2-body"
             style={{ color: "var(--v2-ink)", lineHeight: 1.6, margin: 0 }}
