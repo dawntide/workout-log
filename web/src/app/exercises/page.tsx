@@ -1,5 +1,5 @@
-import { ExerciseCatalogContent } from "@/components/exercise-catalog/exercise-catalog-content";
+import { ExerciseCatalogScreen } from "@/components/exercise-catalog/exercise-catalog-screen";
 
 export default function ExercisesPage() {
-  return <ExerciseCatalogContent />;
+  return <ExerciseCatalogScreen />;
 }
