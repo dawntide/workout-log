@@ -73,7 +73,7 @@ export default function WorkoutSessionDetailPage() {
   }
 
   return (
-    <div>
+    <div style={{ minHeight: "100%", display: "flex", flexDirection: "column" }}>
       <ErrorStateRows
         message={error}
         onRetry={() => {
