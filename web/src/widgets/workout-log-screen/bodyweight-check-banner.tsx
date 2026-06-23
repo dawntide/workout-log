@@ -92,16 +92,20 @@ function BodyweightCheckBannerTerminal({
   const parsed = Number(value);
   const canUpdate = Number.isFinite(parsed) && parsed > 0 && !submitting;
 
-  const keyBtn = (active: boolean, enabled: boolean): CSSProperties => ({
+  // 표준 액션버튼(term-table TermAction)과 동일: 투명·테두리X·색만. emphasis=주요(amber).
+  const keyBtn = (emphasis: boolean, enabled: boolean): CSSProperties => ({
     fontFamily: "var(--term-mono)",
     fontSize: "var(--v2-t-14)",
     minHeight: "var(--v2-touch)",
-    padding: "0 var(--v2-s-3)",
+    padding: "0 var(--v2-s-2)",
     display: "inline-flex",
     alignItems: "center",
-    background: active ? "var(--term-amber)" : "transparent",
-    color: active ? "var(--term-bg)" : enabled ? "var(--term-amber)" : "var(--term-ghost)",
-    boxShadow: active ? "none" : "inset 0 0 0 1px var(--term-line-box)",
+    background: "transparent",
+    color: !enabled
+      ? "var(--term-ghost)"
+      : emphasis
+        ? "var(--term-amber)"
+        : "var(--term-cyan)",
     border: "none",
     cursor: enabled ? "pointer" : "not-allowed",
     whiteSpace: "nowrap",
@@ -158,7 +162,7 @@ function BodyweightCheckBannerTerminal({
           onClick={() => {
             if (canUpdate) onUpdate(Math.round(parsed * 10) / 10);
           }}
-          style={keyBtn(canUpdate, canUpdate)}
+          style={keyBtn(true, canUpdate)}
         >
           {locale === "ko" ? "[⏎ 업데이트]" : "[⏎ update]"}
         </button>

@@ -96,9 +96,8 @@ export function V2PrimaryBtn(props: ButtonProps | AnchorProps) {
 }
 
 // ─── terminal(ironlog) 변형 ─────────────────────────────────────────────────
-// 운동기록 [+ 운동 추가](AddExerciseAction)와 동일 골격: bracket [ ] + 투명 배경 +
-// 흐린 line-box 테두리 + amber 글자 강조. 진한 amber 테두리·솔리드 풀블록은 GUI틱이라 제거.
-// icon 없으면 ▶ 프롬프트.
+// 운동기록 액션버튼(term-table TermAction)과 동일 골격: bracket [ ] + 투명 배경 +
+// 테두리 전혀 없음 + 색으로만 구분(primary=amber 강조). icon 없으면 ▶ 프롬프트.
 function PrimaryBtnTerminal(props: ButtonProps | AnchorProps) {
   const { children, icon, full = false, style, className } = props;
   const disabled = props.as !== "a" && Boolean(props.disabled);
@@ -110,12 +109,11 @@ function PrimaryBtnTerminal(props: ButtonProps | AnchorProps) {
     gap: "var(--v2-s-1)",
     width: full ? "100%" : undefined,
     minHeight: "var(--v2-touch)",
-    padding: "var(--v2-s-2) var(--v2-s-3)",
+    padding: "0 var(--v2-s-2)",
     background: "transparent",
     color: accent,
     border: "none",
     borderRadius: 0,
-    boxShadow: "inset 0 0 0 1px var(--term-line-box)",
     fontFamily: "var(--term-mono)",
     fontWeight: 600,
     fontSize: "var(--v2-t-16)",

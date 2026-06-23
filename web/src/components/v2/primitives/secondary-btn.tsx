@@ -100,15 +100,17 @@ export function V2SecondaryBtn(props: ButtonProps | AnchorProps) {
 }
 
 // ─── terminal(ironlog) 변형 ─────────────────────────────────────────────────
-// 기존 terminal 키힌트 표준과 동일하게: bracket [ ] 텍스트 + 투명 + inset 1px outline.
-// primary와 달리 ▶ 프롬프트 없음, 테두리는 흐린 line-box(amber 강조는 primary 전용).
-// danger tone은 red 글자·red outline.
+// 운동기록 액션버튼(term-table TermAction)과 동일 골격: bracket [ ] + 투명 + 테두리 없음.
+// 색으로만 구분 — 기본 cyan(일반 액션), danger=red, disabled=ghost. ▶는 primary 전용.
 function SecondaryBtnTerminal(props: ButtonProps | AnchorProps) {
   const { children, icon, full = false, style, className, tone = "neutral" } = props;
   const danger = tone === "danger";
   const disabled = props.as !== "a" && Boolean(props.disabled);
-  const fg = danger ? "var(--term-red)" : "var(--term-fg)";
-  const line = danger ? "var(--term-red)" : "var(--term-line-box)";
+  const fg = disabled
+    ? "var(--term-ghost)"
+    : danger
+      ? "var(--term-red)"
+      : "var(--term-cyan)";
   const baseStyle: CSSProperties = {
     display: "inline-flex",
     alignItems: "center",
@@ -116,18 +118,16 @@ function SecondaryBtnTerminal(props: ButtonProps | AnchorProps) {
     gap: "var(--v2-s-1)",
     width: full ? "100%" : undefined,
     minHeight: "var(--v2-touch)",
-    padding: "var(--v2-s-2) var(--v2-s-3)",
+    padding: "0 var(--v2-s-2)",
     background: "transparent",
     color: fg,
     border: "none",
     borderRadius: 0,
-    boxShadow: `inset 0 0 0 1px ${line}`,
     fontFamily: "var(--term-mono)",
     fontWeight: 500,
     fontSize: "var(--v2-t-14)",
     textDecoration: "none",
     cursor: disabled ? "not-allowed" : "pointer",
-    opacity: disabled ? 0.5 : 1,
     whiteSpace: "nowrap",
     ...style,
   };
