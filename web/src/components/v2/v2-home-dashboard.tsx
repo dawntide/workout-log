@@ -488,10 +488,19 @@ const DECKS: { key: string; icon: string; label: string; labelEn: string }[] = [
 
 /* ─────────────────────────── Public API ─────────────────────────── */
 
-// skin 분기 래퍼 — terminal이면 HomeTuiView, paper는 기존 대시보드(무수정).
+// skin 분기 래퍼 — terminal이면 HomeTuiView(또는 deck=stats 시 StatsContainer),
+// paper는 기존 대시보드(무수정). paper는 내부에서 deck를 bottom-dock 탭으로 토글하지만,
+// terminal은 셸 탭(stats href=/?deck=stats)으로 진입하므로 여기서 deck를 라우팅한다.
 export function V2HomeDashboard({ data }: { data: HomeData }) {
   const skin = useThemeSkin();
-  if (skin === "terminal") return <HomeTuiView data={data} />;
+  const requestedDeck = useSearchParams().get("deck");
+  if (skin === "terminal") {
+    return requestedDeck === "stats" || requestedDeck === "progress" ? (
+      <StatsContainer />
+    ) : (
+      <HomeTuiView data={data} />
+    );
+  }
   return <V2HomeDashboardPaper data={data} />;
 }
 
