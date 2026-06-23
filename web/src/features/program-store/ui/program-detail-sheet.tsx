@@ -621,10 +621,17 @@ export function ProgramDetailSheet({
         </div>
         <div
           style={{
-            padding: "var(--v2-s-1) var(--v2-s-3)",
+            padding: skin === "terminal" ? 0 : "var(--v2-s-1) var(--v2-s-3)",
             borderRadius: "var(--v2-r-0)",
-            background: `color-mix(in srgb, ${levelBadge.color} 14%, var(--v2-paper-2))`,
-            boxShadow: `inset 0 0 0 1px color-mix(in srgb, ${levelBadge.color} 28%, transparent)`,
+            // terminal: 색틴트 배경+테두리 박스 대신 [LABEL] 색 텍스트(투명) — V2Chip 태그와 일관.
+            background:
+              skin === "terminal"
+                ? "transparent"
+                : `color-mix(in srgb, ${levelBadge.color} 14%, var(--v2-paper-2))`,
+            boxShadow:
+              skin === "terminal"
+                ? "none"
+                : `inset 0 0 0 1px color-mix(in srgb, ${levelBadge.color} 28%, transparent)`,
             flexShrink: 0,
           }}
         >
@@ -637,7 +644,7 @@ export function ProgramDetailSheet({
               textTransform: "uppercase",
             }}
           >
-            {levelBadge.label}
+            {skin === "terminal" ? `[${levelBadge.label}]` : levelBadge.label}
           </span>
         </div>
       </div>

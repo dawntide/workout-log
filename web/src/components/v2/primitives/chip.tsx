@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { useThemeSkin } from "@/components/use-theme-skin";
 import { V2Icon } from "./v2-icon";
 
 export type V2ChipTone =
@@ -68,7 +69,34 @@ export function V2Chip({
   icon?: string;
   children: ReactNode;
 }) {
+  const skin = useThemeSkin();
   const t = CHIP_TONES[tone];
+  if (skin === "terminal") {
+    // 터미널: 배경 채운 pill 대신 [tag] 색 텍스트(투명·mono) — 버튼/탭과 일관.
+    return (
+      <span
+        className="v2-chip"
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: "var(--v2-s-1)",
+          fontFamily: "var(--term-mono)",
+          fontSize: "var(--v2-t-label)",
+          fontWeight: 600,
+          letterSpacing: "0.02em",
+          color: t.fg,
+          whiteSpace: "nowrap",
+        }}
+      >
+        <span aria-hidden>[</span>
+        {icon && (
+          <V2Icon name={icon} style={{ fontSize: "var(--v2-t-small)" }} />
+        )}
+        {children}
+        <span aria-hidden>]</span>
+      </span>
+    );
+  }
   return (
     <span
       className="v2-chip v2-font-display"
