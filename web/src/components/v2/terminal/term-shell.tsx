@@ -54,6 +54,9 @@ export function TermShell({
         background: "var(--term-bg)",
         color: "var(--term-fg)",
         minHeight: "100dvh",
+        // PWA standalone: 하단 홈 인디케이터(safe-area) 여백 — paper(layout.css)와 정합.
+        // border-box(base.css)라 100dvh 안에서 처리되어 하단 chrome이 인디케이터에 안 붙음.
+        paddingBottom: "env(safe-area-inset-bottom, 0px)",
         display: "flex",
         flexDirection: "column",
         fontSize: "var(--v2-t-small)",
