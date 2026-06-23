@@ -55,7 +55,7 @@ const chip = (active: boolean) => ({
   whiteSpace: "nowrap" as const,
   textDecoration: "none",
   color: active ? "var(--term-amber)" : "var(--term-dim)",
-  background: active ? "var(--term-sel)" : "transparent",
+  background: "transparent",
 });
 
 export function PrHistoryTuiView({

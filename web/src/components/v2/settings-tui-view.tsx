@@ -43,9 +43,8 @@ function toggleBtnStyle(active: boolean, pending: boolean): CSSProperties {
   return {
     minHeight: "var(--v2-touch)",
     padding: "0 var(--v2-s-3)",
-    background: active ? "var(--term-sel)" : "transparent",
+    background: "transparent",
     border: "none",
-    boxShadow: active ? "inset var(--v2-s-1) 0 0 var(--term-amber)" : undefined,
     color: active ? "var(--term-amber)" : "var(--term-dim)",
     cursor: pending ? "not-allowed" : "pointer",
   };
@@ -253,11 +252,8 @@ export function SettingsTuiView() {
                 style={{
                   minHeight: "var(--v2-touch)",
                   padding: "0 var(--v2-s-3)",
-                  background: active ? "var(--term-sel)" : "transparent",
+                  background: "transparent",
                   border: "none",
-                  boxShadow: active
-                    ? "inset var(--v2-s-1) 0 0 var(--term-amber)"
-                    : undefined,
                   color: active ? "var(--term-amber)" : "var(--term-dim)",
                   cursor: skin.pending ? "not-allowed" : "pointer",
                 }}

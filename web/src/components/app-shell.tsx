@@ -139,6 +139,8 @@ export function AppShell({
       <AppDialogProvider>
         <V2BottomDockProvider>
           <ApiCacheWarmer />
+          {/* PWA 당겨서 새로고침 — ViewPane(.term-viewpane) 내부 스크롤 기준 */}
+          {!hideNav && <PullToRefresh variant="terminal" />}
           {/* 화면이 등록한 푸터(mode·keyHints·statusRight)를 셸이 읽어 렌더 */}
           <TermKeyHintProvider>
             <TermShellHost

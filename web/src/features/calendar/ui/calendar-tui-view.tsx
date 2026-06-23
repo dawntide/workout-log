@@ -15,6 +15,7 @@ import { useCalendarDataController } from "@/features/calendar/model/use-calenda
 import { useCalendarDerivedState } from "@/features/calendar/model/use-calendar-derived-state";
 import { useCalendarPlanPickerController } from "@/features/calendar/model/use-calendar-plan-picker-controller";
 import { SearchSelectSheet } from "@/components/ui/search-select-sheet";
+import { APP_ROUTES } from "@/lib/app-routes";
 import {
   dateOnlyToUtcDate,
   dayOfMonth,
@@ -216,6 +217,22 @@ export function CalendarTuiView({
           </span>
           <span>▾</span>
         </button>
+        <a
+          href={APP_ROUTES.plansManage}
+          className="v2-mono-label"
+          aria-label={locale === "ko" ? "플랜 관리 열기" : "Open plan management"}
+          style={{
+            minHeight: "var(--v2-touch)",
+            display: "inline-flex",
+            alignItems: "center",
+            padding: "0 var(--v2-s-2)",
+            color: "var(--term-amber)",
+            textDecoration: "none",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {locale === "ko" ? "[관리]" : "[manage]"}
+        </a>
       </div>
 
       {/* 월 그리드 */}

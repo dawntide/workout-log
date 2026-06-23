@@ -338,7 +338,6 @@ function AddExerciseAction({
         padding: "var(--v2-s-2) var(--v2-s-3)",
         background: "transparent",
         border: "none",
-        boxShadow: "inset 0 0 0 1px var(--term-line-box)",
         color: "var(--term-cyan)",
         cursor: "pointer",
       }}

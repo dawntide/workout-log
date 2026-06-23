@@ -8,6 +8,7 @@ import {
 } from "react";
 import { useRouter } from "next/navigation";
 import { useLocale } from "@/components/locale-provider";
+import { useThemeSkin } from "@/components/use-theme-skin";
 import { apiPatch } from "@/lib/api";
 import { APP_ROUTES } from "@/lib/app-routes";
 import {
@@ -728,6 +729,8 @@ function ProgramPick({
 }
 
 function RecommendedChip({ locale }: { locale: "ko" | "en" }) {
+  const terminal = useThemeSkin() === "terminal";
+  // terminal: 솔리드 amber pill 대신 outline 박스 + ★ amber 글자
   const style: CSSProperties = {
     display: "inline-flex",
     alignItems: "center",
@@ -736,11 +739,15 @@ function RecommendedChip({ locale }: { locale: "ko" | "en" }) {
     fontSize: "var(--v2-t-eyebrow)",
     fontWeight: 700,
     letterSpacing: "0.06em",
-    background: "var(--v2-accent)",
-    color: "var(--v2-ink-on-accent)",
+    background: terminal ? "transparent" : "var(--v2-accent)",
+    color: terminal ? "var(--term-amber)" : "var(--v2-ink-on-accent)",
+    boxShadow: terminal ? "inset 0 0 0 1px var(--term-line-box)" : undefined,
   };
   return (
-    <span className="v2-font-display" style={style}>{locale === "ko" ? "추천" : "RECOMMENDED"}</span>
+    <span className="v2-font-display" style={style}>
+      {terminal ? "★ " : ""}
+      {locale === "ko" ? "추천" : "RECOMMENDED"}
+    </span>
   );
 }
 

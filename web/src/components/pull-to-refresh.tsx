@@ -15,17 +15,24 @@ const BASE_DAMPING = 0.6;
  * - iOS 홈 화면 standalone에는 Safari 네이티브 당겨서 새로고침이 없고,
  *   앱이 `overscroll-behavior-y: contain`(base.css)으로 브라우저 기본 PTR도 꺼놨다.
  *   → 커스텀 제스처로 제공.
- * - 스크롤은 document(body)가 하므로 `window.scrollY === 0`(최상단)에서만 추적.
- * - 동작: 임계값 이상 당기고 놓으면 `location.reload()` (네이티브 Safari 새로고침과 동일,
- *   SW network-first가 fresh 제공). 커스텀 캐시 레이어에 전역 재검증 훅이 없어 reload가 가장 확실.
- * - 성능: 드래그 중 값은 React state 대신 CSS 변수(`--ptr-y`)로 DOM에 직접 반영(bottom-sheet 패턴).
- * - 페이지 감각: Safari 네이티브처럼 당기는 동안 페이지 콘텐츠(`.app-main`)도 함께 아래로
- *   밀려 내려간다. transform은 제스처 중에만 인라인으로 적용하고 끝나면 제거한다
- *   (상시 transform은 내부 position:fixed 자식의 컨테이닝 블록을 바꾸므로).
+ * - 동작: 임계값 이상 당기고 놓으면 `location.reload()` (SW network-first가 fresh 제공).
+ * - 성능: 드래그 중 값은 React state 대신 CSS 변수(`--ptr-y`)로 DOM에 직접 반영.
+ *
+ * variant:
+ * - "paper"(기본): document(body) 스크롤 최상단(`window.scrollY===0`)에서 추적,
+ *   `.app-main`을 transform으로 함께 끌어내림, Material 아이콘(arrow_downward/progress_activity).
+ * - "terminal": TermShell ViewPane(`.term-viewpane`, 자체 `overflow:auto`)이 스크롤하므로
+ *   그 요소의 scrollTop===0에서 추적하고 그 요소를 transform. 인디케이터는 글리프(↓/⟳) —
+ *   terminal은 애니메이션 kill이라 회전 없이 정적, 배지는 cascade로 term 색·사각·평면.
  */
-export function PullToRefresh() {
+export function PullToRefresh({
+  variant = "paper",
+}: {
+  variant?: "paper" | "terminal";
+} = {}) {
   const [active, setActive] = useState(false);
   const elRef = useRef<HTMLDivElement | null>(null);
+  const isTerminal = variant === "terminal";
 
   useEffect(() => {
     const isStandalone =
@@ -40,14 +47,20 @@ export function PullToRefresh() {
     let refreshing = false;
     let resetTimer = 0;
 
-    const atTop = () => (window.scrollY || document.documentElement.scrollTop || 0) <= 0;
+    // 스크롤 컨테이너 — terminal은 ViewPane(내부 스크롤), paper는 document.
+    const scroller = () =>
+      isTerminal ? document.querySelector<HTMLElement>(".term-viewpane") : null;
+    const atTop = () =>
+      isTerminal
+        ? (scroller()?.scrollTop ?? 0) <= 0
+        : (window.scrollY || document.documentElement.scrollTop || 0) <= 0;
 
     // 열려 있는(=비활성 inert가 아닌) 바텀시트/다이얼로그가 있으면 PTR을 멈춘다.
-    // 모든 모달은 BottomSheet(.mobile-bottom-sheet)를 통해 렌더되며, 비활성 상태에는
-    // inert가 붙으므로 `:not([inert])`로 활성 모달만 감지한다.
     const modalOpen = () => Boolean(document.querySelector(".mobile-bottom-sheet:not([inert])"));
 
-    const getPage = () => document.querySelector<HTMLElement>(".app-main");
+    // 당겨질 때 함께 끌려 내려오는 콘텐츠 — terminal은 ViewPane, paper는 .app-main.
+    const getPage = () =>
+      isTerminal ? scroller() : document.querySelector<HTMLElement>(".app-main");
 
     // 손가락 이동량(dy) → 점진적 감쇠가 적용된 당김 거리. 당길수록 저항 증가.
     const damp = (dy: number) => {
@@ -143,7 +156,8 @@ export function PullToRefresh() {
         node.classList.remove("is-dragging", "is-ready");
         node.classList.add("is-refreshing");
         const icon = node.querySelector(".ptr__icon");
-        if (icon) icon.textContent = "progress_activity";
+        // terminal은 회전 애니메이션이 kill되므로 정적 글리프(⟳). paper는 Material 스피너.
+        if (icon) icon.textContent = isTerminal ? "⟳" : "progress_activity";
         node.style.setProperty("--ptr-y", `${THRESHOLD}px`);
         node.style.setProperty("--ptr-opacity", "1");
         // 페이지는 살짝 당겨진 상태에서 멈췄다가 새로고침되도록 임계값 위치로 정착.
@@ -175,14 +189,24 @@ export function PullToRefresh() {
       document.removeEventListener("touchend", onEnd);
       document.removeEventListener("touchcancel", onEnd);
     };
-  }, []);
+  }, [isTerminal]);
 
   if (!active) return null;
 
   return (
     <div ref={elRef} className="ptr" aria-hidden="true">
       <div className="ptr__badge">
-        <span className="ptr__icon material-symbols-outlined">arrow_downward</span>
+        {isTerminal ? (
+          // terminal: 글리프 화살표(cyan·mono). is-ready 시 180° 뒤집(transition은 보존).
+          <span
+            className="ptr__icon"
+            style={{ fontFamily: "var(--term-mono)", color: "var(--term-cyan)" }}
+          >
+            ↓
+          </span>
+        ) : (
+          <span className="ptr__icon material-symbols-outlined">arrow_downward</span>
+        )}
       </div>
     </div>
   );
