@@ -7,6 +7,8 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
+
+	"github.com/sharru0701/workout-log/apps/tui/internal/api"
 )
 
 func atoiOr(s string, d int) int {
@@ -36,6 +38,10 @@ func TestSnapshot(t *testing.T) {
 		frame = ansi.Strip(renderPaletteScenario(w, h))
 	case "help":
 		frame = ansi.Strip(renderHelpScenario(w, h))
+	case "stats":
+		frame = ansi.Strip(renderStatsScenario(w, h, true))
+	case "stats-block":
+		frame = ansi.Strip(renderStatsScenario(w, h, false))
 	default:
 		frame = ansi.Strip(renderLogin(NewLogin(nil), w, h))
 	}
@@ -86,6 +92,27 @@ func renderPaletteScenario(w, h int) string {
 func renderHelpScenario(w, h int) string {
 	f := sampleTodayFrame()
 	f.overlay = overlayHelp
+	nf, _ := f.Update(tea.WindowSizeMsg{Width: w, Height: h})
+	return nf.(Frame).View().Content
+}
+
+func sampleStats() Stats {
+	st := NewStats(nil)
+	st.bundle = &api.StatsBundle{Sessions30d: 12, Tonnage30d: 124000, Prs90d: []api.PrItem{{ExerciseName: "Squat", Improvement: 18}}}
+	st.bundle.Prs90d[0].Best.E1rm = 142
+	st.e1rm = &api.E1rmResult{Exercise: "Squat"}
+	for _, v := range []float64{100, 102, 105, 108, 112, 115, 118, 122, 128, 132, 138, 142} {
+		st.e1rm.Series = append(st.e1rm.Series, api.E1rmPoint{E1rm: api.Float64(v)})
+	}
+	return st
+}
+
+func renderStatsScenario(w, h int, braille bool) string {
+	f := NewFrame(nil)
+	st := sampleStats()
+	st.braille = braille
+	f.views[vStats] = st
+	f.active = vStats
 	nf, _ := f.Update(tea.WindowSizeMsg{Width: w, Height: h})
 	return nf.(Frame).View().Content
 }

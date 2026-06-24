@@ -82,7 +82,7 @@ func NewFrame(client *api.Client) Frame {
 		active: vToday,
 		views: map[ViewKind]Screen{
 			vToday:    NewLog(client),
-			vStats:    placeholder{name: "stats"},
+			vStats:    NewStats(client),
 			vHistory:  placeholder{name: "history"},
 			vPrograms: placeholder{name: "programs"},
 			vSettings: placeholder{name: "settings"},
@@ -320,7 +320,7 @@ func (f Frame) region(w int, s Screen) (string, int) {
 	case overlayGoto:
 		return f.gotoMenu(), len(gotoOrder) + 1
 	default:
-		globals := lipgloss.NewStyle().Foreground(theme.Dim).Render("   ") + hint("space", "이동") + "  " + hint(":", "명령") + "  " + hint("?", "도움")
+		globals := lipgloss.NewStyle().Foreground(theme.Dim).Render("   ") + hint("space", "이동") + "  " + hint(":", "명령")
 		return fitLine(s.Hints(w)+globals, w), 1
 	}
 }

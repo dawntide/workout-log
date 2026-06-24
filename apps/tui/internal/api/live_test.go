@@ -180,3 +180,46 @@ func TestLiveHome(t *testing.T) {
 		t.Errorf("expected 7 weekly days, got %d", len(d.WeeklySummary.Days))
 	}
 }
+
+// TestLiveStats verifies the stats DTOs (bundle + e1rm) parse against real
+// responses. Skipped without the env var.
+func TestLiveStats(t *testing.T) {
+	base := os.Getenv("IRONLOG_SPIKE_URL")
+	if base == "" {
+		t.Skip("set IRONLOG_SPIKE_URL to run the live stats test")
+	}
+	ctx := context.Background()
+	c, err := New(base)
+	if err != nil {
+		t.Fatal(err)
+	}
+	email := fmt.Sprintf("tui-stats+%d@example.com", time.Now().UnixNano())
+	if _, err := c.Signup(ctx, SignupRequest{Email: email, Password: "spike-passw0rd", DisplayName: "TUI Stats"}); err != nil {
+		t.Fatalf("Signup: %v", err)
+	}
+	if _, err := c.CreateLog(ctx, CreateLogRequest{
+		PerformedAt: time.Now(),
+		Sets:        []WorkoutSet{{ExerciseName: "Squat", WeightKg: 100, Reps: 5}, {ExerciseName: "Squat", WeightKg: 102.5, Reps: 5}},
+	}); err != nil {
+		t.Fatalf("CreateLog: %v", err)
+	}
+
+	b, err := c.Bundle(ctx, 90)
+	if err != nil {
+		t.Fatalf("Bundle: %v", err)
+	}
+	t.Logf("bundle: sessions30d=%d tonnage30d=%.0f prs=%d", b.Sessions30d, float64(b.Tonnage30d), len(b.Prs90d))
+	if len(b.Prs90d) == 0 {
+		t.Fatal("expected at least one PR (Squat)")
+	}
+
+	lift := b.Prs90d[0].ExerciseName
+	e, err := c.E1rm(ctx, lift, 90)
+	if err != nil {
+		t.Fatalf("E1rm: %v", err)
+	}
+	t.Logf("e1rm %s: series=%d best=%v", e.Exercise, len(e.Series), e.Best != nil)
+	if len(e.Series) == 0 {
+		t.Error("expected a non-empty e1rm series")
+	}
+}
