@@ -45,6 +45,8 @@ func TestSnapshot(t *testing.T) {
 		frame = ansi.Strip(renderStatsScenario(w, h, false))
 	case "history":
 		frame = ansi.Strip(renderHistoryScenario(w, h))
+	case "programs":
+		frame = ansi.Strip(renderProgramsScenario(w, h))
 	default:
 		frame = ansi.Strip(renderLogin(NewLogin(nil), w, h))
 	}
@@ -132,6 +134,22 @@ func renderHistoryScenario(w, h int) string {
 	})
 	f.views[vHistory] = hi
 	f.active = vHistory
+	nf, _ := f.Update(tea.WindowSizeMsg{Width: w, Height: h})
+	return nf.(Frame).View().Content
+}
+
+func renderProgramsScenario(w, h int) string {
+	f := NewFrame(nil)
+	pr := NewPrograms(nil)
+	pr.loaded = true
+	pr.plans = []api.Plan{
+		{ID: "1", Name: "5/3/1", Type: "SINGLE", BaseProgramName: "5/3/1 BBB"},
+		{ID: "2", Name: "Starting Strength", Type: "SINGLE", BaseProgramName: "SS"},
+		{ID: "3", Name: "PPL", Type: "COMPOSITE"},
+	}
+	pr.activeID = "1"
+	f.views[vPrograms] = pr
+	f.active = vPrograms
 	nf, _ := f.Update(tea.WindowSizeMsg{Width: w, Height: h})
 	return nf.(Frame).View().Content
 }

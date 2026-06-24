@@ -300,3 +300,26 @@ func TestLiveExercises(t *testing.T) {
 		t.Error("expected the dictionary to contain at least the logged exercise")
 	}
 }
+
+// TestLivePlans verifies the plans list endpoint parses (a fresh account has
+// none — this checks the call + decode, not a count). Skipped without env.
+func TestLivePlans(t *testing.T) {
+	base := os.Getenv("IRONLOG_SPIKE_URL")
+	if base == "" {
+		t.Skip("set IRONLOG_SPIKE_URL to run the live plans test")
+	}
+	ctx := context.Background()
+	c, err := New(base)
+	if err != nil {
+		t.Fatal(err)
+	}
+	email := fmt.Sprintf("tui-plan+%d@example.com", time.Now().UnixNano())
+	if _, err := c.Signup(ctx, SignupRequest{Email: email, Password: "spike-passw0rd"}); err != nil {
+		t.Fatalf("Signup: %v", err)
+	}
+	plans, err := c.Plans(ctx)
+	if err != nil {
+		t.Fatalf("Plans: %v", err)
+	}
+	t.Logf("plans: %d", len(plans))
+}

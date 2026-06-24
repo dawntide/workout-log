@@ -79,21 +79,30 @@ type pickedMsg struct {
 	value string
 }
 
+// planActivatedMsg is emitted when a plan is selected active; the frame stores
+// it and hands off to the today buffer (which loads the session).
+type planActivatedMsg struct {
+	id   string
+	name string
+}
+
 // Frame is the root chrome: a pure buffer area, a bottom region (hint line, goto
 // menu, or command palette), and a statusline. No tab bar, no top chrome.
 type Frame struct {
-	client        *api.Client
-	views         map[ViewKind]Screen
-	active        ViewKind
-	seen          map[ViewKind]bool
-	w, h          int
-	now           time.Time
-	overlay       overlayKind
-	gotoSel       int
-	picker        picker
-	flash         string
-	confirmPrompt string
-	confirmCmd    tea.Cmd
+	client         *api.Client
+	views          map[ViewKind]Screen
+	active         ViewKind
+	seen           map[ViewKind]bool
+	w, h           int
+	now            time.Time
+	overlay        overlayKind
+	gotoSel        int
+	picker         picker
+	flash          string
+	confirmPrompt  string
+	confirmCmd     tea.Cmd
+	activePlanID   string
+	activePlanName string
 }
 
 // NewFrame builds the frame booted into the today (workout) buffer.
@@ -106,7 +115,7 @@ func NewFrame(client *api.Client) Frame {
 			vToday:    NewLog(client),
 			vStats:    NewStats(client),
 			vHistory:  NewHistory(client),
-			vPrograms: placeholder{name: "programs"},
+			vPrograms: NewPrograms(client),
 			vSettings: placeholder{name: "settings"},
 		},
 		seen: map[ViewKind]bool{vToday: true},
@@ -138,6 +147,12 @@ func (f Frame) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		f.picker = newPicker(msg.prompt, msg.tag, msg.items)
 		f.overlay = overlayPicker
 		return f, f.picker.input.Focus()
+	case planActivatedMsg:
+		f.activePlanID, f.activePlanName = msg.id, msg.name
+		f.active = vToday
+		nv, cmd := f.views[vToday].Update(msg)
+		f.views[vToday] = nv
+		return f, cmd
 	case tea.KeyPressMsg:
 		return f.handleKey(msg)
 	}
