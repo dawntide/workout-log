@@ -1,0 +1,11 @@
+# Go build artifacts
+/tui
+/tui.exe
+/ironlog
+/ironlog.exe
+*.exe
+*.test
+*.out
+
+# local config / snapshots
+*.snapshot.txt
