@@ -9,3 +9,6 @@
 
 # local config / snapshots
 *.snapshot.txt
+
+# GoReleaser output
+/dist/

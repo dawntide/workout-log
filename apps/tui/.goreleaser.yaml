@@ -1,0 +1,60 @@
+# GoReleaser config for the ironlog TUI. Runs from this module (apps/tui); the
+# release workflow sets workdir: apps/tui. Tags are semver `v*` at the repo root
+# (the web app deploys via Vercel and does not use git tags, so no collision).
+#
+# Release:  git tag v0.1.0 && git push origin v0.1.0
+# Local dry-run (from apps/tui):
+#   goreleaser check
+#   goreleaser build --snapshot --clean --single-target
+version: 2
+
+builds:
+  - id: ironlog
+    binary: ironlog
+    main: .
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+      - -X main.version={{ .Version }}
+      - -X main.commit={{ .ShortCommit }}
+      - -X main.date={{ .Date }}
+
+archives:
+  - id: ironlog
+    ids:
+      - ironlog
+    name_template: >-
+      ironlog_{{ .Version }}_
+      {{- if eq .Os "darwin" }}macos{{- else }}{{ .Os }}{{- end }}_{{ .Arch }}
+    formats:
+      - tar.gz
+    format_overrides:
+      - goos: windows
+        formats:
+          - zip
+
+checksum:
+  name_template: checksums.txt
+
+release:
+  github:
+    owner: sharru0701
+    name: workout-log
+  name_template: "ironlog {{ .Tag }}"
+
+changelog:
+  use: github
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"

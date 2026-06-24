@@ -1,22 +1,64 @@
 # ironlog — workout-log 터미널 TUI
 
-`workout-log` 웹앱의 **rich 터미널 클라이언트**. Go + [Bubble Tea v2](https://github.com/charmbracelet/bubbletea) (`charm.land/*/v2`) + Lip Gloss + Bubbles + [ntcharts](https://github.com/NimbleMarkets/ntcharts).
+`workout-log` 웹앱의 **rich 터미널 클라이언트**. Go + [Bubble Tea v2](https://github.com/charmbracelet/bubbletea) (`charm.land/*/v2`) + Lip Gloss + Bubbles + [ntcharts](https://github.com/NimbleMarkets/ntcharts). 단일 바이너리.
 
 **TUI-first**: 기존 Next.js HTTP API에 **백엔드 수정 0**으로 붙습니다. 세션은 `wl_session` httpOnly 쿠키를 캡처/replay해서 인증합니다(서버의 `assertSameOrigin`이 Origin 없는 CLI 요청을 통과시키므로 가능). 디자인 언어는 웹의 `terminal`(ironlog) 스킨을 그대로 옮겼습니다 — [redesign-target.md](../../web/docs/redesign-target.md) §5.
 
-> **상태: MVP-1** — 인증 + 히어로 로깅(2:log)까지 동작. stats·calendar·program·settings 탭은 post-MVP placeholder.
+> **상태**: 가입 → 로깅(RPE) → 통계(e1RM·주간 볼륨) → 기록(편집) → 플랜 → 운동 CRUD → 설정·계정 → 백업/복원까지 **전 워크플로가 TUI만으로 동작**. helix식 모달 앱(6버퍼).
 
 ## 요구사항
 
-- **Go 1.24+** (Bubble Tea v2)
+- **Go 1.26+** (Bubble Tea v2) — 소스 빌드 시
 - 실행 중인 `workout-log` 백엔드 (로컬 `pnpm -C web dev` 또는 배포된 URL)
 
-## 빌드 & 실행
+## 설치
+
+### 1. 설치 스크립트 (linux/macOS — 가장 쉬움)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/sharru0701/workout-log/main/apps/tui/install.sh | sh
+```
+
+OS/아키텍처를 자동 감지해 **최신 릴리스 바이너리**를 PATH(`/usr/local/bin`, 없으면 `~/.local/bin`)에 설치합니다. 버전/위치 고정:
+
+```bash
+curl -fsSL .../install.sh | IRONLOG_VERSION=0.1.0 IRONLOG_INSTALL_DIR=~/.local/bin sh
+```
+
+### 2. 릴리스 바이너리 직접 다운로드
+
+[GitHub Releases](https://github.com/sharru0701/workout-log/releases)에서 받습니다. 태그 `v*` push 시 GoReleaser가 linux·macOS·Windows × amd64·arm64 아카이브를 자동 빌드합니다. (macOS=`..._macos_...`, Windows=`.zip`)
+
+```bash
+curl -sL https://github.com/sharru0701/workout-log/releases/download/v0.1.0/ironlog_0.1.0_linux_arm64.tar.gz | tar xz
+./ironlog --version
+```
+
+### 3. go install (Go 환경)
+
+```bash
+go install github.com/sharru0701/workout-log/apps/tui@latest   # 바이너리명: tui
+```
+
+### 4. iPhone 등 원격에서 보기 (VPS + SSH)
+
+TUI는 터미널 앱이라 웹 URL이 아닌 **SSH로 접속**합니다. iOS는 바이너리를 직접 실행할 수 없으므로 VPS에 두고 붙습니다:
+
+```bash
+# 1) 클라우드 VPS(linux)에서 — 한 줄 설치
+curl -fsSL https://raw.githubusercontent.com/sharru0701/workout-log/main/apps/tui/install.sh | sh
+# 2) tmux로 세션 유지하며 실행
+IRONLOG_API_URL=https://your-app.vercel.app tmux new -s ironlog ironlog
+```
+
+iPhone [Termius](https://termius.com) 등 SSH 앱으로 VPS에 접속 → `tmux attach -t ironlog`.
+
+## 빌드 (소스에서)
 
 ```bash
 cd apps/tui
 go build -o ironlog .     # 빌드
-./ironlog                 # 실행 (또는 go run .)
+./ironlog                 # 실행 (실제 터미널 필요 — go run은 TTY 문제로 비권장)
 ```
 
 ## 설정
@@ -27,20 +69,15 @@ go build -o ironlog .     # 빌드
 
 세션 토큰은 OS 설정 디렉터리(`%AppData%\ironlog` / `~/.config/ironlog`)의 `session` 파일(0600)에 영속됩니다. 재실행 시 자동 로그인되며, 401이면 로그인 화면으로 돌아갑니다.
 
-```bash
-# 배포된 API에 붙기
-IRONLOG_API_URL=https://your-app.vercel.app ./ironlog
-```
-
 ## 사용법
 
-1. **로그인** — 이메일/비밀번호 입력(`tab`으로 이동, `⏎` 제출). 성공 시 셸 진입.
-2. **2:log (히어로 로깅)** — vim식 모드:
-   - **NORMAL**: `1`–`5` 탭 전환 · `i` 입력 시작 · `s` 저장 · `x` 마지막 세트 삭제 · `q` 종료
-   - **INSERT**: 운동명·무게·reps 입력 → `⏎` 세트 추가(휴식 타이머 시작) · `tab` 필드 이동 · `esc` NORMAL 복귀
-   - 저장(`s`) 시 `POST /api/logs` → 서버가 e1RM/PR 계산 → `[PR]`로 표시
-
-> 숫자키가 탭 전환(NORMAL)과 무게 입력(INSERT)에서 충돌하므로 모드로 분리했습니다.
+- **인증** — 로그인 / 가입(`ctrl+t`) / 비밀번호 재설정 요청(`ctrl+f`). `tab` 이동, `⏎` 제출.
+- **프레임(전역)** — `space` 버퍼 이동(goto) · `:` 명령 팔레트 · `?` 도움 · `1`–`6` 버퍼 가속 · `q` 종료.
+- **6버퍼** — `today`(로깅) · `stats` · `history` · `programs` · `exercises` · `settings`.
+- **today** — `i` 편집 · `e` 운동 추가 · `x` 완료 · `o` 세트 추가 · `d` 삭제 · `s` 저장 · `h`/`l` 셀 이동(무게/reps/`@`rpe). 휴식 게이지 · 서버 e1RM/PR 표시 · 플랜 세션 로딩.
+- **stats** — `v`로 e1RM 추이 ↔ 주간 볼륨 토글 · `jk` 운동 · `[ ]` 범위 · `b` 차트 스타일.
+- **history** — 히트맵 + 세션 리스트 · `⏎` 상세 · `e` 편집(today 재사용) · `d` 삭제.
+- **데이터** — `:export`(JSON 백업) · `:import <경로>`(미리보기 → 확인 → 교체).
 
 ## 개발
 
@@ -55,21 +92,33 @@ IRONLOG_SPIKE_URL=http://localhost:3000 go test -run TestLive -v ./internal/api
 
 # 레이아웃 스냅샷 (ANSI 제거 평문)
 IRONLOG_SNAPSHOT=/tmp/snap.txt IRONLOG_SNAPSHOT_TARGET=log go test -run TestSnapshot ./internal/ui
+
+# 릴리스 dry-run (GoReleaser)
+goreleaser check
+goreleaser build --snapshot --clean --single-target
 ```
+
+## 릴리스
+
+```bash
+git tag v0.1.0
+git push origin v0.1.0        # → tui-release 워크플로가 멀티플랫폼 바이너리를 Releases에 게시
+```
+
+설정: [.goreleaser.yaml](.goreleaser.yaml) · [.github/workflows/tui-release.yml](../../.github/workflows/tui-release.yml).
 
 ## 구조
 
 ```
-main.go                 config 로드 → api.Client → ui.App 기동
+main.go                 --version 플래그 · config 로드 → api.Client → ui.App 기동
 internal/
-├── api/                HTTP 클라이언트 (cookiejar 세션, Login/Signup/Me/ListLogs/CreateLog/GetLog)
+├── api/                HTTP 클라이언트 (cookiejar 세션; auth·logs·home·stats·plans·exercises·account·data)
 ├── config/             세션·base URL 영속
 ├── theme/              term-* 팔레트 + 글리프 vocab (웹 terminal 스킨 미러)
-└── ui/                 App(인증↔셸) · Shell(크롬·탭·상태머신) · Login · Log(히어로)
+└── ui/                 App(인증↔프레임) · Frame(크롬·goto·팔레트·confirm) · 6버퍼 · Login
 ```
 
 ## 로드맵
 
-- **MVP-1 (완료)**: 스캐폴드 · 쿠키 인증 · 셸 크롬 · 히어로 로깅
-- **다음**: stats(ntcharts 1RM 추이) · calendar(월 그리드 수제) · program store · settings · 플랜 기반 세션 생성
-- **장기**: 백엔드를 Hono로 추출 + 토큰 인증 도입(웹 cross-origin & TUI 쿠키 스크래핑 동시 해결), 모노레포 `packages/core` 공유
+- **완료**: 전 워크플로(인증·로깅·통계·기록·플랜·운동·설정·백업) · 릴리스 자동화(GoReleaser → GitHub Releases)
+- **다음**: 백엔드를 Hono로 추출 + 토큰 인증 도입(웹 cross-origin & TUI 쿠키 스크래핑 동시 해결), 모노레포 `packages/core` 공유
