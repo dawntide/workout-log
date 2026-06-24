@@ -323,3 +323,59 @@ func TestLivePlans(t *testing.T) {
 	}
 	t.Logf("plans: %d", len(plans))
 }
+
+// TestLivePlanFlow verifies templates → create plan → generate session end to
+// end (also covers the generate snapshot DTO). Skipped without env.
+func TestLivePlanFlow(t *testing.T) {
+	base := os.Getenv("IRONLOG_SPIKE_URL")
+	if base == "" {
+		t.Skip("set IRONLOG_SPIKE_URL to run the live plan-flow test")
+	}
+	ctx := context.Background()
+	c, err := New(base)
+	if err != nil {
+		t.Fatal(err)
+	}
+	email := fmt.Sprintf("tui-pf+%d@example.com", time.Now().UnixNano())
+	if _, err := c.Signup(ctx, SignupRequest{Email: email, Password: "spike-passw0rd"}); err != nil {
+		t.Fatalf("Signup: %v", err)
+	}
+
+	templates, err := c.Templates(ctx)
+	if err != nil {
+		t.Fatalf("Templates: %v", err)
+	}
+	t.Logf("templates: %d", len(templates))
+	var tpl *Template
+	for i := range templates {
+		if templates[i].LatestVersion != nil {
+			tpl = &templates[i]
+			break
+		}
+	}
+	if tpl == nil {
+		t.Skip("no template with a version available to create a plan")
+	}
+
+	planType := "SINGLE"
+	if tpl.Type == "MANUAL" {
+		planType = "MANUAL"
+	}
+	if err := c.CreatePlan(ctx, CreatePlanRequest{Name: tpl.Name, Type: planType, RootProgramVersionID: tpl.LatestVersion.ID}); err != nil {
+		t.Fatalf("CreatePlan: %v", err)
+	}
+	plans, err := c.Plans(ctx)
+	if err != nil {
+		t.Fatalf("Plans: %v", err)
+	}
+	if len(plans) == 0 {
+		t.Fatal("expected a plan after create")
+	}
+	t.Logf("plans after create: %d (%s)", len(plans), plans[0].Name)
+
+	sess, err := c.GenerateSession(ctx, plans[0].ID)
+	if err != nil {
+		t.Fatalf("GenerateSession: %v", err)
+	}
+	t.Logf("generated session: %d exercises", len(sess.Snapshot.Exercises))
+}

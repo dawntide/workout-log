@@ -32,16 +32,37 @@ func deletePlanCmd(c *api.Client, id string) tea.Cmd {
 	}
 }
 
+type templatesLoadedMsg struct {
+	templates []api.Template
+	err       error
+}
+
+type planCreatedMsg struct{ err error }
+
+func templatesLoadCmd(c *api.Client) tea.Cmd {
+	return func() tea.Msg {
+		ts, err := c.Templates(context.Background())
+		return templatesLoadedMsg{templates: ts, err: err}
+	}
+}
+
+func createPlanCmd(c *api.Client, req api.CreatePlanRequest) tea.Cmd {
+	return func() tea.Msg {
+		return planCreatedMsg{err: c.CreatePlan(context.Background(), req)}
+	}
+}
+
 // Programs is the plans buffer: a navigable list of training plans. enter sets
 // the active plan (loads today's session), d deletes (confirm).
 type Programs struct {
-	client   *api.Client
-	plans    []api.Plan
-	activeID string
-	sel      int
-	loaded   bool
-	err      string
-	w, h     int
+	client    *api.Client
+	plans     []api.Plan
+	templates []api.Template
+	activeID  string
+	sel       int
+	loaded    bool
+	err       string
+	w, h      int
 }
 
 func NewPrograms(c *api.Client) Programs { return Programs{client: c} }
@@ -71,6 +92,41 @@ func (s Programs) Update(msg tea.Msg) (Screen, tea.Cmd) {
 			return s, nil
 		}
 		return s, plansLoadCmd(s.client)
+	case templatesLoadedMsg:
+		if m.err != nil {
+			s.err = humanizeAuthErr(m.err)
+			return s, nil
+		}
+		s.templates = m.templates
+		items := make([]pickerItem, 0, len(m.templates))
+		for _, t := range m.templates {
+			if t.LatestVersion == nil {
+				continue
+			}
+			items = append(items, pickerItem{label: t.Name, desc: strings.ToLower(t.Type), value: t.ID})
+		}
+		return s, func() tea.Msg { return openPickerMsg{prompt: "프로그램 ", tag: "template", items: items} }
+	case planCreatedMsg:
+		if m.err != nil {
+			s.err = humanizeAuthErr(m.err)
+			return s, nil
+		}
+		return s, plansLoadCmd(s.client)
+	case pickedMsg:
+		if m.tag == "template" {
+			for _, t := range s.templates {
+				if t.ID == m.value && t.LatestVersion != nil {
+					planType := "SINGLE"
+					if t.Type == "MANUAL" {
+						planType = "MANUAL"
+					}
+					return s, createPlanCmd(s.client, api.CreatePlanRequest{
+						Name: t.Name, Type: planType, RootProgramVersionID: t.LatestVersion.ID,
+					})
+				}
+			}
+		}
+		return s, nil
 	case tea.KeyPressMsg:
 		return s.handleKey(m)
 	}
@@ -102,6 +158,8 @@ func (s Programs) handleKey(m tea.KeyPressMsg) (Screen, tea.Cmd) {
 		return s, func() tea.Msg {
 			return confirmMsg{prompt: p.Name + " 플랜 삭제?", onYes: deletePlanCmd(s.client, p.ID)}
 		}
+	case "n":
+		return s, templatesLoadCmd(s.client)
 	case "r":
 		return s, plansLoadCmd(s.client)
 	}
@@ -132,7 +190,7 @@ func (s Programs) StatusRight() string {
 func (s Programs) Editing() bool { return false }
 
 func (s Programs) Hints(int) string {
-	return joinHints(hint("jk", "이동"), hint("⏎", "활성"), hint("d", "삭제"))
+	return joinHints(hint("jk", "이동"), hint("⏎", "활성"), hint("n", "새플랜"), hint("d", "삭제"))
 }
 
 func (s Programs) Body(w, h int) string {
