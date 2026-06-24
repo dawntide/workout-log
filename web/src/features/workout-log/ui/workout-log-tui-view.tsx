@@ -14,6 +14,7 @@ import { SetRowFocusChainProvider } from "@/features/workout-log/model/use-set-r
 import { useRestTimer } from "@/features/workout-log/model/use-rest-timer";
 import {
   completedSetsCountAtom,
+  prevPerformanceMapAtom,
   programEntryStateAtom,
   totalSetsCountAtom,
   visibleExercisesAtom,
@@ -62,6 +63,8 @@ function TuiViewContent({
   const visibleExercises = useAtomValue(visibleExercisesAtom);
   const completedSets = useAtomValue(completedSetsCountAtom);
   const totalSets = useAtomValue(totalSetsCountAtom);
+  // 운동명 → 직전 세션 최고 세트("100 × 5"). term-table prev 라인과 동일 소스.
+  const prevPerformanceMap = useAtomValue(prevPerformanceMapAtom);
   const exercises = useMemo(
     () => visibleExercises.filter((ex) => !ex.deleted),
     [visibleExercises],
@@ -171,6 +174,14 @@ function TuiViewContent({
   }, [exercises, programEntryState]);
 
   const footer = useMemo<TermFooterRegistration>(() => {
+    const isKo = locale === "ko";
+    // idle(대기) = 저장/휴식 아니고 아직 완료 세트 0 → 기존 `-- NORMAL --`은
+    // 정보량이 0이라, mode pill을 "다음 할 운동"으로, statusRight를 그 운동의
+    // 직전 세션 최고 세트(prev 100 × 5)로 대체해 "이 무게로 시작" 맥락을 준다.
+    // 직전 기록이 없으면(처음 하는 운동) 오늘 할 양(운동수·세트수)으로 폴백.
+    const idle = workflowState !== "saving" && !restRunning && completedSets === 0;
+    const nextName = exercises[0]?.exerciseName;
+    const nextPrev = nextName ? prevPerformanceMap[nextName] : undefined;
     const m =
       workflowState === "saving"
         ? { text: "-- SAVING --", tone: "saving" as const }
@@ -178,23 +189,32 @@ function TuiViewContent({
           ? { text: "-- REST --", tone: "rest" as const }
           : completedSets > 0
             ? { text: "-- LOGGING --", tone: "logging" as const }
-            : { text: "-- NORMAL --", tone: "normal" as const };
+            : nextName
+              ? { text: `▶ ${nextName}`, tone: "normal" as const }
+              : { text: "-- NORMAL --", tone: "normal" as const };
     return {
       id: "workout-log",
       mode: m.text,
       modeTone: m.tone,
-      statusRight: `${completedSets}/${totalSets} · vol ${(volumeKg / 1000).toFixed(1)}t`,
+      statusRight: idle
+        ? nextPrev
+          ? `prev ${nextPrev}`
+          : `${exercises.length} ${isKo ? "운동" : "ex"} · ${totalSets} ${isKo ? "세트" : "sets"}`
+        : `${completedSets}/${totalSets} · vol ${(volumeKg / 1000).toFixed(1)}t`,
       keyHints: [
         { key: "⏎", label: "log", onPress: onSave },
         { key: "r", label: "rest", onPress: () => startRest(DEFAULT_REST_SEC) },
       ],
     };
   }, [
+    locale,
     workflowState,
     restRunning,
     completedSets,
     totalSets,
     volumeKg,
+    exercises,
+    prevPerformanceMap,
     onSave,
     startRest,
   ]);
