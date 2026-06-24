@@ -559,6 +559,75 @@ func TestLiveResendVerification(t *testing.T) {
 	t.Logf("verification resend ok (alreadyVerified=%v)", already)
 }
 
+// TestLiveEditLog proves the past-session edit path: create a log, PATCH it with
+// a heavier/extra set while preserving the original date, and read it back.
+// Skipped without env.
+func TestLiveEditLog(t *testing.T) {
+	base := os.Getenv("IRONLOG_SPIKE_URL")
+	if base == "" {
+		t.Skip("set IRONLOG_SPIKE_URL to run the live edit-log test")
+	}
+	ctx := context.Background()
+	c, err := New(base)
+	if err != nil {
+		t.Fatal(err)
+	}
+	email := fmt.Sprintf("tui-edit+%d@example.com", time.Now().UnixNano())
+	if _, err := c.Signup(ctx, SignupRequest{Email: email, Password: "spike-passw0rd"}); err != nil {
+		t.Fatalf("Signup: %v", err)
+	}
+
+	performedAt := time.Now().Add(-72 * time.Hour)
+	id, err := c.CreateLog(ctx, CreateLogRequest{
+		PerformedAt: performedAt,
+		Sets:        []WorkoutSet{{ExerciseName: "Squat", WeightKg: 100, Reps: 5}},
+	})
+	if err != nil {
+		t.Fatalf("CreateLog: %v", err)
+	}
+
+	if err := c.UpdateLog(ctx, id, CreateLogRequest{
+		PerformedAt: performedAt,
+		Sets: []WorkoutSet{
+			{ExerciseName: "Squat", WeightKg: 105, Reps: 5},
+			{ExerciseName: "Squat", WeightKg: 107.5, Reps: 3},
+		},
+	}); err != nil {
+		t.Fatalf("UpdateLog: %v", err)
+	}
+
+	logs, err := c.ListLogs(ctx, ListLogsParams{Limit: 10})
+	if err != nil {
+		t.Fatalf("ListLogs: %v", err)
+	}
+	var edited *LogItem
+	for i := range logs {
+		if logs[i].ID == id {
+			edited = &logs[i]
+			break
+		}
+	}
+	if edited == nil {
+		t.Fatalf("edited log %s not found in list", id)
+	}
+	if len(edited.Sets) != 2 {
+		t.Errorf("after edit want 2 sets, got %d", len(edited.Sets))
+	}
+	topW := 0.0
+	for _, s := range edited.Sets {
+		if float64(s.WeightKg) > topW {
+			topW = float64(s.WeightKg)
+		}
+	}
+	if topW != 107.5 {
+		t.Errorf("after edit want top weight 107.5, got %v", topW)
+	}
+	if got := edited.PerformedAt.Format("2006-01-02"); got != performedAt.Format("2006-01-02") {
+		t.Errorf("performedAt changed on edit: got %s, want %s", got, performedAt.Format("2006-01-02"))
+	}
+	t.Logf("edit ok: 1→2 sets, top 100→107.5, date %s preserved", edited.PerformedAt.Format("2006-01-02"))
+}
+
 // TestLiveSettings verifies settings GET + PATCH round-trip. Skipped without env.
 func TestLiveSettings(t *testing.T) {
 	base := os.Getenv("IRONLOG_SPIKE_URL")

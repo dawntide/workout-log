@@ -54,9 +54,13 @@ type restState struct {
 type saveResultMsg struct {
 	detail *api.LogDetail
 	err    error
+	edited bool
 }
 
-func saveCmd(c *api.Client, groups []exGroup) tea.Cmd {
+// saveCmd persists the done sets: PATCH when editID is set (editing a past
+// session), POST otherwise. A zero performedAt means "now" (new log); editing
+// preserves the original timestamp.
+func saveCmd(c *api.Client, groups []exGroup, editID string, performedAt time.Time) tea.Cmd {
 	var sets []api.WorkoutSet
 	for _, g := range groups {
 		name := strings.TrimSpace(g.name)
@@ -69,14 +73,23 @@ func saveCmd(c *api.Client, groups []exGroup) tea.Cmd {
 			sets = append(sets, api.WorkoutSet{ExerciseName: name, WeightKg: w, Reps: reps})
 		}
 	}
-	now := time.Now()
 	return func() tea.Msg {
-		id, err := c.CreateLog(context.Background(), api.CreateLogRequest{Sets: sets, PerformedAt: now})
+		at := performedAt
+		if at.IsZero() {
+			at = time.Now()
+		}
+		req := api.CreateLogRequest{Sets: sets, PerformedAt: at}
+		id, err := editID, error(nil)
+		if editID != "" {
+			err = c.UpdateLog(context.Background(), editID, req)
+		} else {
+			id, err = c.CreateLog(context.Background(), req)
+		}
 		if err != nil {
-			return saveResultMsg{err: err}
+			return saveResultMsg{err: err, edited: editID != ""}
 		}
 		detail, err := c.GetLog(context.Background(), id)
-		return saveResultMsg{detail: detail, err: err}
+		return saveResultMsg{detail: detail, err: err, edited: editID != ""}
 	}
 }
 
@@ -125,18 +138,20 @@ func buildPrevMap(logs []api.LogItem) map[string]string {
 // each holding its sets. Navigate sets with j/k, cells (weight/reps) with h/l,
 // edit inline in INSERT. `e` starts a new exercise.
 type Log struct {
-	client    *api.Client
-	groups    []exGroup
-	gi, si    int // active group / set index
-	col       logCol
-	editing   bool
-	target    editTarget
-	edit      textinput.Model
-	rest      restState
-	saving    bool
-	status    string
-	statusErr bool
-	w, h      int
+	client      *api.Client
+	groups      []exGroup
+	gi, si      int // active group / set index
+	col         logCol
+	editing     bool
+	target      editTarget
+	edit        textinput.Model
+	rest        restState
+	saving      bool
+	editID      string    // non-empty when editing a past log (saves via PATCH)
+	performedAt time.Time // preserved on edit; zero = now (new log)
+	status      string
+	statusErr   bool
+	w, h        int
 }
 
 func NewLog(client *api.Client) Log { return Log{client: client} }
@@ -210,12 +225,20 @@ func (l Log) Update(msg tea.Msg) (Screen, tea.Cmd) {
 		return l, nil
 	case saveResultMsg:
 		l.saving = false
+		verb := "저장"
+		if m.edited {
+			verb = "수정"
+		}
 		if m.err != nil {
-			l.status, l.statusErr = "저장 실패: "+humanizeAuthErr(m.err), true
+			l.status, l.statusErr = verb+" 실패: "+humanizeAuthErr(m.err), true
 			return l, nil
 		}
-		l.status, l.statusErr = summarizePRs(m.detail), false
+		l.status, l.statusErr = summarizePRs(m.detail, m.edited), false
 		l.groups, l.gi, l.si = nil, 0, 0
+		l.editID, l.performedAt = "", time.Time{}
+		return l, nil
+	case editLogMsg:
+		l.loadForEdit(m)
 		return l, nil
 	case pickedMsg:
 		if m.tag == "exercise" && strings.TrimSpace(m.value) != "" {
@@ -431,7 +454,43 @@ func (l Log) save() (Log, tea.Cmd) {
 		return l, nil
 	}
 	l.saving, l.status, l.statusErr = true, "", false
-	return l, saveCmd(l.client, l.groups)
+	return l, saveCmd(l.client, l.groups, l.editID, l.performedAt)
+}
+
+// loadForEdit replaces today's buffer with a past session's sets (grouped by
+// exercise, every set pre-marked done) so the user can revise and PATCH it.
+func (l *Log) loadForEdit(m editLogMsg) {
+	var order []string
+	byEx := map[string]*exGroup{}
+	for _, st := range m.sets {
+		n := strings.TrimSpace(st.ExerciseName)
+		if n == "" {
+			continue
+		}
+		g, ok := byEx[n]
+		if !ok {
+			byEx[n] = &exGroup{name: n}
+			g = byEx[n]
+			order = append(order, n)
+		}
+		g.sets = append(g.sets, setEntry{
+			weight: trimNum(float64(st.WeightKg)),
+			reps:   strconv.Itoa(st.Reps),
+			done:   true,
+		})
+	}
+	groups := make([]exGroup, 0, len(order))
+	for _, n := range order {
+		groups = append(groups, *byEx[n])
+	}
+	if len(groups) == 0 {
+		return
+	}
+	l.groups, l.gi, l.si, l.col = groups, 0, 0, colWeight
+	l.editing, l.target = false, editNone
+	l.editID, l.performedAt = m.id, m.performedAt
+	l.rest.active = false
+	l.status, l.statusErr = theme.GlyphDone+" 편집 로드됨 — s로 저장", false
 }
 
 func (l Log) beginEdit(t editTarget) (Log, tea.Cmd) {
@@ -506,6 +565,9 @@ func (l *Log) loadSnapshot(s *api.SessionSnapshot, prev map[string]string) {
 
 func (l Log) Body(w, h int) string {
 	var b strings.Builder
+	if l.editID != "" {
+		b.WriteString(lipgloss.NewStyle().Foreground(theme.Amber).Render("■ 편집 중 · "+l.performedAt.Format("2006-01-02")) + "\n\n")
+	}
 	if len(l.groups) == 0 {
 		b.WriteString(lipgloss.NewStyle().Foreground(theme.Ghost).Render("오늘 기록이 비어 있습니다.\n\n"))
 		b.WriteString(hint("e", "운동 추가") + lipgloss.NewStyle().Foreground(theme.Dim).Render(" 로 시작"))
@@ -621,9 +683,13 @@ func (l Log) restBar(w int) string {
 	return "▕" + gauge + "▏" + clock + hint("r", "skip")
 }
 
-func summarizePRs(log *api.LogDetail) string {
+func summarizePRs(log *api.LogDetail, edited bool) string {
+	verb := "저장됨"
+	if edited {
+		verb = "수정됨"
+	}
 	if log == nil || len(log.PersonalRecords) == 0 {
-		return theme.GlyphDone + " 저장됨"
+		return theme.GlyphDone + " " + verb
 	}
 	parts := make([]string, 0, len(log.PersonalRecords))
 	for _, pr := range log.PersonalRecords {

@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/sharru0701/workout-log/apps/tui/internal/api"
@@ -26,6 +27,28 @@ func TestHistoryBuild(t *testing.T) {
 	}
 	if !strings.Contains(hi.rows[0].summary, "Squat") {
 		t.Errorf("summary = %q, want it to contain Squat", hi.rows[0].summary)
+	}
+	if hi.rows[0].performedAt.IsZero() {
+		t.Error("performedAt should be preserved on the row for editing")
+	}
+}
+
+func TestHistoryEditKey(t *testing.T) {
+	scr, _ := NewHistory(nil).Update(historyLoadedMsg{logs: []api.LogItem{
+		{ID: "log-1", PerformedAt: time.Date(2026, 6, 20, 0, 0, 0, 0, time.UTC),
+			Sets: []api.LoggedSet{{ExerciseName: "Squat", WeightKg: 100, Reps: 5}}},
+	}})
+	h := scr.(History)
+	_, cmd := h.handleKey(tea.KeyPressMsg{Code: 'e'})
+	if cmd == nil {
+		t.Fatal("e should emit an editLogMsg command")
+	}
+	em, ok := cmd().(editLogMsg)
+	if !ok {
+		t.Fatalf("want editLogMsg, got %T", cmd())
+	}
+	if em.id != "log-1" || len(em.sets) != 1 {
+		t.Errorf("editLogMsg = %+v, want id=log-1 with 1 set", em)
 	}
 }
 

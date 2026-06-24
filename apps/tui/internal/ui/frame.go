@@ -94,6 +94,14 @@ type planActivatedMsg struct {
 	name string
 }
 
+// editLogMsg asks the frame to load a past session into the today buffer for
+// editing (emitted by the history buffer). The today logger saves it via PATCH.
+type editLogMsg struct {
+	id          string
+	performedAt time.Time
+	sets        []api.LoggedSet
+}
+
 // Frame is the root chrome: a pure buffer area, a bottom region (hint line, goto
 // menu, or command palette), and a statusline. No tab bar, no top chrome.
 type Frame struct {
@@ -157,6 +165,11 @@ func (f Frame) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return f, f.picker.input.Focus()
 	case planActivatedMsg:
 		f.activePlanID, f.activePlanName = msg.id, msg.name
+		f.active = vToday
+		nv, cmd := f.views[vToday].Update(msg)
+		f.views[vToday] = nv
+		return f, cmd
+	case editLogMsg:
 		f.active = vToday
 		nv, cmd := f.views[vToday].Update(msg)
 		f.views[vToday] = nv

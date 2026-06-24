@@ -36,11 +36,12 @@ func deleteLogCmd(c *api.Client, id string) tea.Cmd {
 }
 
 type sessionRow struct {
-	id      string
-	date    string
-	summary string
-	volume  float64
-	sets    []api.LoggedSet
+	id          string
+	date        string
+	performedAt time.Time
+	summary     string
+	volume      float64
+	sets        []api.LoggedSet
 }
 
 // History is the history buffer: a recent-days heatmap strip + a navigable
@@ -103,6 +104,14 @@ func (s History) handleKey(m tea.KeyPressMsg) (Screen, tea.Cmd) {
 		}
 	case "enter":
 		s.expanded = !s.expanded
+	case "e":
+		if len(s.rows) == 0 {
+			return s, nil
+		}
+		r := s.rows[s.sel]
+		return s, func() tea.Msg {
+			return editLogMsg{id: r.id, performedAt: r.performedAt, sets: r.sets}
+		}
 	case "d":
 		if len(s.rows) == 0 {
 			return s, nil
@@ -123,11 +132,12 @@ func (s *History) build(logs []api.LogItem) {
 	for _, lg := range logs {
 		summary, vol := summarizeSets(lg.Sets)
 		s.rows = append(s.rows, sessionRow{
-			id:      lg.ID,
-			date:    lg.PerformedAt.Format("01-02"),
-			summary: summary,
-			volume:  vol,
-			sets:    lg.Sets,
+			id:          lg.ID,
+			date:        lg.PerformedAt.Format("01-02"),
+			performedAt: lg.PerformedAt,
+			summary:     summary,
+			volume:      vol,
+			sets:        lg.Sets,
 		})
 		s.dayVol[lg.PerformedAt.Format("2006-01-02")] += vol
 	}
@@ -178,7 +188,7 @@ func (s History) StatusRight() string {
 func (s History) Editing() bool { return false }
 
 func (s History) Hints(int) string {
-	return joinHints(hint("jk", "세션"), hint("⏎", "상세"), hint("d", "삭제"))
+	return joinHints(hint("jk", "세션"), hint("⏎", "상세"), hint("e", "편집"), hint("d", "삭제"))
 }
 
 func (s History) Body(w, h int) string {

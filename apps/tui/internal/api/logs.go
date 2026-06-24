@@ -54,6 +54,13 @@ func (c *Client) CreateLog(ctx context.Context, req CreateLogRequest) (string, e
 	return out.Log.ID, nil
 }
 
+// UpdateLog replaces a past log's sets (and performedAt) via PATCH. The server
+// upserts the set list wholesale and rebuilds plan progression. PRs are computed
+// on the read path, so fetch them via GetLog afterward.
+func (c *Client) UpdateLog(ctx context.Context, id string, req CreateLogRequest) error {
+	return c.do(ctx, "PATCH", "/api/logs/"+id, req, nil)
+}
+
 // DeleteLog removes a workout log (the server rebuilds plan progression).
 func (c *Client) DeleteLog(ctx context.Context, id string) error {
 	return c.do(ctx, "DELETE", "/api/logs/"+id, nil, nil)

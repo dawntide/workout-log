@@ -3,6 +3,7 @@ package ui
 import (
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/charmbracelet/x/ansi"
 
@@ -59,6 +60,48 @@ func TestLogSaveCollects(t *testing.T) {
 	}
 	if got := l2.StatusRight(); got != "2 sets" {
 		t.Errorf("StatusRight = %q, want 2 sets", got)
+	}
+}
+
+func TestLogLoadForEdit(t *testing.T) {
+	scr, _ := NewLog(nil).Update(editLogMsg{
+		id:          "log-9",
+		performedAt: time.Date(2026, 6, 20, 0, 0, 0, 0, time.UTC),
+		sets: []api.LoggedSet{
+			{ExerciseName: "Squat", WeightKg: 100, Reps: 5},
+			{ExerciseName: "Squat", WeightKg: 102.5, Reps: 5},
+			{ExerciseName: "Bench", WeightKg: 80, Reps: 8},
+		},
+	})
+	l := scr.(Log)
+	if l.editID != "log-9" {
+		t.Errorf("editID = %q, want log-9", l.editID)
+	}
+	if len(l.groups) != 2 || len(l.groups[0].sets) != 2 {
+		t.Fatalf("groups grouping wrong: %d groups, first has %d sets", len(l.groups), len(l.groups[0].sets))
+	}
+	if l.doneCount() != 3 {
+		t.Errorf("doneCount = %d, want 3 (all loaded sets done)", l.doneCount())
+	}
+	out := ansi.Strip(l.Body(58, 16))
+	if !strings.Contains(out, "편집 중") || !strings.Contains(out, "2026-06-20") {
+		t.Errorf("edit banner missing:\n%s", out)
+	}
+}
+
+func TestLogEditSaveClears(t *testing.T) {
+	l := NewLog(nil)
+	l.saving, l.editID = true, "log-9"
+	scr, _ := l.Update(saveResultMsg{edited: true})
+	l = scr.(Log)
+	if l.saving {
+		t.Error("saving should clear")
+	}
+	if !strings.Contains(l.status, "수정됨") {
+		t.Errorf("status = %q, want 수정됨", l.status)
+	}
+	if l.editID != "" {
+		t.Error("editID should clear after a successful edit save")
 	}
 }
 
