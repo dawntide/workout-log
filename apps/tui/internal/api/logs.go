@@ -54,6 +54,11 @@ func (c *Client) CreateLog(ctx context.Context, req CreateLogRequest) (string, e
 	return out.Log.ID, nil
 }
 
+// DeleteLog removes a workout log (the server rebuilds plan progression).
+func (c *Client) DeleteLog(ctx context.Context, id string) error {
+	return c.do(ctx, "DELETE", "/api/logs/"+id, nil, nil)
+}
+
 // GetLog fetches one log with its server-detected personal records.
 func (c *Client) GetLog(ctx context.Context, id string) (*LogDetail, error) {
 	var out struct {

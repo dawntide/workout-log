@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 	"testing"
 	"time"
 )
@@ -222,4 +223,48 @@ func TestLiveStats(t *testing.T) {
 	if len(e.Series) == 0 {
 		t.Error("expected a non-empty e1rm series")
 	}
+}
+
+// TestLiveHistory verifies ListLogs parses sets (exerciseName + weightKg) from
+// a real response. Skipped without the env var.
+func TestLiveHistory(t *testing.T) {
+	base := os.Getenv("IRONLOG_SPIKE_URL")
+	if base == "" {
+		t.Skip("set IRONLOG_SPIKE_URL to run the live history test")
+	}
+	ctx := context.Background()
+	c, err := New(base)
+	if err != nil {
+		t.Fatal(err)
+	}
+	email := fmt.Sprintf("tui-hist+%d@example.com", time.Now().UnixNano())
+	if _, err := c.Signup(ctx, SignupRequest{Email: email, Password: "spike-passw0rd", DisplayName: "TUI Hist"}); err != nil {
+		t.Fatalf("Signup: %v", err)
+	}
+	if _, err := c.CreateLog(ctx, CreateLogRequest{
+		PerformedAt: time.Now(),
+		Sets:        []WorkoutSet{{ExerciseName: "Squat", WeightKg: 102.5, Reps: 5}},
+	}); err != nil {
+		t.Fatalf("CreateLog: %v", err)
+	}
+
+	logs, err := c.ListLogs(ctx, ListLogsParams{Limit: 20})
+	if err != nil {
+		t.Fatalf("ListLogs: %v", err)
+	}
+	if len(logs) == 0 {
+		t.Fatal("expected at least one log")
+	}
+	found := false
+	for _, lg := range logs {
+		for _, st := range lg.Sets {
+			if strings.TrimSpace(st.ExerciseName) != "" && float64(st.WeightKg) > 0 {
+				found = true
+			}
+		}
+	}
+	if !found {
+		t.Error("expected at least one parsed set with exerciseName + weightKg")
+	}
+	t.Logf("ListLogs: %d log(s), first has %d set(s)", len(logs), len(logs[0].Sets))
 }

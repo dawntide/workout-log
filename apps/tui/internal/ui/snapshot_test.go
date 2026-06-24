@@ -4,6 +4,7 @@ import (
 	"os"
 	"strconv"
 	"testing"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
@@ -42,6 +43,8 @@ func TestSnapshot(t *testing.T) {
 		frame = ansi.Strip(renderStatsScenario(w, h, true))
 	case "stats-block":
 		frame = ansi.Strip(renderStatsScenario(w, h, false))
+	case "history":
+		frame = ansi.Strip(renderHistoryScenario(w, h))
 	default:
 		frame = ansi.Strip(renderLogin(NewLogin(nil), w, h))
 	}
@@ -113,6 +116,22 @@ func renderStatsScenario(w, h int, braille bool) string {
 	st.braille = braille
 	f.views[vStats] = st
 	f.active = vStats
+	nf, _ := f.Update(tea.WindowSizeMsg{Width: w, Height: h})
+	return nf.(Frame).View().Content
+}
+
+func renderHistoryScenario(w, h int) string {
+	f := NewFrame(nil)
+	hi := NewHistory(nil)
+	hi.loaded = true
+	now := time.Now()
+	hi.build([]api.LogItem{
+		{ID: "1", PerformedAt: now, Sets: []api.LoggedSet{{ExerciseName: "Squat", WeightKg: 102.5, Reps: 5}, {ExerciseName: "Bench Press", WeightKg: 70, Reps: 5}}},
+		{ID: "2", PerformedAt: now.AddDate(0, 0, -2), Sets: []api.LoggedSet{{ExerciseName: "Deadlift", WeightKg: 140, Reps: 3}}},
+		{ID: "3", PerformedAt: now.AddDate(0, 0, -4), Sets: []api.LoggedSet{{ExerciseName: "Squat", WeightKg: 100, Reps: 5}, {ExerciseName: "OHP", WeightKg: 50, Reps: 5}}},
+	})
+	f.views[vHistory] = hi
+	f.active = vHistory
 	nf, _ := f.Update(tea.WindowSizeMsg{Width: w, Height: h})
 	return nf.(Frame).View().Content
 }

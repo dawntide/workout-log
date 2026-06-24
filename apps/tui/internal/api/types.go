@@ -1,7 +1,6 @@
 package api
 
 import (
-	"encoding/json"
 	"strconv"
 	"strings"
 	"time"
@@ -47,12 +46,19 @@ type WorkoutSet struct {
 	IsExtra      bool    `json:"isExtra,omitempty"`
 }
 
+// LoggedSet is one set within a workout log.
+type LoggedSet struct {
+	ExerciseName string  `json:"exerciseName"`
+	WeightKg     Float64 `json:"weightKg"`
+	Reps         int     `json:"reps"`
+}
+
 // LogItem is one workout session in a list response.
 type LogItem struct {
-	ID          string          `json:"id"`
-	PlanID      *string         `json:"planId"`
-	PerformedAt time.Time       `json:"performedAt"`
-	Sets        json.RawMessage `json:"sets"`
+	ID          string      `json:"id"`
+	PlanID      *string     `json:"planId"`
+	PerformedAt time.Time   `json:"performedAt"`
+	Sets        []LoggedSet `json:"sets"`
 }
 
 // CreateLogRequest is the POST /api/logs body.

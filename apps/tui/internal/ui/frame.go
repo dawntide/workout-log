@@ -57,21 +57,30 @@ const (
 	overlayGoto
 	overlayPicker
 	overlayHelp
+	overlayConfirm
 )
+
+// confirmMsg asks the frame to show a y/n prompt; onYes runs when confirmed.
+type confirmMsg struct {
+	prompt string
+	onYes  tea.Cmd
+}
 
 // Frame is the root chrome: a pure buffer area, a bottom region (hint line, goto
 // menu, or command palette), and a statusline. No tab bar, no top chrome.
 type Frame struct {
-	client  *api.Client
-	views   map[ViewKind]Screen
-	active  ViewKind
-	seen    map[ViewKind]bool
-	w, h    int
-	now     time.Time
-	overlay overlayKind
-	gotoSel int
-	picker  picker
-	flash   string
+	client        *api.Client
+	views         map[ViewKind]Screen
+	active        ViewKind
+	seen          map[ViewKind]bool
+	w, h          int
+	now           time.Time
+	overlay       overlayKind
+	gotoSel       int
+	picker        picker
+	flash         string
+	confirmPrompt string
+	confirmCmd    tea.Cmd
 }
 
 // NewFrame builds the frame booted into the today (workout) buffer.
@@ -83,7 +92,7 @@ func NewFrame(client *api.Client) Frame {
 		views: map[ViewKind]Screen{
 			vToday:    NewLog(client),
 			vStats:    NewStats(client),
-			vHistory:  placeholder{name: "history"},
+			vHistory:  NewHistory(client),
 			vPrograms: placeholder{name: "programs"},
 			vSettings: placeholder{name: "settings"},
 		},
@@ -109,6 +118,9 @@ func (f Frame) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		nv, cmd := f.views[f.active].Update(msg)
 		f.views[f.active] = nv
 		return f, tea.Batch(tick(), cmd)
+	case confirmMsg:
+		f.confirmPrompt, f.confirmCmd, f.overlay = msg.prompt, msg.onYes, overlayConfirm
+		return f, nil
 	case tea.KeyPressMsg:
 		return f.handleKey(msg)
 	}
@@ -129,6 +141,8 @@ func (f Frame) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case overlayHelp:
 		f.overlay = overlayNone // any key closes help
 		return f, nil
+	case overlayConfirm:
+		return f.handleConfirmKey(msg)
 	}
 	// A view in INSERT/editing owns every key (digits, spaces in names, …).
 	if f.views[f.active].Editing() {
@@ -187,6 +201,17 @@ func (f Frame) handleGotoKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		}
 	}
 	return f, nil
+}
+
+func (f Frame) handleConfirmKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	cmd := f.confirmCmd
+	f.overlay, f.confirmCmd, f.confirmPrompt = overlayNone, nil, ""
+	switch msg.String() {
+	case "y", "Y", "enter":
+		return f, cmd
+	default:
+		return f, nil
+	}
 }
 
 func (f Frame) handlePickerKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
@@ -319,6 +344,10 @@ func (f Frame) region(w int, s Screen) (string, int) {
 		return f.picker.render(w)
 	case overlayGoto:
 		return f.gotoMenu(), len(gotoOrder) + 1
+	case overlayConfirm:
+		line := lipgloss.NewStyle().Foreground(theme.Red).Bold(true).Render(f.confirmPrompt) + "  " +
+			hint("y", "예") + "  " + hint("n", "아니오")
+		return fitLine(line, w), 1
 	default:
 		globals := lipgloss.NewStyle().Foreground(theme.Dim).Render("   ") + hint("space", "이동") + "  " + hint(":", "명령")
 		return fitLine(s.Hints(w)+globals, w), 1
