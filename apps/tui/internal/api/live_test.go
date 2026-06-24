@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -378,4 +379,39 @@ func TestLivePlanFlow(t *testing.T) {
 		t.Fatalf("GenerateSession: %v", err)
 	}
 	t.Logf("generated session: %d exercises", len(sess.Snapshot.Exercises))
+}
+
+// TestLiveSettings verifies settings GET + PATCH round-trip. Skipped without env.
+func TestLiveSettings(t *testing.T) {
+	base := os.Getenv("IRONLOG_SPIKE_URL")
+	if base == "" {
+		t.Skip("set IRONLOG_SPIKE_URL to run the live settings test")
+	}
+	ctx := context.Background()
+	c, err := New(base)
+	if err != nil {
+		t.Fatal(err)
+	}
+	email := fmt.Sprintf("tui-set+%d@example.com", time.Now().UnixNano())
+	if _, err := c.Signup(ctx, SignupRequest{Email: email, Password: "spike-passw0rd"}); err != nil {
+		t.Fatalf("Signup: %v", err)
+	}
+	vals, err := c.Settings(ctx)
+	if err != nil {
+		t.Fatalf("Settings: %v", err)
+	}
+	t.Logf("settings keys: %d", len(vals))
+
+	if err := c.SetSetting(ctx, "prefs.locale", "en"); err != nil {
+		t.Fatalf("SetSetting: %v", err)
+	}
+	vals2, err := c.Settings(ctx)
+	if err != nil {
+		t.Fatalf("Settings(2): %v", err)
+	}
+	var loc string
+	_ = json.Unmarshal(vals2["prefs.locale"], &loc)
+	if loc != "en" {
+		t.Errorf("after PATCH, prefs.locale = %q, want en", loc)
+	}
 }

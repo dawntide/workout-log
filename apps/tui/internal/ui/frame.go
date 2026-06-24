@@ -116,7 +116,7 @@ func NewFrame(client *api.Client) Frame {
 			vStats:    NewStats(client),
 			vHistory:  NewHistory(client),
 			vPrograms: NewPrograms(client),
-			vSettings: placeholder{name: "settings"},
+			vSettings: NewSettings(client),
 		},
 		seen: map[ViewKind]bool{vToday: true},
 	}

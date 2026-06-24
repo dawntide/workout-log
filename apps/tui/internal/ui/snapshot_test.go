@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"encoding/json"
 	"os"
 	"strconv"
 	"testing"
@@ -47,6 +48,8 @@ func TestSnapshot(t *testing.T) {
 		frame = ansi.Strip(renderHistoryScenario(w, h))
 	case "programs":
 		frame = ansi.Strip(renderProgramsScenario(w, h))
+	case "settings":
+		frame = ansi.Strip(renderSettingsScenario(w, h))
 	default:
 		frame = ansi.Strip(renderLogin(NewLogin(nil), w, h))
 	}
@@ -150,6 +153,22 @@ func renderProgramsScenario(w, h int) string {
 	pr.activeID = "1"
 	f.views[vPrograms] = pr
 	f.active = vPrograms
+	nf, _ := f.Update(tea.WindowSizeMsg{Width: w, Height: h})
+	return nf.(Frame).View().Content
+}
+
+func renderSettingsScenario(w, h int) string {
+	f := NewFrame(nil)
+	st := NewSettings(nil)
+	st.loaded = true
+	st.values = map[string]json.RawMessage{
+		"prefs.locale":                 json.RawMessage(`"ko"`),
+		"prefs.trainingGoal.primary":   json.RawMessage(`"strength"`),
+		"prefs.bodyweight.kg":          json.RawMessage(`82.5`),
+		"prefs.minimumPlate.defaultKg": json.RawMessage(`2.5`),
+	}
+	f.views[vSettings] = st
+	f.active = vSettings
 	nf, _ := f.Update(tea.WindowSizeMsg{Width: w, Height: h})
 	return nf.(Frame).View().Content
 }
