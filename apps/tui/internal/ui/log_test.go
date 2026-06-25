@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/sharru0701/workout-log/apps/tui/internal/api"
@@ -251,5 +252,53 @@ func TestLogAutoloadSession(t *testing.T) {
 	}
 	if len(l.groups) != 1 || l.groups[0].name != "Squat" {
 		t.Fatalf("expected a Squat group from the auto-loaded session, got %+v", l.groups)
+	}
+}
+
+func TestLogUndoDelete(t *testing.T) {
+	l := sampleLog() // Squat, 3 sets, cursor on the 3rd (105)
+	l2, _ := l.deleteSet()
+	if len(l2.groups[0].sets) != 2 {
+		t.Fatalf("after delete want 2 sets, got %d", len(l2.groups[0].sets))
+	}
+	if l2.undo == nil {
+		t.Fatal("delete should record an undo snapshot")
+	}
+	l3, _ := l2.undoDelete()
+	if len(l3.groups[0].sets) != 3 {
+		t.Fatalf("after undo want 3 sets restored, got %d", len(l3.groups[0].sets))
+	}
+	if l3.groups[0].sets[2].weight != "105" {
+		t.Errorf("restored top set weight = %q, want 105", l3.groups[0].sets[2].weight)
+	}
+	if l3.undo != nil {
+		t.Error("undo should be consumed after a restore")
+	}
+}
+
+func TestLogUndoRestoresRemovedGroup(t *testing.T) {
+	l := NewLog(nil)
+	l.load = loadIdle
+	l.groups = []exGroup{{name: "Squat", sets: []setEntry{{weight: "100", reps: "5", done: true}}}}
+	l2, _ := l.deleteSet() // deleting the only set removes the whole group
+	if len(l2.groups) != 0 {
+		t.Fatalf("want 0 groups after deleting the last set, got %d", len(l2.groups))
+	}
+	l3, _ := l2.undoDelete()
+	if len(l3.groups) != 1 || l3.groups[0].name != "Squat" {
+		t.Fatalf("undo should restore the removed group, got %+v", l3.groups)
+	}
+}
+
+func TestLogAddExerciseKeyAliases(t *testing.T) {
+	// e (exercise) and n (new) both open the exercise picker — n matches the
+	// create-key used by programs/exercises buffers.
+	for _, code := range []rune{'e', 'n'} {
+		l := NewLog(nil)
+		l.load = loadIdle
+		_, cmd := l.updateNormal(tea.KeyPressMsg{Code: code})
+		if cmd == nil {
+			t.Errorf("key %q should open the exercise picker", string(code))
+		}
 	}
 }

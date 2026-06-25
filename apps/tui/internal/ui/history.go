@@ -120,7 +120,7 @@ func (s History) handleKey(m tea.KeyPressMsg) (Screen, tea.Cmd) {
 		return s, func() tea.Msg {
 			return confirmMsg{prompt: r.date + " 세션 삭제?", onYes: deleteLogCmd(s.client, r.id)}
 		}
-	case "r":
+	case "R":
 		return s, historyLoadCmd(s.client)
 	}
 	return s, nil

@@ -395,7 +395,7 @@ func (f Frame) View() tea.View {
 	var content string
 	if f.overlay == overlayHelp {
 		content = lipgloss.JoinVertical(lipgloss.Left,
-			helpBody(w, h-1),
+			helpBody(w, h-1, f.active),
 			fitLine(f.statusline(w, s), w),
 		)
 	} else {
@@ -450,7 +450,7 @@ func (f Frame) region(w int, s Screen) (string, int) {
 			hint("y", "예") + "  " + hint("n", "아니오")
 		return fitLine(line, w), 1
 	default:
-		globals := lipgloss.NewStyle().Foreground(theme.Dim).Render("   ") + hint("space", "이동") + "  " + hint(":", "명령")
+		globals := lipgloss.NewStyle().Foreground(theme.Dim).Render("   ") + hint("space", "이동") + "  " + hint(":", "명령") + "  " + hint("?", "키맵")
 		return fitLine(s.Hints(w)+globals, w), 1
 	}
 }
@@ -485,29 +485,62 @@ func commandItems() []pickerItem {
 	}
 }
 
-// helpBody renders the full keymap reference in the buffer area.
-func helpBody(w, h int) string {
-	kv := func(pairs ...[2]string) string {
-		parts := make([]string, len(pairs))
-		for i, p := range pairs {
-			parts[i] = hint(p[0], p[1])
-		}
-		return "  " + strings.Join(parts, "   ")
-	}
-	title := func(s string) string { return lipgloss.NewStyle().Foreground(theme.Amber).Bold(true).Render(s) }
+// keymapSection is one buffer's local keymap, surfaced by the ? help overlay.
+type keymapSection struct {
+	view  ViewKind
+	name  string
+	pairs [][2]string
+}
 
-	body := strings.Join([]string{
-		title("GLOBAL"),
-		kv([2]string{"space", "이동"}, [2]string{":", "명령"}, [2]string{"?", "도움"}, [2]string{"q", "종료"}),
-		"",
-		title("TODAY"),
-		kv([2]string{"i", "편집"}, [2]string{"e", "운동"}, [2]string{"x", "완료"}),
-		kv([2]string{"o", "세트"}, [2]string{"d", "삭제"}, [2]string{"s", "저장"}),
-		kv([2]string{"hjkl", "이동"}, [2]string{"r", "휴식 건너뛰기"}),
-		"",
-		lipgloss.NewStyle().Foreground(theme.Dim).Render("  esc 닫기"),
-	}, "\n")
-	return lipgloss.NewStyle().Width(w).Height(h).Padding(1, 1).Render(body)
+// bufferKeymaps documents each buffer's local keys; commonKeymap the keys that
+// work in every buffer. helpBody renders the active buffer first, then these
+// common keys, then the rest — so "what can I do here" and "what works
+// everywhere" are answerable at a glance (lazygit-style).
+var bufferKeymaps = []keymapSection{
+	{vToday, "TODAY", [][2]string{{"i", "편집"}, {"e/n", "운동"}, {"o", "세트"}, {"x", "완료"}, {"d", "삭제"}, {"u", "되돌리기"}, {"s", "저장"}, {"hl", "셀"}, {"r", "휴식"}}},
+	{vStats, "STATS", [][2]string{{"v", "뷰"}, {"[ ]", "범위"}, {"b", "차트"}, {"/", "검색"}, {"R", "새로고침"}}},
+	{vHistory, "HISTORY", [][2]string{{"⏎", "상세"}, {"e", "편집"}, {"d", "삭제"}, {"R", "새로고침"}}},
+	{vPrograms, "PROGRAMS", [][2]string{{"⏎", "활성"}, {"n", "새플랜"}, {"r", "이름"}, {"d", "삭제"}}},
+	{vExercises, "EXERCISES", [][2]string{{"/", "검색"}, {"r", "이름"}, {"a", "별칭"}, {"n", "추가"}, {"d", "삭제"}}},
+	{vSettings, "SETTINGS", [][2]string{{"⏎", "토글"}, {"i", "숫자편집"}}},
+}
+
+// commonKeymap is the everywhere layer: learn these once and they hold in every
+// buffer. Mirrors the bottom-hint globals (space/:/?) plus shared navigation.
+var commonKeymap = [][2]string{{"jk ↑↓", "이동"}, {"⏎", "선택"}, {"esc", "취소"}, {"space", "이동"}, {":", "명령"}, {"?", "키맵"}, {"q", "종료"}, {"1-6", "버퍼"}}
+
+// helpBody renders the keymap overlay lazygit-style: the active buffer's keys
+// first (marked "현재 화면"), then the everywhere/common keys, then the other
+// buffers. Rows wrap via flowHints so nothing overflows a narrow terminal (it
+// only grows vertically, and the top — current + common — is what matters).
+func helpBody(w, h int, active ViewKind) string {
+	title := func(s string) string { return lipgloss.NewStyle().Foreground(theme.Amber).Bold(true).Render(s) }
+	dim := lipgloss.NewStyle().Foreground(theme.Dim)
+	row := func(pairs [][2]string) string {
+		items := make([]string, len(pairs))
+		for i, p := range pairs {
+			items[i] = hint(p[0], p[1])
+		}
+		return "  " + flowHints(items, w-4)
+	}
+
+	var lines []string
+	for _, sec := range bufferKeymaps {
+		if sec.view == active {
+			lines = append(lines, title("■ "+sec.name)+dim.Render(" 현재 화면"), row(sec.pairs), "")
+			break
+		}
+	}
+	lines = append(lines, title("어디서나")+dim.Render(" 모든 화면 공통"), row(commonKeymap), "")
+	lines = append(lines, dim.Render("다른 화면"))
+	for _, sec := range bufferKeymaps {
+		if sec.view == active {
+			continue
+		}
+		lines = append(lines, title(sec.name), row(sec.pairs))
+	}
+	lines = append(lines, "", dim.Render("  esc 닫기"))
+	return lipgloss.NewStyle().Width(w).Height(h).Padding(1, 1).Render(strings.Join(lines, "\n"))
 }
 
 // justify places left and right text on one line padded to width w.

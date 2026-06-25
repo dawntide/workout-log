@@ -91,10 +91,34 @@ func TestFrameOpenPicker(t *testing.T) {
 func TestFrameHelp(t *testing.T) {
 	f := NewFrame(nil)
 	f.overlay = overlayHelp
-	out := renderFrame(f, 60, 20)
-	for _, want := range []string{"GLOBAL", "TODAY", "닫기"} {
+	out := renderFrame(f, 60, 36)
+	// every buffer's keymap + the common ("어디서나") layer is documented
+	for _, want := range []string{"TODAY", "어디서나", "STATS", "HISTORY", "PROGRAMS", "EXERCISES", "SETTINGS", "닫기"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("help overlay missing %q", want)
 		}
+	}
+}
+
+func TestFrameHelpContextFirst(t *testing.T) {
+	f := NewFrame(nil)
+	f.active = vStats
+	f.overlay = overlayHelp
+	out := renderFrame(f, 60, 36)
+	if !strings.Contains(out, "현재 화면") {
+		t.Error("help should mark the active buffer as 현재 화면")
+	}
+	// the active buffer (STATS) is surfaced before others (TODAY) — context-first
+	if si, ti := strings.Index(out, "STATS"), strings.Index(out, "TODAY"); si < 0 || ti < 0 || si > ti {
+		t.Errorf("active STATS should precede TODAY (context-first): stats@%d today@%d", si, ti)
+	}
+}
+
+func TestFrameGlobalHintsShowKeymapEntry(t *testing.T) {
+	// the ? keymap entry is always in the bottom global hints, so the full
+	// keymap is discoverable without already knowing the key
+	out := renderFrame(NewFrame(nil), 60, 20)
+	if !strings.Contains(out, "키맵") {
+		t.Errorf("global hints should surface the ? 키맵 entry:\n%s", out)
 	}
 }

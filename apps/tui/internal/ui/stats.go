@@ -182,7 +182,7 @@ func (s Stats) handleKey(m tea.KeyPressMsg) (Screen, tea.Cmd) {
 		return s.reload()
 	case "b":
 		s.braille = !s.braille
-	case "r":
+	case "R":
 		return s, statsBundleCmd(s.client)
 	}
 	return s, nil

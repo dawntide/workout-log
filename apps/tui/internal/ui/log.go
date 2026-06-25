@@ -57,6 +57,25 @@ type exGroup struct {
 	sets []setEntry
 }
 
+// undoSnapshot is the pre-delete buffer state restored by `u`. Today logging is
+// a fast flow, so a delete is one keystroke (`d`) with one-level undo rather
+// than a y/n confirm that would interrupt every set removal.
+type undoSnapshot struct {
+	groups []exGroup
+	gi, si int
+}
+
+// cloneGroups deep-copies groups (each set slice too) so an undo snapshot is
+// independent of later in-place mutation.
+func cloneGroups(gs []exGroup) []exGroup {
+	out := make([]exGroup, len(gs))
+	for i, g := range gs {
+		g.sets = append([]setEntry(nil), g.sets...)
+		out[i] = g
+	}
+	return out
+}
+
 type restState struct {
 	active    bool
 	remaining int
@@ -186,9 +205,10 @@ type Log struct {
 	edit        textinput.Model
 	rest        restState
 	saving      bool
-	editID      string    // non-empty when editing a past log (saves via PATCH)
-	performedAt time.Time // preserved on edit; zero = now (new log)
-	load        loadState // boot-time auto-load of today's session
+	editID      string        // non-empty when editing a past log (saves via PATCH)
+	performedAt time.Time     // preserved on edit; zero = now (new log)
+	load        loadState     // boot-time auto-load of today's session
+	undo        *undoSnapshot // last delete, restorable with `u`
 	status      string
 	statusErr   bool
 	w, h        int
@@ -280,7 +300,7 @@ func (l Log) Update(msg tea.Msg) (Screen, tea.Cmd) {
 		l.status, l.statusErr = summarizePRs(m.detail, m.edited), false
 		l.groups, l.gi, l.si = nil, 0, 0
 		l.editID, l.performedAt = "", time.Time{}
-		l.load = loadIdle
+		l.load, l.undo = loadIdle, nil
 		return l, nil
 	case editLogMsg:
 		l.loadForEdit(m)
@@ -345,7 +365,7 @@ func (l Log) updateNormal(m tea.KeyPressMsg) (Log, tea.Cmd) {
 			return l, openExercisePickerCmd(l.client)
 		}
 		return l.beginEdit(editCell)
-	case "e":
+	case "e", "n":
 		return l, openExercisePickerCmd(l.client)
 	case "x":
 		return l.toggleDone()
@@ -353,6 +373,8 @@ func (l Log) updateNormal(m tea.KeyPressMsg) (Log, tea.Cmd) {
 		return l.addSet()
 	case "d":
 		return l.deleteSet()
+	case "u":
+		return l.undoDelete()
 	case "s":
 		return l.save()
 	}
@@ -449,6 +471,7 @@ func (l Log) deleteSet() (Log, tea.Cmd) {
 	if len(l.groups) == 0 {
 		return l, nil
 	}
+	l.undo = &undoSnapshot{groups: cloneGroups(l.groups), gi: l.gi, si: l.si}
 	if len(l.groups[l.gi].sets) <= 1 {
 		l.groups = append(l.groups[:l.gi], l.groups[l.gi+1:]...)
 		if l.gi >= len(l.groups) {
@@ -465,6 +488,17 @@ func (l Log) deleteSet() (Log, tea.Cmd) {
 	if l.si >= len(l.groups[l.gi].sets) {
 		l.si = len(l.groups[l.gi].sets) - 1
 	}
+	return l, nil
+}
+
+// undoDelete restores the buffer to the state captured by the last deleteSet.
+func (l Log) undoDelete() (Log, tea.Cmd) {
+	if l.undo == nil {
+		return l, nil
+	}
+	l.groups, l.gi, l.si, l.col = l.undo.groups, l.undo.gi, l.undo.si, colWeight
+	l.undo = nil
+	l.status, l.statusErr = theme.GlyphDone+" 삭제 되돌림", false
 	return l, nil
 }
 
@@ -547,6 +581,7 @@ func (l *Log) loadForEdit(m editLogMsg) {
 	l.editing, l.target = false, editNone
 	l.editID, l.performedAt = m.id, m.performedAt
 	l.rest.active = false
+	l.undo = nil
 	l.status, l.statusErr = theme.GlyphDone+" 편집 로드됨 — s로 저장", false
 }
 
@@ -622,6 +657,7 @@ func (l *Log) loadSnapshot(s *api.SessionSnapshot, prev map[string]string) {
 		return
 	}
 	l.groups, l.gi, l.si, l.col = groups, 0, 0, colWeight
+	l.undo = nil
 	l.status, l.statusErr = theme.GlyphDone+" 플랜 세션 로드됨", false
 }
 
