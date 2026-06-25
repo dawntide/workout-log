@@ -33,6 +33,16 @@ const (
 	editCell
 )
 
+// loadState tracks the boot-time auto-load of today's planned session, so the
+// empty buffer can show "loading" / "no active plan" instead of a blank canvas.
+type loadState int
+
+const (
+	loadIdle    loadState = iota // not auto-loading (manual entry, or load done)
+	loadPending                  // fetching today's session
+	loadNoPlan                   // no active plan — prompt to start a program
+)
+
 type setEntry struct {
 	weight string
 	reps   string
@@ -102,17 +112,40 @@ func saveCmd(c *api.Client, groups []exGroup, editID string, performedAt time.Ti
 type sessionLoadedMsg struct {
 	snapshot *api.SessionSnapshot
 	prev     map[string]string // exerciseName(lower) → "weight×reps" last performance
+	noPlan   bool              // auto-load found no active plan
 	err      error
 }
 
+// generatedSessionMsg generates a plan's session and pairs it with the prev-map
+// from recent logs. Shared by the manual plan-activation path and the boot-time
+// auto-load.
+func generatedSessionMsg(c *api.Client, planID string) sessionLoadedMsg {
+	s, err := c.GenerateSession(context.Background(), planID)
+	if err != nil {
+		return sessionLoadedMsg{err: err}
+	}
+	logs, _ := c.ListLogs(context.Background(), api.ListLogsParams{Limit: 50})
+	return sessionLoadedMsg{snapshot: &s.Snapshot, prev: buildPrevMap(logs)}
+}
+
 func loadSessionCmd(c *api.Client, planID string) tea.Cmd {
+	return func() tea.Msg { return generatedSessionMsg(c, planID) }
+}
+
+// autoloadCmd boots today's buffer: resolve the active plan and generate its
+// session, mirroring the web bootstrap so today is never a blank canvas. With
+// no active plan it returns noPlan so the buffer prompts for a program instead.
+func autoloadCmd(c *api.Client) tea.Cmd {
 	return func() tea.Msg {
-		s, err := c.GenerateSession(context.Background(), planID)
+		plans, err := c.Plans(context.Background())
 		if err != nil {
 			return sessionLoadedMsg{err: err}
 		}
-		logs, _ := c.ListLogs(context.Background(), api.ListLogsParams{Limit: 50})
-		return sessionLoadedMsg{snapshot: &s.Snapshot, prev: buildPrevMap(logs)}
+		p, ok := api.ActivePlan(plans)
+		if !ok {
+			return sessionLoadedMsg{noPlan: true}
+		}
+		return generatedSessionMsg(c, p.ID)
 	}
 }
 
@@ -155,15 +188,18 @@ type Log struct {
 	saving      bool
 	editID      string    // non-empty when editing a past log (saves via PATCH)
 	performedAt time.Time // preserved on edit; zero = now (new log)
+	load        loadState // boot-time auto-load of today's session
 	status      string
 	statusErr   bool
 	w, h        int
 }
 
-func NewLog(client *api.Client) Log { return Log{client: client} }
+// NewLog starts in loadPending so the very first render shows "loading today's
+// session" rather than the empty-canvas hint while autoloadCmd runs.
+func NewLog(client *api.Client) Log { return Log{client: client, load: loadPending} }
 
 func (l Log) Editing() bool { return l.editing }
-func (l Log) Init() tea.Cmd { return nil }
+func (l Log) Init() tea.Cmd { return autoloadCmd(l.client) }
 
 func (l Log) Mode() Mode {
 	switch {
@@ -173,6 +209,8 @@ func (l Log) Mode() Mode {
 		return Mode{Label: "SAVING", Tone: theme.Amber}
 	case l.editing:
 		return Mode{Label: "INSERT", Tone: theme.Amber}
+	case l.load == loadPending:
+		return Mode{Label: "LOADING", Tone: theme.Cyan}
 	default:
 		return ModeNormal
 	}
@@ -242,6 +280,7 @@ func (l Log) Update(msg tea.Msg) (Screen, tea.Cmd) {
 		l.status, l.statusErr = summarizePRs(m.detail, m.edited), false
 		l.groups, l.gi, l.si = nil, 0, 0
 		l.editID, l.performedAt = "", time.Time{}
+		l.load = loadIdle
 		return l, nil
 	case editLogMsg:
 		l.loadForEdit(m)
@@ -255,10 +294,16 @@ func (l Log) Update(msg tea.Msg) (Screen, tea.Cmd) {
 		}
 		return l, nil
 	case planActivatedMsg:
+		l.load = loadPending
 		return l, loadSessionCmd(l.client, m.id)
 	case sessionLoadedMsg:
+		l.load = loadIdle
 		if m.err != nil {
 			l.status, l.statusErr = "세션 로드 실패: "+humanizeAuthErr(m.err), true
+			return l, nil
+		}
+		if m.noPlan {
+			l.load = loadNoPlan
 			return l, nil
 		}
 		l.loadSnapshot(m.snapshot, m.prev)
@@ -588,8 +633,7 @@ func (l Log) Body(w, h int) string {
 		b.WriteString(lipgloss.NewStyle().Foreground(theme.Amber).Render("■ 편집 중 · "+l.performedAt.Format("2006-01-02")) + "\n\n")
 	}
 	if len(l.groups) == 0 {
-		b.WriteString(lipgloss.NewStyle().Foreground(theme.Ghost).Render("오늘 기록이 비어 있습니다.\n\n"))
-		b.WriteString(hint("e", "운동 추가") + lipgloss.NewStyle().Foreground(theme.Dim).Render(" 로 시작"))
+		b.WriteString(l.renderEmpty())
 	} else {
 		groups := make([]string, len(l.groups))
 		for gi, g := range l.groups {
@@ -608,6 +652,25 @@ func (l Log) Body(w, h int) string {
 		b.WriteString("\n\n" + lipgloss.NewStyle().Foreground(tone).Render(l.status))
 	}
 	return lipgloss.NewStyle().Width(w).Height(h).Padding(1, 1).Render(b.String())
+}
+
+// renderEmpty draws the empty-buffer state: a loading line while today's
+// session auto-loads, a program prompt when no active plan exists, or the
+// manual-entry hint otherwise.
+func (l Log) renderEmpty() string {
+	dim := lipgloss.NewStyle().Foreground(theme.Dim)
+	ghost := lipgloss.NewStyle().Foreground(theme.Ghost)
+	switch l.load {
+	case loadPending:
+		return dim.Render("오늘 세션 불러오는 중…")
+	case loadNoPlan:
+		return ghost.Render("활성 플랜이 없습니다.\n\n") +
+			hint("p", "프로그램") + dim.Render(" 에서 플랜 시작\n") +
+			hint("e", "운동 추가") + dim.Render(" 로 자유 기록")
+	default:
+		return ghost.Render("오늘 기록이 비어 있습니다.\n\n") +
+			hint("e", "운동 추가") + dim.Render(" 로 시작")
+	}
 }
 
 func (l Log) renderGroup(gi int, g exGroup, w int) string {

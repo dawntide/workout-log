@@ -132,6 +132,10 @@ func TestLogEditSaveClears(t *testing.T) {
 
 func TestLogModeTransitions(t *testing.T) {
 	l := NewLog(nil)
+	if l.Mode().Label != "LOADING" {
+		t.Errorf("want LOADING at boot, got %q", l.Mode().Label)
+	}
+	l.load = loadIdle // past the boot auto-load
 	if l.Mode().Label != "NORMAL" {
 		t.Errorf("want NORMAL, got %q", l.Mode().Label)
 	}
@@ -209,5 +213,43 @@ func TestLogExercisePicked(t *testing.T) {
 	}
 	if cmd == nil {
 		t.Error("expected a focus command")
+	}
+}
+
+func TestLogBootShowsLoading(t *testing.T) {
+	// NewLog starts in loadPending so the first paint is a loading line, not the
+	// manual-entry hint, while autoloadCmd resolves today's session.
+	out := ansi.Strip(NewLog(nil).Body(58, 16))
+	if !strings.Contains(out, "불러오는 중") {
+		t.Errorf("boot body should show the loading line:\n%s", out)
+	}
+}
+
+func TestLogAutoloadNoPlan(t *testing.T) {
+	scr, _ := NewLog(nil).Update(sessionLoadedMsg{noPlan: true})
+	l := scr.(Log)
+	if l.load != loadNoPlan {
+		t.Fatalf("load = %d, want loadNoPlan", l.load)
+	}
+	out := ansi.Strip(l.Body(58, 16))
+	for _, want := range []string{"활성 플랜이 없습니다", "프로그램"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("no-plan body missing %q:\n%s", want, out)
+		}
+	}
+}
+
+func TestLogAutoloadSession(t *testing.T) {
+	scr, _ := NewLog(nil).Update(sessionLoadedMsg{snapshot: &api.SessionSnapshot{
+		Exercises: []api.PlannedExercise{
+			{ExerciseName: "Squat", Role: "MAIN", Sets: []api.PlannedSet{{Reps: 5, TargetWeightKg: 100}}},
+		},
+	}})
+	l := scr.(Log)
+	if l.load != loadIdle {
+		t.Errorf("load = %d, want loadIdle after a session loads", l.load)
+	}
+	if len(l.groups) != 1 || l.groups[0].name != "Squat" {
+		t.Fatalf("expected a Squat group from the auto-loaded session, got %+v", l.groups)
 	}
 }

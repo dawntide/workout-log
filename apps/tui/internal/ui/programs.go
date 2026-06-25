@@ -93,6 +93,13 @@ func (s Programs) Update(msg tea.Msg) (Screen, tea.Cmd) {
 		}
 		s.err = ""
 		s.plans = m.plans
+		// Mark the auto-resolved active plan (same pick as the today buffer) so
+		// the ● lands on it before the user explicitly activates one.
+		if s.activeID == "" {
+			if p, ok := api.ActivePlan(m.plans); ok {
+				s.activeID = p.ID
+			}
+		}
 		if s.sel >= len(s.plans) {
 			s.sel = 0
 		}
