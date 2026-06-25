@@ -141,6 +141,17 @@ func (l Login) withError(err error) Login {
 	return l
 }
 
+// serverHost strips the scheme/path from a base URL for a compact display
+// (e.g. "https://api.example.com/" → "api.example.com").
+func serverHost(u string) string {
+	u = strings.TrimPrefix(u, "https://")
+	u = strings.TrimPrefix(u, "http://")
+	if i := strings.IndexByte(u, '/'); i >= 0 {
+		u = u[:i]
+	}
+	return u
+}
+
 func humanizeAuthErr(err error) string {
 	switch {
 	case err == nil:
@@ -169,8 +180,14 @@ func (l Login) View() tea.View {
 	if l.signup {
 		mode = "signup"
 	}
+	subText := "terminal · " + mode
+	if l.client != nil {
+		if host := serverHost(l.client.BaseURL()); host != "" {
+			subText += " · " + host
+		}
+	}
 	title := lipgloss.NewStyle().Foreground(theme.Amber).Bold(true).Render("ironlog")
-	sub := lipgloss.NewStyle().Foreground(theme.Dim).Render("terminal · " + mode)
+	sub := lipgloss.NewStyle().Foreground(theme.Dim).Render(subText)
 
 	form := lipgloss.JoinVertical(
 		lipgloss.Left,

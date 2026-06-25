@@ -5,6 +5,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	tea "charm.land/bubbletea/v2"
 
@@ -25,6 +26,19 @@ func main() {
 		switch os.Args[1] {
 		case "--version", "-v", "version":
 			fmt.Printf("ironlog %s (commit %s, built %s)\n", version, commit, date)
+			return
+		case "--set-server":
+			if len(os.Args) < 3 || strings.TrimSpace(os.Args[2]) == "" {
+				fail(fmt.Errorf("사용법: ironlog --set-server <url>"))
+			}
+			cfg, err := config.Load()
+			if err != nil {
+				fail(err)
+			}
+			if err := cfg.SaveBaseURL(os.Args[2]); err != nil {
+				fail(err)
+			}
+			fmt.Printf("서버 저장됨: %s\n", strings.TrimRight(strings.TrimSpace(os.Args[2]), "/"))
 			return
 		}
 	}

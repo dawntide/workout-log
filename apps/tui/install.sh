@@ -83,4 +83,16 @@ case ":$PATH:" in
   *":$dir:"*) ;;
   *) echo "주의: $dir 가 PATH에 없습니다 →  export PATH=\"$dir:\$PATH\"" ;;
 esac
-echo "실행:  IRONLOG_API_URL=https://your-app.example.com $BIN"
+
+# 서버 URL을 한 번 저장해두면 이후엔 환경변수 없이 ironlog만 실행하면 됩니다.
+# (stdin 차단 + stderr 무시: --set-server 미지원 구버전 바이너리가 TUI로 뜨는 것 방지)
+if [ -n "${IRONLOG_API_URL:-}" ]; then
+  if "$dir/$BIN" --set-server "$IRONLOG_API_URL" </dev/null 2>/dev/null; then
+    echo "실행:  $BIN"
+  else
+    echo "주의: 서버 저장 실패(구버전 바이너리일 수 있음) — 최신 설치 후:  $BIN --set-server $IRONLOG_API_URL"
+  fi
+else
+  echo "서버 설정:  $BIN --set-server https://your-app.example.com"
+  echo "실행:      $BIN"
+fi

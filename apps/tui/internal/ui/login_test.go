@@ -89,6 +89,21 @@ func TestLoginForgotSubmits(t *testing.T) {
 	}
 }
 
+func TestServerHost(t *testing.T) {
+	cases := map[string]string{
+		"https://api.example.com/": "api.example.com",
+		"http://localhost:3000":    "localhost:3000",
+		"https://x.com/some/path":  "x.com",
+		"https://h.io:8443/":       "h.io:8443",
+		"":                         "",
+	}
+	for in, want := range cases {
+		if got := serverHost(in); got != want {
+			t.Errorf("serverHost(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
+
 func TestLoginForgotNotice(t *testing.T) {
 	l := NewLogin(nil)
 	l.submitting = true

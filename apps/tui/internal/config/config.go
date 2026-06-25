@@ -11,6 +11,7 @@ import (
 const (
 	appDir      = "ironlog"
 	sessionFile = "session"
+	baseURLFile = "base_url"
 	envBaseURL  = "IRONLOG_API_URL"
 	defaultBase = "http://localhost:3000"
 )
@@ -21,14 +22,11 @@ type Config struct {
 	dir     string
 }
 
-// Load reads the base URL (from $IRONLOG_API_URL, else the localhost default)
-// and ensures the per-user config dir exists (~/.config/ironlog on *nix,
-// %AppData%\ironlog on Windows).
+// Load resolves the API base URL with precedence: $IRONLOG_API_URL (temporary
+// override) > the saved config file (set once via `ironlog --set-server`) >
+// the localhost default. It also ensures the per-user config dir exists
+// (~/.config/ironlog on *nix, %AppData%\ironlog on Windows).
 func Load() (Config, error) {
-	base := strings.TrimRight(os.Getenv(envBaseURL), "/")
-	if base == "" {
-		base = defaultBase
-	}
 	ucd, err := os.UserConfigDir()
 	if err != nil {
 		return Config{}, err
@@ -37,7 +35,31 @@ func Load() (Config, error) {
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return Config{}, err
 	}
+
+	base := strings.TrimRight(os.Getenv(envBaseURL), "/")
+	if base == "" {
+		if b, err := os.ReadFile(filepath.Join(dir, baseURLFile)); err == nil {
+			base = strings.TrimRight(strings.TrimSpace(string(b)), "/")
+		}
+	}
+	if base == "" {
+		base = defaultBase
+	}
 	return Config{BaseURL: base, dir: dir}, nil
+}
+
+// SaveBaseURL persists the API base URL so future runs don't need the env var.
+// An empty url clears the saved value (reverting to the default).
+func (c Config) SaveBaseURL(url string) error {
+	url = strings.TrimRight(strings.TrimSpace(url), "/")
+	p := filepath.Join(c.dir, baseURLFile)
+	if url == "" {
+		if err := os.Remove(p); err != nil && !os.IsNotExist(err) {
+			return err
+		}
+		return nil
+	}
+	return os.WriteFile(p, []byte(url), 0o600)
 }
 
 // SessionToken returns the persisted wl_session token, or "" if none is saved.

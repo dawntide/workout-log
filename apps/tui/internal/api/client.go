@@ -57,6 +57,14 @@ func (c *Client) SetSessionToken(tok string) {
 	}})
 }
 
+// BaseURL returns the backend base URL this client talks to.
+func (c *Client) BaseURL() string {
+	if c == nil || c.baseURL == nil {
+		return ""
+	}
+	return c.baseURL.String()
+}
+
 // SessionToken returns the wl_session value currently held in the jar, or "".
 func (c *Client) SessionToken() string {
 	for _, ck := range c.jar.Cookies(c.baseURL) {

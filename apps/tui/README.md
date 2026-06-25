@@ -45,13 +45,13 @@ go install github.com/sharru0701/workout-log/apps/tui@latest   # 바이너리명
 TUI는 터미널 앱이라 웹 URL이 아닌 **SSH로 접속**합니다. iOS는 바이너리를 직접 실행할 수 없으므로 VPS에 두고 붙습니다:
 
 ```bash
-# 1) 클라우드 VPS(linux)에서 — 한 줄 설치
-curl -fsSL https://raw.githubusercontent.com/sharru0701/workout-log/main/apps/tui/install.sh | sh
-# 2) tmux로 세션 유지하며 실행
-IRONLOG_API_URL=https://your-app.vercel.app tmux new -s ironlog ironlog
+# 1) 클라우드 VPS(linux)에서 — 설치하며 서버 URL까지 한 번에 저장
+curl -fsSL https://raw.githubusercontent.com/sharru0701/workout-log/main/apps/tui/install.sh | IRONLOG_API_URL=https://your-app.vercel.app sh
+# 2) tmux로 세션 유지하며 실행 (이후엔 환경변수 불필요)
+tmux new -s ironlog ironlog
 ```
 
-iPhone [Termius](https://termius.com) 등 SSH 앱으로 VPS에 접속 → `tmux attach -t ironlog`.
+iPhone [Termius](https://termius.com) 등 SSH 앱으로 VPS에 접속 → `tmux attach -t ironlog`. 서버를 바꾸려면 `ironlog --set-server <url>`.
 
 ## 빌드 (소스에서)
 
@@ -63,11 +63,15 @@ go build -o ironlog .     # 빌드
 
 ## 설정
 
-| 환경변수 | 기본값 | 설명 |
-|---|---|---|
-| `IRONLOG_API_URL` | `http://localhost:3000` | 백엔드 base URL (로컬 dev ↔ 배포 prod 전환) |
+백엔드 base URL은 **환경변수 > 저장된 설정 > 기본값** 순으로 결정됩니다.
 
-세션 토큰은 OS 설정 디렉터리(`%AppData%\ironlog` / `~/.config/ironlog`)의 `session` 파일(0600)에 영속됩니다. 재실행 시 자동 로그인되며, 401이면 로그인 화면으로 돌아갑니다.
+| 방법 | 설명 |
+|---|---|
+| `ironlog --set-server https://your-app` | URL을 config에 저장(한 번) → 이후 `ironlog`만 실행 |
+| `IRONLOG_API_URL=https://your-app ironlog` | 환경변수로 임시 오버라이드 |
+| (기본) | `http://localhost:3000` |
+
+설정·세션은 OS 설정 디렉터리(`%AppData%\ironlog` / `~/.config/ironlog`)에 저장됩니다 — `base_url`, `session`(0600). 로그인 화면 상단에 현재 접속 중인 서버가 표시됩니다.
 
 ## 사용법
 
