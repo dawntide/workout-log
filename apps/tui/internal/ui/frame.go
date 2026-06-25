@@ -526,3 +526,27 @@ func fitLine(s string, w int) string {
 	}
 	return ansi.Truncate(s, w, "")
 }
+
+// flowHints joins key-hint chips with a 3-space gap, wrapping to a new line
+// when the next chip would exceed w display columns (CJK-aware). This keeps
+// every hint visible on a narrow phone terminal instead of letting the row
+// overflow and clip off-screen.
+func flowHints(items []string, w int) string {
+	var lines []string
+	cur := ""
+	for _, it := range items {
+		switch {
+		case cur == "":
+			cur = it
+		case lipgloss.Width(cur)+3+lipgloss.Width(it) > w:
+			lines = append(lines, cur)
+			cur = it
+		default:
+			cur += "   " + it
+		}
+	}
+	if cur != "" {
+		lines = append(lines, cur)
+	}
+	return strings.Join(lines, "\n")
+}

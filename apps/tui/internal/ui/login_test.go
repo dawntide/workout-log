@@ -5,7 +5,10 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
+
+	"github.com/sharru0701/workout-log/apps/tui/internal/api"
 )
 
 func renderLogin(l Login, w, h int) string {
@@ -101,6 +104,49 @@ func TestServerHost(t *testing.T) {
 		if got := serverHost(in); got != want {
 			t.Errorf("serverHost(%q) = %q, want %q", in, got, want)
 		}
+	}
+}
+
+// TestLoginNarrowFits guards against the regression in the bug report: on a
+// phone-width SSH terminal (~46 cols) the form clipped off the right edge. No
+// rendered line may exceed the terminal width, and the last key hint must stay
+// visible.
+func TestLoginNarrowFits(t *testing.T) {
+	for _, w := range []int{38, 46, 52} {
+		l := NewLogin(nil)
+		l.email.SetValue("someone@example.com")
+		out := ansi.Strip(renderLogin(l, w, 22))
+		for _, line := range strings.Split(out, "\n") {
+			if got := lipgloss.Width(line); got > w {
+				t.Errorf("w=%d: line %d cols exceeds width: %q", w, got, line)
+			}
+		}
+		if !strings.Contains(out, "비번찾기") {
+			t.Errorf("w=%d: password-reset hint clipped:\n%s", w, out)
+		}
+		if w == 46 {
+			t.Logf("w=46 render:\n%s", out)
+		}
+	}
+}
+
+// TestLoginNarrowFitsServerURL covers the exact symptom from the report: the
+// production server URL ran off the right edge. On a phone-width terminal the
+// host line must stay within bounds while still identifying the server.
+func TestLoginNarrowFitsServerURL(t *testing.T) {
+	c, err := api.New("https://workout-log-two-bice.vercel.app")
+	if err != nil {
+		t.Fatal(err)
+	}
+	const w = 38
+	out := ansi.Strip(renderLogin(NewLogin(c), w, 22))
+	for _, line := range strings.Split(out, "\n") {
+		if got := lipgloss.Width(line); got > w {
+			t.Errorf("line %d cols exceeds width %d: %q", got, w, line)
+		}
+	}
+	if !strings.Contains(out, "workout-log") {
+		t.Errorf("server host not identifiable:\n%s", out)
 	}
 }
 

@@ -28,11 +28,12 @@ type Login struct {
 // NewLogin builds the form. client may be nil in tests (submission is gated by
 // the Enter key, which the tests do not exercise).
 func NewLogin(client *api.Client) Login {
+	// Input widths are set per-render in field() from the terminal width, so a
+	// phone-narrow terminal shrinks the box instead of clipping it off-screen.
 	email := textinput.New()
 	email.Placeholder = "you@example.com"
 	email.Prompt = ""
 	email.SetVirtualCursor(true)
-	email.SetWidth(28)
 	email.Focus()
 
 	pw := textinput.New()
@@ -41,7 +42,6 @@ func NewLogin(client *api.Client) Login {
 	pw.EchoMode = textinput.EchoPassword
 	pw.EchoCharacter = '•'
 	pw.SetVirtualCursor(true)
-	pw.SetWidth(28)
 
 	return Login{email: email, password: pw, client: client}
 }
@@ -175,30 +175,33 @@ func (l Login) View() tea.View {
 	if h <= 0 {
 		h = 18
 	}
+	inner := loginContentWidth(w)
 
 	mode := "login"
 	if l.signup {
 		mode = "signup"
 	}
-	subText := "terminal · " + mode
+	dim := lipgloss.NewStyle().Foreground(theme.Dim)
+	rows := []string{
+		lipgloss.NewStyle().Foreground(theme.Amber).Bold(true).Render("ironlog"),
+		dim.Render("terminal · " + mode),
+	}
+	// Server host on its own line so a long URL truncates rather than pushing
+	// the whole header off the right edge on a narrow terminal.
 	if l.client != nil {
 		if host := serverHost(l.client.BaseURL()); host != "" {
-			subText += " · " + host
+			rows = append(rows, dim.Render(fitLine(host, inner)))
 		}
 	}
-	title := lipgloss.NewStyle().Foreground(theme.Amber).Bold(true).Render("ironlog")
-	sub := lipgloss.NewStyle().Foreground(theme.Dim).Render(subText)
-
-	form := lipgloss.JoinVertical(
-		lipgloss.Left,
-		title,
-		sub,
+	rows = append(rows,
 		"",
-		l.field("email", l.email, l.focus == 0),
-		l.field("password", l.password, l.focus == 1),
+		l.field("email", l.email, l.focus == 0, inner),
+		l.field("password", l.password, l.focus == 1, inner),
 		"",
-		l.statusLine(),
+		l.statusLine(inner),
 	)
+
+	form := lipgloss.JoinVertical(lipgloss.Left, rows...)
 	box := lipgloss.NewStyle().Padding(1, 3).Render(form)
 	centered := lipgloss.Place(w, h, lipgloss.Center, lipgloss.Center, box)
 
@@ -208,7 +211,22 @@ func (l Login) View() tea.View {
 	return v
 }
 
-func (l Login) field(label string, ti textinput.Model, focused bool) string {
+// loginContentWidth returns the inner content width of the centered login card:
+// the terminal width minus the box's horizontal padding (3+3) and a small
+// margin, clamped so the card stays readable on a phone yet does not sprawl on
+// a wide desktop terminal.
+func loginContentWidth(w int) int {
+	inner := w - 8
+	if inner < 22 {
+		inner = 22
+	}
+	if inner > 46 {
+		inner = 46
+	}
+	return inner
+}
+
+func (l Login) field(label string, ti textinput.Model, focused bool, inner int) string {
 	marker := "  "
 	lblColor := theme.Dim
 	if focused {
@@ -216,23 +234,42 @@ func (l Login) field(label string, ti textinput.Model, focused bool) string {
 		lblColor = theme.Fg
 	}
 	lbl := lipgloss.NewStyle().Foreground(lblColor).Width(10).Render(label)
-	box := lipgloss.NewStyle().Foreground(theme.Cyan).Render("[ " + ti.View() + " ]")
+	// Chrome around the input is marker(2) + label(10) + "[ "(2) + " ]"(2) = 16
+	// columns; give the rest to the field, with a floor so it stays usable.
+	tiW := inner - 16
+	if tiW < 10 {
+		tiW = 10
+	}
+	// textinput v2 does not scroll or clip an over-long value, so hard-cap the
+	// rendered field to tiW and pad to a fixed width — this both stops a long
+	// email from overflowing the card and keeps the closing bracket aligned
+	// across the two rows.
+	ti.SetWidth(tiW)
+	field := lipgloss.NewStyle().Width(tiW).Render(fitLine(ti.View(), tiW))
+	box := lipgloss.NewStyle().Foreground(theme.Cyan).Render("[ " + field + " ]")
 	return marker + lbl + box
 }
 
-func (l Login) statusLine() string {
+func (l Login) statusLine(inner int) string {
 	action, toggle := "로그인", "가입"
 	if l.signup {
 		action, toggle = "가입", "로그인"
 	}
 	switch {
 	case l.submitting:
-		return lipgloss.NewStyle().Foreground(theme.Cyan).Render(action + " 중…")
+		return lipgloss.NewStyle().Foreground(theme.Cyan).Render(fitLine(action+" 중…", inner))
 	case l.err != "":
-		return lipgloss.NewStyle().Foreground(theme.Red).Render(theme.GlyphFail + " " + l.err)
+		return lipgloss.NewStyle().Foreground(theme.Red).Render(fitLine(theme.GlyphFail+" "+l.err, inner))
 	case l.notice != "":
-		return lipgloss.NewStyle().Foreground(theme.Green).Render(theme.GlyphDone + " " + l.notice)
+		return lipgloss.NewStyle().Foreground(theme.Green).Render(fitLine(theme.GlyphDone+" "+l.notice, inner))
 	default:
-		return lipgloss.NewStyle().Foreground(theme.Dim).Render("[⏎] " + action + "   [tab] 이동   [ctrl+t] " + toggle + "   [ctrl+f] 비번찾기")
+		// Wrap the key hints onto extra lines on a narrow terminal so the last
+		// chip ([ctrl+f] 비번찾기) stays on-screen instead of clipping.
+		return lipgloss.NewStyle().Foreground(theme.Dim).Render(flowHints([]string{
+			"[⏎] " + action,
+			"[tab] 이동",
+			"[ctrl+t] " + toggle,
+			"[ctrl+f] 비번찾기",
+		}, inner))
 	}
 }
