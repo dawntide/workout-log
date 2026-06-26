@@ -16,15 +16,16 @@ func TestWidthAuditNarrow(t *testing.T) {
 	const h = 24
 	for _, w := range []int{40, 46, 60} {
 		cases := map[string]string{
-			"login":    ansi.Strip(renderLogin(NewLogin(nil), w, h)),
-			"today":    ansi.Strip(renderTodayScenario(w, h)),
-			"stats":    ansi.Strip(renderStatsScenario(w, h, true)),
-			"history":  ansi.Strip(renderHistoryScenario(w, h)),
-			"programs": ansi.Strip(renderProgramsScenario(w, h)),
-			"settings": ansi.Strip(renderSettingsScenario(w, h)),
-			"goto":     ansi.Strip(renderGotoScenario(w, h)),
-			"palette":  ansi.Strip(renderPaletteScenario(w, h)),
-			"help":     ansi.Strip(renderHelpScenario(w, h)),
+			"login":     ansi.Strip(renderLogin(NewLogin(nil), w, h)),
+			"today":     ansi.Strip(renderTodayScenario(w, h)),
+			"stats":     ansi.Strip(renderStatsScenario(w, h, true)),
+			"history":   ansi.Strip(renderHistoryScenario(w, h)),
+			"programs":  ansi.Strip(renderProgramsScenario(w, h)),
+			"settings":  ansi.Strip(renderSettingsScenario(w, h)),
+			"exercises": ansi.Strip(renderExercisesScenario(w, h)),
+			"goto":      ansi.Strip(renderGotoScenario(w, h)),
+			"palette":   ansi.Strip(renderPaletteScenario(w, h)),
+			"help":      ansi.Strip(renderHelpScenario(w, h)),
 		}
 		for name, out := range cases {
 			max := 0

@@ -539,15 +539,15 @@ func (s Settings) Context() string {
 
 func (s Settings) StatusRight() string { return "" }
 
-func (s Settings) Hints(int) string {
+func (s Settings) Hints() []hintItem {
 	switch s.form {
 	case formPassword:
-		return joinHints(hint("⏎", "변경"), hint("tab", "이동"), hint("esc", "취소"))
+		return []hintItem{{"⏎", "변경"}, {"tab", "이동"}, {"esc", "취소"}}
 	case formDelete:
-		return joinHints(hint("⏎", "계속"), hint("esc", "취소"))
+		return []hintItem{{"⏎", "계속"}, {"esc", "취소"}}
 	}
 	if s.editing {
-		return joinHints(hint("⏎", "저장"), hint("esc", "취소"))
+		return []hintItem{{"⏎", "저장"}, {"esc", "취소"}}
 	}
 	if s.isAccountRow() {
 		action := "변경"
@@ -559,9 +559,9 @@ func (s Settings) Hints(int) string {
 		case actDeleteAccount:
 			action = "삭제"
 		}
-		return joinHints(hint("jk", "이동"), hint("⏎", action))
+		return []hintItem{{"jk", "이동"}, {"⏎", action}}
 	}
-	return joinHints(hint("jk", "이동"), hint("⏎", "변경"), hint("i", "숫자편집"))
+	return []hintItem{{"jk", "이동"}, {"⏎", "변경"}, {"i", "숫자편집"}}
 }
 
 // --- rendering ---
@@ -594,7 +594,7 @@ func (s Settings) listBody(w, h int) string {
 	if s.flash != "" {
 		lines = append(lines, "", s.flashLine())
 	}
-	return lipgloss.NewStyle().Width(w).Height(h).Padding(1, 1).Render(strings.Join(lines, "\n"))
+	return lipgloss.NewStyle().Width(w).Height(h).Padding(bodyPad(h), 1).Render(strings.Join(lines, "\n"))
 }
 
 func (s Settings) prefRow(i int, def settingDef) string {

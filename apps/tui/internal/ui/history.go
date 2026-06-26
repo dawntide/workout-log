@@ -187,8 +187,8 @@ func (s History) StatusRight() string {
 
 func (s History) Editing() bool { return false }
 
-func (s History) Hints(int) string {
-	return joinHints(hint("jk", "세션"), hint("⏎", "상세"), hint("e", "편집"), hint("d", "삭제"))
+func (s History) Hints() []hintItem {
+	return []hintItem{{"jk", "세션"}, {"⏎", "상세"}, {"e", "편집"}, {"d", "삭제"}}
 }
 
 func (s History) Body(w, h int) string {
@@ -205,8 +205,9 @@ func (s History) Body(w, h int) string {
 	var b strings.Builder
 	b.WriteString(s.heatStrip(w-2) + "\n")
 	b.WriteString(lipgloss.NewStyle().Foreground(theme.Ghost).Render(strings.Repeat("─", w-2)) + "\n")
-	b.WriteString(s.list(w-2, h-4))
-	return lipgloss.NewStyle().Width(w).Height(h).Padding(1, 1).Render(b.String())
+	pad := bodyPad(h)
+	b.WriteString(s.list(w-2, h-2-2*pad)) // heat strip + divider take 2 rows
+	return lipgloss.NewStyle().Width(w).Height(h).Padding(pad, 1).Render(b.String())
 }
 
 func (s History) heatStrip(w int) string {

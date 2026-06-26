@@ -256,11 +256,11 @@ func (s Programs) StatusRight() string {
 
 func (s Programs) Editing() bool { return s.renaming }
 
-func (s Programs) Hints(int) string {
+func (s Programs) Hints() []hintItem {
 	if s.renaming {
-		return joinHints(hint("⏎", "이름변경"), hint("esc", "취소"))
+		return []hintItem{{"⏎", "이름변경"}, {"esc", "취소"}}
 	}
-	return joinHints(hint("jk", "이동"), hint("⏎", "활성"), hint("r", "이름"), hint("n", "새플랜"), hint("d", "삭제"))
+	return []hintItem{{"jk", "이동"}, {"⏎", "활성"}, {"r", "이름"}, {"n", "새플랜"}, {"d", "삭제"}}
 }
 
 func (s Programs) Body(w, h int) string {
@@ -275,12 +275,14 @@ func (s Programs) Body(w, h int) string {
 	}
 
 	lines := make([]string, 0, len(s.plans))
+	active := 0
 	for i, p := range s.plans {
 		marker := "  "
 		nameStyle := lipgloss.NewStyle().Foreground(theme.Fg)
 		if i == s.sel {
 			marker = lipgloss.NewStyle().Foreground(theme.Amber).Render("› ")
 			nameStyle = lipgloss.NewStyle().Foreground(theme.Amber).Bold(true)
+			active = len(lines)
 		}
 		bullet := lipgloss.NewStyle().Foreground(theme.Ghost).Render("○")
 		if p.ID == s.activeID {
@@ -294,7 +296,14 @@ func (s Programs) Body(w, h int) string {
 		left := marker + bullet + " " + nameStyle.Render(truncate(p.Name, w-22))
 		lines = append(lines, justify(left, sub, w-2))
 	}
-	return lipgloss.NewStyle().Width(w).Height(h).Padding(1, 1).Render(strings.Join(lines, "\n"))
+	// Window around the selection so a long plan list never overflows the body
+	// and clips the frame's hint bar below it (matches history/exercises/today).
+	pad := bodyPad(h)
+	avail := h - 2*pad
+	if avail < 1 {
+		avail = 1
+	}
+	return lipgloss.NewStyle().Width(w).Height(h).Padding(pad, 1).Render(strings.Join(windowLines(lines, active, avail), "\n"))
 }
 
 func programSubtitle(p api.Plan) string {

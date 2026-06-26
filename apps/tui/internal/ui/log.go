@@ -281,11 +281,11 @@ func (l Log) StatusRight() string {
 	return fmt.Sprintf("%d set%s", n, plural(n))
 }
 
-func (l Log) Hints(int) string {
+func (l Log) Hints() []hintItem {
 	if l.editing {
-		return joinHints(hint("⏎", "다음"), hint("tab", "셀"), hint("esc", "취소"))
+		return []hintItem{{"⏎", "다음"}, {"tab", "셀"}, {"esc", "취소"}}
 	}
-	return joinHints(hint("i", "편집"), hint("e", "운동"), hint("s", "저장"))
+	return []hintItem{{"i", "편집"}, {"e", "운동"}, {"s", "저장"}}
 }
 
 func (l Log) doneCount() int {
@@ -696,30 +696,70 @@ func (l *Log) loadSnapshot(s *api.SessionSnapshot, prev map[string]string) {
 // --- rendering ---
 
 func (l Log) Body(w, h int) string {
-	var b strings.Builder
-	if l.editID != "" {
-		b.WriteString(lipgloss.NewStyle().Foreground(theme.Amber).Render("■ 편집 중 · "+l.performedAt.Format("2006-01-02")) + "\n\n")
+	pad := bodyPad(h)
+	compact := compactView(h)
+	inner := h - 2*pad
+	if inner < 1 {
+		inner = 1
 	}
-	if len(l.groups) == 0 {
-		b.WriteString(l.renderEmpty())
-	} else {
-		groups := make([]string, len(l.groups))
-		for gi, g := range l.groups {
-			groups[gi] = l.renderGroup(gi, g, w)
+
+	// Pinned chrome: the edit banner sticks to the top; the rest gauge and the
+	// status line stick to the bottom so a live countdown / save confirmation
+	// stays visible no matter how many exercises scroll between them.
+	var head, foot []string
+	if l.editID != "" {
+		head = append(head, lipgloss.NewStyle().Foreground(theme.Amber).Render("■ 편집 중 · "+l.performedAt.Format("2006-01-02")))
+		if !compact {
+			head = append(head, "")
 		}
-		b.WriteString(strings.Join(groups, "\n\n"))
 	}
 	if l.rest.active {
-		b.WriteString("\n\n" + l.restBar(w))
+		foot = append(foot, l.restBar(w))
 	}
 	if l.status != "" {
 		tone := theme.Green
 		if l.statusErr {
 			tone = theme.Red
 		}
-		b.WriteString("\n\n" + lipgloss.NewStyle().Foreground(tone).Render(l.status))
+		foot = append(foot, lipgloss.NewStyle().Foreground(tone).Render(l.status))
 	}
-	return lipgloss.NewStyle().Width(w).Height(h).Padding(1, 1).Render(b.String())
+
+	all := append([]string{}, head...)
+	if len(l.groups) == 0 {
+		all = append(all, l.renderEmpty())
+	} else {
+		// Flatten groups to lines and window them around the active set so the
+		// cursor stays on screen and, crucially, the frame's hint bar + mode
+		// line below the body are never pushed off the bottom (the old Body
+		// rendered every group and overflowed, clipping the footer entirely).
+		lines, active := l.groupLines(w, compact)
+		avail := inner - len(head) - len(foot)
+		if avail < 1 {
+			avail = 1
+		}
+		all = append(all, windowLines(lines, active, avail)...)
+	}
+	all = append(all, foot...)
+	return lipgloss.NewStyle().Width(w).Height(h).Padding(pad, 1).Render(strings.Join(all, "\n"))
+}
+
+// groupLines flattens every exercise group into a single line slice (a header
+// row followed by its set rows, with a blank line between groups unless compact)
+// and reports the line index of the active set so windowLines can center it.
+func (l Log) groupLines(w int, compact bool) (lines []string, active int) {
+	for gi, g := range l.groups {
+		if gi > 0 && !compact {
+			lines = append(lines, "")
+		}
+		lines = append(lines, l.groupHeader(gi, g, w))
+		for si, s := range g.sets {
+			if gi == l.gi && si == l.si {
+				active = len(lines)
+			}
+			lines = append(lines, l.renderSet(gi, si, s))
+		}
+	}
+	return lines, active
 }
 
 // renderEmpty draws the empty-buffer state: a loading line while today's
@@ -741,36 +781,31 @@ func (l Log) renderEmpty() string {
 	}
 }
 
-func (l Log) renderGroup(gi int, g exGroup, w int) string {
-	var header string
+// groupHeader renders one exercise's header row: the name (or an inline rename
+// input when editing the name), right-justified with its prev/tgt context.
+func (l Log) groupHeader(gi int, g exGroup, w int) string {
 	if gi == l.gi && l.editing && l.target == editName {
-		header = l.edit.View()
-	} else {
-		name := g.name
-		if strings.TrimSpace(name) == "" {
-			name = "운동?"
-		}
-		header = lipgloss.NewStyle().Foreground(theme.Amber).Bold(true).Render(strings.ToUpper(name))
-		ctx := ""
-		if g.prev != "" {
-			ctx = "prev " + g.prev
-		}
-		if g.tgt != "" {
-			if ctx != "" {
-				ctx += "  "
-			}
-			ctx += "tgt " + g.tgt
-		}
+		return l.edit.View()
+	}
+	name := g.name
+	if strings.TrimSpace(name) == "" {
+		name = "운동?"
+	}
+	header := lipgloss.NewStyle().Foreground(theme.Amber).Bold(true).Render(strings.ToUpper(name))
+	ctx := ""
+	if g.prev != "" {
+		ctx = "prev " + g.prev
+	}
+	if g.tgt != "" {
 		if ctx != "" {
-			header = justify(header, lipgloss.NewStyle().Foreground(theme.Dim).Render(ctx), w-2)
+			ctx += "  "
 		}
+		ctx += "tgt " + g.tgt
 	}
-
-	lines := []string{header}
-	for si, s := range g.sets {
-		lines = append(lines, l.renderSet(gi, si, s))
+	if ctx != "" {
+		header = justify(header, lipgloss.NewStyle().Foreground(theme.Dim).Render(ctx), w-2)
 	}
-	return strings.Join(lines, "\n")
+	return header
 }
 
 func (l Log) renderSet(gi, si int, s setEntry) string {
@@ -943,8 +978,6 @@ func hint(k, label string) string {
 	return lipgloss.NewStyle().Foreground(theme.Cyan).Bold(true).Render(k) + " " +
 		lipgloss.NewStyle().Foreground(theme.Dim).Render(label)
 }
-
-func joinHints(parts ...string) string { return strings.Join(parts, "  ") }
 
 func dim(s string) string { return lipgloss.NewStyle().Foreground(theme.Dim).Render(s) }
 

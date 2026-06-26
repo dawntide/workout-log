@@ -214,11 +214,11 @@ func (s Stats) StatusRight() string {
 
 func (s Stats) Editing() bool { return false }
 
-func (s Stats) Hints(int) string {
+func (s Stats) Hints() []hintItem {
 	if s.view == vwVolume {
-		return joinHints(hint("v", "e1RM"), hint("[ ]", "범위"), hint("b", "차트"))
+		return []hintItem{{"v", "e1RM"}, {"[ ]", "범위"}, {"b", "차트"}}
 	}
-	return joinHints(hint("jk", "운동"), hint("/", "검색"), hint("[ ]", "범위"), hint("b", "차트"), hint("v", "볼륨"))
+	return []hintItem{{"jk", "운동"}, {"/", "검색"}, {"[ ]", "범위"}, {"b", "차트"}, {"v", "볼륨"}}
 }
 
 func (s Stats) Body(w, h int) string {
@@ -228,20 +228,22 @@ func (s Stats) Body(w, h int) string {
 	if s.bundle == nil {
 		return centered("불러오는 중…", theme.Dim, w, h)
 	}
+	pad := bodyPad(h)
+	chartH := h - 4 - 2*pad // header(1)+blank(1)+summary(1)+1 slack; pad takes 2
 	var b strings.Builder
 	if s.view == vwVolume {
 		b.WriteString(s.volumeHeader(w) + "\n\n")
-		b.WriteString(s.volumeChart(w-2, h-6) + "\n")
+		b.WriteString(s.volumeChart(w-2, chartH) + "\n")
 		b.WriteString(s.volumeSummary())
 	} else {
 		if len(s.bundle.Prs90d) == 0 && s.custom == "" {
 			return centered("기록이 충분하지 않습니다 (/ 운동 검색)", theme.Ghost, w, h)
 		}
 		b.WriteString(s.header(w) + "\n\n")
-		b.WriteString(s.chart(w-2, h-6) + "\n")
+		b.WriteString(s.chart(w-2, chartH) + "\n")
 		b.WriteString(s.summary())
 	}
-	return lipgloss.NewStyle().Width(w).Height(h).Padding(1, 1).Render(b.String())
+	return lipgloss.NewStyle().Width(w).Height(h).Padding(pad, 1).Render(b.String())
 }
 
 func (s Stats) rangeTabs() string {

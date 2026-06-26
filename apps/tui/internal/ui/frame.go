@@ -3,6 +3,7 @@ package ui
 import (
 	"context"
 	"image/color"
+	"strconv"
 	"strings"
 	"time"
 
@@ -53,6 +54,37 @@ type Mode struct {
 
 // ModeNormal is the idle auto-label.
 var ModeNormal = Mode{Label: "NORMAL", Tone: theme.Dim}
+
+// hintItem is one key/label pair for the bottom hint bar. Screens return these
+// as data (not a pre-rendered string) so the frame can choose a full rendering
+// (key + 라벨) or a keys-only compaction when the bar would overflow a narrow
+// phone terminal — without re-deriving the keys from styled text.
+type hintItem struct{ key, label string }
+
+// globalHints are the everywhere keys appended to every screen's local hints.
+// They sit at the right of the bar, so under the old hard-truncation they were
+// the first to be cut — exactly the keys (goto/command/help) a newcomer needs.
+var globalHints = []hintItem{{"space", "이동"}, {":", "명령"}, {"?", "키맵"}}
+
+// hintsFull renders key + dim label chips joined by two spaces.
+func hintsFull(items []hintItem) string {
+	parts := make([]string, len(items))
+	for i, it := range items {
+		parts[i] = hint(it.key, it.label)
+	}
+	return strings.Join(parts, "  ")
+}
+
+// hintsKeys renders keys only (no labels) joined by single spaces — the compact
+// fallback when the full bar exceeds the terminal width. The full labels stay
+// discoverable via the ? keymap overlay.
+func hintsKeys(items []hintItem) string {
+	parts := make([]string, len(items))
+	for i, it := range items {
+		parts[i] = lipgloss.NewStyle().Foreground(theme.Cyan).Bold(true).Render(it.key)
+	}
+	return strings.Join(parts, " ")
+}
 
 type tickMsg time.Time
 
@@ -419,6 +451,19 @@ func (f Frame) View() tea.View {
 
 func (f Frame) statusline(w int, s Screen) string {
 	seg := lipgloss.NewStyle().Background(s.Mode().Tone).Foreground(theme.Bg).Bold(true).Render(" " + s.Mode().Label + " ")
+	clock := lipgloss.NewStyle().Foreground(theme.Dim).Render(f.now.Format("15:04"))
+
+	// The mode badge and the clock are the always-keep anchors. StatusRight (a
+	// short count) joins the clock only while the badge still has room to its
+	// left; otherwise it is dropped so a narrow phone width never sacrifices the
+	// time to the right-edge truncation.
+	right := clock
+	if r := s.StatusRight(); r != "" {
+		cand := lipgloss.NewStyle().Foreground(theme.Dim).Render(r) + "  " + clock
+		if lipgloss.Width(seg)+2+lipgloss.Width(cand) <= w {
+			right = cand
+		}
+	}
 
 	var left string
 	if f.flash != "" {
@@ -431,11 +476,15 @@ func (f Frame) statusline(w int, s Screen) string {
 		}
 	}
 
-	right := ""
-	if r := s.StatusRight(); r != "" {
-		right = lipgloss.NewStyle().Foreground(theme.Dim).Render(r) + "  "
+	// Truncate the left (view name + context) so left + a 1-col gap + right fits
+	// w exactly, never eating into the right-aligned clock; the mode badge is
+	// never cut.
+	if maxLeft := w - lipgloss.Width(right) - 1; lipgloss.Width(left) > maxLeft {
+		if maxLeft < lipgloss.Width(seg) {
+			maxLeft = lipgloss.Width(seg)
+		}
+		left = ansi.Truncate(left, maxLeft, "")
 	}
-	right += lipgloss.NewStyle().Foreground(theme.Dim).Render(f.now.Format("15:04"))
 	return justify(left, right, w)
 }
 
@@ -450,8 +499,15 @@ func (f Frame) region(w int, s Screen) (string, int) {
 			hint("y", "예") + "  " + hint("n", "아니오")
 		return fitLine(line, w), 1
 	default:
-		globals := lipgloss.NewStyle().Foreground(theme.Dim).Render("   ") + hint("space", "이동") + "  " + hint(":", "명령") + "  " + hint("?", "키맵")
-		return fitLine(s.Hints(w)+globals, w), 1
+		items := s.Hints()
+		// Prefer the full key+label bar; fall back to keys-only when it would
+		// overflow w, so the globals (space/:/?) survive on a phone width
+		// instead of being truncated off the right edge.
+		full := hintsFull(items) + "   " + hintsFull(globalHints)
+		if lipgloss.Width(full) <= w {
+			return full, 1
+		}
+		return fitLine(hintsKeys(items)+"   "+hintsKeys(globalHints), w), 1
 	}
 }
 
@@ -558,6 +614,55 @@ func fitLine(s string, w int) string {
 		return s
 	}
 	return ansi.Truncate(s, w, "")
+}
+
+// compactView reports whether the viewport is short enough that the decorative
+// top/bottom body padding (and inter-group blanks) cost too much: a phone SSH
+// session with the on-screen keyboard up reports ~18-22 usable rows, where two
+// blank rows are ~10% of the screen. Roomy terminals (>=24) keep the breathing
+// room. width_audit renders at h=24, so its layout is unaffected.
+func compactView(h int) bool { return h < 24 }
+
+// bodyPad is the vertical padding a screen body should use for height h.
+func bodyPad(h int) int {
+	if compactView(h) {
+		return 0
+	}
+	return 1
+}
+
+// windowLines returns at most h lines centered on the active line. When content
+// is clipped it turns the top/bottom visible line into a dim "↑/↓ N" marker so
+// there is always a visible cue that more rows exist. Centering guarantees the
+// active line (cursor) is never the row replaced by a marker for h>=3.
+func windowLines(lines []string, active, h int) []string {
+	n := len(lines)
+	if h < 1 {
+		h = 1
+	}
+	if n <= h {
+		return lines
+	}
+	start := active - h/2
+	if start < 0 {
+		start = 0
+	}
+	if start > n-h {
+		start = n - h
+	}
+	out := make([]string, h)
+	copy(out, lines[start:start+h])
+	if start > 0 {
+		out[0] = moreLine("↑", start)
+	}
+	if start+h < n {
+		out[h-1] = moreLine("↓", n-(start+h))
+	}
+	return out
+}
+
+func moreLine(arrow string, n int) string {
+	return lipgloss.NewStyle().Foreground(theme.Ghost).Render("  " + arrow + " " + strconv.Itoa(n))
 }
 
 // flowHints joins key-hint chips with a 3-space gap, wrapping to a new line

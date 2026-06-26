@@ -34,6 +34,11 @@ func TestSnapshot(t *testing.T) {
 	switch os.Getenv("IRONLOG_SNAPSHOT_TARGET") {
 	case "today", "log":
 		frame = ansi.Strip(renderTodayScenario(w, h))
+	case "today-long":
+		f := NewFrame(nil)
+		f.views[vToday] = sampleLongLog()
+		nf, _ := f.Update(tea.WindowSizeMsg{Width: w, Height: h})
+		frame = ansi.Strip(nf.(Frame).View().Content)
 	case "goto":
 		frame = ansi.Strip(renderGotoScenario(w, h))
 	case "palette":
@@ -50,6 +55,8 @@ func TestSnapshot(t *testing.T) {
 		frame = ansi.Strip(renderProgramsScenario(w, h))
 	case "settings":
 		frame = ansi.Strip(renderSettingsScenario(w, h))
+	case "exercises":
+		frame = ansi.Strip(renderExercisesScenario(w, h))
 	default:
 		frame = ansi.Strip(renderLogin(NewLogin(nil), w, h))
 	}
@@ -153,6 +160,14 @@ func renderProgramsScenario(w, h int) string {
 	pr.activeID = "1"
 	f.views[vPrograms] = pr
 	f.active = vPrograms
+	nf, _ := f.Update(tea.WindowSizeMsg{Width: w, Height: h})
+	return nf.(Frame).View().Content
+}
+
+func renderExercisesScenario(w, h int) string {
+	f := NewFrame(nil)
+	f.views[vExercises] = sampleExercises()
+	f.active = vExercises
 	nf, _ := f.Update(tea.WindowSizeMsg{Width: w, Height: h})
 	return nf.(Frame).View().Content
 }

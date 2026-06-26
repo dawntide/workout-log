@@ -295,18 +295,18 @@ func (s Exercises) StatusRight() string {
 	return fmt.Sprintf("%d 운동", len(s.all))
 }
 
-func (s Exercises) Hints(int) string {
+func (s Exercises) Hints() []hintItem {
 	switch s.mode {
 	case exSearch:
-		return joinHints(hint("⏎", "완료"), hint("esc", "지움"))
+		return []hintItem{{"⏎", "완료"}, {"esc", "지움"}}
 	case exRename:
-		return joinHints(hint("⏎", "이름변경"), hint("esc", "취소"))
+		return []hintItem{{"⏎", "이름변경"}, {"esc", "취소"}}
 	case exAlias:
-		return joinHints(hint("⏎", "별칭추가"), hint("esc", "취소"))
+		return []hintItem{{"⏎", "별칭추가"}, {"esc", "취소"}}
 	case exCreate:
-		return joinHints(hint("⏎", "운동추가"), hint("esc", "취소"))
+		return []hintItem{{"⏎", "운동추가"}, {"esc", "취소"}}
 	}
-	return joinHints(hint("jk", "이동"), hint("/", "검색"), hint("r", "이름"), hint("a", "별칭"), hint("n", "추가"), hint("d", "삭제"))
+	return []hintItem{{"jk", "이동"}, {"/", "검색"}, {"r", "이름"}, {"a", "별칭"}, {"n", "추가"}, {"d", "삭제"}}
 }
 
 func (s Exercises) Body(w, h int) string {
@@ -318,7 +318,8 @@ func (s Exercises) Body(w, h int) string {
 	}
 
 	var b strings.Builder
-	listH := h
+	pad := bodyPad(h)
+	listH := h - 2*pad
 	switch {
 	case s.mode == exCreate:
 		b.WriteString(lipgloss.NewStyle().Foreground(theme.Amber).Render("+ ["+s.input.View()+"]") + "\n")
@@ -348,7 +349,7 @@ func (s Exercises) Body(w, h int) string {
 		}
 		b.WriteString("\n" + lipgloss.NewStyle().Foreground(tone).Render(s.flash))
 	}
-	return lipgloss.NewStyle().Width(w).Height(h).Padding(1, 1).Render(b.String())
+	return lipgloss.NewStyle().Width(w).Height(h).Padding(pad, 1).Render(b.String())
 }
 
 func (s Exercises) list(w, h int) string {
