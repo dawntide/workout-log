@@ -431,7 +431,7 @@ func (f Frame) View() tea.View {
 			fitLine(f.statusline(w, s), w),
 		)
 	} else {
-		region, regionH := f.region(w, s)
+		region, regionH := f.region(w, h, s)
 		bodyH := h - regionH - 1
 		if bodyH < 1 {
 			bodyH = 1
@@ -488,10 +488,10 @@ func (f Frame) statusline(w int, s Screen) string {
 	return justify(left, right, w)
 }
 
-func (f Frame) region(w int, s Screen) (string, int) {
+func (f Frame) region(w, h int, s Screen) (string, int) {
 	switch f.overlay {
 	case overlayPicker:
-		return f.picker.render(w)
+		return f.picker.render(w, h)
 	case overlayGoto:
 		return f.gotoMenu(), len(gotoOrder) + 1
 	case overlayConfirm:
@@ -652,11 +652,13 @@ func windowLines(lines []string, active, h int) []string {
 	}
 	out := make([]string, h)
 	copy(out, lines[start:start+h])
+	// A marker replaces (and thus hides) one content line, so the hidden count
+	// includes that line: start+1 above, and the symmetric remainder below.
 	if start > 0 {
-		out[0] = moreLine("↑", start)
+		out[0] = moreLine("↑", start+1)
 	}
 	if start+h < n {
-		out[h-1] = moreLine("↓", n-(start+h))
+		out[h-1] = moreLine("↓", n-(start+h)+1)
 	}
 	return out
 }

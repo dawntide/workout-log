@@ -182,11 +182,18 @@ func renderProgramsEmptyScenario(w, h int) string {
 func renderStoreScenario(w, h int) string {
 	f := NewFrame(nil)
 	f.active = vPrograms
-	f.picker = newPicker("프로그램 스토어 ", "template", []pickerItem{
-		{label: "5/3/1 BBB", desc: "single", value: "1"},
-		{label: "Starting Strength", desc: "single", value: "2"},
-		{label: "GZCLP", desc: "single", value: "3"},
-	})
+	names := []string{
+		"Asymptote Protocol (Base)", "Greyskull LP (Base)", "GZCLP (Base T1/T2/T3)",
+		"Jim Wendler 5/3/1 (No Assistance)", "Jim Wendler 5/3/1 + BBB", "Jim Wendler 5/3/1 + FSL",
+		"Starting Strength", "Texas Method", "nSuns 5/3/1 LP", "PHUL", "PHAT", "Madcow 5x5",
+		"Smolov Jr", "GZCL Method",
+	}
+	items := make([]pickerItem, len(names))
+	for i, n := range names {
+		items[i] = pickerItem{label: n, desc: "logic", value: n}
+	}
+	f.picker = newPicker("프로그램 스토어 ", "template", items)
+	f.picker.sel = len(items) - 1 // selection at the bottom → exercises the window
 	f.overlay = overlayPicker
 	nf, _ := f.Update(tea.WindowSizeMsg{Width: w, Height: h})
 	return nf.(Frame).View().Content

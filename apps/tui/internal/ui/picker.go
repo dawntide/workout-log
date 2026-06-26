@@ -45,17 +45,21 @@ func (p picker) filtered() []pickerItem {
 	return out
 }
 
-const pickerMaxRows = 6
+// pickerMaxRows caps how tall the item list grows on a roomy terminal so the
+// picker stays a panel rather than swallowing the whole screen; on a short phone
+// it shrinks to the available height (see render).
+const pickerMaxRows = 12
 
-// render returns the picker panel string and its line count.
-func (p picker) render(w int) (string, int) {
-	lines := []string{
-		lipgloss.NewStyle().Foreground(theme.Cyan).Bold(true).Render(p.prompt) + p.input.View(),
-	}
+// render returns the picker panel string and its line count. The item list is a
+// cursor-following viewport: it grows to use height h (capped at pickerMaxRows),
+// and when the catalog is longer than that it windows around the selection with
+// ↑/↓ "N more" markers — so a long list (program store, exercise dictionary)
+// stays navigable instead of the selected row scrolling off the bottom unseen.
+func (p picker) render(w, h int) (string, int) {
+	header := lipgloss.NewStyle().Foreground(theme.Cyan).Bold(true).Render(p.prompt) + p.input.View()
+
 	shown := p.filtered()
-	if len(shown) > pickerMaxRows {
-		shown = shown[:pickerMaxRows]
-	}
+	itemLines := make([]string, len(shown))
 	for i, it := range shown {
 		var line string
 		if i == p.sel {
@@ -67,7 +71,25 @@ func (p picker) render(w int) (string, int) {
 		if it.desc != "" {
 			line += lipgloss.NewStyle().Foreground(theme.Ghost).Render("  " + it.desc)
 		}
-		lines = append(lines, fitLine(line, w))
+		itemLines[i] = fitLine(line, w)
 	}
+
+	// Rows for items: use the height left after the header(1) + statusline(1) +
+	// a 1-row body sliver, capped so the panel never dominates a tall terminal.
+	rows := h - 3
+	if rows > pickerMaxRows {
+		rows = pickerMaxRows
+	}
+	if rows < 3 {
+		rows = 3
+	}
+
+	var body []string
+	if len(shown) == 0 {
+		body = []string{lipgloss.NewStyle().Foreground(theme.Ghost).Render("  일치 없음")}
+	} else {
+		body = windowLines(itemLines, p.sel, rows)
+	}
+	lines := append([]string{header}, body...)
 	return strings.Join(lines, "\n"), len(lines)
 }

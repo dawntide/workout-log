@@ -1,11 +1,13 @@
 package ui
 
 import (
+	"strconv"
 	"strings"
 	"testing"
 	"time"
 
 	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/x/ansi"
 )
 
 // sampleLongLog is a today buffer with more exercises than fit a short phone
@@ -89,6 +91,36 @@ func TestStatuslineKeepsClockWhenNarrow(t *testing.T) {
 		if cw := lipgloss.Width(line); cw > w {
 			t.Errorf("line overflows w=%d (%d cols): %q", w, cw, line)
 		}
+	}
+}
+
+// TestPickerWindowsToSelection guards the shared picker (program store, exercise
+// add, command palette): when the catalog is longer than the visible rows, the
+// selected item must stay on screen with an overflow marker — the old code only
+// rendered the first N items, so navigating past them lost the cursor entirely.
+func TestPickerWindowsToSelection(t *testing.T) {
+	items := make([]pickerItem, 20)
+	for i := range items {
+		items[i] = pickerItem{label: "PROG-" + strconv.Itoa(i), value: strconv.Itoa(i)}
+	}
+	p := newPicker("프로그램 스토어 ", "template", items)
+	p.sel = 18 // near the end — beyond the old 6-row hard cap
+	const w, h = 50, 16
+	out, n := p.render(w, h)
+	stripped := ansi.Strip(out)
+	if !strings.Contains(stripped, "PROG-18") {
+		t.Errorf("selected PROG-18 not visible in picker:\n%s", stripped)
+	}
+	if !strings.Contains(stripped, "↑") {
+		t.Errorf("expected an up-overflow marker when sel is near the end:\n%s", stripped)
+	}
+	for _, line := range strings.Split(stripped, "\n") {
+		if cw := lipgloss.Width(line); cw > w {
+			t.Errorf("picker line overflows w=%d (%d cols): %q", w, cw, line)
+		}
+	}
+	if lines := strings.Count(stripped, "\n") + 1; n != lines {
+		t.Errorf("reported height %d != actual %d lines", n, lines)
 	}
 }
 
