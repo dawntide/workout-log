@@ -5,7 +5,7 @@ shared business logic in `web/src/server/**` and exposes it with **token (Bearer
 auth** — so non-browser clients (the Go TUI in `apps/tui`) authenticate cleanly
 without the cookie-scraping hack.
 
-## Status: B1 in progress (logs + stats + exercises + settings + plans groups ported)
+## Status: B1 — all TUI-used data routes ported (auth-rest is the remaining TUI gap)
 - Reuses `web/src/server` source via the `@/*` → `../../web/src/*` tsconfig alias.
   Web stays untouched apart from **additive, non-breaking** shared helpers
   (`server/db/ops.ts`, `getSettingsSnapshotForUser`) and one resilience tweak
@@ -44,13 +44,21 @@ without the cookie-scraping hack.
     (replaces the B0 vertical-slice `GET /api/plans`). Deferred to a later
     sub-group (TUI-unused): `progression-state`, `runtime-targets`,
     `cycle-overview`.
+  - **misc** (`src/routes/misc.ts`, the remaining TUI-used routes, each a
+    sub-app at its own prefix): `GET /api/templates` (program-store list),
+    `GET /api/home` (today/home bootstrap), `GET /api/export` (JSON/CSV data
+    download), `POST /api/me/import` (data import, dryRun/replace). Deferred
+    (web-only / TUI-unused): `generated-sessions`, `program-versions`,
+    `templates/[slug]` + fork, `ux-events`, `ops/*`.
 - Next-isms are replaced by `src/lib/http.ts`: `requireAuth` supplies the user
   id (no `cookies()`), `apiError`/`resolveLocale`/`normalizeTimezone` stand in
   for `apiErrorResponse`/`resolveRequestLocale`, and `apiLogger` replaces the
   `withApiLogging` request wrapper.
-- Remaining B1: misc (home, generated-sessions, templates, export, import,
-  program-versions, ux-events) + the deferred sub-groups (stats UX telemetry,
-  plans progression-state/runtime-targets/cycle-overview).
+- Remaining: the **auth group** beyond login/me (signup, logout, account,
+  password, password/reset, email verification, sessions) — the last TUI-used
+  surface — plus web-only deferrals (stats UX telemetry, plans
+  progression-state/runtime-targets/cycle-overview, generated-sessions,
+  program-versions, templates/[slug]+fork, ux-events, ops/*).
 
 ## Run
 ```bash
@@ -63,6 +71,6 @@ DATABASE_URL=... pnpm -C apps/api start   # PORT defaults to 8787
 `DATABASE_URL` is the same Postgres connection string the web app uses.
 
 ## Roadmap
-- **B1**: port the remaining routes — logs ✅, stats ✅ (core; UX telemetry deferred), exercises ✅, settings ✅, plans ✅ (core; progression-state/runtime-targets/cycle-overview deferred), then misc.
+- **B1**: logs ✅, stats ✅ (core), exercises ✅, settings ✅, plans ✅ (core), misc ✅ (templates/home/export/import) — then the auth group (signup/logout/account/password/sessions/…) to close the last TUI-used surface.
 - **B2**: deploy independently (VPS/Railway) + point the TUI at it via Bearer; optionally migrate web client calls.
 - **B-extract**: move `web/src/server` → `packages/core` for a clean shared package (repo-wide import rewrite).

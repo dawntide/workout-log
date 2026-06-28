@@ -14,6 +14,7 @@ import { statsRoutes } from "./routes/stats";
 import { exercisesRoutes } from "./routes/exercises";
 import { settingsRoutes } from "./routes/settings";
 import { plansRoutes } from "./routes/plans";
+import { templatesRoutes, homeRoutes, exportRoutes, importRoutes } from "./routes/misc";
 
 const app = new Hono<AppEnv>();
 
@@ -89,6 +90,12 @@ app.route("/api/settings", settingsRoutes);
 // --- plans group (GET/POST /api/plans, PATCH/DELETE /api/plans/:planId,
 // POST /api/plans/:planId/{generate,overrides}) ---
 app.route("/api/plans", plansRoutes);
+
+// --- misc TUI-used routes ---
+app.route("/api/templates", templatesRoutes); // GET — program store list
+app.route("/api/home", homeRoutes); // GET — today/home bootstrap
+app.route("/api/export", exportRoutes); // GET — JSON/CSV data download
+app.route("/api/me/import", importRoutes); // POST — data import (dryRun/replace)
 
 const port = Number(process.env.PORT ?? 8787);
 serve({ fetch: app.fetch, port }, (info) => {
