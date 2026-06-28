@@ -1,0 +1,37 @@
+# systemd unit for ironlog-api (workout-log Hono backend).
+# Install: sudo cp this to /etc/systemd/system/ironlog-api.service, edit paths/User,
+#          then: sudo systemctl daemon-reload && sudo systemctl enable --now ironlog-api
+# Logs:    journalctl -u ironlog-api -f
+#
+# Assumes the repo is at /opt/workout-log and you've run BOTH installs:
+#   pnpm -C /opt/workout-log/web install          # drizzle/pg/... (runtime deps)
+#   pnpm -C /opt/workout-log/apps/api install      # hono + tsx
+# (apps/api resolves @/* -> ../../web/src/* at runtime, so web/ must be present + installed.)
+
+[Unit]
+Description=ironlog-api (workout-log Hono backend)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+# A non-login service user that owns /opt/workout-log:
+User=ironlog
+WorkingDirectory=/opt/workout-log/apps/api
+EnvironmentFile=/opt/workout-log/apps/api/.env
+# `pnpm start` == `tsx src/index.ts`. pnpm + node must be on the service PATH.
+# If pnpm isn't found, set the absolute path (run `which pnpm`) or add it to PATH below.
+Environment=PATH=/usr/local/bin:/usr/bin:/bin
+ExecStart=/usr/bin/env pnpm start
+Restart=always
+RestartSec=3
+
+# Hardening (loosen if it conflicts with your layout)
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/opt/workout-log
+ProtectHome=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

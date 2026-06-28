@@ -98,5 +98,8 @@ DATABASE_URL=... pnpm -C apps/api start   # PORT defaults to 8787
 
 ## Roadmap
 - **B1** ✅: logs, stats (core), exercises, settings, plans (core), misc (templates/home/export/import), auth — **all TUI-used routes ported**.
-- **B2**: TUI Bearer client ✅ (dual-mode: Bearer for apps/api, cookie for Next; live_test verified) — remaining: deploy independently (VPS/Railway) + flip the TUI default server URL to it. Optionally migrate web client calls.
+- **B2**: TUI Bearer client ✅ (dual-mode, live_test verified) + deploy artifacts ✅
+  (`deploy/` — systemd unit, Caddyfile, Dockerfile/compose, `.env.example`, runbook
+  `deploy/DEPLOY.md`). Remaining (your infra): run the deploy + flip the TUI default
+  server URL (ldflags `defaultBase`) to it.
 - **B-extract**: move `web/src/server` → `packages/core` for a clean shared package (repo-wide import rewrite).
