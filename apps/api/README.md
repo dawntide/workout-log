@@ -59,9 +59,10 @@ without the cookie-scraping hack.
     `PATCH`/`DELETE /api/plans/:planId`, `POST /api/plans/:planId/generate`
     (session generation via the Next-free program-engine),
     `POST /api/plans/:planId/overrides` — the TUI-critical plan workflow
-    (replaces the B0 vertical-slice `GET /api/plans`). Deferred to a later
-    sub-group (TUI-unused): `progression-state`, `runtime-targets`,
-    `cycle-overview`.
+    (replaces the B0 vertical-slice `GET /api/plans`). Also (web-only, ported for
+    completeness): `GET /api/plans/:planId/progression-state`,
+    `POST /api/plans/:planId/runtime-targets`,
+    `GET /api/plans/:planId/cycle-overview`.
   - **misc** (`src/routes/misc.ts`, the remaining TUI-used routes, each a
     sub-app at its own prefix): `GET /api/templates` (program-store list),
     `GET /api/home` (today/home bootstrap), `GET /api/export` (JSON/CSV data
@@ -72,13 +73,13 @@ without the cookie-scraping hack.
   id (no `cookies()`), `apiError`/`resolveLocale`/`normalizeTimezone` stand in
   for `apiErrorResponse`/`resolveRequestLocale`, and `apiLogger` replaces the
   `withApiLogging` request wrapper.
-- **Every route the TUI calls is now ported** — apps/api is ready for B2 (deploy
-  + point the TUI at it via Bearer). Remaining are web-only / TUI-unused routes,
-  portable later for a full web cutover: stats UX telemetry, plans
-  progression-state/runtime-targets/cycle-overview, generated-sessions,
-  program-versions, templates/[slug]+fork, ux-events, ops/*, and the deferred
-  auth browser/OAuth flows (email/verify, google/*, oauth/*,
-  password/reset/confirm, password/setup).
+- **Every route the TUI calls is ported** (B2 TUI Bearer cutover proven). Web-only
+  routes are being ported for a complete backend: plans
+  progression-state/runtime-targets/cycle-overview ✅; still to do —
+  generated-sessions, program-versions, templates/[slug]+fork, ux-events, ops/*,
+  stats UX telemetry. The auth browser/OAuth flows (email/verify, google/*,
+  oauth/*, password/reset/confirm, password/setup) are redirect/cookie flows that
+  don't fit a headless token API — left to the web.
 
 ## Run
 ```bash
