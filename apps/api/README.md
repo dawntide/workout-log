@@ -5,7 +5,7 @@ shared business logic in `web/src/server/**` and exposes it with **token (Bearer
 auth** — so non-browser clients (the Go TUI in `apps/tui`) authenticate cleanly
 without the cookie-scraping hack.
 
-## Status: B1 — all TUI-used data routes ported (auth-rest is the remaining TUI gap)
+## Status: B1 — all TUI-used routes ported (ready for B2 deploy + cutover)
 - Reuses `web/src/server` source via the `@/*` → `../../web/src/*` tsconfig alias.
   Web stays untouched apart from **additive, non-breaking** shared helpers
   (`server/db/ops.ts`, `getSettingsSnapshotForUser`) and one resilience tweak
@@ -14,8 +14,17 @@ without the cookie-scraping hack.
 - Auth: `Authorization: Bearer <token>` **or** the `wl_session` cookie, both
   validated by the existing `auth_session` token (`findActiveSession`).
 - Routes:
-  - `GET /health`, `POST /api/auth/login` (mints + returns a token),
-    `GET /api/auth/me`.
+  - `GET /health`.
+  - **auth** (`src/routes/auth.ts`): `POST /api/auth/{login,signup}` (mint a
+    token, returned in the body), `GET /api/auth/me`, `POST /api/auth/logout`,
+    `POST /api/auth/password` (change → rotates sessions, returns a fresh token),
+    `DELETE /api/auth/account`, `POST /api/auth/password/reset/request`,
+    `POST /api/auth/email/verification/request`, `GET`/`DELETE /api/auth/sessions`.
+    Token model: the "current session" comes from the `Authorization` header
+    (`sessionToken`), not a cookie; `assertSameOrigin` (CSRF) and per-route IP
+    rate limiting are dropped for token clients. Deferred (browser/OAuth flows,
+    TUI-unused): `email/verify`, `google/*`, `oauth/*`, `password/reset/confirm`,
+    `password/setup`.
   - **logs** (`src/routes/logs.ts`): `GET`/`POST /api/logs`,
     `GET /api/logs/calendar`, `GET`/`PATCH`/`DELETE /api/logs/:logId` —
     cursor list, create/replace (shared `upsertWorkoutLogService`), month
@@ -54,11 +63,13 @@ without the cookie-scraping hack.
   id (no `cookies()`), `apiError`/`resolveLocale`/`normalizeTimezone` stand in
   for `apiErrorResponse`/`resolveRequestLocale`, and `apiLogger` replaces the
   `withApiLogging` request wrapper.
-- Remaining: the **auth group** beyond login/me (signup, logout, account,
-  password, password/reset, email verification, sessions) — the last TUI-used
-  surface — plus web-only deferrals (stats UX telemetry, plans
+- **Every route the TUI calls is now ported** — apps/api is ready for B2 (deploy
+  + point the TUI at it via Bearer). Remaining are web-only / TUI-unused routes,
+  portable later for a full web cutover: stats UX telemetry, plans
   progression-state/runtime-targets/cycle-overview, generated-sessions,
-  program-versions, templates/[slug]+fork, ux-events, ops/*).
+  program-versions, templates/[slug]+fork, ux-events, ops/*, and the deferred
+  auth browser/OAuth flows (email/verify, google/*, oauth/*,
+  password/reset/confirm, password/setup).
 
 ## Run
 ```bash
@@ -71,6 +82,6 @@ DATABASE_URL=... pnpm -C apps/api start   # PORT defaults to 8787
 `DATABASE_URL` is the same Postgres connection string the web app uses.
 
 ## Roadmap
-- **B1**: logs ✅, stats ✅ (core), exercises ✅, settings ✅, plans ✅ (core), misc ✅ (templates/home/export/import) — then the auth group (signup/logout/account/password/sessions/…) to close the last TUI-used surface.
+- **B1** ✅: logs, stats (core), exercises, settings, plans (core), misc (templates/home/export/import), auth — **all TUI-used routes ported**.
 - **B2**: deploy independently (VPS/Railway) + point the TUI at it via Bearer; optionally migrate web client calls.
 - **B-extract**: move `web/src/server` → `packages/core` for a clean shared package (repo-wide import rewrite).
