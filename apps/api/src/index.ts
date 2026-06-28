@@ -9,7 +9,15 @@ import { statsRoutes } from "./routes/stats";
 import { exercisesRoutes } from "./routes/exercises";
 import { settingsRoutes } from "./routes/settings";
 import { plansRoutes } from "./routes/plans";
-import { templatesRoutes, homeRoutes, exportRoutes, importRoutes } from "./routes/misc";
+import {
+  templatesRoutes,
+  homeRoutes,
+  exportRoutes,
+  importRoutes,
+  programVersionsRoutes,
+  generatedSessionsRoutes,
+  uxEventsRoutes,
+} from "./routes/misc";
 
 const app = new Hono<AppEnv>();
 
@@ -48,6 +56,9 @@ app.route("/api/templates", templatesRoutes); // GET — program store list
 app.route("/api/home", homeRoutes); // GET — today/home bootstrap
 app.route("/api/export", exportRoutes); // GET — JSON/CSV data download
 app.route("/api/me/import", importRoutes); // POST — data import (dryRun/replace)
+app.route("/api/program-versions", programVersionsRoutes); // PUT — edit version
+app.route("/api/generated-sessions", generatedSessionsRoutes); // GET — session list
+app.route("/api/ux-events", uxEventsRoutes); // POST — UX telemetry ingest
 
 const port = Number(process.env.PORT ?? 8787);
 serve({ fetch: app.fetch, port }, (info) => {

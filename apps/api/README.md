@@ -63,21 +63,23 @@ without the cookie-scraping hack.
     completeness): `GET /api/plans/:planId/progression-state`,
     `POST /api/plans/:planId/runtime-targets`,
     `GET /api/plans/:planId/cycle-overview`.
-  - **misc** (`src/routes/misc.ts`, the remaining TUI-used routes, each a
-    sub-app at its own prefix): `GET /api/templates` (program-store list),
-    `GET /api/home` (today/home bootstrap), `GET /api/export` (JSON/CSV data
-    download), `POST /api/me/import` (data import, dryRun/replace). Deferred
-    (web-only / TUI-unused): `generated-sessions`, `program-versions`,
-    `templates/[slug]` + fork, `ux-events`, `ops/*`.
+  - **misc** (`src/routes/misc.ts`, each a sub-app at its own prefix):
+    `GET`/`DELETE /api/templates` + `POST /api/templates/:slug/fork`
+    (program store: list, delete own PRIVATE, fork), `GET /api/home`,
+    `GET /api/export` (JSON/CSV), `POST /api/me/import` (dryRun/replace),
+    `PUT /api/program-versions/:id` (edit owned version),
+    `GET /api/generated-sessions`, `POST /api/ux-events` (telemetry ingest).
+    Still deferred (web-only): `ops/*`, stats UX telemetry.
 - Next-isms are replaced by `src/lib/http.ts`: `requireAuth` supplies the user
   id (no `cookies()`), `apiError`/`resolveLocale`/`normalizeTimezone` stand in
   for `apiErrorResponse`/`resolveRequestLocale`, and `apiLogger` replaces the
   `withApiLogging` request wrapper.
 - **Every route the TUI calls is ported** (B2 TUI Bearer cutover proven). Web-only
   routes are being ported for a complete backend: plans
-  progression-state/runtime-targets/cycle-overview ✅; still to do —
-  generated-sessions, program-versions, templates/[slug]+fork, ux-events, ops/*,
-  stats UX telemetry. The auth browser/OAuth flows (email/verify, google/*,
+  progression-state/runtime-targets/cycle-overview ✅, templates delete/fork ✅,
+  program-versions ✅, generated-sessions ✅, ux-events ✅; still to do — `ops/*`
+  and the stats UX telemetry (ux-snapshot/funnel/events-summary/migration-telemetry,
+  large web-only dashboards). The auth browser/OAuth flows (email/verify, google/*,
   oauth/*, password/reset/confirm, password/setup) are redirect/cookie flows that
   don't fit a headless token API — left to the web.
 
