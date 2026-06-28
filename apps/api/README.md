@@ -5,7 +5,7 @@ shared business logic in `web/src/server/**` and exposes it with **token (Bearer
 auth** — so non-browser clients (the Go TUI in `apps/tui`) authenticate cleanly
 without the cookie-scraping hack.
 
-## Status: B1 in progress (logs + stats groups ported)
+## Status: B1 in progress (logs + stats + exercises groups ported)
 - Reuses `web/src/server` source via the `@/*` → `../../web/src/*` tsconfig alias.
   Web stays untouched apart from **additive, non-breaking** shared helpers
   (`server/db/ops.ts`, `getSettingsSnapshotForUser`) and one resilience tweak
@@ -26,11 +26,17 @@ without the cookie-scraping hack.
     ported verbatim). Deferred to a later sub-group: `page-bootstrap` (SSR
     aggregator, cookie-coupled, unused by the TUI) and the UX telemetry
     endpoints (`ux-snapshot`/`ux-funnel`/`ux-events-summary`/`migration-telemetry`).
+  - **exercises** (`src/routes/exercises.ts`): `GET`/`POST /api/exercises`,
+    `GET /api/exercises/categories`, `POST /api/exercises/alias`,
+    `PATCH`/`DELETE /api/exercises/:exerciseId` — the global exercise dictionary
+    (inline CRUD ported verbatim). The web routes are unauthenticated; here they
+    require auth (a standalone backend shouldn't expose writes openly, and the
+    TUI always sends a token).
 - Next-isms are replaced by `src/lib/http.ts`: `requireAuth` supplies the user
   id (no `cookies()`), `apiError`/`resolveLocale`/`normalizeTimezone` stand in
   for `apiErrorResponse`/`resolveRequestLocale`, and `apiLogger` replaces the
   `withApiLogging` request wrapper.
-- Remaining B1 groups: exercises, settings, plans CRUD, and misc.
+- Remaining B1 groups: settings, plans CRUD, and misc.
 
 ## Run
 ```bash
@@ -43,6 +49,6 @@ DATABASE_URL=... pnpm -C apps/api start   # PORT defaults to 8787
 `DATABASE_URL` is the same Postgres connection string the web app uses.
 
 ## Roadmap
-- **B1**: port the remaining routes — logs ✅, stats ✅ (core; UX telemetry deferred), then exercises, settings, plans CRUD, misc.
+- **B1**: port the remaining routes — logs ✅, stats ✅ (core; UX telemetry deferred), exercises ✅, then settings, plans CRUD, misc.
 - **B2**: deploy independently (VPS/Railway) + point the TUI at it via Bearer; optionally migrate web client calls.
 - **B-extract**: move `web/src/server` → `packages/core` for a clean shared package (repo-wide import rewrite).

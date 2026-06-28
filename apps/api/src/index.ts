@@ -11,6 +11,7 @@ import { requireAuth, type AppEnv } from "./auth";
 import { apiLogger } from "./lib/http";
 import { logsRoutes } from "./routes/logs";
 import { statsRoutes } from "./routes/stats";
+import { exercisesRoutes } from "./routes/exercises";
 
 const app = new Hono<AppEnv>();
 
@@ -89,6 +90,10 @@ app.route("/api/logs", logsRoutes);
 // --- stats group (GET /api/stats/{e1rm,bundle,volume-series,prs,
 // strength-summary,volume}) ---
 app.route("/api/stats", statsRoutes);
+
+// --- exercises group (GET/POST /api/exercises, GET /api/exercises/categories,
+// POST /api/exercises/alias, PATCH/DELETE /api/exercises/:exerciseId) ---
+app.route("/api/exercises", exercisesRoutes);
 
 const port = Number(process.env.PORT ?? 8787);
 serve({ fetch: app.fetch, port }, (info) => {
