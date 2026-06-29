@@ -3,6 +3,11 @@
 apps/api(독립 Hono 백엔드)를 **상시 가동**으로 배포하고, TUI를 그쪽으로 cutover하는 런북.
 두 경로를 제공: **A. systemd(권장)** / **B. Docker(대안)**. 둘 다 동일 리버스 프록시(Caddy)로 TLS.
 
+> ✅ **실제 운영 배포 완료 (2026-06-29, AWS Lightsail)**: 리포=`/home/ubuntu/workout-log`, 서비스 유저=`ubuntu`,
+> ExecStart=`node_modules/.bin/tsx src/index.ts` **직접**(systemd 샌드박스에서 `pnpm start`는 deps-status-check로
+> 실패하므로 tsx 직접 호출), 공개=Caddy + `3-37-203-76.sslip.io`(Let's Encrypt). 일상 운영은 **§5 `ilapi` CLI**.
+> 아래 본문의 `/opt`·`ironlog` 유저는 예시 — 실제 배포는 위 구성을 따른다.
+
 ## 0. 사전 지식 — 왜 web/도 필요한가 (중요)
 
 `apps/api`는 `@/*` → `../../web/src/*` alias로 web 서버 코드를 런타임 재사용한다. 그 web 코드가
@@ -102,11 +107,26 @@ apps/api가 공개되면 TUI 기본 서버를 그쪽으로:
 - 영구: `apps/tui/.goreleaser.yaml`의 ldflags `defaultBase`를 `https://api.example.com`으로 바꿔
   다음 릴리스. (client는 이미 Bearer 이중모드 — login/signup/password 응답의 body 토큰 사용.)
 
-## 5. 업데이트 / 롤백
+## 5. 운영 — ilapi CLI (권장)
 
-- **업데이트(systemd)**: `cd /opt/workout-log && git pull && pnpm -C web install && pnpm -C apps/api install && sudo systemctl restart ironlog-api`
-- **업데이트(Docker)**: `git pull && docker compose -f apps/api/deploy/compose.yaml up -d --build`
-- **롤백**: `git checkout <이전-태그/커밋>` 후 위 재시작 / Docker는 이전 이미지 태그로. (DB 마이그레이션은 web 쪽에서 관리 — 하위호환 유지 시 백엔드만 롤백 안전.)
+`apps/api/deploy/ilapi`를 PATH에 설치하면 운영이 한 줄로 끝난다. 실제 lightsail 배포는 이 방식으로 운영 중:
+
+```bash
+sudo install -m 755 apps/api/deploy/ilapi /usr/local/bin/ilapi
+```
+
+| 명령 | 동작 |
+|------|------|
+| `ilapi update` | `git pull --ff-only` + pnpm install(web+apps/api) + restart + health. **직전 커밋 자동 저장**(rollback 대비), 리포의 ilapi로 **자기 자신도 self-update**, health≠200이면 비정상 종료 |
+| `ilapi rollback` | 마지막 update **직전 커밋**으로 checkout + install + restart |
+| `ilapi status` | 서비스 active / local·public health / 현재 커밋 / ironlog 대상 한눈에 |
+| `ilapi logs` \| `tail [N]` \| `errors [since]` | journalctl follow / 최근 N줄 / 경고+에러만 |
+| `ilapi restart` \| `start` \| `stop` | 서비스 제어 |
+| `ilapi cutover {local\|prod}` | ironlog 접속 서버 전환(local=apps/api, prod=프로덕션 Vercel) + tmux 재시작 |
+
+**수동(ilapi 없이)**: `cd <repo> && git pull && pnpm -C web install && pnpm -C apps/api install && sudo systemctl restart ironlog-api`.
+롤백은 `git checkout <태그/커밋>` 후 동일. Docker는 `git pull && docker compose -f apps/api/deploy/compose.yaml up -d --build`.
+(DB 마이그레이션은 web 쪽에서 관리 — 하위호환 유지 시 백엔드만 롤백 안전.)
 
 ## 6. 관측성(권장, 선택)
 
