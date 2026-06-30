@@ -770,10 +770,12 @@ export function plannedExercisesFromManualSession(
 }
 
 // operator manual 정책: 데드리프트/오버헤드프레스가 직접 무게를 갖지 않으면(미입력), 같은 세션에서
-// 이미 처방된 스쿼트/벤치의 "그 주차 작업무게"에서 파생한다 — 데드 = 스쿼트 처방 × 1.0,
-// 오프 = 벤치 처방 × 0.5. reps·세트수도 원본을 그대로 따라간다(예: 스쿼트 100×3 → 데드 100×3,
-// 벤치 90×3 → 오프 45×3). TM·주차%를 다시 계산하지 않고 "이미 계산된 처방"에 종속시키므로,
-// 스쿼트/벤치가 override 등으로 바뀌면 자동으로 함께 움직인다. 직접 무게를 넣은 행은 손대지 않는다.
+// 이미 처방된 스쿼트/벤치의 "그 주차 작업무게·횟수"를 따른다 — 데드 무게 = 스쿼트 × 1.0,
+// 오프 무게 = 벤치 × 0.5, 횟수(reps)도 스쿼트/벤치 그대로(예: 스쿼트 100×3 → 데드 100×3,
+// 벤치 90×3 → 오프 45×3). 단 세트수는 사용자가 커스터마이즈한 원래 구성을 유지한다(데드를
+// 1세트로 짰으면 1세트 그대로 두고 무게·횟수만 추종). TM·주차%를 다시 계산하지 않고 이미 계산된
+// 처방에 종속시키므로 스쿼트/벤치가 override로 바뀌면 함께 움직인다. 직접 무게를 넣었거나
+// 자체 TM이 있는 행은 손대지 않는다.
 const DERIVED_MAIN_LIFT: Record<string, { from: ProgressionTarget; ratio: number }> = {
   DEADLIFT: { from: "SQUAT", ratio: 1 },
   OHP: { from: "BENCH", ratio: 0.5 },
@@ -789,15 +791,15 @@ function applyDerivedMainLifts(planned: PlannedExercise[]): PlannedExercise[] {
     if (!rule) continue;
     // 이미 무게가 잡혀 있으면(자체 TM 처방 또는 사용자 직접 입력) 파생하지 않는다.
     if (!ex.sets.every((s) => !s.targetWeightKg)) continue;
-    const src = byTarget.get(rule.from);
-    if (!src || src.sets.length === 0) continue;
-    ex.sets = src.sets.map((s) => ({
-      ...s,
-      targetWeightKg:
-        typeof s.targetWeightKg === "number"
-          ? roundToNearest2p5(s.targetWeightKg * rule.ratio)
-          : undefined,
-    }));
+    // operator 메인은 전 세트 균일 처방이므로 첫 세트를 대표로 사용한다.
+    const srcSet = byTarget.get(rule.from)?.sets[0];
+    if (!srcSet) continue;
+    const targetWeightKg =
+      typeof srcSet.targetWeightKg === "number"
+        ? roundToNearest2p5(srcSet.targetWeightKg * rule.ratio)
+        : undefined;
+    // 세트수는 원래 커스터마이즈한 구성을 유지하고, 각 세트의 횟수(reps)·무게만 추종한다.
+    ex.sets = ex.sets.map((s) => ({ ...s, reps: srcSet.reps, percent: srcSet.percent, targetWeightKg }));
   }
   return planned;
 }
