@@ -29,15 +29,16 @@ const session = (deadExtra: Item = {}, ohpExtra: Item = {}) => ({
   ],
 });
 
-test("CUSTOM 데드/오프(무게 미입력): 데드=스쿼트 처방, 오프=벤치 처방×0.5, reps·세트수 복제", () => {
+test("CUSTOM 데드/오프(무게 미입력): 무게·횟수는 스쿼트/벤치 추종, 세트수는 원래 유지", () => {
   const params = { trainingMaxKg: { SQUAT: 100, BENCH: 100 } };
-  const out = plannedExercisesFromOperatorManualSession(session(), 4, params, params, {}); // W4 = 75%, reps 5, 3세트
+  const out = plannedExercisesFromOperatorManualSession(session(), 4, params, params, {}); // W4 = 75%, reps 5, 스쿼트 3세트
 
-  assert.deepEqual(wOf(out, "Back Squat"), [75, 75, 75]); //   100 × 0.75
-  assert.deepEqual(wOf(out, "Deadlift"), [75, 75, 75]); //     스쿼트 처방 × 1.0
-  assert.deepEqual(wOf(out, "Overhead Press"), [37.5, 37.5, 37.5]); // 벤치 처방 × 0.5
-  assert.equal(setsOf(out, "Deadlift").length, 3); //          스쿼트 세트수(item의 1세트 무시)
-  assert.equal(setsOf(out, "Deadlift")[0]!.reps, 5); //        스쿼트 reps(item의 reps 1 무시)
+  assert.deepEqual(wOf(out, "Back Squat"), [75, 75, 75]); //  100 × 0.75 (스쿼트는 3세트)
+  assert.deepEqual(wOf(out, "Deadlift"), [75]); //           데드 1세트(원래 유지), 무게 = 스쿼트 × 1.0
+  assert.deepEqual(wOf(out, "Overhead Press"), [37.5]); //   오프 1세트, 무게 = 벤치 × 0.5
+  assert.equal(setsOf(out, "Deadlift").length, 1); //        커스텀 세트수(1) 유지 — 스쿼트 3세트 안 따라감
+  assert.equal(setsOf(out, "Overhead Press").length, 1);
+  assert.equal(setsOf(out, "Deadlift")[0]!.reps, 5); //      횟수만 스쿼트 추종(item의 reps 1 무시)
 });
 
 test("데드 100% / 오프 50% 비율로 각각 파생 (스쿼트≠벤치)", () => {
