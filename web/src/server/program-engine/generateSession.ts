@@ -822,11 +822,29 @@ export function plannedExercisesFromOperatorManualSession(
       }
 
       const setRows = Array.isArray(item?.sets) && item.sets.length > 0 ? item.sets : [item];
+      const isAssist = item?.role === "ASSIST";
+      let sets: ReturnType<typeof mapManualSet>[] = setRows.map(mapManualSet);
+      // CUSTOM 행이라도 메인 리프트(progressionTarget 보유)인데 무게가 전부 비어(0/미입력)
+      // 있으면, AUTO 행과 동일하게 operator 주차%×TM(인접 리프트 폴백 포함)으로 처방한다.
+      // 사용자가 직접 넣은 무게가 하나라도 있으면 그 행은 손대지 않는다.
+      if (progressionTarget && !isAssist && sets.every((s) => !s.targetWeightKg)) {
+        const tm = resolveOperatorExerciseTrainingMax({
+          effectiveParams,
+          baseParams,
+          defaults,
+          exerciseName,
+          fallbackTarget: progressionTarget,
+        });
+        if (tm !== null) {
+          const weight = roundToNearest2p5(tm * scheme.percent);
+          sets = sets.map((s) => ({ ...s, percent: scheme.percent, targetWeightKg: weight }));
+        }
+      }
       return {
         exerciseId: typeof item?.exerciseId === "string" ? item.exerciseId : null,
         exerciseName,
-        role: item?.role === "ASSIST" ? "ASSIST" : "MAIN",
-        sets: setRows.map(mapManualSet),
+        role: isAssist ? "ASSIST" : "MAIN",
+        sets,
         sourceBlockTarget: progressionTarget ?? "CUSTOM",
         order: toNumberOrNull(item?.order) ?? index,
         rowType: rowType ?? "CUSTOM",
