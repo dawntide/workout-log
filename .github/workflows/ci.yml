@@ -54,6 +54,14 @@ jobs:
           DATABASE_URL: postgres://ci:ci@127.0.0.1:5432/ci_program_engine
         run: pnpm test:program-engine
 
+      # 그동안 CI에 없던 나머지 유닛 스위트(progression 심화·stats·logging-policy·bodyweight-load·
+      # session-key·editor-actions 등). 일부가 db/client를 전이적으로 import할 수 있어 더미 DATABASE_URL을
+      # 준다(순수 테스트엔 무해). 미커버라 stale 테스트가 방치되던 것(예: bodyweight 미설정 처방)을 CI 게이트로.
+      - name: Extended unit tests
+        env:
+          DATABASE_URL: postgres://ci:ci@127.0.0.1:5432/ci_extra
+        run: pnpm test:extra
+
   # ──────────────────────────────────────────────
   # Job 2: Playwright smoke E2E
   # quality 통과 후 실행. PostgreSQL 서비스 컨테이너 + next dev 서버.

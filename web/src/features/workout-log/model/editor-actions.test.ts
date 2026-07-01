@@ -118,7 +118,7 @@ test("APPLY_TARGET_WEIGHTS leaves non-bodyweight exercises as total load", () =>
   assert.deepEqual(applyTargetWeights(exercise, preferences), [100, 100, 100]);
 });
 
-test("APPLY_TARGET_WEIGHTS keeps total load when bodyweight is unset", () => {
+test("APPLY_TARGET_WEIGHTS zeroes bodyweight-exercise external weight when bodyweight is unset", () => {
   const exercise = makeAutoExercise({
     exerciseName: "Pull-Up",
     targets: [80, 80, 80],
@@ -128,6 +128,8 @@ test("APPLY_TARGET_WEIGHTS keeps total load when bodyweight is unset", () => {
     bodyweightKg: null,
   };
 
-  // 체중 미설정이면 변환 불가 → 원래 값 유지
-  assert.deepEqual(applyTargetWeights(exercise, preferences), [80, 80, 80]);
+  // 체중 미설정이면 총부하(80)→외부 추가중량 변환이 불가능하다. 총부하를 외부중량으로 그대로
+  // 시드하면 부풀려진 값이 저장되므로(2026-05-23 C2W6D1 이상치), 0을 반환해 사용자가 실제
+  // 추가중량을 입력하도록 유도한다(prescriptionToExternalLoadKg 정책).
+  assert.deepEqual(applyTargetWeights(exercise, preferences), [0, 0, 0]);
 });
