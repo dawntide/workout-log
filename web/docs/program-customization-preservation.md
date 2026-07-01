@@ -91,8 +91,10 @@ fork는 **새 slug**를 받으므로 slug 기반 식별이 깨진다. 그래서 
   처방된다 — 즉 원본은 무게 자동증가가 처방에 반영되지 않는 기존 한계가 남아 있다. **fork(커스터마이즈)는
   완전 보존**되지만, 원본까지 자동진행하려면 seed에 `programFamily` + items에 슬롯 메타를 심거나
   start-program 시 슬롯 draft를 시드해야 한다.
-- **gzclp/texas 진행 규칙**: 현재는 단순 per-slot LP(앱의 `rulesFor` 룰을 슬롯별 적용)다. 정석 gzclp의
-  stage 변경(5×3→6×2→10×1)·texas 주간 모델은 별개 기능으로 미구현(reducer stage 상태 추가 필요).
+- **gzclp/texas 정석 진행(stage/주간 모델)**: v2로 **구현됨**(플랜 opt-in `progressionModel: "v2"`, 레거시
+  플랜은 부재 시 아래 단순 LP 유지 — forward-only). gzclp stage 강등(5×3→6×2→10×1)은 `reducer.ts`의 `stage`
+  상태 + `generateSession.ts`의 `resolveGzclpStageScheme`/`buildGzclpStageSets`로, texas 주간 모델(V/R/I)은
+  `texasRole` 파생으로 처방된다. (v2 이전엔 단순 per-slot LP — 앱의 `rulesFor` 룰을 슬롯별 적용 — 만 있었다.)
 
 ## 관련 테스트
 
