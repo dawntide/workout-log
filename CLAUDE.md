@@ -10,7 +10,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 - **앱 코드**: `web/` 디렉터리 (Next.js App Router)
 - **로컬 실행**: `pnpm -C web dev` (Next.js dev 서버), 접속 `http://localhost:3000`. Postgres 접속 정보는 `web/.env.local`의 `DATABASE_URL`로 전달. 배포는 Vercel(웹앱) + Supabase(Postgres).
-  - ⚠️ **web 데이터 API는 apps/api(Hono 백엔드)로 프록시 cutover됨**([`web/src/app/api/[...path]/route.ts`](web/src/app/api/[...path]/route.ts)): 브라우저 `/api/*` same-origin 호출 → web이 `wl_session` 쿠키를 `Authorization: Bearer`로 변환해 `APPS_API_BASE`로 포워딩(동일 `auth_session` 토큰). 로컬 dev에서 데이터 라우트가 작동하려면 **apps/api 동반 실행** 필요: `web/.env.local`에 `APPS_API_BASE=http://127.0.0.1:8787` + 별도 터미널 `cd apps/api && set -a; . ../../web/.env.local; set +a; DB_SCHEMA=dev pnpm dev`. **실제 로그인**으로 `wl_session` 쿠키 획득(apps/api는 `WORKOUT_AUTH_USER_ID` fallback 없음). `auth`·`ops`·미이식(stats UX텔레메트리·page-bootstrap·me/security/events·health)은 web 자체 처리(구체적 route가 catch-all보다 우선). 상세: [`apps/api/deploy/DEPLOY.md`](apps/api/deploy/DEPLOY.md).
+  - ⚠️ **web 데이터 API는 apps/api(Hono 백엔드)로 프록시 cutover됨**([`web/src/app/api/[...path]/route.ts`](web/src/app/api/[...path]/route.ts)): 브라우저 `/api/*` same-origin 호출 → web이 `wl_session` 쿠키를 `Authorization: Bearer`로 변환해 `APPS_API_BASE`로 포워딩(동일 `auth_session` 토큰). 로컬 dev에서 데이터 라우트가 작동하려면 **apps/api 동반 실행** 필요: `web/.env.local`에 `APPS_API_BASE=http://127.0.0.1:8787` + 별도 터미널 `cd apps/api && set -a; . ../../web/.env.local; set +a; DB_SCHEMA=dev pnpm dev`. **실제 로그인**으로 `wl_session` 쿠키 획득(apps/api는 `WORKOUT_AUTH_USER_ID` fallback 없음). `auth`·`ops`·미이식(stats UX텔레메트리[ux-snapshot·migration-telemetry]·page-bootstrap·health)은 web 자체 처리(구체적 route가 catch-all보다 우선). 상세: [`apps/api/deploy/DEPLOY.md`](apps/api/deploy/DEPLOY.md).
 
 ## 핵심 문서
 
@@ -88,7 +88,7 @@ pnpm -C web build
 - **Auth**: 이메일/비밀번호 + PBKDF2 해시 + `wl_session` httpOnly cookie 세션. `WORKOUT_AUTH_USER_ID`는 로컬/dev fallback으로만 유지.
 - **Auth recovery**: `RESEND_API_KEY`, `RESEND_FROM`로 비밀번호 재설정/이메일 인증 링크 발송(`WORKOUT_APP_URL`은 OAuth 콜백에도 쓰이니 별도 유지). dev에서 Resend 미설정 시 서버 로그에 링크 출력. **UI는 `NEXT_PUBLIC_EMAIL_RECOVERY_ENABLED`(기본 off)로 게이트** — 프로덕션은 Resend 미설정이라 로그인 "비밀번호 잊음" 링크·이메일 인증 배너/설정 섹션·`/forgot-password`·`/reset-password` 페이지를 모두 숨긴다(코드는 유지). 활성화: 발송 도메인 인증 → `RESEND_*` + `NEXT_PUBLIC_EMAIL_RECOVERY_ENABLED=1` 세팅 + 재배포(코드 변경 불필요). 상세 [`feature-flags.ts`](web/src/lib/feature-flags.ts).
 - **Auth OAuth**: Google 로그인(SDK 없이 fetch + PKCE 자체 구현, [`oauth-google.ts`](web/src/server/auth/oauth-google.ts)). `GOOGLE_OAUTH_CLIENT_ID`/`GOOGLE_OAUTH_CLIENT_SECRET` 둘 다 설정 시 활성, redirect_uri는 `WORKOUT_APP_URL`(미설정 시 요청 origin) + `/api/auth/google/callback`. `auth_oauth_account` 테이블로 federated identity 연결. ⚠️ Vercel **preview는 도메인이 매 배포마다 달라** 고정 콜백과 어긋나 state 쿠키를 못 읽으므로(state_mismatch) `VERCEL_ENV==='preview'`에서 버튼을 자동 숨김 — preview는 이메일/비밀번호로 로그인 테스트, OAuth는 로컬/production에서 검증.
-- **Auth API**: `/api/auth/{signup,login,logout,me,password}`, `/api/auth/google/{start,callback}`, `/api/auth/oauth/{status,accounts}`, `/api/auth/password/reset/{request,confirm}`, `/api/auth/email/verification/request`, `/api/auth/email/verify`, `/api/me/security/events`.
+- **Auth API**: `/api/auth/{signup,login,logout,me,password}`, `/api/auth/google/{start,callback}`, `/api/auth/oauth/{status,accounts}`, `/api/auth/password/reset/{request,confirm}`, `/api/auth/email/verification/request`, `/api/auth/email/verify`.
 - **라우트 네이밍**: 설계 문서의 `/workout-record` → 실제 구현 `/workout/log`, `/stats-1rm` → `/stats`.
 
 ## 로컬 env (`web/.env.local`)
