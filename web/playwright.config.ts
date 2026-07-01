@@ -58,6 +58,10 @@ export default defineConfig({
           ...process.env,
           DATABASE_URL: process.env.DATABASE_URL ?? fallbackDatabaseUrl,
           NEXT_TELEMETRY_DISABLED: process.env.NEXT_TELEMETRY_DISABLED ?? "1",
+          // 이메일 복구 UI는 기본 숨김(flag) — auth-recovery·email-verification e2e는
+          // 이 기능을 검증하므로 테스트 서버에서는 기본 활성화한다.
+          NEXT_PUBLIC_EMAIL_RECOVERY_ENABLED:
+            process.env.NEXT_PUBLIC_EMAIL_RECOVERY_ENABLED ?? "1",
         },
         url: baseURL,
         reuseExistingServer: !process.env.CI,

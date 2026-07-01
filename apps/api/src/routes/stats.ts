@@ -1,0 +1,482 @@
+import { Hono } from "hono";
+
+import { db } from "@/server/db/client";
+import { and, desc, eq, gte, lte, or, sql } from "@/server/db/ops";
+import { exercise, workoutLog, workoutSet } from "@/server/db/schema";
+import { logError } from "@/server/observability/logger";
+import { resolveLoggedTotalLoadKg } from "@/lib/bodyweight-load";
+import { getExerciseById, resolveExerciseByName } from "@/server/exercise/resolve";
+import { getStatsCache, setStatsCache } from "@/server/stats/cache";
+import { parseDateRangeFromSearchParams } from "@/server/stats/range";
+import { fetchE1rmStats } from "@/server/stats/e1rm-service";
+import { fetchStatsBundle } from "@/server/stats/bundle-service";
+import { fetchPrsList } from "@/server/stats/prs-service";
+import {
+  fetchVolumeSeries,
+  type VolumeBucket,
+} from "@/server/stats/volume-series-service";
+
+import { requireAuth, type AppEnv } from "../auth";
+import { apiError } from "../lib/http";
+
+/** The request's raw URLSearchParams (parseDateRangeFromSearchParams takes one). */
+function searchParams(c: { req: { url: string } }): URLSearchParams {
+  return new URL(c.req.url).searchParams;
+}
+
+function epley1RM(weightKg: number, reps: number) {
+  if (reps <= 0) return 0;
+  if (reps === 1) return weightKg;
+  return weightKg * (1 + reps / 30);
+}
+
+const CACHE_HEADER = "private, max-age=60, stale-while-revalidate=300";
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Routes — mounted at /api/stats. All GET (read-only). requireAuth supplies the
+// user id. Logic reuses the shared @/server/stats services where the web routes
+// do; the two inline routes (strength-summary, volume) are ported verbatim with
+// Next-isms (NextResponse, after, cookie auth) swapped for Hono equivalents.
+//
+// Scope: the user-facing stats. Deferred to a later sub-group — page-bootstrap
+// (SSR bootstrap, cookie-coupled, unused by the TUI) and the UX telemetry
+// endpoints (ux-snapshot / ux-funnel / ux-events-summary / migration-telemetry).
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const statsRoutes = new Hono<AppEnv>();
+
+statsRoutes.use("*", requireAuth);
+
+// GET /api/stats/e1rm — estimated-1RM series for one exercise.
+statsRoutes.get("/e1rm", async (c) => {
+  try {
+    const userId = c.get("userId");
+    const sp = searchParams(c);
+    const planId = c.req.query("planId")?.trim() ?? "";
+    const exerciseId = c.req.query("exerciseId")?.trim() ?? "";
+    const exerciseName =
+      (c.req.query("exerciseId") ? null : c.req.query("exercise")) ??
+      c.req.query("exerciseName") ??
+      null;
+
+    if (!exerciseId && !exerciseName) {
+      return c.json({ error: "exerciseId or exercise is required" }, 400);
+    }
+
+    const { from, to, rangeDays } = parseDateRangeFromSearchParams(sp, 180);
+    const payload = await fetchE1rmStats({
+      userId,
+      planId,
+      exerciseId,
+      exerciseName,
+      from,
+      to,
+      rangeDays,
+    });
+
+    return c.json(payload);
+  } catch (e) {
+    return apiError(c, e);
+  }
+});
+
+// GET /api/stats/bundle — sessions/volume totals + top PRs.
+statsRoutes.get("/bundle", async (c) => {
+  try {
+    const userId = c.get("userId");
+    const daysParam = c.req.query("days");
+    const days = daysParam != null ? parseInt(daysParam, 10) : 30;
+
+    const payload = await fetchStatsBundle({ userId, days });
+
+    c.header("Cache-Control", CACHE_HEADER);
+    return c.json(payload);
+  } catch (e) {
+    return apiError(c, e);
+  }
+});
+
+// GET /api/stats/volume-series — training-volume buckets (day/week/month).
+statsRoutes.get("/volume-series", async (c) => {
+  try {
+    const userId = c.get("userId");
+    const sp = searchParams(c);
+    const exerciseId = c.req.query("exerciseId")?.trim() ?? "";
+    const exerciseName = c.req.query("exercise") ?? c.req.query("exerciseName") ?? null;
+    const bucketRaw = (c.req.query("bucket") ?? "week").toLowerCase();
+    const bucket: VolumeBucket =
+      bucketRaw === "day" ? "day" : bucketRaw === "month" ? "month" : "week";
+    const perExercise = c.req.query("perExercise") === "1";
+    const maxExercisesRaw = Number(c.req.query("maxExercises") ?? "12");
+    const maxExercises = Number.isFinite(maxExercisesRaw)
+      ? Math.max(1, Math.min(40, Math.floor(maxExercisesRaw)))
+      : 12;
+
+    const { from, to, rangeDays } = parseDateRangeFromSearchParams(sp, 180);
+
+    const result = await fetchVolumeSeries({
+      userId,
+      from,
+      to,
+      rangeDays,
+      bucket,
+      exerciseId,
+      exerciseName,
+      perExercise,
+      maxExercises,
+    });
+
+    return c.json(result);
+  } catch (e) {
+    return apiError(c, e);
+  }
+});
+
+// GET /api/stats/prs — personal-record list.
+statsRoutes.get("/prs", async (c) => {
+  try {
+    const userId = c.get("userId");
+    const sp = searchParams(c);
+    const exerciseId = c.req.query("exerciseId")?.trim() ?? "";
+    const exerciseName = c.req.query("exercise") ?? c.req.query("exerciseName") ?? null;
+    const limitRaw = Number(c.req.query("limit") ?? "20");
+    const limit = Number.isFinite(limitRaw)
+      ? Math.max(1, Math.min(100, Math.floor(limitRaw)))
+      : 20;
+
+    const { from, to, rangeDays } = parseDateRangeFromSearchParams(sp, 365);
+
+    const result = await fetchPrsList({
+      userId,
+      from,
+      to,
+      rangeDays,
+      exerciseId,
+      exerciseName,
+      limit,
+    });
+
+    return c.json({
+      from: result.from,
+      to: result.to,
+      rangeDays: result.rangeDays,
+      items: result.items,
+    });
+  } catch (e) {
+    return apiError(c, e);
+  }
+});
+
+// GET /api/stats/strength-summary — top priority lifts with e1RM/best/trend.
+// Inline DB logic ported from the web route (no service layer).
+statsRoutes.get("/strength-summary", async (c) => {
+  try {
+    const userId = c.get("userId");
+    const lookbackDays = Number(c.req.query("days") ?? "30");
+    const topLimit = Number(c.req.query("limit") ?? "5");
+
+    const from = new Date();
+    from.setDate(from.getDate() - lookbackDays);
+
+    const priorityExercises = await db
+      .select({
+        exerciseId: workoutSet.exerciseId,
+        exerciseName: workoutSet.exerciseName,
+        maxWeight: sql<number>`max(${workoutSet.weightKg})`,
+        totalTonnage: sql<number>`sum(${workoutSet.weightKg} * ${workoutSet.reps})`,
+      })
+      .from(workoutLog)
+      .innerJoin(workoutSet, eq(workoutSet.logId, workoutLog.id))
+      .where(
+        and(
+          eq(workoutLog.userId, userId),
+          gte(workoutLog.performedAt, from),
+          sql`${workoutSet.weightKg} > 0`,
+        ),
+      )
+      .groupBy(workoutSet.exerciseId, workoutSet.exerciseName)
+      .orderBy(desc(sql`max(${workoutSet.weightKg})`))
+      .limit(topLimit);
+
+    if (priorityExercises.length === 0) {
+      c.header("Cache-Control", CACHE_HEADER);
+      return c.json({ items: [] });
+    }
+
+    const settled = await Promise.all(
+      priorityExercises.map(async (ex) => {
+        const exerciseFilter = ex.exerciseId
+          ? eq(workoutSet.exerciseId, ex.exerciseId)
+          : eq(workoutSet.exerciseName, ex.exerciseName);
+
+        const allTimeBestRows = await db
+          .select({
+            weightKg: workoutSet.weightKg,
+            reps: workoutSet.reps,
+            performedAt: workoutLog.performedAt,
+            exerciseName: workoutSet.exerciseName,
+            meta: workoutSet.meta,
+          })
+          .from(workoutLog)
+          .innerJoin(workoutSet, eq(workoutSet.logId, workoutLog.id))
+          .where(
+            and(
+              eq(workoutLog.userId, userId),
+              exerciseFilter,
+              sql`${workoutSet.weightKg} is not null`,
+              sql`${workoutSet.reps} > 0`,
+            ),
+          )
+          .orderBy(desc(workoutLog.performedAt))
+          .limit(1000);
+
+        const points = allTimeBestRows
+          .map((r) => {
+            const w = resolveLoggedTotalLoadKg({
+              exerciseName: r.exerciseName,
+              weightKg: r.weightKg,
+              meta: r.meta as any,
+            });
+            const reps = Number(r.reps || 0);
+            if (w === null || w === undefined) return null;
+            return {
+              date: r.performedAt.toISOString().slice(0, 10),
+              e1rm: epley1RM(w, reps),
+              weightKg: w,
+              reps,
+            };
+          })
+          .filter(
+            (p): p is { date: string; e1rm: number; weightKg: number; reps: number } =>
+              p !== null,
+          );
+
+        if (points.length === 0) return null;
+
+        const best = points.reduce((acc, p) => (p.e1rm > acc.e1rm ? p : acc), points[0]);
+        const current = points[0];
+
+        const eightWeeksAgo = new Date();
+        eightWeeksAgo.setDate(eightWeeksAgo.getDate() - 56);
+        const recentSeries = points
+          .filter((p) => new Date(p.date) >= eightWeeksAgo)
+          .reverse();
+
+        return {
+          exerciseId: ex.exerciseId,
+          exerciseName: ex.exerciseName,
+          current: {
+            e1rm: Math.round(current.e1rm * 10) / 10,
+            date: current.date,
+            weightKg: current.weightKg,
+            reps: current.reps,
+          },
+          best: {
+            e1rm: Math.round(best.e1rm * 10) / 10,
+            date: best.date,
+          },
+          recentSeries: recentSeries.map((p) => Math.round(p.e1rm * 10) / 10),
+          improvement: best.e1rm > 0 ? (current.e1rm / best.e1rm - 1) * 100 : 0,
+        };
+      }),
+    );
+
+    const results = settled.filter((r): r is NonNullable<typeof r> => r !== null);
+
+    c.header("Cache-Control", CACHE_HEADER);
+    return c.json({ items: results, recordedAt: new Date().toISOString() });
+  } catch (e) {
+    return apiError(c, e);
+  }
+});
+
+// GET /api/stats/volume — tonnage/reps/sets totals (+ optional prev-period
+// comparison), with the shared stats cache. Inline DB logic ported from the web
+// route; the web `after()` deferred cache write becomes a fire-and-forget so a
+// cache-write failure never fails the response (mirrors the web semantics).
+statsRoutes.get("/volume", async (c) => {
+  try {
+    const userId = c.get("userId");
+    const sp = searchParams(c);
+    const exerciseId = c.req.query("exerciseId")?.trim() ?? "";
+    const exerciseName = c.req.query("exercise") ?? c.req.query("exerciseName") ?? null;
+    const comparePrev = c.req.query("comparePrev") === "1";
+
+    const { from, to, rangeDays } = parseDateRangeFromSearchParams(sp, 30);
+
+    let resolvedExerciseId: string | null = null;
+    let resolvedExerciseName: string | null = null;
+    if (exerciseId) {
+      const byId = await getExerciseById(exerciseId);
+      if (byId) {
+        resolvedExerciseId = byId.id;
+        resolvedExerciseName = byId.name;
+      } else {
+        resolvedExerciseId = exerciseId;
+      }
+    } else if (exerciseName) {
+      const resolved = await resolveExerciseByName(exerciseName);
+      if (resolved) {
+        resolvedExerciseId = resolved.id;
+        resolvedExerciseName = resolved.name;
+      } else {
+        resolvedExerciseName = exerciseName;
+      }
+    }
+
+    const cacheParams = {
+      from: from.toISOString().slice(0, 10),
+      to: to.toISOString().slice(0, 10),
+      exerciseId: resolvedExerciseId,
+      exerciseName: resolvedExerciseName ?? exerciseName ?? null,
+      comparePrev,
+    };
+    const cached = await getStatsCache<{
+      from: string;
+      to: string;
+      rangeDays: number;
+      totals: { tonnage: number; reps: number; sets: number };
+      previousTotals?: { tonnage: number; reps: number; sets: number };
+      trend?: { tonnageDelta: number; repsDelta: number; setsDelta: number };
+      byExercise: Array<{
+        exerciseId?: string | null;
+        exerciseName: string;
+        tonnage: number;
+        reps: number;
+        sets: number;
+      }>;
+    }>({
+      userId,
+      metric: "volume_totals",
+      params: cacheParams,
+      maxAgeSeconds: 300,
+    });
+    if (cached) return c.json(cached);
+
+    const filterByExercise = resolvedExerciseId
+      ? resolvedExerciseName
+        ? or(
+            eq(workoutSet.exerciseId, resolvedExerciseId),
+            and(
+              sql`${workoutSet.exerciseId} is null`,
+              sql`lower(${workoutSet.exerciseName}) = lower(${resolvedExerciseName})`,
+            ),
+          )
+        : eq(workoutSet.exerciseId, resolvedExerciseId)
+      : resolvedExerciseName
+        ? sql`lower(${workoutSet.exerciseName}) = lower(${resolvedExerciseName})`
+        : undefined;
+
+    const groupKey = resolvedExerciseId
+      ? sql<string>`${resolvedExerciseId}`
+      : sql<string>`coalesce(${workoutSet.exerciseId}::text, lower(${workoutSet.exerciseName}))`;
+    const groupExerciseId = resolvedExerciseId
+      ? sql<string>`${resolvedExerciseId}`
+      : workoutSet.exerciseId;
+    const groupExerciseName = resolvedExerciseId
+      ? sql<string>`${resolvedExerciseName ?? exerciseName ?? resolvedExerciseId}`
+      : sql<string>`coalesce(${exercise.name}, ${workoutSet.exerciseName})`;
+
+    const baseWhere = and(
+      eq(workoutLog.userId, userId),
+      gte(workoutLog.performedAt, from),
+      lte(workoutLog.performedAt, to),
+    );
+    const where = filterByExercise ? and(baseWhere, filterByExercise) : baseWhere;
+
+    const rows = await db
+      .select({
+        key: groupKey,
+        exerciseId: groupExerciseId,
+        exerciseName: groupExerciseName,
+        tonnage: sql<number>`coalesce(sum(${workoutSet.weightKg} * ${workoutSet.reps}), 0)`,
+        reps: sql<number>`coalesce(sum(${workoutSet.reps}), 0)`,
+        sets: sql<number>`count(*)`,
+      })
+      .from(workoutLog)
+      .innerJoin(workoutSet, eq(workoutSet.logId, workoutLog.id))
+      .leftJoin(exercise, eq(exercise.id, workoutSet.exerciseId))
+      .where(where)
+      .groupBy(groupKey, groupExerciseId, groupExerciseName)
+      .orderBy(sql`coalesce(sum(${workoutSet.weightKg} * ${workoutSet.reps}), 0) desc`);
+
+    const byExercise = rows.map((r) => ({
+      exerciseId: r.exerciseId ?? null,
+      exerciseName: r.exerciseName,
+      tonnage: Number(r.tonnage ?? 0),
+      reps: Number(r.reps ?? 0),
+      sets: Number(r.sets ?? 0),
+    }));
+
+    const totals = byExercise.reduce(
+      (acc, r) => {
+        acc.tonnage += r.tonnage;
+        acc.reps += r.reps;
+        acc.sets += r.sets;
+        return acc;
+      },
+      { tonnage: 0, reps: 0, sets: 0 },
+    );
+
+    let previousTotals: { tonnage: number; reps: number; sets: number } | undefined;
+    let trend: { tonnageDelta: number; repsDelta: number; setsDelta: number } | undefined;
+
+    if (comparePrev) {
+      const rangeMs = Math.max(1, to.getTime() - from.getTime());
+      const prevTo = new Date(from.getTime() - 1);
+      const prevFrom = new Date(prevTo.getTime() - rangeMs);
+
+      const prevBaseWhere = and(
+        eq(workoutLog.userId, userId),
+        gte(workoutLog.performedAt, prevFrom),
+        lte(workoutLog.performedAt, prevTo),
+      );
+      const prevWhere = filterByExercise ? and(prevBaseWhere, filterByExercise) : prevBaseWhere;
+
+      const prevRows = await db
+        .select({
+          tonnage: sql<number>`coalesce(sum(${workoutSet.weightKg} * ${workoutSet.reps}), 0)`,
+          reps: sql<number>`coalesce(sum(${workoutSet.reps}), 0)`,
+          sets: sql<number>`count(*)`,
+        })
+        .from(workoutLog)
+        .innerJoin(workoutSet, eq(workoutSet.logId, workoutLog.id))
+        .where(prevWhere);
+
+      const prev = prevRows[0] ?? { tonnage: 0, reps: 0, sets: 0 };
+      previousTotals = {
+        tonnage: Number(prev.tonnage ?? 0),
+        reps: Number(prev.reps ?? 0),
+        sets: Number(prev.sets ?? 0),
+      };
+      trend = {
+        tonnageDelta: totals.tonnage - previousTotals.tonnage,
+        repsDelta: totals.reps - previousTotals.reps,
+        setsDelta: totals.sets - previousTotals.sets,
+      };
+    }
+
+    const payload = {
+      from: from.toISOString(),
+      to: to.toISOString(),
+      rangeDays,
+      totals,
+      previousTotals,
+      trend,
+      byExercise,
+    };
+
+    // Non-blocking cache write (the Hono stand-in for Next `after()`): a failure
+    // is logged, never surfaced to the client.
+    void setStatsCache({
+      userId,
+      metric: "volume_totals",
+      params: cacheParams,
+      payload,
+    }).catch((err) => logError("api.stats.volume.cache_write_failed", { error: err }));
+
+    return c.json(payload);
+  } catch (e) {
+    return apiError(c, e);
+  }
+});

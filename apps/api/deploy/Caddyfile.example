@@ -1,0 +1,16 @@
+# Caddy reverse proxy → ironlog-api (automatic HTTPS via Let's Encrypt).
+# Caddy must own ports 80/443 and a DNS A/AAAA record for api.example.com must
+# point at this host. Then: sudo caddy reload --config /etc/caddy/Caddyfile
+#
+# The distributed Go TUI runs on end-user machines, so the API needs a PUBLIC
+# HTTPS endpoint (Bearer tokens in transit → TLS required). apps/api binds
+# localhost:8787; Caddy terminates TLS and proxies to it.
+
+api.example.com {
+	encode zstd gzip
+	reverse_proxy 127.0.0.1:8787
+}
+
+# Tip: keep apps/api bound to 127.0.0.1 (PORT=8787) so it's only reachable via Caddy.
+# If you have no domain, alternatives: a Tailscale hostname (private), or a
+# Cloudflare Tunnel — both give TLS without a public A record.

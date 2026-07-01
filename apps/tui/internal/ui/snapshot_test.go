@@ -34,6 +34,13 @@ func TestSnapshot(t *testing.T) {
 	switch os.Getenv("IRONLOG_SNAPSHOT_TARGET") {
 	case "today", "log":
 		frame = ansi.Strip(renderTodayScenario(w, h))
+	case "today-long":
+		f := NewFrame(nil)
+		f.views[vToday] = sampleLongLog()
+		nf, _ := f.Update(tea.WindowSizeMsg{Width: w, Height: h})
+		frame = ansi.Strip(nf.(Frame).View().Content)
+	case "today-bw":
+		frame = ansi.Strip(renderTodayBwScenario(w, h))
 	case "goto":
 		frame = ansi.Strip(renderGotoScenario(w, h))
 	case "palette":
@@ -50,6 +57,12 @@ func TestSnapshot(t *testing.T) {
 		frame = ansi.Strip(renderProgramsScenario(w, h))
 	case "settings":
 		frame = ansi.Strip(renderSettingsScenario(w, h))
+	case "exercises":
+		frame = ansi.Strip(renderExercisesScenario(w, h))
+	case "programs-empty":
+		frame = ansi.Strip(renderProgramsEmptyScenario(w, h))
+	case "store":
+		frame = ansi.Strip(renderStoreScenario(w, h))
 	default:
 		frame = ansi.Strip(renderLogin(NewLogin(nil), w, h))
 	}
@@ -71,6 +84,7 @@ func sampleTodayFrame() Frame {
 	}
 	l.gi, l.si, l.col = 0, 2, colReps
 	l.rest = restState{active: true, remaining: 48, total: 90}
+	l.planName, l.sessionKey, l.planID = "5/3/1 Leader", "C2W6D1", "p1"
 	f.views[vToday] = l
 	return f
 }
@@ -130,9 +144,11 @@ func renderHistoryScenario(w, h int) string {
 	hi := NewHistory(nil)
 	hi.loaded = true
 	now := time.Now()
+	pid := "p1"
+	hi.planNames = map[string]string{pid: "5/3/1 Leader"}
 	hi.build([]api.LogItem{
-		{ID: "1", PerformedAt: now, Sets: []api.LoggedSet{{ExerciseName: "Squat", WeightKg: 102.5, Reps: 5}, {ExerciseName: "Bench Press", WeightKg: 70, Reps: 5}}},
-		{ID: "2", PerformedAt: now.AddDate(0, 0, -2), Sets: []api.LoggedSet{{ExerciseName: "Deadlift", WeightKg: 140, Reps: 3}}},
+		{ID: "1", PlanID: &pid, PerformedAt: now, GeneratedSession: &api.GeneratedSessionRef{SessionKey: "C2W6D1"}, Sets: []api.LoggedSet{{ExerciseName: "Squat", WeightKg: 102.5, Reps: 5}, {ExerciseName: "Bench Press", WeightKg: 70, Reps: 5}}},
+		{ID: "2", PlanID: &pid, PerformedAt: now.AddDate(0, 0, -2), GeneratedSession: &api.GeneratedSessionRef{SessionKey: "C2W5D3"}, Sets: []api.LoggedSet{{ExerciseName: "Deadlift", WeightKg: 140, Reps: 3}}},
 		{ID: "3", PerformedAt: now.AddDate(0, 0, -4), Sets: []api.LoggedSet{{ExerciseName: "Squat", WeightKg: 100, Reps: 5}, {ExerciseName: "OHP", WeightKg: 50, Reps: 5}}},
 	})
 	f.views[vHistory] = hi
@@ -153,6 +169,67 @@ func renderProgramsScenario(w, h int) string {
 	pr.activeID = "1"
 	f.views[vPrograms] = pr
 	f.active = vPrograms
+	nf, _ := f.Update(tea.WindowSizeMsg{Width: w, Height: h})
+	return nf.(Frame).View().Content
+}
+
+func renderTodayBwScenario(w, h int) string {
+	f := NewFrame(nil)
+	l := f.views[vToday].(Log)
+	l.load = loadIdle
+	l.bodyweight = 74
+	l.planName, l.sessionKey = "5/3/1 Leader", "C2W6D1"
+	l.groups = []exGroup{
+		{name: "Back Squat", prev: "100×5", tgt: "102.5×5", sets: []setEntry{
+			{weight: "102.5", reps: "5", done: true},
+		}},
+		{name: "Weighted Pull-Up", prev: "80×5", tgt: "80×5", sets: []setEntry{
+			{weight: "6", reps: "5", total: 80, done: true},
+			{weight: "8", reps: "5", total: 82, done: true},
+			{weight: "0", reps: "", tgtReps: 5, total: 74},
+		}},
+	}
+	l.gi, l.si, l.col = 1, 2, colWeight
+	f.views[vToday] = l
+	nf, _ := f.Update(tea.WindowSizeMsg{Width: w, Height: h})
+	return nf.(Frame).View().Content
+}
+
+func renderProgramsEmptyScenario(w, h int) string {
+	f := NewFrame(nil)
+	pr := NewPrograms(nil)
+	pr.loaded = true
+	pr.plans = nil
+	f.views[vPrograms] = pr
+	f.active = vPrograms
+	nf, _ := f.Update(tea.WindowSizeMsg{Width: w, Height: h})
+	return nf.(Frame).View().Content
+}
+
+func renderStoreScenario(w, h int) string {
+	f := NewFrame(nil)
+	f.active = vPrograms
+	names := []string{
+		"Asymptote Protocol (Base)", "Greyskull LP (Base)", "GZCLP (Base T1/T2/T3)",
+		"Jim Wendler 5/3/1 (No Assistance)", "Jim Wendler 5/3/1 + BBB", "Jim Wendler 5/3/1 + FSL",
+		"Starting Strength", "Texas Method", "nSuns 5/3/1 LP", "PHUL", "PHAT", "Madcow 5x5",
+		"Smolov Jr", "GZCL Method",
+	}
+	items := make([]pickerItem, len(names))
+	for i, n := range names {
+		items[i] = pickerItem{label: n, desc: "logic", value: n}
+	}
+	f.picker = newPicker("프로그램 스토어 ", "template", items)
+	f.picker.sel = len(items) - 1 // selection at the bottom → exercises the window
+	f.overlay = overlayPicker
+	nf, _ := f.Update(tea.WindowSizeMsg{Width: w, Height: h})
+	return nf.(Frame).View().Content
+}
+
+func renderExercisesScenario(w, h int) string {
+	f := NewFrame(nil)
+	f.views[vExercises] = sampleExercises()
+	f.active = vExercises
 	nf, _ := f.Update(tea.WindowSizeMsg{Width: w, Height: h})
 	return nf.(Frame).View().Content
 }

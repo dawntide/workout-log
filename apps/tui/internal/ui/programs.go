@@ -93,6 +93,13 @@ func (s Programs) Update(msg tea.Msg) (Screen, tea.Cmd) {
 		}
 		s.err = ""
 		s.plans = m.plans
+		// Mark the auto-resolved active plan (same pick as the today buffer) so
+		// the ● lands on it before the user explicitly activates one.
+		if s.activeID == "" {
+			if p, ok := api.ActivePlan(m.plans); ok {
+				s.activeID = p.ID
+			}
+		}
 		if s.sel >= len(s.plans) {
 			s.sel = 0
 		}
@@ -116,7 +123,7 @@ func (s Programs) Update(msg tea.Msg) (Screen, tea.Cmd) {
 			}
 			items = append(items, pickerItem{label: t.Name, desc: strings.ToLower(t.Type), value: t.ID})
 		}
-		return s, func() tea.Msg { return openPickerMsg{prompt: "프로그램 ", tag: "template", items: items} }
+		return s, func() tea.Msg { return openPickerMsg{prompt: "프로그램 스토어 ", tag: "template", items: items} }
 	case planCreatedMsg:
 		if m.err != nil {
 			s.err = humanizeAuthErr(m.err)
@@ -249,11 +256,11 @@ func (s Programs) StatusRight() string {
 
 func (s Programs) Editing() bool { return s.renaming }
 
-func (s Programs) Hints(int) string {
+func (s Programs) Hints() []hintItem {
 	if s.renaming {
-		return joinHints(hint("⏎", "이름변경"), hint("esc", "취소"))
+		return []hintItem{{"⏎", "이름변경"}, {"esc", "취소"}}
 	}
-	return joinHints(hint("jk", "이동"), hint("⏎", "활성"), hint("r", "이름"), hint("n", "새플랜"), hint("d", "삭제"))
+	return []hintItem{{"jk", "이동"}, {"⏎", "활성"}, {"r", "이름"}, {"n", "새플랜"}, {"d", "삭제"}}
 }
 
 func (s Programs) Body(w, h int) string {
@@ -264,16 +271,18 @@ func (s Programs) Body(w, h int) string {
 		return centered("불러오는 중…", theme.Dim, w, h)
 	}
 	if len(s.plans) == 0 {
-		return centered("플랜이 없습니다", theme.Ghost, w, h)
+		return s.renderEmpty(w, h)
 	}
 
 	lines := make([]string, 0, len(s.plans))
+	active := 0
 	for i, p := range s.plans {
 		marker := "  "
 		nameStyle := lipgloss.NewStyle().Foreground(theme.Fg)
 		if i == s.sel {
 			marker = lipgloss.NewStyle().Foreground(theme.Amber).Render("› ")
 			nameStyle = lipgloss.NewStyle().Foreground(theme.Amber).Bold(true)
+			active = len(lines)
 		}
 		bullet := lipgloss.NewStyle().Foreground(theme.Ghost).Render("○")
 		if p.ID == s.activeID {
@@ -287,7 +296,25 @@ func (s Programs) Body(w, h int) string {
 		left := marker + bullet + " " + nameStyle.Render(truncate(p.Name, w-22))
 		lines = append(lines, justify(left, sub, w-2))
 	}
-	return lipgloss.NewStyle().Width(w).Height(h).Padding(1, 1).Render(strings.Join(lines, "\n"))
+	// Window around the selection so a long plan list never overflows the body
+	// and clips the frame's hint bar below it (matches history/exercises/today).
+	pad := bodyPad(h)
+	avail := h - 2*pad
+	if avail < 1 {
+		avail = 1
+	}
+	return lipgloss.NewStyle().Width(w).Height(h).Padding(pad, 1).Render(strings.Join(windowLines(lines, active, avail), "\n"))
+}
+
+// renderEmpty draws the no-plans state with a prompt to open the program store
+// (the n → template picker), so a fresh user knows where plans come from instead
+// of facing a bare "플랜이 없습니다".
+func (s Programs) renderEmpty(w, h int) string {
+	ghost := lipgloss.NewStyle().Foreground(theme.Ghost)
+	dim := lipgloss.NewStyle().Foreground(theme.Dim)
+	guide := ghost.Render("플랜이 없습니다.") + "\n\n" +
+		hint("n", "프로그램 스토어") + dim.Render(" 열기")
+	return lipgloss.Place(w, h, lipgloss.Center, lipgloss.Center, guide)
 }
 
 func programSubtitle(p api.Plan) string {

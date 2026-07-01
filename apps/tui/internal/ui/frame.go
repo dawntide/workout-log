@@ -3,6 +3,7 @@ package ui
 import (
 	"context"
 	"image/color"
+	"strconv"
 	"strings"
 	"time"
 
@@ -54,6 +55,37 @@ type Mode struct {
 // ModeNormal is the idle auto-label.
 var ModeNormal = Mode{Label: "NORMAL", Tone: theme.Dim}
 
+// hintItem is one key/label pair for the bottom hint bar. Screens return these
+// as data (not a pre-rendered string) so the frame can choose a full rendering
+// (key + 라벨) or a keys-only compaction when the bar would overflow a narrow
+// phone terminal — without re-deriving the keys from styled text.
+type hintItem struct{ key, label string }
+
+// globalHints are the everywhere keys appended to every screen's local hints.
+// They sit at the right of the bar, so under the old hard-truncation they were
+// the first to be cut — exactly the keys (goto/command/help) a newcomer needs.
+var globalHints = []hintItem{{"space", "이동"}, {":", "명령"}, {"?", "키맵"}}
+
+// hintsFull renders key + dim label chips joined by two spaces.
+func hintsFull(items []hintItem) string {
+	parts := make([]string, len(items))
+	for i, it := range items {
+		parts[i] = hint(it.key, it.label)
+	}
+	return strings.Join(parts, "  ")
+}
+
+// hintsKeys renders keys only (no labels) joined by single spaces — the compact
+// fallback when the full bar exceeds the terminal width. The full labels stay
+// discoverable via the ? keymap overlay.
+func hintsKeys(items []hintItem) string {
+	parts := make([]string, len(items))
+	for i, it := range items {
+		parts[i] = lipgloss.NewStyle().Foreground(theme.Cyan).Bold(true).Render(it.key)
+	}
+	return strings.Join(parts, " ")
+}
+
 type tickMsg time.Time
 
 func tick() tea.Cmd {
@@ -102,6 +134,10 @@ type editLogMsg struct {
 	id          string
 	performedAt time.Time
 	sets        []api.LoggedSet
+	planName    string  // plan/program name for the today header (may be empty)
+	sessionKey  string  // generated-session key for the header label (may be empty)
+	planID      string  // active plan id for overrides (may be empty)
+	bodyweight  float64 // user bodyweight; only set (>0) by the boot auto-load restore path
 }
 
 // Frame is the root chrome: a pure buffer area, a bottom region (hint line, goto
@@ -395,11 +431,11 @@ func (f Frame) View() tea.View {
 	var content string
 	if f.overlay == overlayHelp {
 		content = lipgloss.JoinVertical(lipgloss.Left,
-			helpBody(w, h-1),
+			helpBody(w, h-1, f.active),
 			fitLine(f.statusline(w, s), w),
 		)
 	} else {
-		region, regionH := f.region(w, s)
+		region, regionH := f.region(w, h, s)
 		bodyH := h - regionH - 1
 		if bodyH < 1 {
 			bodyH = 1
@@ -419,6 +455,19 @@ func (f Frame) View() tea.View {
 
 func (f Frame) statusline(w int, s Screen) string {
 	seg := lipgloss.NewStyle().Background(s.Mode().Tone).Foreground(theme.Bg).Bold(true).Render(" " + s.Mode().Label + " ")
+	clock := lipgloss.NewStyle().Foreground(theme.Dim).Render(f.now.Format("15:04"))
+
+	// The mode badge and the clock are the always-keep anchors. StatusRight (a
+	// short count) joins the clock only while the badge still has room to its
+	// left; otherwise it is dropped so a narrow phone width never sacrifices the
+	// time to the right-edge truncation.
+	right := clock
+	if r := s.StatusRight(); r != "" {
+		cand := lipgloss.NewStyle().Foreground(theme.Dim).Render(r) + "  " + clock
+		if lipgloss.Width(seg)+2+lipgloss.Width(cand) <= w {
+			right = cand
+		}
+	}
 
 	var left string
 	if f.flash != "" {
@@ -431,18 +480,22 @@ func (f Frame) statusline(w int, s Screen) string {
 		}
 	}
 
-	right := ""
-	if r := s.StatusRight(); r != "" {
-		right = lipgloss.NewStyle().Foreground(theme.Dim).Render(r) + "  "
+	// Truncate the left (view name + context) so left + a 1-col gap + right fits
+	// w exactly, never eating into the right-aligned clock; the mode badge is
+	// never cut.
+	if maxLeft := w - lipgloss.Width(right) - 1; lipgloss.Width(left) > maxLeft {
+		if maxLeft < lipgloss.Width(seg) {
+			maxLeft = lipgloss.Width(seg)
+		}
+		left = ansi.Truncate(left, maxLeft, "")
 	}
-	right += lipgloss.NewStyle().Foreground(theme.Dim).Render(f.now.Format("15:04"))
 	return justify(left, right, w)
 }
 
-func (f Frame) region(w int, s Screen) (string, int) {
+func (f Frame) region(w, h int, s Screen) (string, int) {
 	switch f.overlay {
 	case overlayPicker:
-		return f.picker.render(w)
+		return f.picker.render(w, h)
 	case overlayGoto:
 		return f.gotoMenu(), len(gotoOrder) + 1
 	case overlayConfirm:
@@ -450,8 +503,15 @@ func (f Frame) region(w int, s Screen) (string, int) {
 			hint("y", "예") + "  " + hint("n", "아니오")
 		return fitLine(line, w), 1
 	default:
-		globals := lipgloss.NewStyle().Foreground(theme.Dim).Render("   ") + hint("space", "이동") + "  " + hint(":", "명령")
-		return fitLine(s.Hints(w)+globals, w), 1
+		items := s.Hints()
+		// Prefer the full key+label bar; fall back to keys-only when it would
+		// overflow w, so the globals (space/:/?) survive on a phone width
+		// instead of being truncated off the right edge.
+		full := hintsFull(items) + "   " + hintsFull(globalHints)
+		if lipgloss.Width(full) <= w {
+			return full, 1
+		}
+		return fitLine(hintsKeys(items)+"   "+hintsKeys(globalHints), w), 1
 	}
 }
 
@@ -485,29 +545,62 @@ func commandItems() []pickerItem {
 	}
 }
 
-// helpBody renders the full keymap reference in the buffer area.
-func helpBody(w, h int) string {
-	kv := func(pairs ...[2]string) string {
-		parts := make([]string, len(pairs))
-		for i, p := range pairs {
-			parts[i] = hint(p[0], p[1])
-		}
-		return "  " + strings.Join(parts, "   ")
-	}
-	title := func(s string) string { return lipgloss.NewStyle().Foreground(theme.Amber).Bold(true).Render(s) }
+// keymapSection is one buffer's local keymap, surfaced by the ? help overlay.
+type keymapSection struct {
+	view  ViewKind
+	name  string
+	pairs [][2]string
+}
 
-	body := strings.Join([]string{
-		title("GLOBAL"),
-		kv([2]string{"space", "이동"}, [2]string{":", "명령"}, [2]string{"?", "도움"}, [2]string{"q", "종료"}),
-		"",
-		title("TODAY"),
-		kv([2]string{"i", "편집"}, [2]string{"e", "운동"}, [2]string{"x", "완료"}),
-		kv([2]string{"o", "세트"}, [2]string{"d", "삭제"}, [2]string{"s", "저장"}),
-		kv([2]string{"hjkl", "이동"}, [2]string{"r", "휴식 건너뛰기"}),
-		"",
-		lipgloss.NewStyle().Foreground(theme.Dim).Render("  esc 닫기"),
-	}, "\n")
-	return lipgloss.NewStyle().Width(w).Height(h).Padding(1, 1).Render(body)
+// bufferKeymaps documents each buffer's local keys; commonKeymap the keys that
+// work in every buffer. helpBody renders the active buffer first, then these
+// common keys, then the rest — so "what can I do here" and "what works
+// everywhere" are answerable at a glance (lazygit-style).
+var bufferKeymaps = []keymapSection{
+	{vToday, "TODAY", [][2]string{{"i", "편집"}, {"e/n", "운동"}, {"o", "세트"}, {"x", "완료"}, {"d", "삭제"}, {"u", "되돌리기"}, {"s", "저장"}, {"a", "보강"}, {"c", "교체"}, {"hl", "셀"}, {"r", "휴식"}}},
+	{vStats, "STATS", [][2]string{{"v", "뷰"}, {"[ ]", "범위"}, {"b", "차트"}, {"/", "검색"}, {"R", "새로고침"}}},
+	{vHistory, "HISTORY", [][2]string{{"⏎", "상세"}, {"e", "편집"}, {"d", "삭제"}, {"R", "새로고침"}}},
+	{vPrograms, "PROGRAMS", [][2]string{{"⏎", "활성"}, {"n", "새플랜"}, {"r", "이름"}, {"d", "삭제"}}},
+	{vExercises, "EXERCISES", [][2]string{{"/", "검색"}, {"r", "이름"}, {"a", "별칭"}, {"n", "추가"}, {"d", "삭제"}}},
+	{vSettings, "SETTINGS", [][2]string{{"⏎", "토글"}, {"i", "숫자편집"}}},
+}
+
+// commonKeymap is the everywhere layer: learn these once and they hold in every
+// buffer. Mirrors the bottom-hint globals (space/:/?) plus shared navigation.
+var commonKeymap = [][2]string{{"jk ↑↓", "이동"}, {"⏎", "선택"}, {"esc", "취소"}, {"space", "이동"}, {":", "명령"}, {"?", "키맵"}, {"q", "종료"}, {"1-6", "버퍼"}}
+
+// helpBody renders the keymap overlay lazygit-style: the active buffer's keys
+// first (marked "현재 화면"), then the everywhere/common keys, then the other
+// buffers. Rows wrap via flowHints so nothing overflows a narrow terminal (it
+// only grows vertically, and the top — current + common — is what matters).
+func helpBody(w, h int, active ViewKind) string {
+	title := func(s string) string { return lipgloss.NewStyle().Foreground(theme.Amber).Bold(true).Render(s) }
+	dim := lipgloss.NewStyle().Foreground(theme.Dim)
+	row := func(pairs [][2]string) string {
+		items := make([]string, len(pairs))
+		for i, p := range pairs {
+			items[i] = hint(p[0], p[1])
+		}
+		return "  " + flowHints(items, w-4)
+	}
+
+	var lines []string
+	for _, sec := range bufferKeymaps {
+		if sec.view == active {
+			lines = append(lines, title("■ "+sec.name)+dim.Render(" 현재 화면"), row(sec.pairs), "")
+			break
+		}
+	}
+	lines = append(lines, title("어디서나")+dim.Render(" 모든 화면 공통"), row(commonKeymap), "")
+	lines = append(lines, dim.Render("다른 화면"))
+	for _, sec := range bufferKeymaps {
+		if sec.view == active {
+			continue
+		}
+		lines = append(lines, title(sec.name), row(sec.pairs))
+	}
+	lines = append(lines, "", dim.Render("  esc 닫기"))
+	return lipgloss.NewStyle().Width(w).Height(h).Padding(1, 1).Render(strings.Join(lines, "\n"))
 }
 
 // justify places left and right text on one line padded to width w.
@@ -525,4 +618,79 @@ func fitLine(s string, w int) string {
 		return s
 	}
 	return ansi.Truncate(s, w, "")
+}
+
+// compactView reports whether the viewport is short enough that the decorative
+// top/bottom body padding (and inter-group blanks) cost too much: a phone SSH
+// session with the on-screen keyboard up reports ~18-22 usable rows, where two
+// blank rows are ~10% of the screen. Roomy terminals (>=24) keep the breathing
+// room. width_audit renders at h=24, so its layout is unaffected.
+func compactView(h int) bool { return h < 24 }
+
+// bodyPad is the vertical padding a screen body should use for height h.
+func bodyPad(h int) int {
+	if compactView(h) {
+		return 0
+	}
+	return 1
+}
+
+// windowLines returns at most h lines centered on the active line. When content
+// is clipped it turns the top/bottom visible line into a dim "↑/↓ N" marker so
+// there is always a visible cue that more rows exist. Centering guarantees the
+// active line (cursor) is never the row replaced by a marker for h>=3.
+func windowLines(lines []string, active, h int) []string {
+	n := len(lines)
+	if h < 1 {
+		h = 1
+	}
+	if n <= h {
+		return lines
+	}
+	start := active - h/2
+	if start < 0 {
+		start = 0
+	}
+	if start > n-h {
+		start = n - h
+	}
+	out := make([]string, h)
+	copy(out, lines[start:start+h])
+	// A marker replaces (and thus hides) one content line, so the hidden count
+	// includes that line: start+1 above, and the symmetric remainder below.
+	if start > 0 {
+		out[0] = moreLine("↑", start+1)
+	}
+	if start+h < n {
+		out[h-1] = moreLine("↓", n-(start+h)+1)
+	}
+	return out
+}
+
+func moreLine(arrow string, n int) string {
+	return lipgloss.NewStyle().Foreground(theme.Ghost).Render("  " + arrow + " " + strconv.Itoa(n))
+}
+
+// flowHints joins key-hint chips with a 3-space gap, wrapping to a new line
+// when the next chip would exceed w display columns (CJK-aware). This keeps
+// every hint visible on a narrow phone terminal instead of letting the row
+// overflow and clip off-screen.
+func flowHints(items []string, w int) string {
+	var lines []string
+	cur := ""
+	for _, it := range items {
+		switch {
+		case cur == "":
+			cur = it
+		case lipgloss.Width(cur)+3+lipgloss.Width(it) > w:
+			lines = append(lines, cur)
+			cur = it
+		default:
+			cur += "   " + it
+		}
+	}
+	if cur != "" {
+		lines = append(lines, cur)
+	}
+	return strings.Join(lines, "\n")
 }

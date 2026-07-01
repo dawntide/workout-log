@@ -11,6 +11,7 @@ import (
 
 	"github.com/sharru0701/workout-log/apps/tui/internal/api"
 	"github.com/sharru0701/workout-log/apps/tui/internal/config"
+	"github.com/sharru0701/workout-log/apps/tui/internal/selfupdate"
 	"github.com/sharru0701/workout-log/apps/tui/internal/ui"
 )
 
@@ -26,6 +27,11 @@ func main() {
 		switch os.Args[1] {
 		case "--version", "-v", "version":
 			fmt.Printf("ironlog %s (commit %s, built %s)\n", version, commit, date)
+			return
+		case "update", "--update", "upgrade":
+			if err := selfupdate.Run(version); err != nil {
+				fail(err)
+			}
 			return
 		case "--set-server":
 			if len(os.Args) < 3 || strings.TrimSpace(os.Args[2]) == "" {

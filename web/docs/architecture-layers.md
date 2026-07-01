@@ -48,3 +48,72 @@ server/               DB(Drizzle) 접근 + 서버 도메인 엔진 (progression,
 
 - `components/v2/v2-home-dashboard.tsx` → `@/widgets/*` 상향 import (위 참조).
 - 정규 FSD 전면 전환(빈 `entities/`·`shared/` 실제 구현, `lib/` 세그먼트 슬라이싱)은 1인 앱 비용 대비 효과가 낮아 **하지 않는다**(감사 결론).
+
+## 시스템 토폴로지 — 멀티프론트 / 단일 백엔드 (2026-06 cutover)
+
+위 레이어 모델은 `web/src` **한 패키지 내부**의 의존 방향이다. 그 최하위 `server/` 레이어는 이제 **두 런타임에서 공유**된다: web(Vercel, SSR + 일부 route)과 독립 백엔드 `apps/api`(Hono, AWS lightsail). apps/api는 `@/*`→`../../web/src/*` tsconfig alias로 같은 `server/` 코어를 런타임 재사용한다 — **백엔드 로직은 코드 1벌**(중복 없음).
+
+```
+                                클라이언트
+       ┌────────────────────────────┴───────────────────────────┐
+   브라우저 (web 앱)                                    ironlog (Go TUI)
+       │                                          ※ lightsail에서 tmux로 실행
+       │ /api/*  (same-origin,                            │ Authorization: Bearer
+       │  httpOnly wl_session 쿠키)                        │ → http://127.0.0.1:8787
+       ▼                                                  │   (같은 호스트, TLS 우회)
+┌─────────────────────────────┐                          │
+│  web — Next.js 16            │                          │
+│  Vercel (서울 / icn1)         │                          │
+│                             │                          │
+│  ① catch-all 프록시          │──── 쿠키→Bearer ─────┐    │
+│     app/api/[...path]       │                      │    │
+│  ② auth·ops·미이식 route     │──── 직접 ───┐        │ HTTPS (sslip.io)
+│  ③ SSR 9 RSC (페이지 렌더)   │──── 직접 ───┤        │    │
+└─────────────────────────────┘            │        ▼    ▼
+                                           │   ┌──────────────────────────┐
+                                           │   │  apps/api — Hono          │
+                                           │   │  AWS lightsail (서울)      │
+                                           │   │  Caddy :443 → Hono :8787   │
+                                           │   │  systemd 상시가동           │
+                                           │   │  = web/src/server 재사용    │
+                                           │   └────────────┬─────────────┘
+                                           │ 직접            │ 직접
+                                           ▼                ▼
+                              ┌────────────────────────────────────┐
+                              │  Supabase Postgres                  │
+                              │  ap-northeast-2 (서울) · public 스키마│
+                              └────────────────────────────────────┘
+```
+
+### web `/api/*` 요청 경로 (Next 라우팅: 구체적 route > catch-all `[...path]`)
+
+| 요청 | 처리 | DB 접근 |
+|------|------|---------|
+| **데이터 33개** — logs·plans·stats·settings·exercises·home·export·templates·generated-sessions·program-versions·ux-events·me/import | **① catch-all 프록시** → apps/api | apps/api가 |
+| **auth/\*** — login·signup·logout·me·password·sessions·OAuth·reset (쿠키 Set-Cookie·CSRF) | **② web route** | web 직접 |
+| **미이식** — ops/\*·me/security/events·health·stats/ux-\*·page-bootstrap | **② web route** | web 직접 |
+| **페이지 SSR** — `/`·`/workout/log`·`/stats`·`/plans` … | **③ RSC가 `@/server` 직접 import** | web 직접 |
+
+이식된 데이터 라우트의 `web/src/app/api/**/route.ts`는 삭제됐고, catch-all([`app/api/[...path]/route.ts`](../src/app/api/%5B...path%5D/route.ts))이 받아 apps/api로 포워딩한다. auth·ops·미이식은 더 구체적인 route라 Next 라우팅상 자동 우선 → web이 직접 처리.
+
+### 인증 — 토큰 1개로 통일
+
+```
+web 로그인 :  브라우저 → /api/auth/login (web route) → Set-Cookie: wl_session
+web 데이터 :  브라우저 ─(쿠키)→ catch-all ─ Bearer <쿠키값> → apps/api ┐
+ironlog    :  저장 토큰 ──────────────────── Bearer ──────→ apps/api ┤
+                                                                     ▼
+                          findActiveSession() — 셋 다 같은 auth_session 행
+```
+
+`wl_session`(쿠키값) = `Bearer`(토큰) = DB `auth_session` PK — **동일 토큰**이라 catch-all 프록시는 쿠키→헤더 **변환만** 할 뿐 교환이 없다. apps/api는 토큰을 응답 **body로만** 반환(Set-Cookie 안 함)하므로, 쿠키를 발급해야 하는 auth 라우트는 프록시 불가 → web 유지.
+
+### 핵심 성질
+
+- **백엔드 로직 1벌** — `server/`를 web(SSR·route)과 apps/api가 둘 다 import. 물리적으로 두 호스트에서 돌지만 코드 중복 없음.
+- **web은 "프록시 + 직접 DB" 혼합** — 데이터 API만 apps/api로 위임, SSR/auth/미이식은 web이 직접 DB. 완전 분리(SSR까지 HTTP화)는 성능·단일점 후퇴라 의도적으로 안 함.
+- **단일 의존점** — apps/api(lightsail) 다운 시 web 데이터 라우트는 502, 단 SSR 페이지·auth는 web 직접이라 생존.
+- **전부 서울 리전**(Vercel icn1 / lightsail·Supabase ap-northeast-2) — 프록시 홉이 추가돼도 레이턴시 미미.
+- **두 프론트의 접속 차이** — ironlog는 같은 lightsail이라 `127.0.0.1`(TLS 우회), web 브라우저는 공개 `sslip.io` HTTPS 경유.
+
+> 배포·운영(systemd·Caddy·ilapi·env) 상세는 [`apps/api/deploy/DEPLOY.md`](../../apps/api/deploy/DEPLOY.md).

@@ -1,7 +1,10 @@
-// Package api is a thin HTTP client for the workout-log backend. It manages the
-// cookie-only session (wl_session) so a terminal client can authenticate
-// against the existing API without backend changes — the server's same-origin
-// CSRF check passes for origin-less CLI requests.
+// Package api is a thin HTTP client for the workout-log backend. It authenticates
+// in dual mode: when the backend returns a session token in the login/signup
+// body (the standalone apps/api Hono backend), it is sent as
+// `Authorization: Bearer <token>`; the wl_session cookie jar is also kept so the
+// same client still works against the cookie-only Next.js API (whose same-origin
+// CSRF check passes for origin-less CLI requests). Either path authenticates;
+// the Bearer path is what the B2 cutover uses.
 package api
 
 import (
@@ -22,12 +25,15 @@ import (
 // SessionCookieName is the backend's session cookie (wl_session).
 const SessionCookieName = "wl_session"
 
-// Client talks to one backend base URL, carrying a cookie jar that stores and
-// replays the wl_session cookie automatically.
+// Client talks to one backend base URL. It carries an opaque session token sent
+// as a Bearer header (when known), and a cookie jar that stores/replays the
+// wl_session cookie — both back the same opaque auth_session, so either
+// authenticates.
 type Client struct {
 	baseURL *url.URL
 	http    *http.Client
 	jar     *cookiejar.Jar
+	token   string // opaque session token; sent as Authorization: Bearer when set
 }
 
 // New constructs a client for the given base URL (e.g. http://localhost:3000).
@@ -47,9 +53,11 @@ func New(baseURL string) (*Client, error) {
 	}, nil
 }
 
-// SetSessionToken seeds the jar with a persisted token so a fresh process is
-// authenticated without re-login.
+// SetSessionToken seeds both the Bearer token and the cookie jar from a
+// persisted token, so a fresh process is authenticated without re-login against
+// either backend (Bearer for apps/api, cookie for the Next.js API).
 func (c *Client) SetSessionToken(tok string) {
+	c.token = tok
 	c.jar.SetCookies(c.baseURL, []*http.Cookie{{
 		Name:  SessionCookieName,
 		Value: tok,
@@ -65,8 +73,13 @@ func (c *Client) BaseURL() string {
 	return c.baseURL.String()
 }
 
-// SessionToken returns the wl_session value currently held in the jar, or "".
+// SessionToken returns the current session token: the Bearer token if set
+// (apps/api), otherwise the wl_session cookie value from the jar (Next.js API),
+// or "".
 func (c *Client) SessionToken() string {
+	if c.token != "" {
+		return c.token
+	}
 	for _, ck := range c.jar.Cookies(c.baseURL) {
 		if ck.Name == SessionCookieName {
 			return ck.Value
@@ -121,6 +134,9 @@ func (c *Client) do(ctx context.Context, method, path string, body, out any) err
 		req.Header.Set("Content-Type", "application/json")
 	}
 	req.Header.Set("Accept", "application/json")
+	if c.token != "" {
+		req.Header.Set("Authorization", "Bearer "+c.token)
+	}
 
 	resp, err := c.http.Do(req)
 	if err != nil {

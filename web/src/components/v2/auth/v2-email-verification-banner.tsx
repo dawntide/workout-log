@@ -3,6 +3,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { useLocale } from "@/components/locale-provider";
 import { V2Icon } from "@/components/v2/primitives/v2-icon";
+import { isEmailRecoveryEnabled } from "@/lib/feature-flags";
 
 type MeResponse = {
   user:
@@ -23,6 +24,7 @@ export function V2EmailVerificationBanner() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!isEmailRecoveryEnabled()) return;
     let cancelled = false;
     (async () => {
       try {
@@ -43,7 +45,7 @@ export function V2EmailVerificationBanner() {
     };
   }, []);
 
-  if (!visible) return null;
+  if (!isEmailRecoveryEnabled() || !visible) return null;
 
   const resend = async () => {
     if (sending) return;

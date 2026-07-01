@@ -1300,13 +1300,20 @@ export function parseAcceptLanguage(header: string | null | undefined): AppLocal
 // React.cache()는 요청 단위 메모이제이션 (전역 캐시 아님, SSR 요청 간 공유되지 않음).
 import { cache } from "react";
 export const resolveRequestLocale = cache(async (): Promise<AppLocale> => {
-  const { cookies, headers } = await import("next/headers");
-  const cookieStore = await cookies();
-  const cookieLocale = cookieStore.get(LOCALE_COOKIE_NAME)?.value;
-  if (cookieLocale) {
-    return coerceAppLocale(cookieLocale);
-  }
+  try {
+    const { cookies, headers } = await import("next/headers");
+    const cookieStore = await cookies();
+    const cookieLocale = cookieStore.get(LOCALE_COOKIE_NAME)?.value;
+    if (cookieLocale) {
+      return coerceAppLocale(cookieLocale);
+    }
 
-  const requestHeaders = await headers();
-  return parseAcceptLanguage(requestHeaders.get("accept-language"));
+    const requestHeaders = await headers();
+    return parseAcceptLanguage(requestHeaders.get("accept-language"));
+  } catch {
+    // Outside a Next request scope — e.g. the standalone apps/api backend reusing
+    // these shared services, or a background job — cookies()/headers() throw.
+    // Fall back to the default locale rather than crashing the caller.
+    return DEFAULT_LOCALE_PREFERENCE;
+  }
 });

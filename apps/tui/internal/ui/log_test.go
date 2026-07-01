@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/sharru0701/workout-log/apps/tui/internal/api"
@@ -32,8 +33,8 @@ func TestLogCompleteSet(t *testing.T) {
 	if !l2.rest.active {
 		t.Error("expected rest armed")
 	}
-	if len(l2.groups[0].sets) != 4 {
-		t.Errorf("expected an appended empty set, got %d", len(l2.groups[0].sets))
+	if len(l2.groups[0].sets) != 3 {
+		t.Errorf("completeSet must not append a set (sets are added only via addSet/\"o\"); got %d", len(l2.groups[0].sets))
 	}
 }
 
@@ -114,10 +115,14 @@ func TestLogLoadForEditRPE(t *testing.T) {
 	}
 }
 
-func TestLogEditSaveClears(t *testing.T) {
+func TestLogEditSaveKeepsSession(t *testing.T) {
 	l := NewLog(nil)
 	l.saving, l.editID = true, "log-9"
-	scr, _ := l.Update(saveResultMsg{edited: true})
+	l.groups = []exGroup{{name: "Squat", sets: []setEntry{
+		{weight: "100", reps: "5", done: true},
+		{weight: "100", reps: "5"}, // not done — dropped by keepDoneOnly
+	}}}
+	scr, _ := l.Update(saveResultMsg{edited: true, detail: &api.LogDetail{ID: "log-9"}})
 	l = scr.(Log)
 	if l.saving {
 		t.Error("saving should clear")
@@ -125,13 +130,20 @@ func TestLogEditSaveClears(t *testing.T) {
 	if !strings.Contains(l.status, "수정됨") {
 		t.Errorf("status = %q, want 수정됨", l.status)
 	}
-	if l.editID != "" {
-		t.Error("editID should clear after a successful edit save")
+	if l.editID != "log-9" {
+		t.Error("editID should persist after save so re-saving PATCHes the same log")
+	}
+	if len(l.groups) != 1 || len(l.groups[0].sets) != 1 {
+		t.Fatalf("saved session should keep only the 1 done set on screen, got %+v", l.groups)
 	}
 }
 
 func TestLogModeTransitions(t *testing.T) {
 	l := NewLog(nil)
+	if l.Mode().Label != "LOADING" {
+		t.Errorf("want LOADING at boot, got %q", l.Mode().Label)
+	}
+	l.load = loadIdle // past the boot auto-load
 	if l.Mode().Label != "NORMAL" {
 		t.Errorf("want NORMAL, got %q", l.Mode().Label)
 	}
@@ -188,6 +200,26 @@ func TestLogLoadSnapshot(t *testing.T) {
 	}
 }
 
+func TestLogRepsPlaceholder(t *testing.T) {
+	l := NewLog(nil)
+	l.loadSnapshot(&api.SessionSnapshot{
+		Exercises: []api.PlannedExercise{
+			{ExerciseName: "Squat", Sets: []api.PlannedSet{{Reps: 5, TargetWeightKg: 100}}},
+		},
+	}, nil)
+	if got := l.groups[0].sets[0].tgtReps; got != 5 {
+		t.Fatalf("tgtReps not stored from the plan: %d, want 5", got)
+	}
+	// an empty, unfocused reps cell shows the target as a dim placeholder
+	if cell := ansi.Strip(l.repsCell(false, l.groups[0].sets[0])); !strings.Contains(cell, "5") {
+		t.Errorf("empty reps cell should show target 5 as placeholder, got %q", cell)
+	}
+	// once a value is entered, the actual value shows (not the placeholder)
+	if typed := ansi.Strip(l.repsCell(false, setEntry{reps: "3", tgtReps: 5})); !strings.Contains(typed, "3") {
+		t.Errorf("entered reps should show the actual value, got %q", typed)
+	}
+}
+
 func TestBuildPrevMap(t *testing.T) {
 	m := buildPrevMap([]api.LogItem{
 		{Sets: []api.LoggedSet{{ExerciseName: "Squat", WeightKg: 102.5, Reps: 5}, {ExerciseName: "Squat", WeightKg: 100, Reps: 5}}},
@@ -209,5 +241,117 @@ func TestLogExercisePicked(t *testing.T) {
 	}
 	if cmd == nil {
 		t.Error("expected a focus command")
+	}
+}
+
+func TestLogBootShowsLoading(t *testing.T) {
+	// NewLog starts in loadPending so the first paint is a loading line, not the
+	// manual-entry hint, while autoloadCmd resolves today's session.
+	out := ansi.Strip(NewLog(nil).Body(58, 16))
+	if !strings.Contains(out, "불러오는 중") {
+		t.Errorf("boot body should show the loading line:\n%s", out)
+	}
+}
+
+func TestLogAutoloadNoPlan(t *testing.T) {
+	scr, _ := NewLog(nil).Update(sessionLoadedMsg{noPlan: true})
+	l := scr.(Log)
+	if l.load != loadNoPlan {
+		t.Fatalf("load = %d, want loadNoPlan", l.load)
+	}
+	out := ansi.Strip(l.Body(58, 16))
+	for _, want := range []string{"활성 플랜이 없습니다", "프로그램"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("no-plan body missing %q:\n%s", want, out)
+		}
+	}
+}
+
+func TestLogAutoloadSession(t *testing.T) {
+	scr, _ := NewLog(nil).Update(sessionLoadedMsg{snapshot: &api.SessionSnapshot{
+		Exercises: []api.PlannedExercise{
+			{ExerciseName: "Squat", Role: "MAIN", Sets: []api.PlannedSet{{Reps: 5, TargetWeightKg: 100}}},
+		},
+	}})
+	l := scr.(Log)
+	if l.load != loadIdle {
+		t.Errorf("load = %d, want loadIdle after a session loads", l.load)
+	}
+	if len(l.groups) != 1 || l.groups[0].name != "Squat" {
+		t.Fatalf("expected a Squat group from the auto-loaded session, got %+v", l.groups)
+	}
+}
+
+func TestLogUndoDelete(t *testing.T) {
+	l := sampleLog() // Squat, 3 sets, cursor on the 3rd (105)
+	l2, _ := l.deleteSet()
+	if len(l2.groups[0].sets) != 2 {
+		t.Fatalf("after delete want 2 sets, got %d", len(l2.groups[0].sets))
+	}
+	if l2.undo == nil {
+		t.Fatal("delete should record an undo snapshot")
+	}
+	l3, _ := l2.undoDelete()
+	if len(l3.groups[0].sets) != 3 {
+		t.Fatalf("after undo want 3 sets restored, got %d", len(l3.groups[0].sets))
+	}
+	if l3.groups[0].sets[2].weight != "105" {
+		t.Errorf("restored top set weight = %q, want 105", l3.groups[0].sets[2].weight)
+	}
+	if l3.undo != nil {
+		t.Error("undo should be consumed after a restore")
+	}
+}
+
+func TestLogUndoRestoresRemovedGroup(t *testing.T) {
+	l := NewLog(nil)
+	l.load = loadIdle
+	l.groups = []exGroup{{name: "Squat", sets: []setEntry{{weight: "100", reps: "5", done: true}}}}
+	l2, _ := l.deleteSet() // deleting the only set removes the whole group
+	if len(l2.groups) != 0 {
+		t.Fatalf("want 0 groups after deleting the last set, got %d", len(l2.groups))
+	}
+	l3, _ := l2.undoDelete()
+	if len(l3.groups) != 1 || l3.groups[0].name != "Squat" {
+		t.Fatalf("undo should restore the removed group, got %+v", l3.groups)
+	}
+}
+
+func TestTodaysLog(t *testing.T) {
+	loc := time.Local
+	now := time.Date(2026, 6, 26, 14, 0, 0, 0, loc)
+	logs := []api.LogItem{
+		{ID: "yesterday", PerformedAt: time.Date(2026, 6, 25, 14, 0, 0, 0, loc)},
+		{ID: "today", PerformedAt: time.Date(2026, 6, 26, 8, 0, 0, 0, loc)},
+	}
+	if lg, ok := todaysLog(logs, now); !ok || lg.ID != "today" {
+		t.Fatalf("want today's log, got id=%q ok=%v", lg.ID, ok)
+	}
+	if _, ok := todaysLog(logs[:1], now); ok {
+		t.Error("a yesterday-only list should not match today")
+	}
+}
+
+func TestTodaysLogConvertsUTC(t *testing.T) {
+	// a log stored in UTC still counts as today once converted to local time —
+	// this is the timezone-correctness the .Local() comparison buys.
+	now := time.Date(2026, 6, 26, 14, 0, 0, 0, time.Local)
+	utcStored := now.Add(-1 * time.Hour).UTC()
+	logs := []api.LogItem{{ID: "t", PerformedAt: utcStored}}
+	if lg, ok := todaysLog(logs, now); !ok || lg.ID != "t" {
+		t.Fatalf("UTC-stored log 1h ago should match today after .Local(), got ok=%v", ok)
+	}
+}
+
+func TestLogAddExerciseKeyAliases(t *testing.T) {
+	// e (exercise) and n (new) both open the exercise picker — n matches the
+	// create-key used by programs/exercises buffers.
+	for _, code := range []rune{'e', 'n'} {
+		l := NewLog(nil)
+		l.load = loadIdle
+		_, cmd := l.updateNormal(tea.KeyPressMsg{Code: code})
+		if cmd == nil {
+			t.Errorf("key %q should open the exercise picker", string(code))
+		}
 	}
 }

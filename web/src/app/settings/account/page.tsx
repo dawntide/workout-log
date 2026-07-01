@@ -16,6 +16,7 @@ import {
   V2SettingsSection,
 } from "@/components/v2/settings/section";
 import { apiInvalidateCache } from "@/lib/api";
+import { isEmailRecoveryEnabled } from "@/lib/feature-flags";
 
 type SessionItem = {
   tokenMask: string;
@@ -438,7 +439,7 @@ export default function SettingsAccountPage() {
         label={locale === "ko" ? "오류" : "Error"}
       />
 
-      {me && me.email && !me.fallback ? (
+      {isEmailRecoveryEnabled() && me && me.email && !me.fallback ? (
         <section>
           <V2SettingsSection
             title={locale === "ko" ? "이메일 인증" : "Email Verification"}

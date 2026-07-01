@@ -17,7 +17,7 @@ import type {
   CycleOverviewResponse,
   CycleOverviewSession,
   CycleOverviewSessionExercise,
-} from "@/app/api/plans/[planId]/cycle-overview/route";
+} from "@/server/plans/cycle-overview-types";
 
 type WorkoutLogSummarySheetProps = {
   open: boolean;

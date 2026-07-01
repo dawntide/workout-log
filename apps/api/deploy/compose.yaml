@@ -1,0 +1,17 @@
+# docker compose for ironlog-api (optional container path).
+# Build context is the repo root so the image can include web/ + apps/api/.
+#   docker compose -f apps/api/deploy/compose.yaml up -d --build
+# Put secrets in apps/api/.env (see .env.example).
+
+services:
+  ironlog-api:
+    build:
+      context: ../../..          # repo root (apps/api/deploy -> repo root)
+      dockerfile: apps/api/deploy/Dockerfile
+    env_file:
+      - ../.env                  # apps/api/.env
+    environment:
+      PORT: "8787"
+    ports:
+      - "127.0.0.1:8787:8787"    # localhost only; front with Caddy/nginx for TLS
+    restart: unless-stopped

@@ -35,31 +35,48 @@ type User struct {
 	Fallback bool `json:"fallback"`
 }
 
+// SetMeta is the per-set JSONB meta. For bodyweight exercises it carries the
+// user's bodyweight and the bodyweight-inclusive total load, so the external
+// added weight (weightKg) and the total can both be reconstructed.
+type SetMeta struct {
+	BodyweightKg Float64 `json:"bodyweightKg,omitempty"`
+	TotalLoadKg  Float64 `json:"totalLoadKg,omitempty"`
+}
+
 // WorkoutSet is one logged set (also used as the create-log request element).
 type WorkoutSet struct {
-	ExerciseID   string  `json:"exerciseId,omitempty"`
-	ExerciseName string  `json:"exerciseName"`
-	SetNumber    int     `json:"setNumber,omitempty"`
-	Reps         int     `json:"reps"`
-	WeightKg     float64 `json:"weightKg"`
-	RPE          *int    `json:"rpe,omitempty"`
-	IsExtra      bool    `json:"isExtra,omitempty"`
+	ExerciseID   string   `json:"exerciseId,omitempty"`
+	ExerciseName string   `json:"exerciseName"`
+	SetNumber    int      `json:"setNumber,omitempty"`
+	Reps         int      `json:"reps"`
+	WeightKg     float64  `json:"weightKg"`
+	RPE          *int     `json:"rpe,omitempty"`
+	IsExtra      bool     `json:"isExtra,omitempty"`
+	Meta         *SetMeta `json:"meta,omitempty"`
 }
 
 // LoggedSet is one set within a workout log.
 type LoggedSet struct {
-	ExerciseName string  `json:"exerciseName"`
-	WeightKg     Float64 `json:"weightKg"`
-	Reps         int     `json:"reps"`
-	RPE          *int    `json:"rpe,omitempty"`
+	ExerciseName string   `json:"exerciseName"`
+	WeightKg     Float64  `json:"weightKg"`
+	Reps         int      `json:"reps"`
+	RPE          *int     `json:"rpe,omitempty"`
+	Meta         *SetMeta `json:"meta,omitempty"`
+}
+
+// GeneratedSessionRef is the session-key reference embedded in a log item
+// (present when includeGeneratedSession is on, which is the API default).
+type GeneratedSessionRef struct {
+	SessionKey string `json:"sessionKey"`
 }
 
 // LogItem is one workout session in a list response.
 type LogItem struct {
-	ID          string      `json:"id"`
-	PlanID      *string     `json:"planId"`
-	PerformedAt time.Time   `json:"performedAt"`
-	Sets        []LoggedSet `json:"sets"`
+	ID               string               `json:"id"`
+	PlanID           *string              `json:"planId"`
+	PerformedAt      time.Time            `json:"performedAt"`
+	Sets             []LoggedSet          `json:"sets"`
+	GeneratedSession *GeneratedSessionRef `json:"generatedSession"`
 }
 
 // CreateLogRequest is the POST /api/logs body.

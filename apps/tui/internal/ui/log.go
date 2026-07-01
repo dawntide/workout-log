@@ -2,6 +2,7 @@ package ui
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
@@ -33,18 +34,51 @@ const (
 	editCell
 )
 
+// loadState tracks the boot-time auto-load of today's planned session, so the
+// empty buffer can show "loading" / "no active plan" instead of a blank canvas.
+type loadState int
+
+const (
+	loadIdle    loadState = iota // not auto-loading (manual entry, or load done)
+	loadPending                  // fetching today's session
+	loadNoPlan                   // no active plan — prompt to start a program
+)
+
 type setEntry struct {
-	weight string
-	reps   string
-	rpe    string // optional RPE 1–10
-	done   bool
+	weight  string
+	reps    string
+	rpe     string // optional RPE 1–10
+	done    bool
+	tgtReps int     // planned reps, shown dimmed as a placeholder while reps is empty
+	total   float64 // bodyweight-inclusive total load (>0 only for bodyweight sets)
 }
 
 type exGroup struct {
-	name string
-	prev string // "100×5" previous performance (filled when a plan/session loads)
-	tgt  string // target weight
-	sets []setEntry
+	name        string
+	prev        string // "100×5" previous performance (filled when a plan/session loads)
+	tgt         string // target weight
+	blockTarget string // snapshot sourceBlockTarget (e.g. "SQUAT"); enables REPLACE_EXERCISE override
+	role        string // MAIN | ASSIST | … (from the snapshot)
+	sets        []setEntry
+}
+
+// undoSnapshot is the pre-delete buffer state restored by `u`. Today logging is
+// a fast flow, so a delete is one keystroke (`d`) with one-level undo rather
+// than a y/n confirm that would interrupt every set removal.
+type undoSnapshot struct {
+	groups []exGroup
+	gi, si int
+}
+
+// cloneGroups deep-copies groups (each set slice too) so an undo snapshot is
+// independent of later in-place mutation.
+func cloneGroups(gs []exGroup) []exGroup {
+	out := make([]exGroup, len(gs))
+	for i, g := range gs {
+		g.sets = append([]setEntry(nil), g.sets...)
+		out[i] = g
+	}
+	return out
 }
 
 type restState struct {
@@ -54,9 +88,10 @@ type restState struct {
 }
 
 type saveResultMsg struct {
-	detail *api.LogDetail
-	err    error
-	edited bool
+	detail      *api.LogDetail
+	err         error
+	edited      bool
+	performedAt time.Time // when the saved log is dated, for the edit banner
 }
 
 // saveCmd persists the done sets: PATCH when editID is set (editing a past
@@ -73,6 +108,14 @@ func saveCmd(c *api.Client, groups []exGroup, editID string, performedAt time.Ti
 			w, _ := strconv.ParseFloat(s.weight, 64)
 			reps, _ := strconv.Atoi(s.reps)
 			ws := api.WorkoutSet{ExerciseName: name, WeightKg: w, Reps: reps}
+			if isBodyweightExercise(name) && s.total > 0 {
+				// weightKg is the external added weight; attach bodyweight meta so
+				// the total load survives (server stores meta as-is).
+				ws.Meta = &api.SetMeta{
+					BodyweightKg: api.Float64(round2(s.total - w)),
+					TotalLoadKg:  api.Float64(s.total),
+				}
+			}
 			if rpe, err := strconv.Atoi(strings.TrimSpace(s.rpe)); err == nil && rpe > 0 {
 				ws.RPE = &rpe
 			}
@@ -95,25 +138,196 @@ func saveCmd(c *api.Client, groups []exGroup, editID string, performedAt time.Ti
 			return saveResultMsg{err: err, edited: editID != ""}
 		}
 		detail, err := c.GetLog(context.Background(), id)
-		return saveResultMsg{detail: detail, err: err, edited: editID != ""}
+		return saveResultMsg{detail: detail, err: err, edited: editID != "", performedAt: at}
 	}
 }
 
 type sessionLoadedMsg struct {
-	snapshot *api.SessionSnapshot
-	prev     map[string]string // exerciseName(lower) → "weight×reps" last performance
-	err      error
+	snapshot   *api.SessionSnapshot
+	prev       map[string]string // exerciseName(lower) → "weight×reps" last performance
+	planName   string            // plan/program name for the today header
+	sessionKey string            // generated-session key for the header label
+	planID     string            // active plan id, for session overrides
+	bodyweight float64           // user bodyweight for bodyweight-exercise load math
+	noPlan     bool              // auto-load found no active plan
+	err        error
+}
+
+// generatedSessionMsg generates a plan's session and pairs it with the prev-map
+// from recent logs. Shared by the manual plan-activation path and the boot-time
+// auto-load.
+func generatedSessionMsg(c *api.Client, planID string) sessionLoadedMsg {
+	s, err := c.GenerateSession(context.Background(), planID)
+	if err != nil {
+		return sessionLoadedMsg{err: err}
+	}
+	logs, _ := c.ListLogs(context.Background(), api.ListLogsParams{Limit: 50})
+	return sessionLoadedMsg{
+		snapshot:   &s.Snapshot,
+		prev:       buildPrevMap(logs),
+		planName:   s.Snapshot.Plan.Name,
+		sessionKey: s.SessionKey,
+		planID:     planID,
+		bodyweight: fetchBodyweight(c),
+	}
+}
+
+// fetchBodyweight reads the user's bodyweight (kg) from settings
+// (prefs.bodyweight.kg). 0 when unset/unavailable — bodyweight load math then
+// falls back to showing the raw prescribed total (no breakdown).
+func fetchBodyweight(c *api.Client) float64 {
+	vals, err := c.Settings(context.Background())
+	if err != nil {
+		return 0
+	}
+	raw, ok := vals["prefs.bodyweight.kg"]
+	if !ok {
+		return 0
+	}
+	var f float64
+	if json.Unmarshal(raw, &f) == nil {
+		return f
+	}
+	var str string
+	if json.Unmarshal(raw, &str) == nil {
+		if v, err := strconv.ParseFloat(strings.TrimSpace(str), 64); err == nil {
+			return v
+		}
+	}
+	return 0
 }
 
 func loadSessionCmd(c *api.Client, planID string) tea.Cmd {
+	return func() tea.Msg { return generatedSessionMsg(c, planID) }
+}
+
+// overrideDoneMsg reports the result of a session override (보강/교체); on success
+// the today buffer regenerates so the change appears.
+type overrideDoneMsg struct {
+	err    error
+	planID string
+	desc   string
+}
+
+func addAccessoryCmd(c *api.Client, planID, sessionKey, name string, sets []api.OverrideSet) tea.Cmd {
 	return func() tea.Msg {
-		s, err := c.GenerateSession(context.Background(), planID)
-		if err != nil {
-			return sessionLoadedMsg{err: err}
-		}
-		logs, _ := c.ListLogs(context.Background(), api.ListLogsParams{Limit: 50})
-		return sessionLoadedMsg{snapshot: &s.Snapshot, prev: buildPrevMap(logs)}
+		err := c.AddAccessory(context.Background(), planID, sessionKey, name, sets)
+		return overrideDoneMsg{err: err, planID: planID, desc: "보강 " + name}
 	}
+}
+
+func replaceExerciseCmd(c *api.Client, planID, sessionKey, blockTarget, name string) tea.Cmd {
+	return func() tea.Msg {
+		err := c.ReplaceExercise(context.Background(), planID, sessionKey, blockTarget, name)
+		return overrideDoneMsg{err: err, planID: planID, desc: "교체 → " + name}
+	}
+}
+
+// parseAccessorySets parses a compact "NxR" / "NxR@W" spec into N sets of R reps
+// at optional weight W. Blank or unparseable → a 3×10 default.
+func parseAccessorySets(spec string) []api.OverrideSet {
+	n, reps, weight := 3, 10, 0.0
+	if s := strings.TrimSpace(spec); s != "" {
+		body, w, hasW := strings.Cut(s, "@")
+		if hasW {
+			if v, err := strconv.ParseFloat(strings.TrimSpace(w), 64); err == nil && v >= 0 {
+				weight = v
+			}
+		}
+		ns, rs, ok := strings.Cut(strings.TrimSpace(body), "x")
+		if !ok {
+			ns, rs, ok = strings.Cut(strings.TrimSpace(body), "×")
+		}
+		if ok {
+			if v, err := strconv.Atoi(strings.TrimSpace(ns)); err == nil && v > 0 {
+				n = v
+			}
+			if v, err := strconv.Atoi(strings.TrimSpace(rs)); err == nil && v > 0 {
+				reps = v
+			}
+		}
+	}
+	sets := make([]api.OverrideSet, n)
+	for i := range sets {
+		sets[i] = api.OverrideSet{Reps: reps, WeightKg: weight}
+	}
+	return sets
+}
+
+// autoloadCmd boots today's buffer: resolve the active plan and generate its
+// session, mirroring the web bootstrap so today is never a blank canvas. With
+// no active plan it returns noPlan so the buffer prompts for a program instead.
+func autoloadCmd(c *api.Client) tea.Cmd {
+	return func() tea.Msg {
+		// Resolve plans up front so both branches can name the session: the
+		// restore branch maps a log's planId → name, the generate branch picks
+		// the active plan.
+		plans, plansErr := c.Plans(context.Background())
+		// An existing log dated today (local) → restore it for editing (web
+		// parity), so a re-open shows what was already done. Filter client-side
+		// on each log's local date instead of a server date= query, so the day
+		// boundary follows the user's timezone rather than the server's UTC
+		// interpretation (an evening log won't slip to "yesterday").
+		if logs, err := c.ListLogs(context.Background(), api.ListLogsParams{Limit: 5}); err == nil {
+			if lg, ok := todaysLog(logs, time.Now()); ok {
+				return editLogMsg{
+					id: lg.ID, performedAt: lg.PerformedAt, sets: lg.Sets,
+					planName: planNameByID(plans, lg.PlanID), sessionKey: sessionKeyOf(lg),
+					planID: strOr(lg.PlanID), bodyweight: fetchBodyweight(c),
+				}
+			}
+		}
+		if plansErr != nil {
+			return sessionLoadedMsg{err: plansErr}
+		}
+		p, ok := api.ActivePlan(plans)
+		if !ok {
+			return sessionLoadedMsg{noPlan: true}
+		}
+		return generatedSessionMsg(c, p.ID)
+	}
+}
+
+// planNameByID finds a plan's name by id (nil-safe); "" when not found.
+func planNameByID(plans []api.Plan, id *string) string {
+	if id == nil {
+		return ""
+	}
+	for _, p := range plans {
+		if p.ID == *id {
+			return p.Name
+		}
+	}
+	return ""
+}
+
+// sessionKeyOf returns a log's generated-session key, or "" when absent.
+func sessionKeyOf(lg api.LogItem) string {
+	if lg.GeneratedSession != nil {
+		return lg.GeneratedSession.SessionKey
+	}
+	return ""
+}
+
+func strOr(s *string) string {
+	if s != nil {
+		return *s
+	}
+	return ""
+}
+
+// todaysLog returns the first log whose performedAt falls on now's local
+// calendar day. Comparing local dates (rather than a server date= filter) keeps
+// the day boundary in the user's timezone, so a UTC-stored evening log still
+// counts as "today".
+func todaysLog(logs []api.LogItem, now time.Time) (api.LogItem, bool) {
+	today := now.Local().Format("2006-01-02")
+	for _, lg := range logs {
+		if lg.PerformedAt.Local().Format("2006-01-02") == today {
+			return lg, true
+		}
+	}
+	return api.LogItem{}, false
 }
 
 // buildPrevMap maps each exercise (lowercased) to its top set in the most
@@ -122,18 +336,20 @@ func buildPrevMap(logs []api.LogItem) map[string]string {
 	m := map[string]string{}
 	for _, lg := range logs { // newest first
 		top := map[string]api.LoggedSet{}
+		topLoad := map[string]float64{}
 		for _, st := range lg.Sets {
 			n := strings.ToLower(strings.TrimSpace(st.ExerciseName))
 			if n == "" {
 				continue
 			}
-			if b, ok := top[n]; !ok || float64(st.WeightKg) > float64(b.WeightKg) {
-				top[n] = st
+			load := loggedTotalLoad(st.ExerciseName, float64(st.WeightKg), st.Meta)
+			if _, ok := top[n]; !ok || load > topLoad[n] {
+				top[n], topLoad[n] = st, load
 			}
 		}
-		for n, st := range top {
+		for n := range top {
 			if _, seen := m[n]; !seen {
-				m[n] = fmt.Sprintf("%s×%d", trimNum(float64(st.WeightKg)), st.Reps)
+				m[n] = fmt.Sprintf("%s×%d", trimNum(topLoad[n]), top[n].Reps)
 			}
 		}
 	}
@@ -153,17 +369,27 @@ type Log struct {
 	edit        textinput.Model
 	rest        restState
 	saving      bool
-	editID      string    // non-empty when editing a past log (saves via PATCH)
-	performedAt time.Time // preserved on edit; zero = now (new log)
+	editID      string        // non-empty when editing a past log (saves via PATCH)
+	performedAt time.Time     // preserved on edit; zero = now (new log)
+	planName    string        // active plan/program name for today's session header
+	sessionKey  string        // generated-session key (e.g. "C2W6D1") for the header label
+	planID      string        // active plan id, for session overrides (보강/교체)
+	pendAccsry  string        // accessory exercise awaiting its sets input (override flow)
+	pendBlock   string        // block target awaiting its replacement exercise (override flow)
+	bodyweight  float64       // user bodyweight (kg) for bodyweight-exercise load math
+	load        loadState     // boot-time auto-load of today's session
+	undo        *undoSnapshot // last delete, restorable with `u`
 	status      string
 	statusErr   bool
 	w, h        int
 }
 
-func NewLog(client *api.Client) Log { return Log{client: client} }
+// NewLog starts in loadPending so the very first render shows "loading today's
+// session" rather than the empty-canvas hint while autoloadCmd runs.
+func NewLog(client *api.Client) Log { return Log{client: client, load: loadPending} }
 
 func (l Log) Editing() bool { return l.editing }
-func (l Log) Init() tea.Cmd { return nil }
+func (l Log) Init() tea.Cmd { return autoloadCmd(l.client) }
 
 func (l Log) Mode() Mode {
 	switch {
@@ -173,6 +399,8 @@ func (l Log) Mode() Mode {
 		return Mode{Label: "SAVING", Tone: theme.Amber}
 	case l.editing:
 		return Mode{Label: "INSERT", Tone: theme.Amber}
+	case l.load == loadPending:
+		return Mode{Label: "LOADING", Tone: theme.Cyan}
 	default:
 		return ModeNormal
 	}
@@ -197,11 +425,15 @@ func (l Log) StatusRight() string {
 	return fmt.Sprintf("%d set%s", n, plural(n))
 }
 
-func (l Log) Hints(int) string {
+func (l Log) Hints() []hintItem {
 	if l.editing {
-		return joinHints(hint("⏎", "다음"), hint("tab", "셀"), hint("esc", "취소"))
+		return []hintItem{{"⏎", "다음"}, {"tab", "셀"}, {"esc", "취소"}}
 	}
-	return joinHints(hint("i", "편집"), hint("e", "운동"), hint("s", "저장"))
+	h := []hintItem{{"i", "편집"}, {"e", "운동"}, {"s", "저장"}}
+	if l.planID != "" && l.sessionKey != "" {
+		h = append(h, hintItem{"a", "보강"}, hintItem{"c", "교체"})
+	}
+	return h
 }
 
 func (l Log) doneCount() int {
@@ -239,28 +471,79 @@ func (l Log) Update(msg tea.Msg) (Screen, tea.Cmd) {
 			l.status, l.statusErr = verb+" 실패: "+humanizeAuthErr(m.err), true
 			return l, nil
 		}
-		l.status, l.statusErr = summarizePRs(m.detail, m.edited), false
-		l.groups, l.gi, l.si = nil, 0, 0
-		l.editID, l.performedAt = "", time.Time{}
+		// Keep the saved session on screen (done sets only) and switch to PATCH,
+		// so it reads as "today's record" instead of a blank canvas; re-saving
+		// edits the same log.
+		l.status, l.statusErr = summarizeSaved(l.groups, m.detail, m.edited), false
+		l.keepDoneOnly()
+		if m.detail != nil {
+			l.editID = m.detail.ID
+		}
+		l.performedAt = m.performedAt
+		l.load, l.undo = loadIdle, nil
 		return l, nil
 	case editLogMsg:
 		l.loadForEdit(m)
 		return l, nil
 	case pickedMsg:
-		if m.tag == "exercise" && strings.TrimSpace(m.value) != "" {
-			l.groups = append(l.groups, exGroup{name: m.value, sets: []setEntry{{}}})
-			l.gi, l.si, l.col = len(l.groups)-1, 0, colWeight
-			nl, cmd := l.beginEdit(editCell)
-			return nl, cmd
+		switch m.tag {
+		case "exercise":
+			if strings.TrimSpace(m.value) != "" {
+				l.groups = append(l.groups, exGroup{name: m.value, sets: []setEntry{{}}})
+				l.gi, l.si, l.col = len(l.groups)-1, 0, colWeight
+				return l.beginEdit(editCell)
+			}
+		case "accessory":
+			if name := strings.TrimSpace(m.value); name != "" {
+				l.pendAccsry = name
+				l.status, l.statusErr = "보강: "+name, false
+				// second step: free-text sets prompt (an item-less picker returns
+				// whatever the user types).
+				return l, func() tea.Msg {
+					return openPickerMsg{prompt: "세트 (예 3x10@20) ", tag: "accessory-sets"}
+				}
+			}
+		case "accessory-sets":
+			name := l.pendAccsry
+			l.pendAccsry = ""
+			if name == "" {
+				return l, nil
+			}
+			l.status, l.statusErr = "보강 추가 중…", false
+			return l, addAccessoryCmd(l.client, l.planID, l.sessionKey, name, parseAccessorySets(m.value))
+		case "replace":
+			name, bt := strings.TrimSpace(m.value), l.pendBlock
+			l.pendBlock = ""
+			if name == "" || bt == "" {
+				return l, nil
+			}
+			l.status, l.statusErr = "교체 중…", false
+			return l, replaceExerciseCmd(l.client, l.planID, l.sessionKey, bt, name)
 		}
 		return l, nil
+	case overrideDoneMsg:
+		if m.err != nil {
+			l.status, l.statusErr = "변경 실패: "+humanizeAuthErr(m.err), true
+			return l, nil
+		}
+		l.status, l.statusErr = theme.GlyphDone+" "+m.desc+" — 세션 재생성", false
+		l.load = loadPending
+		return l, loadSessionCmd(l.client, m.planID)
 	case planActivatedMsg:
+		l.load = loadPending
 		return l, loadSessionCmd(l.client, m.id)
 	case sessionLoadedMsg:
+		l.load = loadIdle
 		if m.err != nil {
 			l.status, l.statusErr = "세션 로드 실패: "+humanizeAuthErr(m.err), true
 			return l, nil
 		}
+		if m.noPlan {
+			l.load = loadNoPlan
+			return l, nil
+		}
+		l.planName, l.sessionKey, l.planID = m.planName, m.sessionKey, m.planID
+		l.bodyweight = m.bodyweight
 		l.loadSnapshot(m.snapshot, m.prev)
 		return l, nil
 	case tea.KeyPressMsg:
@@ -300,14 +583,20 @@ func (l Log) updateNormal(m tea.KeyPressMsg) (Log, tea.Cmd) {
 			return l, openExercisePickerCmd(l.client)
 		}
 		return l.beginEdit(editCell)
-	case "e":
+	case "e", "n":
 		return l, openExercisePickerCmd(l.client)
+	case "a":
+		return l.beginAccessory()
+	case "c":
+		return l.beginReplace()
 	case "x":
 		return l.toggleDone()
 	case "o":
 		return l.addSet()
 	case "d":
 		return l.deleteSet()
+	case "u":
+		return l.undoDelete()
 	case "s":
 		return l.save()
 	}
@@ -374,15 +663,48 @@ func (l *Log) moveSet(dir int) {
 
 // openExercisePickerCmd fetches the exercise dictionary and asks the frame to
 // open a fuzzy picker tagged "exercise".
-func openExercisePickerCmd(c *api.Client) tea.Cmd {
+func openExercisePickerCmd(c *api.Client) tea.Cmd { return exercisePickerCmd(c, "운동 ", "exercise") }
+
+// exercisePickerCmd opens an exercise picker with a custom prompt and routing
+// tag (exercise add, accessory override, replace override).
+func exercisePickerCmd(c *api.Client, prompt, tag string) tea.Cmd {
 	return func() tea.Msg {
 		exs, _ := c.Exercises(context.Background(), "")
 		items := make([]pickerItem, len(exs))
 		for i, e := range exs {
 			items[i] = pickerItem{label: e.Name, value: e.Name}
 		}
-		return openPickerMsg{prompt: "운동 ", tag: "exercise", items: items}
+		return openPickerMsg{prompt: prompt, tag: tag, items: items}
 	}
+}
+
+// beginAccessory starts the 보강 (ADD_ACCESSORY) override flow: pick an exercise,
+// then enter its sets. Only valid on a generated plan session.
+func (l Log) beginAccessory() (Log, tea.Cmd) {
+	if l.planID == "" || l.sessionKey == "" {
+		l.status, l.statusErr = "보강은 플랜 세션에서만 가능합니다", true
+		return l, nil
+	}
+	return l, exercisePickerCmd(l.client, "보강 운동 ", "accessory")
+}
+
+// beginReplace starts the 교체 (REPLACE_EXERCISE) override flow for the selected
+// MAIN exercise's block target.
+func (l Log) beginReplace() (Log, tea.Cmd) {
+	if l.planID == "" || l.sessionKey == "" {
+		l.status, l.statusErr = "교체는 플랜 세션에서만 가능합니다", true
+		return l, nil
+	}
+	if l.gi >= len(l.groups) {
+		return l, nil
+	}
+	g := l.groups[l.gi]
+	if g.role != "MAIN" || g.blockTarget == "" {
+		l.status, l.statusErr = "메인 운동에서만 교체할 수 있습니다", true
+		return l, nil
+	}
+	l.pendBlock = g.blockTarget
+	return l, exercisePickerCmd(l.client, "교체할 운동 ", "replace")
 }
 
 func (l Log) addSet() (Log, tea.Cmd) {
@@ -404,6 +726,7 @@ func (l Log) deleteSet() (Log, tea.Cmd) {
 	if len(l.groups) == 0 {
 		return l, nil
 	}
+	l.undo = &undoSnapshot{groups: cloneGroups(l.groups), gi: l.gi, si: l.si}
 	if len(l.groups[l.gi].sets) <= 1 {
 		l.groups = append(l.groups[:l.gi], l.groups[l.gi+1:]...)
 		if l.gi >= len(l.groups) {
@@ -420,6 +743,17 @@ func (l Log) deleteSet() (Log, tea.Cmd) {
 	if l.si >= len(l.groups[l.gi].sets) {
 		l.si = len(l.groups[l.gi].sets) - 1
 	}
+	return l, nil
+}
+
+// undoDelete restores the buffer to the state captured by the last deleteSet.
+func (l Log) undoDelete() (Log, tea.Cmd) {
+	if l.undo == nil {
+		return l, nil
+	}
+	l.groups, l.gi, l.si, l.col = l.undo.groups, l.undo.gi, l.undo.si, colWeight
+	l.undo = nil
+	l.status, l.statusErr = theme.GlyphDone+" 삭제 되돌림", false
 	return l, nil
 }
 
@@ -451,9 +785,9 @@ func (l Log) completeSet() (Log, tea.Cmd) {
 	l.groups[l.gi].sets[l.si].done = true
 	l.status, l.statusErr = "", false
 	l.rest = restState{active: true, remaining: defaultRestSeconds, total: defaultRestSeconds}
-	l.groups[l.gi].sets = append(l.groups[l.gi].sets, setEntry{})
-	l.si, l.col = len(l.groups[l.gi].sets)-1, colWeight
-	return l.beginEdit(editCell)
+	// 세트 추가는 addSet("o")로만 — reps 엔터는 현재 세트 완료까지만 하고
+	// 빈 세트를 자동으로 덧붙이지 않는다.
+	return l, nil
 }
 
 func (l Log) save() (Log, tea.Cmd) {
@@ -484,11 +818,16 @@ func (l *Log) loadForEdit(m editLogMsg) {
 			g = byEx[n]
 			order = append(order, n)
 		}
+		setTotal := 0.0
+		if isBodyweightExercise(n) && st.Meta != nil && float64(st.Meta.TotalLoadKg) > 0 {
+			setTotal = round2(float64(st.Meta.TotalLoadKg)) // weightKg is the external added weight
+		}
 		g.sets = append(g.sets, setEntry{
 			weight: trimNum(float64(st.WeightKg)),
 			reps:   strconv.Itoa(st.Reps),
 			rpe:    rpeString(st.RPE),
 			done:   true,
+			total:  setTotal,
 		})
 	}
 	groups := make([]exGroup, 0, len(order))
@@ -501,7 +840,12 @@ func (l *Log) loadForEdit(m editLogMsg) {
 	l.groups, l.gi, l.si, l.col = groups, 0, 0, colWeight
 	l.editing, l.target = false, editNone
 	l.editID, l.performedAt = m.id, m.performedAt
+	l.planName, l.sessionKey, l.planID = m.planName, m.sessionKey, m.planID
+	if m.bodyweight > 0 {
+		l.bodyweight = m.bodyweight
+	}
 	l.rest.active = false
+	l.load, l.undo = loadIdle, nil
 	l.status, l.statusErr = theme.GlyphDone+" 편집 로드됨 — s로 저장", false
 }
 
@@ -531,6 +875,21 @@ func (l Log) beginEdit(t editTarget) (Log, tea.Cmd) {
 	return l, l.edit.Focus()
 }
 
+// recomputeTotal refreshes a set's bodyweight-inclusive total after its external
+// weight changes: total = bodyweight + external for bodyweight lifts, else 0.
+func (l *Log) recomputeTotal(gi, si int) {
+	g := &l.groups[gi]
+	if !isBodyweightExercise(g.name) || l.bodyweight <= 0 {
+		g.sets[si].total = 0
+		return
+	}
+	ext, _ := strconv.ParseFloat(strings.TrimSpace(g.sets[si].weight), 64)
+	if ext < 0 {
+		ext = 0
+	}
+	g.sets[si].total = round2(l.bodyweight + ext)
+}
+
 func (l *Log) writeEdit() {
 	v := strings.TrimSpace(l.edit.Value())
 	switch l.target {
@@ -540,6 +899,7 @@ func (l *Log) writeEdit() {
 		switch l.col {
 		case colWeight:
 			l.groups[l.gi].sets[l.si].weight = v
+			l.recomputeTotal(l.gi, l.si)
 		case colReps:
 			l.groups[l.gi].sets[l.si].reps = v
 		case colRPE:
@@ -556,13 +916,21 @@ func (l *Log) loadSnapshot(s *api.SessionSnapshot, prev map[string]string) {
 	}
 	var groups []exGroup
 	for _, ex := range s.Exercises {
-		g := exGroup{name: ex.ExerciseName, prev: prev[strings.ToLower(strings.TrimSpace(ex.ExerciseName))]}
+		g := exGroup{name: ex.ExerciseName, prev: prev[strings.ToLower(strings.TrimSpace(ex.ExerciseName))], blockTarget: ex.SourceBlockTarget, role: ex.Role}
 		maxTgt, tgtReps := 0.0, 0
+		bw := isBodyweightExercise(ex.ExerciseName)
 		for _, st := range ex.Sets {
-			w := float64(st.TargetWeightKg)
-			g.sets = append(g.sets, setEntry{weight: trimNum(w), reps: ""})
-			if w >= maxTgt {
-				maxTgt, tgtReps = w, st.Reps
+			// targetWeightKg is bodyweight-INCLUSIVE total for bodyweight lifts;
+			// store the external added weight (total-bw) as the editable value and
+			// keep the total for display.
+			total := float64(st.TargetWeightKg)
+			w, setTotal := total, 0.0
+			if bw && l.bodyweight > 0 {
+				w, setTotal = bwExternalFromTotal(total, l.bodyweight), total
+			}
+			g.sets = append(g.sets, setEntry{weight: trimNum(w), reps: "", tgtReps: st.Reps, total: setTotal})
+			if total >= maxTgt {
+				maxTgt, tgtReps = total, st.Reps
 			}
 		}
 		if len(g.sets) == 0 {
@@ -577,69 +945,141 @@ func (l *Log) loadSnapshot(s *api.SessionSnapshot, prev map[string]string) {
 		return
 	}
 	l.groups, l.gi, l.si, l.col = groups, 0, 0, colWeight
+	l.undo = nil
 	l.status, l.statusErr = theme.GlyphDone+" 플랜 세션 로드됨", false
 }
 
 // --- rendering ---
 
 func (l Log) Body(w, h int) string {
-	var b strings.Builder
-	if l.editID != "" {
-		b.WriteString(lipgloss.NewStyle().Foreground(theme.Amber).Render("■ 편집 중 · "+l.performedAt.Format("2006-01-02")) + "\n\n")
+	pad := bodyPad(h)
+	compact := compactView(h)
+	inner := h - 2*pad
+	if inner < 1 {
+		inner = 1
 	}
-	if len(l.groups) == 0 {
-		b.WriteString(lipgloss.NewStyle().Foreground(theme.Ghost).Render("오늘 기록이 비어 있습니다.\n\n"))
-		b.WriteString(hint("e", "운동 추가") + lipgloss.NewStyle().Foreground(theme.Dim).Render(" 로 시작"))
-	} else {
-		groups := make([]string, len(l.groups))
-		for gi, g := range l.groups {
-			groups[gi] = l.renderGroup(gi, g, w)
-		}
-		b.WriteString(strings.Join(groups, "\n\n"))
+
+	// Pinned chrome: the session header (plan name + cycle label) and edit banner
+	// stick to the top; the rest gauge and status line stick to the bottom so a
+	// live countdown / save confirmation stays visible no matter how many
+	// exercises scroll between them.
+	var head, foot []string
+	if sh := l.sessionHeader(); sh != "" {
+		head = append(head, sh)
+	}
+	if l.editID != "" {
+		head = append(head, lipgloss.NewStyle().Foreground(theme.Amber).Render("■ 편집 중 · "+l.performedAt.Format("2006-01-02")))
+	}
+	if len(head) > 0 && !compact {
+		head = append(head, "")
 	}
 	if l.rest.active {
-		b.WriteString("\n\n" + l.restBar(w))
+		foot = append(foot, l.restBar(w))
 	}
 	if l.status != "" {
 		tone := theme.Green
 		if l.statusErr {
 			tone = theme.Red
 		}
-		b.WriteString("\n\n" + lipgloss.NewStyle().Foreground(tone).Render(l.status))
+		foot = append(foot, lipgloss.NewStyle().Foreground(tone).Render(l.status))
 	}
-	return lipgloss.NewStyle().Width(w).Height(h).Padding(1, 1).Render(b.String())
+
+	all := append([]string{}, head...)
+	if len(l.groups) == 0 {
+		all = append(all, l.renderEmpty())
+	} else {
+		// Flatten groups to lines and window them around the active set so the
+		// cursor stays on screen and, crucially, the frame's hint bar + mode
+		// line below the body are never pushed off the bottom (the old Body
+		// rendered every group and overflowed, clipping the footer entirely).
+		lines, active := l.groupLines(w, compact)
+		avail := inner - len(head) - len(foot)
+		if avail < 1 {
+			avail = 1
+		}
+		all = append(all, windowLines(lines, active, avail)...)
+	}
+	all = append(all, foot...)
+	return lipgloss.NewStyle().Width(w).Height(h).Padding(pad, 1).Render(strings.Join(all, "\n"))
 }
 
-func (l Log) renderGroup(gi int, g exGroup, w int) string {
-	var header string
-	if gi == l.gi && l.editing && l.target == editName {
-		header = l.edit.View()
-	} else {
-		name := g.name
-		if strings.TrimSpace(name) == "" {
-			name = "운동?"
+// groupLines flattens every exercise group into a single line slice (a header
+// row followed by its set rows, with a blank line between groups unless compact)
+// and reports the line index of the active set so windowLines can center it.
+func (l Log) groupLines(w int, compact bool) (lines []string, active int) {
+	for gi, g := range l.groups {
+		if gi > 0 && !compact {
+			lines = append(lines, "")
 		}
-		header = lipgloss.NewStyle().Foreground(theme.Amber).Bold(true).Render(strings.ToUpper(name))
-		ctx := ""
-		if g.prev != "" {
-			ctx = "prev " + g.prev
-		}
-		if g.tgt != "" {
-			if ctx != "" {
-				ctx += "  "
+		lines = append(lines, l.groupHeader(gi, g, w))
+		for si, s := range g.sets {
+			if gi == l.gi && si == l.si {
+				active = len(lines)
 			}
-			ctx += "tgt " + g.tgt
-		}
-		if ctx != "" {
-			header = justify(header, lipgloss.NewStyle().Foreground(theme.Dim).Render(ctx), w-2)
+			lines = append(lines, l.renderSet(gi, si, s))
 		}
 	}
+	return lines, active
+}
 
-	lines := []string{header}
-	for si, s := range g.sets {
-		lines = append(lines, l.renderSet(gi, si, s))
+// sessionHeader renders today's header — the active plan/program name and the
+// cycle session label (e.g. "5/3/1 Leader · C2W6D1") — so it's clear which plan
+// and which session today is. Empty when neither is known.
+func (l Log) sessionHeader() string {
+	var parts []string
+	if name := strings.TrimSpace(l.planName); name != "" {
+		parts = append(parts, lipgloss.NewStyle().Foreground(theme.Fg).Bold(true).Render(name))
 	}
-	return strings.Join(lines, "\n")
+	if lab := sessionLabel(l.sessionKey); lab != "" {
+		parts = append(parts, lipgloss.NewStyle().Foreground(theme.Cyan).Bold(true).Render(lab))
+	}
+	return strings.Join(parts, lipgloss.NewStyle().Foreground(theme.Dim).Render(" · "))
+}
+
+// renderEmpty draws the empty-buffer state: a loading line while today's
+// session auto-loads, a program prompt when no active plan exists, or the
+// manual-entry hint otherwise.
+func (l Log) renderEmpty() string {
+	dim := lipgloss.NewStyle().Foreground(theme.Dim)
+	ghost := lipgloss.NewStyle().Foreground(theme.Ghost)
+	switch l.load {
+	case loadPending:
+		return dim.Render("오늘 세션 불러오는 중…")
+	case loadNoPlan:
+		return ghost.Render("활성 플랜이 없습니다.\n\n") +
+			hint("p", "프로그램") + dim.Render(" 에서 플랜 시작\n") +
+			hint("e", "운동 추가") + dim.Render(" 로 자유 기록")
+	default:
+		return ghost.Render("오늘 기록이 비어 있습니다.\n\n") +
+			hint("e", "운동 추가") + dim.Render(" 로 시작")
+	}
+}
+
+// groupHeader renders one exercise's header row: the name (or an inline rename
+// input when editing the name), right-justified with its prev/tgt context.
+func (l Log) groupHeader(gi int, g exGroup, w int) string {
+	if gi == l.gi && l.editing && l.target == editName {
+		return l.edit.View()
+	}
+	name := g.name
+	if strings.TrimSpace(name) == "" {
+		name = "운동?"
+	}
+	header := lipgloss.NewStyle().Foreground(theme.Amber).Bold(true).Render(strings.ToUpper(name))
+	ctx := ""
+	if g.prev != "" {
+		ctx = "prev " + g.prev
+	}
+	if g.tgt != "" {
+		if ctx != "" {
+			ctx += "  "
+		}
+		ctx += "tgt " + g.tgt
+	}
+	if ctx != "" {
+		header = justify(header, lipgloss.NewStyle().Foreground(theme.Dim).Render(ctx), w-2)
+	}
+	return header
 }
 
 func (l Log) renderSet(gi, si int, s setEntry) string {
@@ -648,8 +1088,20 @@ func (l Log) renderSet(gi, si int, s setEntry) string {
 	if active {
 		marker = lipgloss.NewStyle().Foreground(theme.Amber).Render(" › ")
 	}
-	wcell := l.setCell(active, colWeight, orDot(s.weight), 6)
-	rcell := l.setCell(active, colReps, orDot(s.reps), 3)
+	// Bodyweight lifts: the cell shows the bodyweight-inclusive total, with the
+	// external added weight broken out as a "(+20)" / "(체중)" suffix at the row
+	// end (mirrors the web). While editing the weight, the cell shows the raw
+	// external input instead and the suffix is hidden.
+	wText, suffix := orDot(s.weight), ""
+	if isBodyweightExercise(l.groups[gi].name) && s.total > 0 {
+		wText = trimNum(s.total)
+		if !(active && l.editing && l.col == colWeight) {
+			added, _ := strconv.ParseFloat(strings.TrimSpace(s.weight), 64)
+			suffix = " " + lipgloss.NewStyle().Foreground(theme.Dim).Render(addedSuffix(added))
+		}
+	}
+	wcell := l.setCell(active, colWeight, wText, 6)
+	rcell := l.repsCell(active, s)
 	sep := lipgloss.NewStyle().Foreground(theme.Dim).Render(" × ")
 
 	// RPE: an editable cell when the RPE column is active here, otherwise shown
@@ -669,7 +1121,7 @@ func (l Log) renderSet(gi, si int, s setEntry) string {
 	if v := setE1rm(s); v > 0 {
 		e1rm = lipgloss.NewStyle().Foreground(theme.Dim).Render(fmt.Sprintf(" e%.0f", v))
 	}
-	return marker + wcell + sep + rcell + rpe + "   " + done + e1rm
+	return marker + wcell + sep + rcell + rpe + "   " + done + e1rm + suffix
 }
 
 func (l Log) setCell(active bool, c logCol, text string, width int) string {
@@ -684,6 +1136,17 @@ func (l Log) setCell(active bool, c logCol, text string, width int) string {
 		base = lipgloss.NewStyle().Foreground(theme.Fg)
 	}
 	return base.Width(width).Render(truncate(text, width))
+}
+
+// repsCell renders the reps column, showing the planned reps as a dim
+// placeholder when empty and unfocused (plan session). Mirrors the web's
+// placeholder={plannedReps} so each set's target is visible inline, while the
+// actual value stays empty until the user types it.
+func (l Log) repsCell(active bool, s setEntry) string {
+	if !active && strings.TrimSpace(s.reps) == "" && s.tgtReps > 0 {
+		return lipgloss.NewStyle().Foreground(theme.Ghost).Width(3).Render(strconv.Itoa(s.tgtReps))
+	}
+	return l.setCell(active, colReps, orDot(s.reps), 3)
 }
 
 func (l Log) restBar(w int) string {
@@ -711,20 +1174,54 @@ func (l Log) restBar(w int) string {
 	return "▕" + gauge + "▏" + clock + hint("r", "skip")
 }
 
-func summarizePRs(log *api.LogDetail, edited bool) string {
+// summarizeSaved builds the post-save status line: a count + tonnage headline
+// plus any server-detected PRs. Keeps the "저장됨/수정됨" verb the rest of the
+// UI expects.
+func summarizeSaved(groups []exGroup, detail *api.LogDetail, edited bool) string {
+	n := 0
+	vol := 0.0
+	for _, g := range groups {
+		for _, s := range g.sets {
+			if !s.done {
+				continue
+			}
+			n++
+			r, _ := strconv.Atoi(s.reps)
+			vol += setLoad(s) * float64(r)
+		}
+	}
 	verb := "저장됨"
 	if edited {
 		verb = "수정됨"
 	}
-	if log == nil || len(log.PersonalRecords) == 0 {
-		return theme.GlyphDone + " " + verb
+	head := fmt.Sprintf("%s %s · %d세트 · %skg", theme.GlyphDone, verb, n, trimNum(vol))
+	if detail != nil && len(detail.PersonalRecords) > 0 {
+		parts := make([]string, 0, len(detail.PersonalRecords))
+		for _, pr := range detail.PersonalRecords {
+			parts = append(parts, fmt.Sprintf("%s %s e1RM %.1f", theme.GlyphPeak, pr.ExerciseName, float64(pr.EstOneRm)))
+		}
+		head += "   [PR] " + strings.Join(parts, "  ")
 	}
-	parts := make([]string, 0, len(log.PersonalRecords))
-	for _, pr := range log.PersonalRecords {
-		parts = append(parts, fmt.Sprintf("%s %s e1RM %.1f (+%.1f)",
-			theme.GlyphPeak, pr.ExerciseName, float64(pr.EstOneRm), float64(pr.DeltaE1rm)))
+	return head
+}
+
+// keepDoneOnly drops not-done sets (and now-empty groups) so the saved session
+// stays on screen as just the completed work.
+func (l *Log) keepDoneOnly() {
+	var groups []exGroup
+	for _, g := range l.groups {
+		var sets []setEntry
+		for _, s := range g.sets {
+			if s.done {
+				sets = append(sets, s)
+			}
+		}
+		if len(sets) > 0 {
+			g.sets = sets
+			groups = append(groups, g)
+		}
 	}
-	return "[PR] " + strings.Join(parts, "   ")
+	l.groups, l.gi, l.si, l.col = groups, 0, 0, colWeight
 }
 
 // --- helpers ---
@@ -744,9 +1241,12 @@ func rpeString(rpe *int) string {
 }
 
 func setE1rm(s setEntry) float64 {
-	w, e1 := strconv.ParseFloat(strings.TrimSpace(s.weight), 64)
-	reps, e2 := strconv.Atoi(strings.TrimSpace(s.reps))
-	if e1 != nil || e2 != nil || reps <= 0 {
+	reps, err := strconv.Atoi(strings.TrimSpace(s.reps))
+	if err != nil || reps <= 0 {
+		return 0
+	}
+	w := setLoad(s) // bodyweight-inclusive total for bodyweight lifts
+	if w <= 0 {
 		return 0
 	}
 	return w * (1 + float64(reps)/30.0) // Epley estimate (display only)
@@ -766,8 +1266,6 @@ func hint(k, label string) string {
 	return lipgloss.NewStyle().Foreground(theme.Cyan).Bold(true).Render(k) + " " +
 		lipgloss.NewStyle().Foreground(theme.Dim).Render(label)
 }
-
-func joinHints(parts ...string) string { return strings.Join(parts, "  ") }
 
 func dim(s string) string { return lipgloss.NewStyle().Foreground(theme.Dim).Render(s) }
 

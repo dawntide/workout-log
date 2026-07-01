@@ -1,0 +1,104 @@
+#!/usr/bin/env bash
+# ilapi — ironlog-api 운영 관리 CLI (AWS Lightsail)
+# 설치: sudo install -m 755 apps/api/deploy/ilapi /usr/local/bin/ilapi
+set -euo pipefail
+
+REPO=/home/ubuntu/workout-log
+SVC=ironlog-api
+LOCAL=http://127.0.0.1:8787
+PUBLIC=https://3-37-203-76.sslip.io
+IRONLOG=/home/ubuntu/.local/bin/ironlog
+STATE=/home/ubuntu/.config/ironlog-api
+mkdir -p "$STATE"
+
+c_g=$'\033[32m'; c_r=$'\033[31m'; c_y=$'\033[33m'; c_0=$'\033[0m'
+ok(){   printf '%s✓%s %s\n' "$c_g" "$c_0" "$*"; }
+err(){  printf '%s✗%s %s\n' "$c_r" "$c_0" "$*" >&2; }
+info(){ printf '%s▶%s %s\n' "$c_y" "$c_0" "$*"; }
+
+health(){ # $1=url $2=label  → 0 if 200
+  local code
+  code=$(curl -s -m 10 -o /dev/null -w '%{http_code}' "$1/health" 2>/dev/null || echo 000)
+  if [ "$code" = "200" ]; then ok "$2 health 200"; else err "$2 health $code"; return 1; fi
+}
+
+install_deps(){ # esbuild build-script(함정3)가 exit1 내도 tsx만 있으면 OK
+  info "pnpm install (web + apps/api)"
+  pnpm -C "$REPO/web" install
+  pnpm -C "$REPO/apps/api" install || true
+  [ -x "$REPO/apps/api/node_modules/.bin/tsx" ] || { err "apps/api install 실패 (tsx 없음)"; exit 1; }
+}
+
+ironlog_restart(){
+  tmux kill-session -t ironlog 2>/dev/null || true
+  tmux new -d -s ironlog "$IRONLOG"
+  sleep 2
+  ok "ironlog tmux 재시작 → $(cat ~/.config/ironlog/base_url 2>/dev/null || echo '기본(프로덕션)')"
+}
+
+cmd="${1:-status}"
+case "$cmd" in
+  update)
+    info "현재 커밋 저장 (롤백 대비)"
+    git -C "$REPO" rev-parse HEAD > "$STATE/prev-commit"
+    info "git pull"
+    git -C "$REPO" pull --ff-only
+    install_deps
+    info "restart $SVC"
+    sudo systemctl restart "$SVC"; sleep 3
+    # 리포에 갱신된 ilapi가 있으면 자기 자신도 최신으로
+    [ -f "$REPO/apps/api/deploy/ilapi" ] && sudo install -m 755 "$REPO/apps/api/deploy/ilapi" /usr/local/bin/ilapi || true
+    if health "$LOCAL" local; then
+      ok "업데이트 완료 ($(git -C "$REPO" rev-parse --short HEAD): $(git -C "$REPO" log -1 --format=%s | head -c 50))"
+    else
+      err "기동 실패 — 'ilapi logs' 확인, 'ilapi rollback' 으로 복구"; exit 1
+    fi
+    ;;
+  rollback)
+    [ -f "$STATE/prev-commit" ] || { err "이전 커밋 기록 없음 (update 후에만 가능)"; exit 1; }
+    prev=$(cat "$STATE/prev-commit")
+    info "롤백 → ${prev:0:9}"
+    git -C "$REPO" checkout -q "$prev"
+    install_deps
+    sudo systemctl restart "$SVC"; sleep 3
+    health "$LOCAL" local && ok "롤백 완료 (${prev:0:9})"
+    ;;
+  restart) sudo systemctl restart "$SVC"; sleep 2; health "$LOCAL" local ;;
+  start)   sudo systemctl start   "$SVC"; sleep 2; health "$LOCAL" local ;;
+  stop)    sudo systemctl stop    "$SVC"; ok "stopped" ;;
+  status)
+    if systemctl is-active --quiet "$SVC"; then
+      ok "$SVC active (since $(systemctl show -p ActiveEnterTimestamp --value "$SVC"))"
+    else err "$SVC inactive"; fi
+    health "$LOCAL"  local  || true
+    health "$PUBLIC" public || true
+    info "커밋: $(git -C "$REPO" rev-parse --short HEAD) ($(git -C "$REPO" log -1 --format=%s | head -c 50))"
+    info "ironlog base_url: $(cat ~/.config/ironlog/base_url 2>/dev/null || echo '(기본/프로덕션)')"
+    ;;
+  logs)   sudo journalctl -u "$SVC" -f ;;
+  tail)   sudo journalctl -u "$SVC" -n "${2:-80}" --no-pager ;;
+  errors) sudo journalctl -u "$SVC" -p warning --since "${2:-1 day ago}" --no-pager | tail -60 ;;
+  cutover)
+    case "${2:-}" in
+      local) "$IRONLOG" --set-server "$LOCAL" >/dev/null; ok "ironlog 대상 → apps/api (local)";;
+      prod)  rm -f ~/.config/ironlog/base_url;            ok "ironlog 대상 → 기본(프로덕션 Vercel)";;
+      *) err "usage: ilapi cutover {local|prod}"; exit 1;;
+    esac
+    ironlog_restart
+    ;;
+  ironlog-restart) ironlog_restart ;;
+  *)
+    cat <<USAGE
+ilapi — ironlog-api 운영 CLI
+  update              git pull + install + restart + health  (직전 커밋 자동 저장)
+  rollback           마지막 update 직전 커밋으로 되돌리기 + restart
+  restart|start|stop  서비스 제어
+  status              서비스 / health(local+public) / 커밋 / ironlog 대상  한눈에
+  logs                실시간 로그 (journalctl -f)
+  tail [N]            최근 N줄 로그 (기본 80)
+  errors [since]      경고+에러만 (기본 '1 day ago')
+  cutover {local|prod}  ironlog 접속 서버 전환 + tmux 재시작
+  ironlog-restart     ironlog tmux 세션만 재시작
+USAGE
+    ;;
+esac

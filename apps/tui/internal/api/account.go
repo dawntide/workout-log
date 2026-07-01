@@ -20,10 +20,21 @@ type Session struct {
 // issued on this response — the client jar absorbs it, so the session stays
 // valid without a re-login.
 func (c *Client) ChangePassword(ctx context.Context, current, next string) error {
-	return c.do(ctx, "POST", "/api/auth/password", map[string]string{
+	var out struct {
+		Token string `json:"token"`
+	}
+	if err := c.do(ctx, "POST", "/api/auth/password", map[string]string{
 		"currentPassword": current,
 		"newPassword":     next,
-	}, nil)
+	}, &out); err != nil {
+		return err
+	}
+	// apps/api revokes all sessions and returns a fresh token in the body — adopt
+	// it so this client stays authenticated (the Next.js API rotates via cookie).
+	if out.Token != "" {
+		c.SetSessionToken(out.Token)
+	}
+	return nil
 }
 
 // DeleteAccount permanently deletes the account and all personal data after

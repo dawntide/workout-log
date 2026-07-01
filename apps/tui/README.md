@@ -54,6 +54,19 @@ tmux new -s ironlog ironlog
 
 iPhone [Termius](https://termius.com) 등 SSH 앱으로 VPS에 접속 → `tmux attach -t ironlog`. 다른 서버는 `ironlog --set-server <url>`.
 
+## 업데이트
+
+설치된 바이너리는 스스로 업데이트합니다 — install.sh를 다시 파이프할 필요가 없습니다:
+
+```bash
+ironlog update
+```
+
+최신 릴리스를 조회해 현재 OS/아키텍처 아카이브를 받고, **checksums.txt로 SHA256 검증** 후 실행 파일을 제자리에서 원자적으로 교체합니다. 이미 최신이면 아무것도 하지 않습니다.
+
+- 설치 위치에 쓰기 권한이 없으면(`/usr/local/bin` 등) `sudo ironlog update`로 실행하거나 install.sh 재설치를 안내합니다.
+- VPS(tmux): 세션에서 detach(`Ctrl+b` `d`) → `ironlog update` → 세션 교체 `tmux kill-session -t ironlog && tmux new -s ironlog ironlog`.
+
 ## 빌드 (소스에서)
 
 ```bash

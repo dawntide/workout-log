@@ -1,13 +1,56 @@
 package api
 
-import "context"
+import (
+	"context"
+	"time"
+)
 
 // Plan is a user's training plan.
 type Plan struct {
-	ID              string `json:"id"`
-	Name            string `json:"name"`
-	Type            string `json:"type"`
-	BaseProgramName string `json:"baseProgramName"`
+	ID              string     `json:"id"`
+	Name            string     `json:"name"`
+	Type            string     `json:"type"`
+	BaseProgramName string     `json:"baseProgramName"`
+	IsArchived      bool       `json:"isArchived"`
+	LastPerformedAt *time.Time `json:"lastPerformedAt"`
+	CreatedAt       time.Time  `json:"createdAt"`
+}
+
+// ActivePlan picks today's working plan from a plan list, mirroring the web
+// bootstrap (home-service resolveHighlightedPlan): among non-archived plans,
+// prefer the most recently performed, then the most recently created. A plan
+// performed today naturally wins on lastPerformedAt, so the "logged today"
+// rule folds into this ordering. Returns false when no active plan exists.
+func ActivePlan(plans []Plan) (Plan, bool) {
+	var best Plan
+	found := false
+	for _, p := range plans {
+		if p.IsArchived {
+			continue
+		}
+		if !found || morePreferredPlan(p, best) {
+			best, found = p, true
+		}
+	}
+	return best, found
+}
+
+// morePreferredPlan reports whether a should rank above b: more recent
+// lastPerformedAt wins (a plan with any performance beats one without), then
+// more recent createdAt breaks ties.
+func morePreferredPlan(a, b Plan) bool {
+	at, bt := timeOrZero(a.LastPerformedAt), timeOrZero(b.LastPerformedAt)
+	if !at.Equal(bt) {
+		return at.After(bt)
+	}
+	return a.CreatedAt.After(b.CreatedAt)
+}
+
+func timeOrZero(t *time.Time) time.Time {
+	if t == nil {
+		return time.Time{}
+	}
+	return *t
 }
 
 // Plans lists the user's plans.
@@ -73,19 +116,30 @@ type PlannedSet struct {
 
 // PlannedExercise is one exercise in a generated session snapshot.
 type PlannedExercise struct {
-	ExerciseName string       `json:"exerciseName"`
-	Role         string       `json:"role"`
-	Sets         []PlannedSet `json:"sets"`
+	ExerciseName      string       `json:"exerciseName"`
+	Role              string       `json:"role"`              // MAIN | ASSIST | ...
+	SourceBlockTarget string       `json:"sourceBlockTarget"` // e.g. "SQUAT" — for REPLACE_EXERCISE overrides
+	Sets              []PlannedSet `json:"sets"`
+}
+
+// SnapshotPlan is the plan identity carried inside a session snapshot.
+type SnapshotPlan struct {
+	Name string `json:"name"`
 }
 
 // SessionSnapshot is the materialized planned session.
 type SessionSnapshot struct {
-	Exercises []PlannedExercise `json:"exercises"`
+	SessionKey string            `json:"sessionKey"`
+	Plan       SnapshotPlan      `json:"plan"`
+	Exercises  []PlannedExercise `json:"exercises"`
 }
 
-// GeneratedSession wraps the snapshot returned by POST /api/plans/[id]/generate.
+// GeneratedSession wraps the saved session row returned by POST
+// /api/plans/[id]/generate ({session}). SessionKey (e.g. "C2W6D1") is the
+// top-level key; the snapshot also carries it plus the plan name.
 type GeneratedSession struct {
-	Snapshot SessionSnapshot `json:"snapshot"`
+	SessionKey string          `json:"sessionKey"`
+	Snapshot   SessionSnapshot `json:"snapshot"`
 }
 
 // GenerateSession generates (and saves) today's session for a plan.

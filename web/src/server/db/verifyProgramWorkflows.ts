@@ -1,11 +1,10 @@
 import "dotenv/config";
 import assert from "node:assert/strict";
-import { and, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import { db } from "./client";
-import { plan as planTable, planProgressEvent, planRuntimeState, workoutLog } from "./schema";
+import { plan as planTable, planProgressEvent, planRuntimeState, workoutLog, workoutSet } from "./schema";
 import { generateAndSaveSession } from "../program-engine/generateSession";
-import { POST as postLogRoute } from "../../app/api/logs/route";
-import { GET as getLogByIdRoute, PATCH as patchLogByIdRoute } from "../../app/api/logs/[logId]/route";
+import { upsertWorkoutLogService } from "../services/workout-log/upsert-log";
 
 type PlannedSet = {
   reps?: number;
@@ -275,36 +274,25 @@ async function main() {
   const payloadSets = buildLogSetsFromSession(updateTargetSession);
   assert.equal(payloadSets.length > 0, true, "log payload requires at least one set");
 
-  const createReq = new Request("http://localhost/api/logs", {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      "x-forwarded-for": "127.0.0.1",
-    },
-    body: JSON.stringify({
-      planId: updateTargetPlan.id,
-      generatedSessionId: updateTargetSession.id,
-      notes: "program verify create",
-      sets: payloadSets,
-    }),
+  const perfAt = new Date();
+  const created = await upsertWorkoutLogService({
+    userId,
+    locale: "ko",
+    timezone,
+    performedAt: perfAt,
+    notes: "program verify create",
+    planId: updateTargetPlan.id,
+    generatedSessionId: updateTargetSession.id,
+    sets: payloadSets,
   });
-  const createRes = await postLogRoute(createReq, undefined as never);
-  assert.equal(createRes.status, 201, "log create failed");
-  const created = (await createRes.json()) as { log: { id: string } };
   const createdLogId = created.log.id;
   createdLogIds.push(createdLogId);
 
-  const getBeforeReq = new Request(`http://localhost/api/logs/${createdLogId}`, {
-    method: "GET",
-    headers: { "x-forwarded-for": "127.0.0.1" },
-  });
-  const getBeforeRes = await getLogByIdRoute(
-    getBeforeReq,
-    { params: Promise.resolve({ logId: createdLogId }) },
-  );
-  assert.equal(getBeforeRes.status, 200, "log fetch after create failed");
-  const beforeData = (await getBeforeRes.json()) as { item: { sets: Array<{ reps: number; weightKg: number }> } };
-  assert.equal(beforeData.item.sets.length, payloadSets.length, "created set count mismatch");
+  const beforeSetRows = await db
+    .select({ reps: workoutSet.reps, weightKg: workoutSet.weightKg })
+    .from(workoutSet)
+    .where(eq(workoutSet.logId, createdLogId));
+  assert.equal(beforeSetRows.length, payloadSets.length, "created set count mismatch");
 
   const beforeEventRows = await db
     .select({
@@ -334,45 +322,37 @@ async function main() {
     }),
   );
 
-  const patchReq = new Request(`http://localhost/api/logs/${createdLogId}`, {
-    method: "PATCH",
-    headers: {
-      "content-type": "application/json",
-      "x-forwarded-for": "127.0.0.1",
-    },
-    body: JSON.stringify({
-      planId: updateTargetPlan.id,
-      generatedSessionId: updateTargetSession.id,
-      notes: "program verify updated",
-      sets: updatedSets,
-    }),
+  await upsertWorkoutLogService({
+    logId: createdLogId,
+    userId,
+    locale: "ko",
+    timezone,
+    performedAt: perfAt,
+    notes: "program verify updated",
+    planId: updateTargetPlan.id,
+    generatedSessionId: updateTargetSession.id,
+    sets: updatedSets,
   });
-  const patchRes = await patchLogByIdRoute(
-    patchReq,
-    { params: Promise.resolve({ logId: createdLogId }) },
-  );
-  assert.equal(patchRes.status, 200, "log patch failed");
 
-  const getAfterReq = new Request(`http://localhost/api/logs/${createdLogId}`, {
-    method: "GET",
-    headers: { "x-forwarded-for": "127.0.0.1" },
-  });
-  const getAfterRes = await getLogByIdRoute(
-    getAfterReq,
-    { params: Promise.resolve({ logId: createdLogId }) },
+  const afterLogRows = await db
+    .select({ notes: workoutLog.notes })
+    .from(workoutLog)
+    .where(eq(workoutLog.id, createdLogId))
+    .limit(1);
+  const afterSetRows = await db
+    .select({ reps: workoutSet.reps, weightKg: workoutSet.weightKg, meta: workoutSet.meta })
+    .from(workoutSet)
+    .where(eq(workoutSet.logId, createdLogId))
+    .orderBy(asc(workoutSet.sortOrder));
+  assert.equal(afterSetRows.length, updatedSets.length, "updated set count mismatch");
+  assert.equal(Number(afterSetRows[0]?.reps ?? 0), Number(updatedSets[0]?.reps ?? 0), "updated reps mismatch");
+  assert.equal(Number(afterSetRows[0]?.weightKg ?? 0), Number(updatedSets[0]?.weightKg ?? 0), "updated weight mismatch");
+  assert.equal(afterLogRows[0]?.notes, "program verify updated", "updated note mismatch");
+  assert.equal(
+    (afterSetRows[0]?.meta as Record<string, unknown> | null)?.editedBy,
+    "verifyProgramWorkflows",
+    "updated meta mismatch",
   );
-  assert.equal(getAfterRes.status, 200, "log fetch after patch failed");
-  const afterData = (await getAfterRes.json()) as {
-    item: {
-      sets: Array<{ reps: number; weightKg: number; meta?: Record<string, unknown> }>;
-      notes: string | null;
-    };
-  };
-  assert.equal(afterData.item.sets.length, updatedSets.length, "updated set count mismatch");
-  assert.equal(afterData.item.sets[0]?.reps, updatedSets[0]?.reps, "updated reps mismatch");
-  assert.equal(Number(afterData.item.sets[0]?.weightKg), Number(updatedSets[0]?.weightKg), "updated weight mismatch");
-  assert.equal(afterData.item.notes, "program verify updated", "updated note mismatch");
-  assert.equal(afterData.item.sets[0]?.meta?.editedBy, "verifyProgramWorkflows", "updated meta mismatch");
 
   const runtimeRows = await db
     .select({

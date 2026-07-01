@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useLocale } from "@/components/locale-provider";
 import { V2Icon } from "@/components/v2/primitives/v2-icon";
+import { isEmailRecoveryEnabled } from "@/lib/feature-flags";
 import { V2PrimaryBtn, V2SecondaryBtn, V2TextField } from "./primitives";
 
 type Mode = "login" | "signup";
@@ -393,20 +394,22 @@ export function V2AuthForm({ mode }: { mode: Mode }) {
                 onChange={setRemember}
                 title={locale === "ko" ? "로그인 유지" : "Keep me signed in"}
               />
-              <Link
-                href="/forgot-password"
-                className="v2-font-display"
-                style={{
-                  color: "var(--v2-accent-ink)",
-                  fontSize: "var(--v2-t-small)",
-                  fontWeight: 700,
-                  textDecoration: "none",
-                  padding: "var(--v2-s-2) 0px",
-                  flexShrink: 0,
-                }}
-              >
-                {locale === "ko" ? "비밀번호 잊음" : "Forgot password"}
-              </Link>
+              {isEmailRecoveryEnabled() && (
+                <Link
+                  href="/forgot-password"
+                  className="v2-font-display"
+                  style={{
+                    color: "var(--v2-accent-ink)",
+                    fontSize: "var(--v2-t-small)",
+                    fontWeight: 700,
+                    textDecoration: "none",
+                    padding: "var(--v2-s-2) 0px",
+                    flexShrink: 0,
+                  }}
+                >
+                  {locale === "ko" ? "비밀번호 잊음" : "Forgot password"}
+                </Link>
+              )}
             </div>
           )}
 

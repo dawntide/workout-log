@@ -19,7 +19,7 @@ type Screen interface {
 	Mode() Mode
 	Context() string // statusline middle segment
 	StatusRight() string
-	Hints(w int) string
+	Hints() []hintItem // local key hints for the bottom bar; frame adds globals
 	Editing() bool
 }
 
@@ -32,7 +32,7 @@ func (p placeholder) Mode() Mode                       { return ModeNormal }
 func (p placeholder) Context() string                  { return "" }
 func (p placeholder) StatusRight() string              { return "" }
 func (p placeholder) Editing() bool                    { return false }
-func (p placeholder) Hints(int) string                 { return joinHints(hint("1-5", "탭"), hint("q", "종료")) }
+func (p placeholder) Hints() []hintItem                { return []hintItem{{"1-5", "탭"}, {"q", "종료"}} }
 
 func (p placeholder) Body(w, h int) string {
 	heading := lipgloss.NewStyle().Foreground(theme.Fg).Bold(true).Render("  " + strings.ToUpper(p.name))

@@ -339,6 +339,14 @@ function resolveOperatorExerciseTrainingMax(input: {
 
   const effectiveFamilyTm = pickTrainingMaxKg(input.effectiveParams, input.defaults, input.fallbackTarget);
   if (exactTm === null) {
+    // 운동별 TM도 family TM도 없으면 여기서 무게를 짓지 않고 null을 반환한다(family TM이 있으면
+    // 그건 직접 입력이므로 사용). 호출부가 reps-only 행으로 만들고, applyDerivedMainLifts가
+    // "같은 세션 스쿼트/벤치 처방"에서 파생한다(데드←스쿼트×1.0, 오프←벤치×0.5). 예전엔
+    // crossLiftFallbackTm으로 TM을 추정했으나, 그 경로는 처방무게가 아닌 TM에서 반내림해 같은
+    // 오프라도 AUTO 행과 CUSTOM(0무게) 행이 최대 2.5kg 다르게 처방되는 발산을 만들었다. 파생
+    // 정책을 applyDerivedMainLifts 하나로 통일한다(#476 후속): 소스가 같은 세션에 있으면 그
+    // 처방에서, 없으면(프레스 데이 등) applyDerivedMainLifts 2순위가 crossLiftFallbackTm TM 추정으로
+    // 처방하므로 rowType과 무관하게 같은 결과가 된다.
     return effectiveFamilyTm;
   }
 
@@ -534,7 +542,9 @@ function generateOperator(def: LogicDefinitionV1, ctx: GeneratorCtx): PlannedExe
 
   return targets.map((target, i) => {
     const setCount = target === "DEADLIFT" ? deadliftSets : mainSets;
-    const tm = pickTrainingMaxKg(ctx.params, ctx.defaults, target);
+    const tm =
+      pickTrainingMaxKg(ctx.params, ctx.defaults, target) ??
+      crossLiftFallbackTm(target, ctx.params, ctx.defaults);
     return {
       exerciseName: defaultExerciseNameForTarget(target),
       role: "MAIN" as const,
@@ -552,6 +562,21 @@ function generateOperator(def: LogicDefinitionV1, ctx: GeneratorCtx): PlannedExe
   });
 }
 
+// TB 계열(operator·asymptote) 공통 폴백: 직접 TM이 없는 보조 리프트를 인접 메인
+// 리프트에서 추정한다. 데드리프트는 스쿼트 TM을, 오버헤드프레스는 벤치 TM의 50%
+// (2.5kg 내림)를 차용한다. 사용자가 메인 3리프트(스쿼트/벤치/풀)의 TM만 입력해도
+// 데드/오프 처방이 0으로 비지 않도록 하는 안전망 — 직접 TM이 있으면 호출부에서
+// 항상 그쪽을 우선하므로 이 추정은 "직접 입력이 아예 없을 때"만 작동한다.
+function crossLiftFallbackTm(target: string, params: any, defaults: any): number | null {
+  if (target === "DEADLIFT") return pickTrainingMaxKg(params, defaults, "SQUAT");
+  if (target === "OHP") {
+    const bpTm = pickTrainingMaxKg(params, defaults, "BENCH");
+    if (bpTm === null) return null;
+    return Math.floor((bpTm * 0.5) / 2.5) * 2.5;
+  }
+  return null;
+}
+
 function resolveAsymptoteTm(
   target: ProgressionTarget,
   params: any,
@@ -560,17 +585,8 @@ function resolveAsymptoteTm(
   if (target === "SQUAT" || target === "BENCH" || target === "PULL") {
     return pickTrainingMaxKg(params, defaults, target);
   }
-  if (target === "DEADLIFT") {
-    const explicit = pickTrainingMaxKg(params, defaults, target);
-    if (explicit !== null) return explicit;
-    return pickTrainingMaxKg(params, defaults, "SQUAT");
-  }
-  if (target === "OHP") {
-    const explicit = pickTrainingMaxKg(params, defaults, target);
-    if (explicit !== null) return explicit;
-    const bpTm = pickTrainingMaxKg(params, defaults, "BENCH");
-    if (bpTm === null) return null;
-    return Math.floor((bpTm * 0.5) / 2.5) * 2.5;
+  if (target === "DEADLIFT" || target === "OHP") {
+    return pickTrainingMaxKg(params, defaults, target) ?? crossLiftFallbackTm(target, params, defaults);
   }
   return null;
 }
@@ -755,6 +771,66 @@ export function plannedExercisesFromManualSession(
   return out;
 }
 
+// operator manual 정책: 데드리프트/오버헤드프레스가 직접 무게를 갖지 않으면(미입력), 같은 세션에서
+// 이미 처방된 스쿼트/벤치의 "그 주차 작업무게·횟수"를 따른다 — 데드 무게 = 스쿼트 × 1.0,
+// 오프 무게 = 벤치 × 0.5, 횟수(reps)도 스쿼트/벤치 그대로(예: 스쿼트 100×3 → 데드 100×3,
+// 벤치 90×3 → 오프 45×3). 단 세트수는 사용자가 커스터마이즈한 원래 구성을 유지한다(데드를
+// 1세트로 짰으면 1세트 그대로 두고 무게·횟수만 추종). TM·주차%를 다시 계산하지 않고 이미 계산된
+// 처방에 종속시키므로 스쿼트/벤치가 override로 바뀌면 함께 움직인다. 직접 무게를 넣었거나
+// 자체 TM이 있는 행은 손대지 않는다.
+const DERIVED_MAIN_LIFT: Record<string, { from: ProgressionTarget; ratio: number }> = {
+  DEADLIFT: { from: "SQUAT", ratio: 1 },
+  OHP: { from: "BENCH", ratio: 0.5 },
+};
+
+function applyDerivedMainLifts(
+  planned: PlannedExercise[],
+  week: number,
+  effectiveParams: any,
+  baseParams: any,
+  defaults: any,
+): PlannedExercise[] {
+  const scheme = operatorSchemeByWeek(week);
+  const byTarget = new Map<string, PlannedExercise>();
+  for (const ex of planned) {
+    if (ex.progressionTarget) byTarget.set(ex.progressionTarget, ex);
+  }
+  for (const ex of planned) {
+    const rule = ex.progressionTarget ? DERIVED_MAIN_LIFT[ex.progressionTarget] : undefined;
+    if (!rule) continue;
+    // 이미 무게가 잡혀 있으면(자체 TM 처방 또는 사용자 직접 입력) 파생하지 않는다.
+    if (!ex.sets.every((s) => !s.targetWeightKg)) continue;
+
+    const srcEx = byTarget.get(rule.from);
+    if (srcEx) {
+      // (1순위) 파생 소스(스쿼트/벤치)가 같은 세션에 있으면 그 "처방"을 따른다 — 런타임 override로
+      // 소스가 바뀌면 함께 움직인다. operator 메인은 전 세트 균일 처방이라 첫 세트를 대표로 쓴다.
+      // 소스가 아직 무게가 없으면(자체 TM 없어 rep-only) 무게는 비우되 reps는 그대로 추종한다.
+      // 세트수는 원래 커스터마이즈한 구성을 유지하고, 각 세트의 횟수(reps)·무게만 추종한다.
+      const srcSet = srcEx.sets[0];
+      const targetWeightKg =
+        srcSet && typeof srcSet.targetWeightKg === "number"
+          ? roundToNearest2p5(srcSet.targetWeightKg * rule.ratio)
+          : undefined;
+      ex.sets = ex.sets.map((s) => ({ ...s, reps: srcSet?.reps, percent: srcSet?.percent, targetWeightKg }));
+      continue;
+    }
+
+    // (2순위) 소스가 세션에 없으면(override로 스쿼트/벤치를 뺀 프레스 데이 등) 인접 메인 리프트
+    // TM으로 추정 처방한다(데드←스쿼트 TM, 오프←벤치 TM×0.5 = crossLiftFallbackTm). 예전엔
+    // resolveOperatorExerciseTrainingMax가 AUTO 행에만 이 추정을 적용해 CUSTOM(0무게, 처방 파생)
+    // 행과 최대 2.5kg 어긋났다 — 안전망을 여기로 모아 rowType 무관 동일 결과를 낸다. TM도 없으면
+    // rep-only로 남긴다.
+    const fallbackTm =
+      crossLiftFallbackTm(ex.progressionTarget!, effectiveParams, defaults) ??
+      crossLiftFallbackTm(ex.progressionTarget!, baseParams, defaults);
+    if (fallbackTm === null) continue;
+    const targetWeightKg = roundToNearest2p5(fallbackTm * scheme.percent);
+    ex.sets = ex.sets.map((s) => ({ ...s, reps: scheme.reps, percent: scheme.percent, targetWeightKg }));
+  }
+  return planned;
+}
+
 export function plannedExercisesFromOperatorManualSession(
   manualSession: any,
   week: number,
@@ -771,7 +847,7 @@ export function plannedExercisesFromOperatorManualSession(
   // (ASSIST·progressionTarget 미보장). EX_ progressionKey는 그대로 두되 plannedRef엔 안 실린다.
   const enforceReps = (effectiveParams as Record<string, unknown>)?.progressionModel === "v2";
 
-  return items
+  const planned = items
     .map((item: any, index: number) => {
       const exerciseName = String(item?.exerciseName ?? item?.name ?? "").trim();
       if (!exerciseName) return null;
@@ -821,6 +897,9 @@ export function plannedExercisesFromOperatorManualSession(
       } satisfies PlannedExercise;
     })
     .filter((exercise: PlannedExercise | null): exercise is PlannedExercise => Boolean(exercise));
+  // 데드/오프 등 무게 미입력 보조 메인 리프트를 같은 세션 스쿼트/벤치 처방에서 파생(소스가 세션에
+  // 없으면 인접 메인 TM 추정으로 폴백).
+  return applyDerivedMainLifts(planned, week, effectiveParams, baseParams, defaults);
 }
 
 // 슬롯형(asymptote) 커스터마이즈 프로그램의 처방. generateAsymptote(LOGIC 경로)와 동일한 사이클
