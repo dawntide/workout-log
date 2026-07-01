@@ -46,6 +46,14 @@ jobs:
       - name: Unit tests
         run: pnpm test:unit
 
+      # 처방 엔진(program-engine) 테스트. generateSession이 @/server/db/client를 로드 시점에
+      # import해 DATABASE_URL을 요구하므로, 순수 처방 테스트지만 더미 URL로 import 가드만
+      # 통과시킨다(실제 DB I/O 없음 — 연결은 lazy). operator 발산 회귀 등 안전 민감 처방을 CI 게이트로.
+      - name: Program-engine tests
+        env:
+          DATABASE_URL: postgres://ci:ci@127.0.0.1:5432/ci_program_engine
+        run: pnpm test:program-engine
+
   # ──────────────────────────────────────────────
   # Job 2: Playwright smoke E2E
   # quality 통과 후 실행. PostgreSQL 서비스 컨테이너 + next dev 서버.
