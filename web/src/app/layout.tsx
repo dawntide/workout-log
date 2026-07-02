@@ -13,6 +13,7 @@ import { LocaleProvider } from "@/components/locale-provider";
 import { FontStylesheetLoader } from "@/components/font-stylesheet-loader";
 import { ServiceWorkerRegister } from "@/components/service-worker-register";
 import { resolveRequestLocale } from "@/lib/i18n/server";
+import { getAppCopy } from "@/lib/i18n/messages";
 import type { AppLocale } from "@/lib/i18n/messages";
 
 // Inter Variable Font — wght 100–900 전 범위 지원
@@ -91,8 +92,11 @@ export const metadata: Metadata = {
 // html[lang]은 기본값 "ko"로 서빙, suppressHydrationWarning으로 hydration mismatch 무시.
 async function LocaleShell({ children }: { children: React.ReactNode }) {
   const initialLocale: AppLocale = await resolveRequestLocale();
+  // 서버에서 활성 로케일 copy를 계산해 prop으로 전달 → 클라이언트는 전 로케일 카탈로그를
+  // 정적 import하지 않아 초기 번들에서 제외된다(전환 시에만 동적 로드).
+  const initialCopy = getAppCopy(initialLocale);
   return (
-    <LocaleProvider initialLocale={initialLocale}>
+    <LocaleProvider initialLocale={initialLocale} initialCopy={initialCopy}>
       <AppLaunchSplash />
       {/* 테마/로케일/타임존 sync는 AppShell 밖(sibling)에 둔다.
           AppShell이 skin 토글로 paper↔terminal 트리를 전환하면 children이 remount되는데,
