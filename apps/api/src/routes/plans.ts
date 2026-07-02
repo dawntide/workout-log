@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 
 import { db } from "@/server/db/client";
-import { and, desc, eq, inArray, isNotNull, or } from "@/server/db/ops";
+import { and, desc, eq, inArray, isNotNull, max, or } from "@/server/db/ops";
 import {
   generatedSession,
   plan as planTable,
@@ -163,8 +163,13 @@ plansRoutes.get("/", async (c) => {
             .leftJoin(programTemplate, eq(programTemplate.id, programVersion.templateId))
             .where(inArray(programVersion.id, rootVersionIds))
         : Promise.resolve([] as Array<{ versionId: string; templateName: string | null }>),
+      // PERF: plan별 최근 수행일만 필요 → 전 로그를 당겨 JS로 첫 행을 취하지 않고
+      // SQL max()+groupBy로 plan당 1행만 전송 (전송량이 학습 이력 밀도와 무관).
       db
-        .select({ planId: workoutLog.planId, performedAt: workoutLog.performedAt })
+        .select({
+          planId: workoutLog.planId,
+          lastPerformedAt: max(workoutLog.performedAt),
+        })
         .from(workoutLog)
         .where(
           and(
@@ -173,7 +178,7 @@ plansRoutes.get("/", async (c) => {
             inArray(workoutLog.planId, planIds),
           ),
         )
-        .orderBy(desc(workoutLog.performedAt)),
+        .groupBy(workoutLog.planId),
     ]);
 
     const versionNameById = new Map<string, string>();
@@ -186,9 +191,8 @@ plansRoutes.get("/", async (c) => {
     const lastPerformedAtByPlanId = new Map<string, Date>();
     for (const row of logRows) {
       const planId = row.planId;
-      if (!planId) continue;
-      if (lastPerformedAtByPlanId.has(planId)) continue;
-      lastPerformedAtByPlanId.set(planId, row.performedAt);
+      if (!planId || !row.lastPerformedAt) continue;
+      lastPerformedAtByPlanId.set(planId, row.lastPerformedAt);
     }
 
     const items = baseItems.map((item) => {

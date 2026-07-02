@@ -593,7 +593,12 @@ export async function rebuildAutoProgressionForPlan(input: {
     setsByLogId.set(row.logId, list);
   }
 
+  // 상태 fold는 순차(각 iteration이 이전 runningState에 의존)라 병렬 불가하나,
+  // INSERT는 배열에 모아 마지막에 단일 multi-row insert로 배치 → O(n) 왕복을 1회로.
+  // beforeState/afterState는 push 시점 값을 structuredClone으로 고정해, 원본이 각
+  // insert 시점에 직렬화하던 것과 정확히 동일(이후 상태 변이와 무관하게 안전).
   let runningState: Record<string, unknown> = {};
+  const eventRows: Array<typeof planProgressEvent.$inferInsert> = [];
   for (const log of remainingLogs) {
     const reduced = reduceProgressionState({
       program: resolved.progressionProgram,
@@ -605,19 +610,23 @@ export async function rebuildAutoProgressionForPlan(input: {
     // 이 로그에 저장돼 있던 사용자 결정을 복원해 재적용.
     const applied = applyTargetDecisionsToReduced(reduced, decisionsByLogId.get(log.id) ?? null);
 
-    await input.tx.insert(planProgressEvent).values({
+    eventRows.push({
       planId: resolved.planId,
       logId: log.id,
       userId: input.userId,
       eventType: applied.eventType,
       programSlug: resolved.templateSlug,
       reason: applied.reason,
-      beforeState: runningState,
-      afterState: applied.nextState,
+      beforeState: structuredClone(runningState),
+      afterState: structuredClone(applied.nextState),
       meta: buildProgressionEventMeta(reduced, applied.appliedDecisions),
     });
 
     runningState = applied.nextState;
+  }
+
+  if (eventRows.length > 0) {
+    await input.tx.insert(planProgressEvent).values(eventRows);
   }
 
   await upsertAutoProgressionRuntimeState({

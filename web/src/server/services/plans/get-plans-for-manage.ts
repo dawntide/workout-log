@@ -1,6 +1,6 @@
 import { db } from "@/server/db/client";
 import { plan, programTemplate, programVersion, workoutLog } from "@/server/db/schema";
-import { and, desc, eq, inArray, isNotNull } from "drizzle-orm";
+import { and, desc, eq, inArray, isNotNull, max } from "drizzle-orm";
 import { requireAuthenticatedUserId } from "@/server/auth/user";
 import { resolveRequestLocale } from "@/lib/i18n/messages";
 
@@ -49,8 +49,13 @@ export async function getPlansForManage(): Promise<PlanForManage[]> {
           .leftJoin(programTemplate, eq(programTemplate.id, programVersion.templateId))
           .where(inArray(programVersion.id, rootVersionIds))
       : Promise.resolve([]),
+    // PERF: plan별 최근 수행일만 필요하므로 전 로그를 당겨 JS로 첫 행을 취하지 않고
+    // SQL max()+groupBy로 plan당 1행만 전송 (전송량이 학습 이력 밀도와 무관해짐).
     db
-      .select({ planId: workoutLog.planId, performedAt: workoutLog.performedAt })
+      .select({
+        planId: workoutLog.planId,
+        lastPerformedAt: max(workoutLog.performedAt),
+      })
       .from(workoutLog)
       .where(
         and(
@@ -59,7 +64,7 @@ export async function getPlansForManage(): Promise<PlanForManage[]> {
           inArray(workoutLog.planId, planIds),
         ),
       )
-      .orderBy(desc(workoutLog.performedAt)),
+      .groupBy(workoutLog.planId),
   ]);
 
   const versionNameById = new Map<string, string>();
@@ -71,8 +76,8 @@ export async function getPlansForManage(): Promise<PlanForManage[]> {
 
   const lastPerformedAtByPlanId = new Map<string, Date>();
   for (const row of logRows) {
-    if (!row.planId || lastPerformedAtByPlanId.has(row.planId)) continue;
-    lastPerformedAtByPlanId.set(row.planId, row.performedAt);
+    if (!row.planId || !row.lastPerformedAt) continue;
+    lastPerformedAtByPlanId.set(row.planId, row.lastPerformedAt);
   }
 
   return baseItems.map((item): PlanForManage => {
