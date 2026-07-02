@@ -1779,22 +1779,12 @@ export async function generateAndSaveSession(input: {
     }
   }
 
-  const existing = await db
-    .select()
-    .from(generatedSession)
-    .where(and(eq(generatedSession.planId, p.id), eq(generatedSession.sessionKey, sessionKey)))
-    .limit(1);
-
-  if (existing[0]) {
-    const [updated] = await db
-      .update(generatedSession)
-      .set({ snapshot, updatedAt: new Date() })
-      .where(eq(generatedSession.id, existing[0].id))
-      .returning();
-    return updated;
-  }
-
-  const [created] = await db
+  // 원자적 upsert: (plan_id, session_key) 유니크 제약 기준 INSERT-or-UPDATE.
+  // 기존 SELECT→UPDATE/INSERT는 비트랜잭션이라 동시 렌더가 둘 다 SELECT 미스 후
+  // INSERT하면 유니크 위반으로 렌더가 실패할 수 있었다(레이스). DO UPDATE가 항상
+  // 실행돼 RETURNING이 늘 row를 반환하므로 반환값도 안전. 렌더마다 큰 snapshot을
+  // 읽어오던 full-row SELECT도 제거된다.
+  const [saved] = await db
     .insert(generatedSession)
     .values({
       planId: p.id,
@@ -1802,9 +1792,13 @@ export async function generateAndSaveSession(input: {
       sessionKey,
       snapshot,
     })
+    .onConflictDoUpdate({
+      target: [generatedSession.planId, generatedSession.sessionKey],
+      set: { snapshot, updatedAt: new Date() },
+    })
     .returning();
 
-  return created;
+  return saved;
 }
 
 export type PreviewSessionInput = {
