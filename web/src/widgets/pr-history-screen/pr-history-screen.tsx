@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useLayoutEffect, useRef, useState } from "react";
+import { useWindowVirtualizer } from "@tanstack/react-virtual";
 import { V2Card, V2Chip, V2Hairline, V2IconBtn } from "@/components/v2/primitives";
 import { AppPage } from "@/components/ui/page-layout";
 import { useLocale } from "@/components/locale-provider";
@@ -61,6 +63,24 @@ export function PrHistoryScreen({
   const { locale } = useLocale();
   const router = useRouter();
   const skin = useThemeSkin();
+
+  // PERF: PR 목록을 useWindowVirtualizer로 뷰포트 내 항목만 렌더(exercise-catalog와 동일 패턴).
+  // 훅은 terminal 조기 반환 전에 무조건 호출(Rules of Hooks). 가변 높이는 measureElement가 실측.
+  const listContainerRef = useRef<HTMLDivElement>(null);
+  // offset을 state로 두어 설정 시 re-render를 유발 → virtualizer가 올바른 scrollMargin을
+  // 받게 함(render 중 ref.current를 읽으면 한 렌더 지연 + lint 위반).
+  const [listOffset, setListOffset] = useState(0);
+  useLayoutEffect(() => {
+    // 리스트 위 콘텐츠(필터 칩·헤어라인)는 마운트 후 정적이라 1회 측정으로 충분.
+    // (필터 변경은 Link 네비게이션 → 리마운트라 다시 측정된다.)
+    setListOffset(listContainerRef.current?.offsetTop ?? 0);
+  }, []);
+  const prVirtualizer = useWindowVirtualizer({
+    count: prs.length,
+    estimateSize: () => 84, // PR 카드 예상 높이(px) — measureElement가 보정
+    overscan: 6,
+    scrollMargin: listOffset,
+  });
 
   if (skin === "terminal") {
     return (
@@ -261,8 +281,12 @@ export function PrHistoryScreen({
               </p>
             </V2Card>
           ) : (
-            <div style={{ display: "grid", gap: "var(--v2-s-2)" }}>
-              {prs.map((row) => {
+            <div
+              ref={listContainerRef}
+              style={{ position: "relative", height: `${prVirtualizer.getTotalSize()}px` }}
+            >
+              {prVirtualizer.getVirtualItems().map((virtualItem) => {
+                const row = prs[virtualItem.index];
                 const improvement = row.improvement;
                 const tone = improvement > 0 ? "success" : "neutral";
                 const card = (
@@ -329,24 +353,35 @@ export function PrHistoryScreen({
                   </V2Card>
                 );
 
-                if (!row.exerciseId) {
-                  return (
-                    <div
-                      key={row.exerciseName}
-                      style={{ textDecoration: "none", color: "inherit" }}
-                    >
-                      {card}
-                    </div>
-                  );
-                }
-                return (
+                const content = !row.exerciseId ? (
+                  <div style={{ textDecoration: "none", color: "inherit" }}>
+                    {card}
+                  </div>
+                ) : (
                   <Link
-                    key={row.exerciseId}
                     href={APP_ROUTES.exerciseDetail(row.exerciseId)}
                     style={{ textDecoration: "none", color: "inherit" }}
                   >
                     {card}
                   </Link>
+                );
+
+                return (
+                  <div
+                    key={virtualItem.key}
+                    data-index={virtualItem.index}
+                    ref={prVirtualizer.measureElement}
+                    style={{
+                      position: "absolute",
+                      top: 0,
+                      left: 0,
+                      width: "100%",
+                      paddingBottom: "var(--v2-s-2)",
+                      transform: `translateY(${virtualItem.start - prVirtualizer.options.scrollMargin}px)`,
+                    }}
+                  >
+                    {content}
+                  </div>
                 );
               })}
             </div>
