@@ -62,6 +62,9 @@ export const SETTINGS_KEYS = {
 export const DEFAULT_LOCALE_PREFERENCE: LocalePreference = "ko";
 export const DEFAULT_THEME_PREFERENCE: ThemePreference = "SYSTEM";
 export const DEFAULT_THEME_SKIN: ThemeSkin = "paper";
+// SSR이 첫 렌더부터 올바른 셸(paper/terminal)을 선택하도록 skin을 미러링하는 쿠키.
+// 서버 resolveRequestSkin(theme-skin-server)이 읽음 — locale 쿠키와 동일 패턴.
+export const THEME_SKIN_COOKIE_NAME = "wl_skin";
 export const DEFAULT_MINIMUM_PLATE_KG = 2.5;
 export const DEFAULT_BODYWEIGHT_KG: number | null = null;
 export const DEFAULT_TRAINING_GOAL_PRIMARY: TrainingGoalKey = "general";
@@ -345,6 +348,9 @@ export function applyThemeSkinToDocument(skin: ThemeSkin) {
   } else {
     document.documentElement.removeAttribute("data-theme");
   }
+  // SSR 첫 렌더 셸 선택용 쿠키에 미러링(서버 resolveRequestSkin이 읽음). 단일 write 경로이므로
+  // boot·설정토글·서버sync가 모두 여기서 쿠키를 최신화 → 다음 로드부터 per-load remount 0.
+  document.cookie = `${THEME_SKIN_COOKIE_NAME}=${skin}; path=/; max-age=31536000; samesite=lax`;
   setThemeSkin(skin);
 }
 
