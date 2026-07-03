@@ -89,7 +89,7 @@ without the cookie-scraping hack.
 
 ## Run
 ```bash
-pnpm -C apps/api install
+pnpm install                              # 워크스페이스 루트 (web·apps/api·packages/core)
 DATABASE_URL=... pnpm -C apps/api start   # PORT defaults to 8787
 # curl http://localhost:8787/health
 # curl -H "Authorization: Bearer <token>" http://localhost:8787/api/auth/me

@@ -1,0 +1,19 @@
+{
+  "name": "@workout/core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "web·apps/api가 공유하는 프레임워크-무지 도메인/인프라 코드 (source-only TS package)",
+  "exports": {
+    "./*": "./src/*.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test src/session-key.test.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "tsx": "^4.21.0",
+    "typescript": "^5.7.0"
+  }
+}

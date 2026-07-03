@@ -29,7 +29,7 @@ import {
 } from "@/server/progression/last-events";
 import { applyManualRuntimeAdjustment } from "@/server/progression/autoProgression";
 import { invalidateStatsCacheForUser } from "@/server/stats/cache";
-import { buildSessionKey } from "@/lib/session-key";
+import { buildSessionKey } from "@workout/core/session-key";
 
 import { requireAuth, type AppEnv } from "../auth";
 import { apiError, resolveLocale } from "../lib/http";

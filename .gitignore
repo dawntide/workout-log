@@ -74,3 +74,4 @@ coverage/
 ########################################
 
 .claude/settings.local.json
+.playwright-mcp/

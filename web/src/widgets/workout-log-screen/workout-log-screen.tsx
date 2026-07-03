@@ -28,7 +28,7 @@ import { readWorkoutPreferences } from "@/lib/settings/workout-preferences";
 import { apiPatch } from "@/lib/api";
 import { BodyweightCheckBanner } from "./bodyweight-check-banner";
 import { formatDateFriendly } from "@/features/workout-log/model/last-session-summary";
-import { parseSessionKey } from "@/lib/session-key";
+import { parseSessionKey } from "@workout/core/session-key";
 import { WorkoutLogOverlaySheets } from "@/features/workout-log/ui/workout-log-overlay-sheets";
 import {
   WorkoutLogStackedList,

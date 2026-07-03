@@ -1,3 +1,9 @@
+packages:
+  - web
+  - apps/api
+  - packages/core
+
+# web/pnpm-workspace.yaml + apps/api/pnpm-workspace.yaml에서 통합.
 allowBuilds:
   esbuild: true
   sharp: false

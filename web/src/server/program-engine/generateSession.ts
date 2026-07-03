@@ -1,5 +1,5 @@
 import { and, eq, inArray, sql } from "drizzle-orm";
-import { buildSessionKey } from "@/lib/session-key";
+import { buildSessionKey } from "@workout/core/session-key";
 import { db } from "@/server/db/client";
 import {
   generatedSession,

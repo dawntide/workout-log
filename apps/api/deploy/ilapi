@@ -22,11 +22,10 @@ health(){ # $1=url $2=label  → 0 if 200
   if [ "$code" = "200" ]; then ok "$2 health 200"; else err "$2 health $code"; return 1; fi
 }
 
-install_deps(){ # esbuild build-script(함정3)가 exit1 내도 tsx만 있으면 OK
-  info "pnpm install (web + apps/api)"
-  pnpm -C "$REPO/web" install
-  pnpm -C "$REPO/apps/api" install || true
-  [ -x "$REPO/apps/api/node_modules/.bin/tsx" ] || { err "apps/api install 실패 (tsx 없음)"; exit 1; }
+install_deps(){ # 워크스페이스 루트 install 한 번(web·apps/api·packages/core). esbuild build-script(함정3)가 exit1 내도 tsx만 있으면 OK
+  info "pnpm install (workspace root)"
+  pnpm -C "$REPO" install || true
+  [ -x "$REPO/apps/api/node_modules/.bin/tsx" ] || { err "workspace install 실패 (apps/api tsx 없음)"; exit 1; }
 }
 
 ironlog_restart(){

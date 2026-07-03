@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { dateOnlyInTimezone, sessionKeyToWDLabel } from "@/features/calendar/lib/format";
-import { extractSessionDate, parseSessionKey } from "@/lib/session-key";
+import { extractSessionDate, parseSessionKey } from "@workout/core/session-key";
 import {
   formatPerformedHistoryCompact,
   formatPlannedGroups,

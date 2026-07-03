@@ -19,6 +19,8 @@ const nextConfig: NextConfig = {
   },
   // PERF: Node.js 전용 패키지(pg)를 서버 번들에서 외부 모듈로 유지 → 클라이언트 번들 제외
   serverExternalPackages: ["pg", "pg-native"],
+  // @workout/core는 빌드 산출물 없는 source-only TS 워크스페이스 패키지 → Next가 직접 트랜스파일
+  transpilePackages: ["@workout/core"],
   // NOTE: cacheComponents(PPR)는 의도적으로 비활성화한다.
   // "use cache"/cacheLife/cacheTag/unstable_cache 사용처가 0건이라 자동 static shell 외
   // 이득이 없고, Vercel preview 빈 화면 + dev typecheck race 비용만 유발했다.

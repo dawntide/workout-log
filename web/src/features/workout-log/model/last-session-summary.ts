@@ -2,7 +2,7 @@ import type {
   WorkoutRecordDraft,
 } from "@/entities/workout-record";
 import { formatPerformedHistoryCompact } from "@/lib/workout-notation";
-import { parseSessionKey } from "@/lib/session-key";
+import { parseSessionKey } from "@workout/core/session-key";
 import {
   daysBetweenDateKeys,
   isDateOnlyString,

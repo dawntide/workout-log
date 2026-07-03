@@ -1,5 +1,5 @@
 import { dateOnlyToUtcDate, dayOfMonth, getDayOfWeek } from "@/lib/date-utils";
-import { parseSessionKey } from "@/lib/session-key";
+import { parseSessionKey } from "@workout/core/session-key";
 
 export const WEEKDAY_SHORT_KO = ["일", "월", "화", "수", "목", "금", "토"] as const;
 export const WEEKDAY_SHORT_EN = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;

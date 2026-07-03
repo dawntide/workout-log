@@ -37,9 +37,8 @@ apps/api(독립 Hono 백엔드)를 **상시 가동**으로 배포하고, TUI를 
 sudo git clone <repo> /opt/workout-log        # 또는 기존 위치 사용
 cd /opt/workout-log
 corepack enable && corepack prepare pnpm@11.9.0 --activate
-pnpm -C web install                            # drizzle/pg/... (런타임 deps)
-pnpm -C apps/api install                       # hono + tsx
-# (pnpm11에서 esbuild build-script 미승인 경고는 무해 — tsx 동작. 문제 시 `pnpm -C apps/api rebuild esbuild`)
+pnpm install                                   # 워크스페이스 루트 1회 — web(drizzle/pg)·apps/api(hono+tsx)·packages/core 전부
+# (esbuild build-script는 루트 pnpm-workspace.yaml allowBuilds로 승인됨. 문제 시 `pnpm rebuild esbuild`)
 
 # 2) env
 cp apps/api/deploy/.env.example apps/api/.env && sudo chmod 600 apps/api/.env
@@ -117,14 +116,14 @@ sudo install -m 755 apps/api/deploy/ilapi /usr/local/bin/ilapi
 
 | 명령 | 동작 |
 |------|------|
-| `ilapi update` | `git pull --ff-only` + pnpm install(web+apps/api) + restart + health. **직전 커밋 자동 저장**(rollback 대비), 리포의 ilapi로 **자기 자신도 self-update**, health≠200이면 비정상 종료 |
+| `ilapi update` | `git pull --ff-only` + pnpm install(워크스페이스 루트 1회) + restart + health. **직전 커밋 자동 저장**(rollback 대비), 리포의 ilapi로 **자기 자신도 self-update**, health≠200이면 비정상 종료 |
 | `ilapi rollback` | 마지막 update **직전 커밋**으로 checkout + install + restart |
 | `ilapi status` | 서비스 active / local·public health / 현재 커밋 / ironlog 대상 한눈에 |
 | `ilapi logs` \| `tail [N]` \| `errors [since]` | journalctl follow / 최근 N줄 / 경고+에러만 |
 | `ilapi restart` \| `start` \| `stop` | 서비스 제어 |
 | `ilapi cutover {local\|prod}` | ironlog 접속 서버 전환(local=apps/api, prod=프로덕션 Vercel) + tmux 재시작 |
 
-**수동(ilapi 없이)**: `cd <repo> && git pull && pnpm -C web install && pnpm -C apps/api install && sudo systemctl restart ironlog-api`.
+**수동(ilapi 없이)**: `cd <repo> && git pull && pnpm install && sudo systemctl restart ironlog-api`.
 롤백은 `git checkout <태그/커밋>` 후 동일. Docker는 `git pull && docker compose -f apps/api/deploy/compose.yaml up -d --build`.
 (DB 마이그레이션은 web 쪽에서 관리 — 하위호환 유지 시 백엔드만 롤백 안전.)
 

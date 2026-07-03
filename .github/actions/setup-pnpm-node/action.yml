@@ -1,33 +1,27 @@
 name: Setup pnpm + Node 22 + install deps
-description: Standard pnpm v10 / Node 22 setup for the web/ workspace. Optionally runs pnpm install --frozen-lockfile.
+description: Standard pnpm / Node 22 setup for the pnpm workspace monorepo (root pnpm-lock.yaml). Optionally runs pnpm install --frozen-lockfile at the workspace root (covers web + apps/api + packages/core).
 
 inputs:
   install:
     description: Run pnpm install --frozen-lockfile after setup
     required: false
     default: "true"
-  working-directory:
-    description: Working directory for pnpm install
-    required: false
-    default: web
 
 runs:
   using: composite
   steps:
     - name: Setup pnpm
+      # version 미지정 → 루트 package.json의 packageManager(pnpm@11.9.0)를 따른다.
       uses: pnpm/action-setup@v5
-      with:
-        version: 10
 
     - name: Setup Node 22
       uses: actions/setup-node@v4
       with:
         node-version: 22
         cache: pnpm
-        cache-dependency-path: ${{ inputs.working-directory }}/pnpm-lock.yaml
+        cache-dependency-path: pnpm-lock.yaml
 
-    - name: Install dependencies
+    - name: Install dependencies (workspace root)
       if: ${{ inputs.install == 'true' }}
       shell: bash
-      working-directory: ${{ inputs.working-directory }}
       run: pnpm install --frozen-lockfile

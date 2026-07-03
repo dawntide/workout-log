@@ -24,7 +24,7 @@
     "test:unit": "tsx --test src/server/progression/reducer.test.ts src/lib/settings/update-setting.test.ts src/lib/settings/settings-deeplink.test.ts src/lib/settings/settings-search.test.ts src/lib/navigation/view-transition.test.ts src/lib/workout-record/model.test.ts src/lib/workout-record/entry-state.test.ts src/lib/workout-notation/format.test.ts src/lib/strength-engine/target-mapping.test.ts src/server/auth/token.test.ts src/server/auth/jwt-verify.test.ts src/server/auth/rate-limit.test.ts src/server/auth/session-policy.test.ts src/server/auth/password.test.ts src/server/import/userImport.test.ts src/server/data/deleteUserData.coverage.test.ts src/server/progression/autoProgression.override-rebuild.test.ts src/server/progression/manual-adjustment.test.ts",
     "test:progression": "tsx --test src/server/progression/reducer.test.ts src/server/progression/reducer.full-block.test.ts src/server/progression/asymptote.guide.test.ts src/server/program-engine/generateSession.rounding.test.ts",
     "test:program-engine": "tsx --test src/server/program-engine/*.test.ts",
-    "test:extra": "tsx --test src/features/workout-log/model/editor-actions.test.ts src/lib/bodyweight-load.test.ts src/lib/muscle-groups/category-to-muscle.test.ts src/lib/program-store/model.test.ts src/lib/session-key.test.ts src/lib/settings/workout-preferences.test.ts src/server/progression/asymptote.guide.test.ts src/server/progression/asymptote-trigger-deload.test.ts src/server/progression/reducer.full-block.test.ts src/server/services/workout-log/logging-policy.test.ts src/server/stats/muscle-volume-service.test.ts",
+    "test:extra": "tsx --test src/features/workout-log/model/editor-actions.test.ts src/lib/bodyweight-load.test.ts src/lib/muscle-groups/category-to-muscle.test.ts src/lib/program-store/model.test.ts src/lib/settings/workout-preferences.test.ts src/server/progression/asymptote.guide.test.ts src/server/progression/asymptote-trigger-deload.test.ts src/server/progression/reducer.full-block.test.ts src/server/services/workout-log/logging-policy.test.ts src/server/stats/muscle-volume-service.test.ts",
     "test:e2e": "bash scripts/playwright-wrapper.sh test",
     "test:e2e:dev": "PLAYWRIGHT_SERVER_MODE=dev bash scripts/playwright-wrapper.sh test",
     "test:e2e:prod": "PLAYWRIGHT_SERVER_MODE=prod bash scripts/playwright-wrapper.sh test",
@@ -42,6 +42,7 @@
   },
   "dependencies": {
     "@tanstack/react-virtual": "^3.13.23",
+    "@workout/core": "workspace:*",
     "drizzle-orm": "^0.45.1",
     "idb": "^8.0.3",
     "jotai": "^2.19.1",

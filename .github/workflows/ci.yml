@@ -7,9 +7,13 @@ on:
     paths:
       - "web/**"
       - "apps/**"
+      - "packages/**"
       - ".github/workflows/**"
       - ".github/actions/**"
       - "deploy/**"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "package.json"
   workflow_dispatch: {}
 
 # PR당 최신 push만 실행 — 이전 실행은 취소
@@ -67,22 +71,37 @@ jobs:
   # Job: apps/api typecheck
   # apps/api reuses web/src via @/* alias + runs on tsx (no compile step), so a
   # web/src/server refactor can break the production backend with no other gate.
-  # Needs web deps installed (drizzle/pg types resolve from web/node_modules).
+  # 워크스페이스 루트 install 한 번으로 web·apps/api·packages/core 의존이 모두 깔린다.
   # ──────────────────────────────────────────────
   apps-api:
     name: apps/api Typecheck
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/setup-pnpm-node # installs web deps (@/* → web/src)
-
-      - name: Install apps/api deps
-        working-directory: apps/api
-        run: pnpm install --frozen-lockfile
+      - uses: ./.github/actions/setup-pnpm-node
 
       - name: Typecheck apps/api
         working-directory: apps/api
         run: pnpm typecheck
+
+  # ──────────────────────────────────────────────
+  # Job: packages/core typecheck + test
+  # web·apps/api가 공유하는 source-only 패키지. 자체 게이트로 드리프트 조기 검출.
+  # ──────────────────────────────────────────────
+  core:
+    name: packages/core Typecheck · Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-pnpm-node
+
+      - name: Typecheck packages/core
+        working-directory: packages/core
+        run: pnpm typecheck
+
+      - name: Test packages/core
+        working-directory: packages/core
+        run: pnpm test
 
   # ──────────────────────────────────────────────
   # Job: TUI (apps/tui) build · vet · test
