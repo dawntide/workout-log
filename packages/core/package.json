@@ -9,7 +9,8 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "DATABASE_URL=\"${DATABASE_URL:-postgres://test:test@127.0.0.1:5432/test}\" tsx --test $(find src -name '*.test.ts' | sort)"
+    "test": "DATABASE_URL=\"${DATABASE_URL:-postgres://test:test@127.0.0.1:5432/test}\" tsx --test $(find src -name '*.test.ts' | sort)",
+    "lint:boundary": "! grep -rnE 'from \"(@/|next/|react|@workout/api)' src --include='*.ts' || (echo 'core 경계 위반: core는 @/(web)·next·react를 import할 수 없습니다' && exit 1)"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

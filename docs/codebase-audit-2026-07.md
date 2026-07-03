@@ -112,7 +112,7 @@ S1은 web에 이미 있는 `@/server/auth/rate-limit` 재장착으로 해결(신
 
 ### 4.5 P4 — 구조 부채 (방향 관리 대상)
 
-- **apps/api→web 65 import 결합**: README가 "`packages/core` 추출은 후속 단계"로 명시한 의도적 부채. R1(CI typecheck)만 깔면 당분간 안전 유지 가능.
+- ~~**apps/api→web 65 import 결합**~~ ✅ **해소(2026-07-03, #497~#503)**: `packages/core`(@workout/core) 추출 완료 — 루트 pnpm 워크스페이스 + source-only 패키지. apps/api의 web/src import **65→0**, `@/*` alias·DOM lib 제거. core 경계 린트(`lint:boundary`) CI 게이트.
 - **Go/TS 복제 드리프트 이미 시작**: session-key는 Go가 TS 4개 kind 중 일부만 커버(plain-date 라벨 누락, 정규식 3개 verbatim 복제), bodyweight 키워드 리스트 두 언어 리터럴 중복, `buildSessionKey`는 사실상 3벌(TS lib·apps/api 재사용·Go 복제). **공용 golden fixture(JSON)를 양쪽 테스트가 읽게** 하면 CI에서 드리프트 검출(R2 선행 필요). | `apps/tui/internal/ui/session_label.go:9-13` ↔ `web/src/lib/session-key.ts:35-38` · `bodyweight.go:25` ↔ `bodyweight-load.ts:26-33`
 - **god-component**: `v2-session-summary.tsx`(1,423줄) · `plans-manage-content.tsx`(1,403줄, app/ 레이어에 뮤테이션+로직+렌더 동거) · TUI `log.go`(1,288줄, ~24필드 구조체). 분리 후보이나 응집도는 있음.
 - **`any` 201곳**(`: any` 179 + `as any` 22) — `no-explicit-any`가 eslint에서 꺼져 있어 집계조차 안 되는 상태. tsconfig는 `strict`만(추가 hardening 플래그 없음).
@@ -151,7 +151,7 @@ S1은 web에 이미 있는 `@/server/auth/rate-limit` 재장착으로 해결(신
 
 ### 5.4 4단계 — 중기 (상업화/확장 대비)
 
-1. `packages/core` 추출 — 세 번째 클라이언트 등장 또는 드리프트 사고 전에 (§4.5)
+1. ~~`packages/core` 추출~~ ✅ **완료(2026-07-03, #497~#503)** — 7개 PR 점진 추출: 워크스페이스 인프라 → 순수 lib(+Go/TS golden fixture, Stage 3 잔여 흡수) → db → auth → 도메인 엔진 → 서비스(locale 명시 인자화) → alias 제거/경계 린트. 부수 수정: TUI trimNum 정밀도, getHomeData 쿠키 스냅샷 오용(TUI 홈 설정 미반영).
 2. PBKDF2 600k 상향 + 로그인 시 점진 재해시, 세션 슬라이딩 만료·자동 prune (S3)
 3. `no-explicit-any` warn 승격 → 점진 감축, 레이어 린트 error 강제(선행 부채 3건 해소 후)
 4. god-component 분해: `plans-manage-content` 로직의 `features/*/model` 이동부터

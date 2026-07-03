@@ -2,7 +2,7 @@
   "name": "@workout/api",
   "private": true,
   "type": "module",
-  "description": "ironlog-api — standalone Hono backend reusing web/src/server logic with token (Bearer) auth",
+  "description": "ironlog-api — standalone Hono backend consuming @workout/core with token (Bearer) auth",
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "start": "tsx src/index.ts",
