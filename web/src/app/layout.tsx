@@ -15,7 +15,6 @@ import { FontStylesheetLoader } from "@/components/font-stylesheet-loader";
 import { ServiceWorkerRegister } from "@/components/service-worker-register";
 import { resolveRequestLocale } from "@/lib/i18n/server";
 import { resolveRequestSkin } from "@/lib/settings/theme-skin-server";
-import { getAppCopy } from "@/lib/i18n/messages";
 import type { AppLocale } from "@/lib/i18n/messages";
 import type { ThemeSkin } from "@/lib/settings/workout-preferences";
 
@@ -98,16 +97,13 @@ async function LocaleShell({ children }: { children: React.ReactNode }) {
     resolveRequestLocale(),
     resolveRequestSkin(),
   ]);
-  // 서버에서 활성 로케일 copy를 계산해 prop으로 전달 → 클라이언트는 전 로케일 카탈로그를
-  // 정적 import하지 않아 초기 번들에서 제외된다(전환 시에만 동적 로드).
-  const initialCopy = getAppCopy(initialLocale);
   return (
     // ThemeSkinProvider: 서버가 wl_skin 쿠키로 확정한 초기 skin을 주입 → useThemeSkin이 첫 렌더부터
     // 올바른 셸(paper/terminal)을 반환. terminal 사용자의 per-load paper→terminal remount + flash 제거.
     // ThemePreferenceSync(sibling, AppShell보다 먼저 렌더)가 mount 시 store를 localStorage값으로
     // 동기 세팅하므로, AppShell 서브트리의 useThemeSkin 이펙트가 읽을 땐 이미 최신값 → 재remount 없음.
     <ThemeSkinProvider initialSkin={initialSkin}>
-      <LocaleProvider initialLocale={initialLocale} initialCopy={initialCopy}>
+      <LocaleProvider initialLocale={initialLocale}>
         <AppLaunchSplash />
         {/* 테마/로케일/타임존 sync는 AppShell 밖(sibling)에 둔다.
             AppShell이 skin 토글로 paper↔terminal 트리를 전환하면 children이 remount되는데,
