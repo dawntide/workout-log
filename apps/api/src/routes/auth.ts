@@ -11,7 +11,11 @@ import {
   userSetting,
   uxEventLog,
 } from "@/server/db/schema";
-import { hashPassword, verifyPassword } from "@/server/auth/password";
+import {
+  hashPassword,
+  verifyPassword,
+  passwordNeedsRehash,
+} from "@/server/auth/password";
 import {
   createSession,
   deleteSession,
@@ -94,6 +98,18 @@ authRoutes.post("/login", async (c) => {
         () => {},
       );
       return c.json({ error: "Invalid email or password" }, 401);
+    }
+    // 점진적 해시 승격: 구 iteration 해시면 새 정책(600k)으로 재해시(best-effort).
+    if (passwordNeedsRehash(user.passwordHash)) {
+      try {
+        const rehashed = await hashPassword(password);
+        await db
+          .update(appUser)
+          .set({ passwordHash: rehashed })
+          .where(eq(appUser.id, user.id));
+      } catch {
+        // 재해시 실패는 로그인에 영향 없음
+      }
     }
     const session = await createSession(user.id);
     await logAuthEvent({

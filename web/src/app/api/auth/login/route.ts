@@ -2,7 +2,11 @@ import { NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { db } from "@/server/db/client";
 import { appUser } from "@/server/db/schema";
-import { verifyPassword } from "@/server/auth/password";
+import {
+  verifyPassword,
+  hashPassword,
+  passwordNeedsRehash,
+} from "@/server/auth/password";
 import {
   createSession,
   SESSION_COOKIE_NAME,
@@ -97,6 +101,20 @@ export async function POST(req: Request) {
       { error: "Invalid email or password" },
       { status: 401 },
     );
+  }
+
+  // 점진적 해시 승격: 구 iteration 해시면 새 정책(600k)으로 재해시.
+  // best-effort — 실패해도 로그인은 성공(다음 로그인에 재시도). 비번은 방금 검증돼 유효.
+  if (passwordNeedsRehash(user.passwordHash)) {
+    try {
+      const rehashed = await hashPassword(password);
+      await db
+        .update(appUser)
+        .set({ passwordHash: rehashed })
+        .where(eq(appUser.id, user.id));
+    } catch {
+      // ignore
+    }
   }
 
   const session = await createSession(user.id);
