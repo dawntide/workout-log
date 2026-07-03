@@ -1,10 +1,14 @@
 import { and, eq, gt } from "drizzle-orm";
 import { db } from "@/server/db/client";
 import { authSession, appUser } from "@/server/db/schema";
+import {
+  SESSION_IDLE_TTL_MS,
+  SESSION_ABSOLUTE_MAX_MS,
+  computeSlideTarget,
+} from "./session-policy";
 
 const SESSION_COOKIE = "wl_session";
 const TOKEN_BYTE_LENGTH = 32;
-const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 30; // 30 days
 
 export const SESSION_COOKIE_NAME = SESSION_COOKIE;
 
@@ -20,33 +24,57 @@ function generateToken(): string {
 export type SessionRecord = {
   token: string;
   userId: string;
+  /** DB idle 만료(현재 창). 활동마다 슬라이딩된다. */
   expiresAt: Date;
+  /** 쿠키 expires에 쓸 값(절대 상한). sliding DB 세션보다 오래 살도록 길게 잡는다. */
+  cookieExpiresAt: Date;
 };
 
 export async function createSession(userId: string): Promise<SessionRecord> {
   const token = generateToken();
-  const expiresAt = new Date(Date.now() + SESSION_TTL_MS);
+  const now = Date.now();
+  const expiresAt = new Date(now + SESSION_IDLE_TTL_MS);
+  const cookieExpiresAt = new Date(now + SESSION_ABSOLUTE_MAX_MS);
   await db.insert(authSession).values({
     token,
     userId,
     expiresAt,
   });
-  return { token, userId, expiresAt };
+  return { token, userId, expiresAt, cookieExpiresAt };
 }
 
 export async function findActiveSession(
   token: string,
 ): Promise<{ userId: string } | null> {
   if (!token) return null;
+  const now = new Date();
   const rows = await db
-    .select({ userId: authSession.userId, expiresAt: authSession.expiresAt })
+    .select({
+      userId: authSession.userId,
+      expiresAt: authSession.expiresAt,
+      createdAt: authSession.createdAt,
+    })
     .from(authSession)
-    .where(
-      and(eq(authSession.token, token), gt(authSession.expiresAt, new Date())),
-    )
+    .where(and(eq(authSession.token, token), gt(authSession.expiresAt, now)))
     .limit(1);
   const r = rows[0];
   if (!r) return null;
+
+  // Sliding: 활동 시 idle 창을 연장(절대 상한 clamp, REFRESH_INTERVAL 스로틀).
+  // best-effort — 갱신 실패는 인증을 막지 않는다(다음 요청에 재시도).
+  const nextExpiry = computeSlideTarget(
+    now.getTime(),
+    r.expiresAt.getTime(),
+    r.createdAt.getTime(),
+  );
+  if (nextExpiry) {
+    await db
+      .update(authSession)
+      .set({ expiresAt: nextExpiry })
+      // 아직 만료 전인 동일 토큰만 — 동시성/경합에 안전(무해).
+      .where(and(eq(authSession.token, token), gt(authSession.expiresAt, now)))
+      .catch(() => {});
+  }
   return { userId: r.userId };
 }
 
