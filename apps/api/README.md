@@ -15,11 +15,13 @@ without the cookie-scraping hack.
 > deploy apps/api (container + DATABASE_URL/DB_SCHEMA/WORKOUT_APP_URL/RESEND_*)
 > and flip the TUI's default server URL (ldflags) to it.
 
-- Reuses `web/src/server` source via the `@/*` → `../../web/src/*` tsconfig alias.
-  Web stays untouched apart from **additive, non-breaking** shared helpers
-  (`server/db/ops.ts`, `getSettingsSnapshotForUser`) and one resilience tweak
-  (`resolveRequestLocale` falls back to the default locale outside a request
-  scope instead of throwing); physical extraction to `packages/core` is a later phase.
+- Shared logic lives in **`@workout/core`** (`packages/core`, pnpm workspace) —
+  the physical extraction is **done** (2026-07, Stage 4): db schema/client, auth
+  core, progression/program-engine, stats/home/export/import services. apps/api
+  no longer imports `web/src` at all (the old `@/*` tsconfig alias is removed);
+  request-context adapters (cookies, OAuth, RSC bootstraps, i18n copy) stay in web.
+  Core takes `userId`/`locale` as explicit arguments — resolve them here via
+  `requireAuth`/`resolveLocale(c)`.
 - Auth: `Authorization: Bearer <token>` **or** the `wl_session` cookie, both
   validated by the existing `auth_session` token (`findActiveSession`).
 - Routes:

@@ -9,6 +9,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 멀티유저 근력 운동 기록 앱. Next.js 16 + React 19, TypeScript, Drizzle ORM + PostgreSQL, PWA.
 
 - **앱 코드**: `web/` 디렉터리 (Next.js App Router)
+- **모노레포**: 루트 pnpm 워크스페이스(`pnpm-workspace.yaml`) — `web` + `apps/api` + `packages/core`, lockfile은 루트 1개. **clone 후 루트에서 `pnpm install` 1회**로 전 패키지 설치.
+- **`packages/core` (@workout/core)**: web(Next.js)·apps/api(Hono)가 공유하는 프레임워크-무지 도메인/인프라 코드 — db(schema·client)·auth 코어·progression/program-engine·stats/home/export/import 서비스·순수 lib(session-key·bodyweight-load·program-store 등). source-only 패키지(web은 `transpilePackages`, apps/api는 tsx로 소비). **경계 규칙**: core는 next/react/DOM·요청 컨텍스트(쿠키) 무지 — userId·locale은 명시 인자, 쿠키/OAuth/RSC 어댑터(`user.ts`·`oauth-*`·messages.ts·bootstraps)는 web 잔류. 상세: [`packages/core/README.md`](packages/core/README.md).
 - **로컬 실행**: `pnpm -C web dev` (Next.js dev 서버), 접속 `http://localhost:3000`. Postgres 접속 정보는 `web/.env.local`의 `DATABASE_URL`로 전달. 배포는 Vercel(웹앱) + Supabase(Postgres).
   - ⚠️ **web 데이터 API는 apps/api(Hono 백엔드)로 프록시 cutover됨**([`web/src/app/api/[...path]/route.ts`](web/src/app/api/[...path]/route.ts)): 브라우저 `/api/*` same-origin 호출 → web이 `wl_session` 쿠키를 `Authorization: Bearer`로 변환해 `APPS_API_BASE`로 포워딩(동일 `auth_session` 토큰). 로컬 dev에서 데이터 라우트가 작동하려면 **apps/api 동반 실행** 필요: `web/.env.local`에 `APPS_API_BASE=http://127.0.0.1:8787` + 별도 터미널 `cd apps/api && set -a; . ../../web/.env.local; set +a; DB_SCHEMA=dev pnpm dev`. **실제 로그인**으로 `wl_session` 쿠키 획득(apps/api는 `WORKOUT_AUTH_USER_ID` fallback 없음). `auth`·`ops`·web잔류(stats migration-telemetry[FS결합, 마이그레이션 실행지]·page-bootstrap·health)은 web 자체 처리(구체적 route가 catch-all보다 우선; ux-snapshot은 apps/api로 이식됨). 상세: [`apps/api/deploy/DEPLOY.md`](apps/api/deploy/DEPLOY.md).
 
@@ -27,6 +29,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## 주요 경로
 
 ```
+packages/core/src/           # @workout/core — web·apps/api 공유(프레임워크-무지)
+├── db/                      # Drizzle 스키마·클라이언트·ops·seed (마이그레이션 실행지는 web)
+├── auth/                    # PBKDF2, session(+policy), rate-limit, reset/verify token, event log
+├── progression/             # 자동 진행 리듀서·상태 (+progress-events)
+├── program-engine/          # 세션 생성·asymptote·라운딩
+├── stats/ home/ export/ import/ data/  # 데이터 서비스 (locale·userId 명시 인자)
+├── settings/                # workout-preferences 순수부 (SETTINGS_KEYS·normalize)
+└── session-key.ts bodyweight-load.ts program-store/ ...  # 순수 lib + Go/TS golden fixtures(../fixtures)
+
 web/src/
 ├── app/                    # Next.js App Router 페이지
 │   ├── workout/log/        # 운동 기록 메인 (/workout/log)
@@ -38,16 +49,17 @@ web/src/
 │   ├── program-store/      # 프로그램 스토어
 │   ├── plans/              # 플랜 관리
 │   ├── settings/           # 설정 (iOS Settings 패턴)
-│   └── api/                # API Routes
+│   └── api/                # API Routes (auth·ops·프록시 — 데이터 라우트는 apps/api)
 ├── components/ui/          # 공유 UI 컴포넌트
 ├── server/
-│   ├── auth/               # PBKDF2, cookie session, reset/verify token, event log
-│   ├── email/              # Resend fetch 기반 발송 헬퍼
-│   ├── db/schema.ts        # Drizzle 스키마
-│   └── progression/        # 자동 진행 비즈니스 로직
+│   ├── auth/user.ts        # 쿠키 세션 → userId 어댑터 (next/headers; core는 쿠키 무지)
+│   ├── auth/oauth-*.ts     # Google OAuth 브라우저 플로우
+│   ├── db/migrations/      # 마이그레이션 폴더 + migrate.mjs 실행지 (스키마는 core)
+│   └── services/*/get-*-bootstrap.ts  # RSC 페이지 부트스트랩 (core 서비스에 userId·locale 주입)
 └── lib/
     ├── api.ts              # SWR 캐시 HTTP 클라이언트
-    └── settings/           # 설정 관리 + rollback
+    ├── i18n/messages.ts    # 앱 카피 카탈로그 + resolveRequestLocale (react 의존 — web 전용)
+    └── settings/           # 설정 관리 + rollback + workout-preferences DOM 어댑터(core 재export)
 ```
 
 ## 자주 쓰는 명령
@@ -67,16 +79,20 @@ pnpm -C web typecheck
 pnpm -C web lint:design          # Hard Rule 위반 차단 (No-Line, primitive-first 등)
 
 # 테스트
-pnpm -C web test:unit            # progression + settings + auth + import 등 핵심 유닛
-pnpm -C web test:progression     # 자동 진행 로직만
+pnpm -C packages/core test       # core 전체 유닛(도메인 엔진·auth·stats·golden fixture — find 글롭)
+pnpm -C web test:unit            # web 잔류 유닛(settings 정책·워크아웃 레코드 등)
+pnpm -C web test:progression     # 자동 진행 로직만 (core 경로 위임)
 pnpm -C web test:e2e             # Playwright E2E (전체)
 pnpm -C web test:async-ux:continuity   # 비동기 UX 연속성 단일 시나리오
+
+# core 경계 린트 (core 내 @/·next·react import 차단 — CI 게이트)
+pnpm -C packages/core lint:boundary
 
 # 빌드 (migrate 후 next build 실행)
 pnpm -C web build
 ```
 
-단일 테스트는 `tsx --test <path>` 직접 호출 (예: `pnpm -C web exec tsx --test src/server/progression/reducer.test.ts`).
+단일 테스트는 `tsx --test <path>` 직접 호출 (예: `pnpm -C packages/core exec tsx --test src/progression/reducer.test.ts`).
 
 ## 코드 규칙 요약
 

@@ -99,6 +99,10 @@ jobs:
         working-directory: packages/core
         run: pnpm typecheck
 
+      - name: Boundary lint packages/core
+        working-directory: packages/core
+        run: pnpm lint:boundary
+
       - name: Test packages/core
         working-directory: packages/core
         run: pnpm test

@@ -51,7 +51,9 @@ server/               DB(Drizzle) 접근 + 서버 도메인 엔진 (progression,
 
 ## 시스템 토폴로지 — 멀티프론트 / 단일 백엔드 (2026-06 cutover)
 
-위 레이어 모델은 `web/src` **한 패키지 내부**의 의존 방향이다. 그 최하위 `server/` 레이어는 이제 **두 런타임에서 공유**된다: web(Vercel, SSR + 일부 route)과 독립 백엔드 `apps/api`(Hono, AWS lightsail). apps/api는 `@/*`→`../../web/src/*` tsconfig alias로 같은 `server/` 코어를 런타임 재사용한다 — **백엔드 로직은 코드 1벌**(중복 없음).
+위 레이어 모델은 `web/src` **한 패키지 내부**의 의존 방향이다. 공유 백엔드 로직은 **`@workout/core`(`packages/core`)로 물리 추출 완료**(2026-07, #497~#503): db 스키마/클라이언트·auth 코어·progression/program-engine·stats/home/export/import 서비스·순수 lib이 core에 있고, web(Vercel)과 `apps/api`(Hono, AWS lightsail)가 pnpm 워크스페이스 패키지로 같은 코드를 소비한다 — **백엔드 로직은 코드 1벌**(중복 없음), apps/api의 web/src import는 0(구 `@/*` alias 제거).
+
+의존 방향: `web → @workout/core ← apps/api` (core는 next/react/DOM·요청 컨텍스트 무지 — userId·locale 명시 인자, `lint:boundary` CI 게이트). 쿠키 세션 어댑터(`server/auth/user.ts`)·OAuth·RSC 부트스트랩·i18n 카피(`lib/i18n/messages.ts`)는 web 잔류.
 
 ```
                                 클라이언트
@@ -75,7 +77,7 @@ server/               DB(Drizzle) 접근 + 서버 도메인 엔진 (progression,
                                            │   │  AWS lightsail (서울)      │
                                            │   │  Caddy :443 → Hono :8787   │
                                            │   │  systemd 상시가동           │
-                                           │   │  = web/src/server 재사용    │
+                                           │   │  = @workout/core 소비       │
                                            │   └────────────┬─────────────┘
                                            │ 직접            │ 직접
                                            ▼                ▼
