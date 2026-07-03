@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { formatKgValue } from "@/lib/bodyweight-load";
+import { formatKgValue } from "@workout/core/bodyweight-load";
 import {
   resolveMinimumPlateIncrement,
   type WorkoutPreferences,

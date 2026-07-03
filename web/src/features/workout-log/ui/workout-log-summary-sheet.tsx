@@ -7,7 +7,7 @@ import { BottomSheet } from "@/components/ui/bottom-sheet";
 import { V2Icon } from "@/components/v2/primitives/v2-icon";
 import { apiGet, isAbortError } from "@/lib/api";
 import { formatPerformedHistoryLine } from "@/lib/workout-notation";
-import { bodyweightAddedSuffix } from "@/lib/bodyweight-load";
+import { bodyweightAddedSuffix } from "@workout/core/bodyweight-load";
 import {
   draftAtom,
   workoutPreferencesAtom,

@@ -7,7 +7,7 @@ import {
   getProgramDescription,
   getProgramDetailInfo,
   type ProgramListItem,
-} from "@/lib/program-store/model";
+} from "@workout/core/program-store/model";
 
 // paper ProgramListCard와 동일 난이도→강도(1~5) 매핑.
 const INTENSITY_MAP: Record<string, number> = {

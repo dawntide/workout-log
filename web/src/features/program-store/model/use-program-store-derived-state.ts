@@ -4,7 +4,7 @@ import {
   isOperatorTemplate,
   toProgramListItems,
   type ProgramTemplate,
-} from "@/lib/program-store/model";
+} from "@workout/core/program-store/model";
 import {
   filterProgramListItemsByCategory,
   formatProgramDisplayName,

@@ -5,12 +5,12 @@ import Link from "next/link";
 import { useLocale } from "@/components/locale-provider";
 import { useThemeSkin } from "@/components/use-theme-skin";
 import { TermBadge } from "./terminal";
-import type { ProgressionSummaryPayload } from "@/lib/progression/summary";
+import type { ProgressionSummaryPayload } from "@workout/core/progression/summary";
 import type { TrainingGoalKey } from "@/lib/settings/workout-preferences";
 import {
   resolveLoggedTotalLoadKg,
   resolveLoggedLoadDisplay,
-} from "@/lib/bodyweight-load";
+} from "@workout/core/bodyweight-load";
 import {
   V2Card,
   V2Chip,

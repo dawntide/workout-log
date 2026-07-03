@@ -16,7 +16,7 @@ import type { ProgramStoreCreateDraft } from "@/features/program-store/model/use
 import type {
   ProgramExerciseDraft,
   ProgramTemplate,
-} from "@/lib/program-store/model";
+} from "@workout/core/program-store/model";
 
 const BottomSheet = dynamic(
   () => import("@/components/ui/bottom-sheet").then((mod) => mod.BottomSheet),

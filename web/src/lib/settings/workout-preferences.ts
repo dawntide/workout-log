@@ -1,7 +1,7 @@
 import {
   computeBodyweightTotalLoadKg,
   isBodyweightExerciseName,
-} from "@/lib/bodyweight-load";
+} from "@workout/core/bodyweight-load";
 import { setThemeSkin } from "./theme-skin-store";
 
 export type SettingValue = string | number | boolean | null;

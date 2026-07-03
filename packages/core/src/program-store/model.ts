@@ -1,4 +1,4 @@
-import { mapExerciseNameToTarget } from "@/lib/strength-engine/target-mapping";
+import { mapExerciseNameToTarget } from "../strength-engine/target-mapping";
 import {
   ASYMPTOTE_HYBRID_TM_PERCENT,
   ASYMPTOTE_SESSIONS,

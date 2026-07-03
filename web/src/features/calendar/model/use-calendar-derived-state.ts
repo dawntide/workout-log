@@ -6,8 +6,8 @@ import { extractSessionDate, parseSessionKey } from "@workout/core/session-key";
 import {
   formatPerformedHistoryCompact,
   formatPlannedGroups,
-} from "@/lib/workout-notation/format";
-import { resolveLoggedLoadDisplay } from "@/lib/bodyweight-load";
+} from "@workout/core/workout-notation/format";
+import { resolveLoggedLoadDisplay } from "@workout/core/bodyweight-load";
 import type {
   CalendarExercisePreviewItem,
   CalendarPlan,

@@ -24,7 +24,7 @@ import {
 } from "@/lib/date-utils";
 import { useBodyweightKg } from "@/lib/settings/use-bodyweight";
 import { formatPerformedHistoryLine } from "@/lib/workout-notation";
-import { buildTodayLogHref } from "@/lib/workout-links";
+import { buildTodayLogHref } from "@workout/core/workout-links";
 import { apiDelete } from "@/lib/api";
 import type { CalendarWorkoutLogForDate } from "@/features/calendar/model/types";
 import type { CalendarPageBootstrap } from "@/server/services/calendar/get-calendar-page-bootstrap";

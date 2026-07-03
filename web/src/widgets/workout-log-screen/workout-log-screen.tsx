@@ -23,7 +23,7 @@ import { readWorkoutLogQueryContext } from "@/features/workout-log/model/query-c
 import { useWorkoutLogSaveController } from "@/features/workout-log/model/use-workout-log-save-controller";
 import { applyWorkoutLogWeightRulesToDraft } from "@/lib/workout-record/weight-rules";
 import { migrateWorkoutRecordDraft } from "@/entities/workout-record";
-import { sessionHasBodyweightExercise } from "@/lib/bodyweight-load";
+import { sessionHasBodyweightExercise } from "@workout/core/bodyweight-load";
 import { readWorkoutPreferences } from "@/lib/settings/workout-preferences";
 import { apiPatch } from "@/lib/api";
 import { BodyweightCheckBanner } from "./bodyweight-check-banner";

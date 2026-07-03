@@ -3,6 +3,7 @@ package ui
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -359,9 +360,15 @@ func (s History) detail(r sessionRow, w int) []string {
 	return out
 }
 
+// trimNum은 무게/볼륨을 소수 2자리까지(후행 0 제거) 표기한다. 웹 formatKgValue
+// (Number(v.toFixed(2)))와 동일 정밀도 — %.1f였을 때 2.25kg이 "2.2"로 손실돼
+// 편집 무게 시드(log.go)까지 오염되던 것을 정렬(golden fixture addedSuffix 참조).
 func trimNum(v float64) string {
 	if v == float64(int64(v)) {
 		return fmt.Sprintf("%d", int64(v))
 	}
-	return fmt.Sprintf("%.1f", v)
+	s := strconv.FormatFloat(v, 'f', 2, 64)
+	s = strings.TrimRight(s, "0")
+	s = strings.TrimRight(s, ".")
+	return s
 }

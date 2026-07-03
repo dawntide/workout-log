@@ -1,5 +1,5 @@
 import { and, eq, gte, lte, or, sql } from "drizzle-orm";
-import { resolveLoggedTotalLoadKg } from "@/lib/bodyweight-load";
+import { resolveLoggedTotalLoadKg } from "@workout/core/bodyweight-load";
 import { db } from "@/server/db/client";
 import { exercise, workoutLog, workoutSet } from "@/server/db/schema";
 import { resolveRequestLocale } from "@/lib/i18n/messages";

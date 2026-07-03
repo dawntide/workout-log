@@ -3,7 +3,7 @@
 // N세션(기본 7) 이동평균으로 평활해, AMRAP 전에 정체/하락 조짐을 본다.
 // 순수 함수 — DB/UI 비의존. e1rm-service 등에서 모은 탑세트 노출을 입력으로 받는다.
 
-import { mapExerciseNameToTarget } from "@/lib/strength-engine/target-mapping";
+import { mapExerciseNameToTarget } from "@workout/core/strength-engine/target-mapping";
 
 // 드라이버 한 노출(세션의 탑세트). 풀업은 bodyweightKg를 주면 총중량(BW+추중량)으로 환산한다.
 export type DriverExposure = {

@@ -1,5 +1,5 @@
-import { resolveLoggedTotalLoadKg } from "@/lib/bodyweight-load";
-import { mapExerciseNameToTarget as mapExerciseToTarget } from "@/lib/strength-engine/target-mapping";
+import { resolveLoggedTotalLoadKg } from "@workout/core/bodyweight-load";
+import { mapExerciseNameToTarget as mapExerciseToTarget } from "@workout/core/strength-engine/target-mapping";
 import {
   ASYMPTOTE_AMRAP_TARGETS_BY_SESSION,
   deriveAsymptoteAuxTms,

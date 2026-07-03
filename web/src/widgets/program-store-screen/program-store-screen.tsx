@@ -25,7 +25,7 @@ import { CustomizeProgramSheet } from "@/features/program-store/ui/customize-pro
 import { CreateProgramSheet } from "@/features/program-store/ui/create-program-sheet";
 import { ProgramStoreBrowseContent } from "@/features/program-store/ui/program-store-browse-content";
 import { ProgramStoreTuiBrowse } from "@/features/program-store/ui/program-store-tui-browse";
-import type { ProgramTemplate } from "@/lib/program-store/model";
+import type { ProgramTemplate } from "@workout/core/program-store/model";
 
 const ProgramDetailSheet = dynamic(
   () =>

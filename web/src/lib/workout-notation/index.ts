@@ -5,13 +5,13 @@ export {
   formatPerformedHistoryLine,
   formatPlannedGroups,
   summarizePerformedHistory,
-} from "./format";
+} from "@workout/core/workout-notation/format";
 export type {
   PrescriptionInput,
   PerformedSetInput,
   PerformedHistoryView,
   PlannedGroup,
-} from "./format";
+} from "@workout/core/workout-notation/format";
 export {
   PrescriptionInline,
   PerformedSetInline,

@@ -15,7 +15,7 @@
  * 처방과 히스토리는 의미가 달라 절대 같은 형식으로 통일하지 말 것.
  */
 
-import { bodyweightAddedSuffix } from "@/lib/bodyweight-load";
+import { bodyweightAddedSuffix } from "../bodyweight-load";
 
 export interface PrescriptionInput {
   sets: number;

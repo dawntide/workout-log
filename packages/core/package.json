@@ -9,7 +9,7 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "tsx --test src/session-key.test.ts"
+    "test": "tsx --test src/session-key.test.ts src/bodyweight-load.test.ts src/workout-notation/format.test.ts src/muscle-groups/category-to-muscle.test.ts src/strength-engine/target-mapping.test.ts src/program-store/model.test.ts src/fixtures.test.ts"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

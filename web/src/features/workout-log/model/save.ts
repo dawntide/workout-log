@@ -1,5 +1,5 @@
 import { toWorkoutLogPayload, type WorkoutRecordDraft } from "@/entities/workout-record";
-import { isBodyweightExerciseName } from "@/lib/bodyweight-load";
+import { isBodyweightExerciseName } from "@workout/core/bodyweight-load";
 import type { FailureProtocolDecision } from "@/components/ui/failure-protocol-sheet";
 import { submitWorkoutLogAction } from "../actions/submit-workout-log";
 import { clearWorkoutDraft } from "@/lib/storage/workoutDraftStore";

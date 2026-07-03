@@ -7,16 +7,18 @@ function roundTo2(value: number) {
   return Math.round(value * 100) / 100;
 }
 
+// core는 DOM lib 없이 typecheck된다 — 브라우저 전역은 globalThis 옵셔널 접근으로만
+// 읽는다(브라우저: html lang → navigator.language 순, 서버: "en" 폴백. 기존 동작 동일).
 function resolveBrowserLocale(): "ko" | "en" {
-  if (typeof document !== "undefined") {
-    const lang = document.documentElement.lang.trim().toLowerCase();
-    if (lang.startsWith("ko")) return "ko";
-    if (lang.startsWith("en")) return "en";
-  }
-  if (typeof navigator !== "undefined") {
-    const lang = String(navigator.language ?? "").trim().toLowerCase();
-    if (lang.startsWith("ko")) return "ko";
-  }
+  const g = globalThis as {
+    document?: { documentElement?: { lang?: string } };
+    navigator?: { language?: string };
+  };
+  const docLang = (g.document?.documentElement?.lang ?? "").trim().toLowerCase();
+  if (docLang.startsWith("ko")) return "ko";
+  if (docLang.startsWith("en")) return "en";
+  const navLang = String(g.navigator?.language ?? "").trim().toLowerCase();
+  if (navLang.startsWith("ko")) return "ko";
   return "en";
 }
 

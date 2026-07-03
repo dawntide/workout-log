@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { apiGet, isAbortError } from "@/lib/api";
-import type { ProgramTemplate } from "@/lib/program-store/model";
+import type { ProgramTemplate } from "@workout/core/program-store/model";
 import type {
   ExerciseOption,
   ExerciseResponse,

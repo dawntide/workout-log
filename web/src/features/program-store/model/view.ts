@@ -1,4 +1,4 @@
-import type { ProgramListItem } from "@/lib/program-store/model";
+import type { ProgramListItem } from "@workout/core/program-store/model";
 
 export function storeCategories(locale: "ko" | "en") {
   return [

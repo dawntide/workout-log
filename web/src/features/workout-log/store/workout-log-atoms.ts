@@ -45,7 +45,7 @@ export const makeProgramEntryStateAtom = (exerciseId: string) =>
   });
 
 // Advanced Derived State Atoms
-import { formatKgValue } from "@/lib/bodyweight-load";
+import { formatKgValue } from "@workout/core/bodyweight-load";
 import { resolveMinimumPlateIncrement } from "@/lib/settings/workout-preferences";
 import { materializeWorkoutExercises } from "@/entities/workout-record";
 import { createFallbackProgramEntryState } from "@/features/workout-log/model/exercise-entry";

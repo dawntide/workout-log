@@ -1,4 +1,4 @@
-import type { ProgramTemplate } from "@/lib/program-store/model";
+import type { ProgramTemplate } from "@workout/core/program-store/model";
 
 export type PlanItem = {
   id: string;

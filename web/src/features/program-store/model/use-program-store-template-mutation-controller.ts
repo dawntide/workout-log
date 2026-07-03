@@ -12,7 +12,7 @@ import {
   type ProgramListItem,
   type ProgramSessionDraft,
   type ProgramTemplate,
-} from "@/lib/program-store/model";
+} from "@workout/core/program-store/model";
 import type {
   ProgramStoreCreateDraft,
   ProgramStoreCustomizeDraft,

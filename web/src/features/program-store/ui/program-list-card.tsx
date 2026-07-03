@@ -11,7 +11,7 @@ import { formatProgramDisplayName } from "@/features/program-store/model/view";
 import {
   getProgramDetailInfo,
   type ProgramListItem,
-} from "@/lib/program-store/model";
+} from "@workout/core/program-store/model";
 
 function tagChipTone(tag: string): V2ChipTone {
   const normalized = tag.toLowerCase().trim();

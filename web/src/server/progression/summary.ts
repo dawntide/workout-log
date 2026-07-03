@@ -1,5 +1,5 @@
 import { and, desc, eq } from "drizzle-orm";
-import type { ProgressionSummaryPayload, ProgressionTargetDecisionPayload } from "@/lib/progression/summary";
+import type { ProgressionSummaryPayload, ProgressionTargetDecisionPayload } from "@workout/core/progression/summary";
 import { planProgressEvent } from "@/server/db/schema";
 
 type ProgressionEventRow = {

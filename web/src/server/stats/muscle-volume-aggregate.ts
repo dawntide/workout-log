@@ -1,10 +1,10 @@
-import { resolveLoggedTotalLoadKg } from "@/lib/bodyweight-load";
+import { resolveLoggedTotalLoadKg } from "@workout/core/bodyweight-load";
 import {
   MUSCLE_GROUPS,
   type MuscleGroup,
   resolveMuscleContribution,
   resolvePrimaryMuscleGroup,
-} from "@/lib/muscle-groups/category-to-muscle";
+} from "@workout/core/muscle-groups/category-to-muscle";
 
 export type MuscleVolumeWeekPoint = {
   weekStart: string;

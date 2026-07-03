@@ -4,7 +4,7 @@ import { db } from "@/server/db/client";
 import { and, desc, eq, gte, lte, or, sql } from "@/server/db/ops";
 import { exercise, workoutLog, workoutSet } from "@/server/db/schema";
 import { logError } from "@/server/observability/logger";
-import { resolveLoggedTotalLoadKg } from "@/lib/bodyweight-load";
+import { resolveLoggedTotalLoadKg } from "@workout/core/bodyweight-load";
 import { getExerciseById, resolveExerciseByName } from "@/server/exercise/resolve";
 import { getStatsCache, setStatsCache } from "@/server/stats/cache";
 import { parseDateRangeFromSearchParams } from "@/server/stats/range";

@@ -3,7 +3,7 @@
 import { SearchInput } from "@/components/ui/search-input";
 import { V2PrimaryBtn, V2SecondaryBtn, V2SectionHeader } from "@/components/v2/primitives";
 import { AppPage, PageSection, StateBlock } from "@/components/ui/page-layout";
-import type { ProgramListItem } from "@/lib/program-store/model";
+import type { ProgramListItem } from "@workout/core/program-store/model";
 import { ProgramListCard } from "./program-list-card";
 
 type ProgramStoreCopy = {

@@ -1,0 +1,35 @@
+{
+  "__doc": "bodyweight-load Go/TS 파리티 golden fixture. TS(packages/core/src/bodyweight-load.ts)와 Go(apps/tui/internal/ui/bodyweight.go)가 같은 데이터를 읽는다. prescriptionToExternal은 TS prescriptionToExternalLoadKg ↔ Go isBodyweightExercise+bwExternalFromTotal 조합, loggedTotal은 resolveLoggedTotalLoadKg ↔ loggedTotalLoad, addedSuffix는 ko 로케일 기준.",
+  "isBodyweight": [
+    { "name": "Weighted Pull-Up", "expected": true },
+    { "name": "pull up", "expected": true },
+    { "name": "Chin-Up", "expected": true },
+    { "name": "chin up (weighted)", "expected": true },
+    { "name": "중량 풀업", "expected": true },
+    { "name": "친업", "expected": true },
+    { "name": "Bench Press", "expected": false },
+    { "name": "Lat Pulldown", "expected": false },
+    { "name": "Pullup", "expected": false },
+    { "name": "", "expected": false },
+    { "name": "   ", "expected": false }
+  ],
+  "prescriptionToExternal": [
+    { "name": "Weighted Pull-Up", "totalKg": 97.5, "bodyweightKg": 91.5, "expected": 6 },
+    { "name": "Weighted Pull-Up", "totalKg": 97.5, "bodyweightKg": null, "expected": 0 },
+    { "name": "Weighted Pull-Up", "totalKg": 80, "bodyweightKg": 91.5, "expected": 0 },
+    { "name": "Weighted Pull-Up", "totalKg": 94.25, "bodyweightKg": 91.5, "expected": 2.75 },
+    { "name": "Bench Press", "totalKg": 60, "bodyweightKg": 91.5, "expected": 60 }
+  ],
+  "loggedTotal": [
+    { "name": "Weighted Pull-Up", "weightKg": 6, "metaTotalLoadKg": 97.5, "expected": 97.5 },
+    { "name": "Weighted Pull-Up", "weightKg": 6, "metaTotalLoadKg": null, "expected": 6 },
+    { "name": "Weighted Pull-Up", "weightKg": 6, "metaTotalLoadKg": 0, "expected": 6 },
+    { "name": "Bench Press", "weightKg": 60, "metaTotalLoadKg": 999, "expected": 60 }
+  ],
+  "addedSuffix": [
+    { "addedKg": 6, "expectedKo": "(+6)" },
+    { "addedKg": 0, "expectedKo": "(체중)" },
+    { "addedKg": 2.5, "expectedKo": "(+2.5)" },
+    { "addedKg": 2.25, "expectedKo": "(+2.25)" }
+  ]
+}

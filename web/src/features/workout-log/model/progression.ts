@@ -1,5 +1,5 @@
 import { apiGet } from "@/shared/api";
-import { mapExerciseNameToTarget as mapExerciseNameToProgressionTarget } from "@/lib/strength-engine/target-mapping";
+import { mapExerciseNameToTarget as mapExerciseNameToProgressionTarget } from "@workout/core/strength-engine/target-mapping";
 import type {
   WorkoutExerciseViewModel,
   WorkoutProgramExerciseEntryStateMap,

@@ -29,7 +29,7 @@ import {
   type ProgramProgressionTarget,
   type ProgramRowType,
   type ProgramTemplate,
-} from "@/lib/program-store/model";
+} from "@workout/core/program-store/model";
 
 type ExerciseOption = {
   id: string;

@@ -18,7 +18,7 @@ import {
   type ProgramStoreLocale,
   type ProgramSessionDraft,
   type ProgramTemplate,
-} from "@/lib/program-store/model";
+} from "@workout/core/program-store/model";
 
 // ─── Local helpers ────────────────────────────────────────────────────────────
 

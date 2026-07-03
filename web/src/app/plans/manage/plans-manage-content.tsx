@@ -28,9 +28,9 @@ import { APP_ROUTES } from "@/lib/app-routes";
 import {
   familyFallbackKeyForBaselineKey,
   selectDisplayStrengthBaselineKeys,
-} from "@/lib/program-store/model";
+} from "@workout/core/program-store/model";
 import { TargetWeightChip } from "@/features/progression/ui/target-weight-chip";
-import { bodyweightAddedSuffix } from "@/lib/bodyweight-load";
+import { bodyweightAddedSuffix } from "@workout/core/bodyweight-load";
 import { useBodyweightKg } from "@/lib/settings/use-bodyweight";
 import type { PlanForManage } from "@/server/services/plans/get-plans-for-manage";
 

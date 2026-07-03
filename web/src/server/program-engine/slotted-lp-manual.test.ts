@@ -10,7 +10,7 @@ import { resolveAutoProgressionProgram } from "@/server/progression/reducer";
 import {
   inferSessionDraftsFromTemplate,
   toManualDefinition,
-} from "@/lib/program-store/model";
+} from "@workout/core/program-store/model";
 
 // gzclp/texas per-slot LP: 같은 운동이라도 슬롯(tier/요일)별 독립 진행 키로 무게가 따로 굴러간다.
 

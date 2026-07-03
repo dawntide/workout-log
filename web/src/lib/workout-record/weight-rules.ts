@@ -1,4 +1,4 @@
-import { prescriptionToExternalLoadKg } from "@/lib/bodyweight-load";
+import { prescriptionToExternalLoadKg } from "@workout/core/bodyweight-load";
 import {
   resolveMinimumPlateIncrementKg,
   snapWeightToIncrementKg,

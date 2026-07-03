@@ -1,6 +1,6 @@
 import type { WorkoutDraftData } from "@/lib/storage/workoutDraftStore";
 import type { WorkoutPreferences } from "@/lib/settings/workout-preferences";
-import { prescriptionToExternalLoadKg } from "@/lib/bodyweight-load";
+import { prescriptionToExternalLoadKg } from "@workout/core/bodyweight-load";
 import {
   addUserExercise,
   patchSeedExercise,

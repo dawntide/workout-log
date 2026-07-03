@@ -23,16 +23,16 @@ import {
   type StrengthScoreResult,
 } from "@/server/stats/strength-score-service";
 import { getSettingsSnapshot } from "@/server/services/settings/get-settings-snapshot";
-import { resolveLoggedTotalLoadKg, bodyweightAddedSuffix } from "@/lib/bodyweight-load";
+import { resolveLoggedTotalLoadKg, bodyweightAddedSuffix } from "@workout/core/bodyweight-load";
 import {
   formatPerformedHistoryCompact,
   formatPlannedGroups,
-} from "@/lib/workout-notation/format";
+} from "@workout/core/workout-notation/format";
 import {
   readWorkoutPreferences,
   type TrainingGoalKey,
 } from "@/lib/settings/workout-preferences";
-import { buildTodayLogHref, toLocalDateKey } from "@/lib/workout-links";
+import { buildTodayLogHref, toLocalDateKey } from "@workout/core/workout-links";
 import type { AppLocale } from "@/lib/i18n/messages";
 
 // ─── Types ──────────────────────────────────────────────────────────

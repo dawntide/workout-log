@@ -10,7 +10,7 @@ import {
   resolveProgramFamily,
   type OneRmTarget,
   type ProgramTemplate,
-} from "@/lib/program-store/model";
+} from "@workout/core/program-store/model";
 import type { PlanItem } from "./types";
 import { formatProgramDisplayName } from "./view";
 

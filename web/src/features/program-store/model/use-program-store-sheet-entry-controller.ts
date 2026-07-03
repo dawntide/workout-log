@@ -6,7 +6,7 @@ import {
   type ProgramSessionDraft,
   type ProgramTemplate,
   type SessionRule,
-} from "@/lib/program-store/model";
+} from "@workout/core/program-store/model";
 import type { ProgramStoreQueryState } from "./types";
 import { formatProgramDisplayName } from "./view";
 

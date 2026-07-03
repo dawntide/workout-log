@@ -1,5 +1,5 @@
 // Asymptote Protocol — DB와 무관한 순수 계산 헬퍼.
-// 세션 구성(슬롯)은 @/lib/program-store/asymptote-blueprint(단일 진실원)에서 가져온다.
+// 세션 구성(슬롯)은 @workout/core/program-store/asymptote-blueprint(단일 진실원)에서 가져온다.
 // 무게 계산·AMRAP 판정 등 server 전용 로직만 여기 남는다.
 // `web/docs/asymptote-protocol.md` §4·§5 및 `web/docs/asymptote-test-guide.md`에 대응.
 
@@ -10,7 +10,7 @@ import {
   ASYMPTOTE_HYBRID_TM_PERCENT,
   type AsymptoteLift,
   type AsymptoteLiftRow,
-} from "@/lib/program-store/asymptote-blueprint";
+} from "@workout/core/program-store/asymptote-blueprint";
 
 // 슬롯 구성·하이브리드 상수는 청사진이 단일 진실원. 기존 import 경로(이 모듈) 호환을 위해 re-export.
 export {

@@ -1,7 +1,7 @@
 import { db } from "@/server/db/client";
 import { exercise, workoutLog, workoutSet } from "@/server/db/schema";
 import { and, count, eq, gte, lte, sql } from "drizzle-orm";
-import { resolveLoggedTotalLoadKg } from "@/lib/bodyweight-load";
+import { resolveLoggedTotalLoadKg } from "@workout/core/bodyweight-load";
 import { resolveRequestLocale } from "@/lib/i18n/messages";
 import { getStatsCache, setStatsCache } from "@/server/stats/cache";
 

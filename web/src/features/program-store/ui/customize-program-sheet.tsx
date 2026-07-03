@@ -10,7 +10,7 @@ import {
   programFlowStyle,
   type ProgramExerciseDraft,
   type ProgramTemplate,
-} from "@/lib/program-store/model";
+} from "@workout/core/program-store/model";
 
 const BottomSheet = dynamic(
   () => import("@/components/ui/bottom-sheet").then((mod) => mod.BottomSheet),

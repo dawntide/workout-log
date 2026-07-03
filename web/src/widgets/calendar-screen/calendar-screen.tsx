@@ -46,7 +46,7 @@ import { APP_ROUTES } from "@/lib/app-routes";
 import { apiDelete, apiPatch } from "@/lib/api";
 import { useBodyweightKg } from "@/lib/settings/use-bodyweight";
 
-import { buildTodayLogHref } from "@/lib/workout-links";
+import { buildTodayLogHref } from "@workout/core/workout-links";
 
 type CalendarScreenProps = CalendarPageBootstrap;
 

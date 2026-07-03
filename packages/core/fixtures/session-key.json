@@ -1,0 +1,77 @@
+{
+  "__doc": "session-key Go/TS 파리티 golden fixture. TS(packages/core/src/session-key.ts)와 Go(apps/tui/internal/ui/session_label.go)가 같은 데이터를 읽어 드리프트를 CI에서 검출한다. cycleLabel = 컴팩트 사이클 라벨(Go sessionLabel 출력, date/미파싱은 빈 문자열). tsLabel = TS formatSessionKeyLabel 출력.",
+  "cases": [
+    {
+      "key": "2026-06-26",
+      "parsed": { "kind": "date", "sessionDate": "2026-06-26", "cycle": null, "week": null, "day": null },
+      "tsLabel": "2026-06-26",
+      "cycleLabel": ""
+    },
+    {
+      "key": "2026-06-26@C2W6D1",
+      "parsed": { "kind": "date-progression", "sessionDate": "2026-06-26", "cycle": 2, "week": 6, "day": 1 },
+      "tsLabel": "2026-06-26 · C2W6D1",
+      "cycleLabel": "C2W6D1"
+    },
+    {
+      "key": "W6D1",
+      "parsed": { "kind": "wave", "sessionDate": null, "cycle": null, "week": 6, "day": 1 },
+      "tsLabel": "W6D1",
+      "cycleLabel": "W6D1"
+    },
+    {
+      "key": "C2W6D1",
+      "parsed": { "kind": "cycle-wave", "sessionDate": null, "cycle": 2, "week": 6, "day": 1 },
+      "tsLabel": "C2W6D1",
+      "cycleLabel": "C2W6D1"
+    },
+    {
+      "key": "C12W10D3",
+      "parsed": { "kind": "cycle-wave", "sessionDate": null, "cycle": 12, "week": 10, "day": 3 },
+      "tsLabel": "C12W10D3",
+      "cycleLabel": "C12W10D3"
+    },
+    {
+      "key": "  C2W6D1  ",
+      "parsed": { "kind": "cycle-wave", "sessionDate": null, "cycle": 2, "week": 6, "day": 1 },
+      "tsLabel": "C2W6D1",
+      "cycleLabel": "C2W6D1"
+    },
+    {
+      "key": "garbage",
+      "parsed": null,
+      "tsLabel": "garbage",
+      "cycleLabel": ""
+    },
+    {
+      "key": "2026-6-26",
+      "parsed": null,
+      "tsLabel": "2026-6-26",
+      "cycleLabel": ""
+    },
+    {
+      "key": "",
+      "parsed": null,
+      "tsLabel": "",
+      "cycleLabel": ""
+    }
+  ],
+  "build": [
+    {
+      "input": { "mode": "DATE", "sessionDate": "2026-06-26", "week": 6, "day": 1, "cycle": 2, "autoProgression": true },
+      "expected": "C2W6D1"
+    },
+    {
+      "input": { "mode": "DATE", "sessionDate": "2026-06-26", "week": 6, "day": 1, "cycle": 2, "autoProgression": false },
+      "expected": "2026-06-26"
+    },
+    {
+      "input": { "mode": "SESSION", "sessionDate": "2026-06-26", "week": 6, "day": 1, "autoProgression": false },
+      "expected": "W6D1"
+    },
+    {
+      "input": { "mode": "SESSION", "sessionDate": "2026-06-26", "week": 0, "day": -1, "cycle": null, "autoProgression": true },
+      "expected": "C1W1D1"
+    }
+  ]
+}

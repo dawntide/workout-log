@@ -4,9 +4,9 @@ import type { CSSProperties, ReactNode } from "react";
 import type {
   PerformedSetInput,
   PrescriptionInput,
-} from "./format";
-import { summarizePerformedHistory } from "./format";
-import { bodyweightAddedSuffix } from "@/lib/bodyweight-load";
+} from "@workout/core/workout-notation/format";
+import { summarizePerformedHistory } from "@workout/core/workout-notation/format";
+import { bodyweightAddedSuffix } from "@workout/core/bodyweight-load";
 
 /**
  * 맨몸 운동 총무게 병기 컨텍스트. weightKg는 이미 총무게(체중+추가)로 환산된 값이어야

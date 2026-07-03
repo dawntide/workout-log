@@ -30,7 +30,7 @@ import { invalidateStatsCacheForUser } from "@/server/stats/cache";
 import { upsertWorkoutLogService } from "@/server/services/workout-log/upsert-log";
 import { getSettingsSnapshotForUser } from "@/server/services/settings/get-settings-snapshot";
 import { readWorkoutPreferences } from "@/lib/settings/workout-preferences";
-import { resolveLoggedTotalLoadKg } from "@/lib/bodyweight-load";
+import { resolveLoggedTotalLoadKg } from "@workout/core/bodyweight-load";
 
 import { requireAuth, type AppEnv } from "../auth";
 import { apiError, normalizeTimezone, resolveLocale } from "../lib/http";

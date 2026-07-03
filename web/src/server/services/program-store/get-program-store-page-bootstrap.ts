@@ -11,7 +11,7 @@ import {
   programVersion,
 } from "@/server/db/schema";
 import { requireAuthenticatedUserId } from "@/server/auth/user";
-import type { ProgramTemplate } from "@/lib/program-store/model";
+import type { ProgramTemplate } from "@workout/core/program-store/model";
 import type { ExerciseOption, PlanItem } from "@/features/program-store/model/types";
 
 export type ProgramStorePageBootstrap = {

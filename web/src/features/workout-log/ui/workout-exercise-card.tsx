@@ -28,7 +28,7 @@ import {
 import {
   isBodyweightExerciseName,
   resolveLoggedTotalLoadKg,
-} from "@/lib/bodyweight-load";
+} from "@workout/core/bodyweight-load";
 import type { ExerciseRowAction } from "@/features/workout-log/model/editor-actions";
 import { formatDateFriendly } from "@/features/workout-log/model/last-session-summary";
 import { useSetRowFocusChain } from "@/features/workout-log/model/use-set-row-focus-chain";

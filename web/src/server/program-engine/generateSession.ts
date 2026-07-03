@@ -22,12 +22,12 @@ import {
   floorToMultiple2p5,
 } from "./asymptote";
 import { roundToNearest2p5 } from "./round";
-import { mapExerciseNameToTarget as inferTargetFromExerciseName } from "@/lib/strength-engine/target-mapping";
+import { mapExerciseNameToTarget as inferTargetFromExerciseName } from "@workout/core/strength-engine/target-mapping";
 import {
   lookupProgramFamily,
   type ProgramFamilyEntry,
-} from "@/lib/program-store/program-registry";
-import { buildSlottedLpSlot } from "@/lib/program-store/model";
+} from "@workout/core/program-store/program-registry";
+import { buildSlottedLpSlot } from "@workout/core/program-store/model";
 import {
   wendler531WeekSets,
   WENDLER_531_FSL_SETS,
@@ -35,7 +35,7 @@ import {
   WENDLER_531_BBB_SETS,
   WENDLER_531_BBB_REPS,
   WENDLER_531_BBB_PERCENT,
-} from "@/lib/program-store/wendler531-blueprint";
+} from "@workout/core/program-store/wendler531-blueprint";
 
 type AccessoryPatch = {
   op: "ADD_ACCESSORY";
