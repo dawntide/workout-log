@@ -9,6 +9,7 @@ import {
   mergeRowSubtitle,
 } from "@/components/v2/settings/section";
 import { useAppDialog } from "@/components/ui/app-dialog-provider";
+import { formatCopy } from "@/lib/i18n/format";
 import { useLocale } from "@/components/locale-provider";
 import { NoticeStateRows } from "@/components/ui/settings-state";
 import { V2SecondaryBtn } from "@/components/v2/primitives";
@@ -51,7 +52,7 @@ async function shareOrDownloadExport(
   const response = await fetch(path, { method: "GET", cache: "no-store" });
   if (!response.ok) {
     const body = await response.json().catch(() => ({}));
-    throw new Error(body?.error ?? copy.settings.dataExportPage.exportFailed(response.status));
+    throw new Error(body?.error ?? formatCopy(copy.settings.dataExportPage.exportFailed, { status: response.status }));
   }
 
   const blob = await response.blob();

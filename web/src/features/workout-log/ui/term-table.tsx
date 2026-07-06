@@ -25,7 +25,7 @@ import {
   resolveLoggedTotalLoadKg,
 } from "@workout/core/bodyweight-load";
 import type { ExerciseRowAction } from "@/features/workout-log/model/editor-actions";
-import { formatDateFriendly } from "@/features/workout-log/model/last-session-summary";
+import { formatDateFriendly } from "@/lib/workout-record/last-session-summary";
 import { useSetRowFocusChain } from "@/features/workout-log/model/use-set-row-focus-chain";
 import { TermSetRow } from "@/features/workout-log/ui/term-set-row";
 

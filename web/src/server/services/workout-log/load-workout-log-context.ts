@@ -19,7 +19,7 @@ import { applyWorkoutLogWeightRulesToDraft } from "@/lib/workout-record/weight-r
 import {
   applyRecentWeightsToCustomExercises,
   buildLastSessionSummary,
-} from "@/features/workout-log/model/last-session-summary";
+} from "@/lib/workout-record/last-session-summary";
 import type {
   WorkoutLogDetailedLogItem,
   WorkoutLogRecentLogItem,

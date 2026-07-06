@@ -5,7 +5,7 @@ import {
   type SettingsSnapshot,
   type WorkoutPreferences,
 } from "@/lib/settings/workout-preferences";
-import type { WorkoutLogQueryContext } from "./query-context";
+import type { WorkoutLogQueryContext } from "@/lib/workout-record/query-context";
 import { getWorkoutLogClientBootstrap } from "./client";
 import type { LoadWorkoutContextInput } from "./context-loader";
 import type {

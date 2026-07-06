@@ -21,7 +21,7 @@
     "test:async-ux:stats-1rm": "bash scripts/playwright-wrapper.sh test e2e/stats-1rm-async-continuity.spec.ts --project chromium",
     "test:settings:policy": "tsx --test src/lib/settings/update-setting.test.ts",
     "typecheck": "tsc --noEmit",
-    "test:unit": "tsx --test src/lib/settings/update-setting.test.ts src/lib/settings/settings-deeplink.test.ts src/lib/settings/settings-search.test.ts src/lib/navigation/view-transition.test.ts src/lib/workout-record/model.test.ts src/lib/workout-record/entry-state.test.ts src/server/auth/jwt-verify.test.ts",
+    "test:unit": "tsx --test src/lib/i18n/messages.serializable.test.ts src/lib/settings/update-setting.test.ts src/lib/settings/settings-deeplink.test.ts src/lib/settings/settings-search.test.ts src/lib/navigation/view-transition.test.ts src/lib/workout-record/model.test.ts src/lib/workout-record/entry-state.test.ts src/server/auth/jwt-verify.test.ts",
     "test:progression": "tsx --test ../packages/core/src/progression/reducer.test.ts ../packages/core/src/progression/reducer.full-block.test.ts ../packages/core/src/progression/asymptote.guide.test.ts ../packages/core/src/program-engine/generateSession.rounding.test.ts",
     "test:program-engine": "tsx --test $(find ../packages/core/src/program-engine -name '*.test.ts' | sort)",
     "test:extra": "tsx --test src/features/workout-log/model/editor-actions.test.ts",

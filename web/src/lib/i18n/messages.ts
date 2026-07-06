@@ -6,7 +6,10 @@ import {
 
 export type AppLocale = LocalePreference;
 
-export const LOCALE_COOKIE_NAME = "workout-log.locale";
+// LOCALE_COOKIE_NAME은 ./locale-cookie로 분리(F4 — 클라 eager 그래프에서 카탈로그 제외).
+// 기존 importer 호환을 위해 재export.
+export { LOCALE_COOKIE_NAME } from "./locale-cookie";
+import { LOCALE_COOKIE_NAME } from "./locale-cookie";
 
 export type AppCopy = {
   nav: {
@@ -126,7 +129,7 @@ export type AppCopy = {
       };
     };
     dataExportPage: {
-      exportFailed: (status: number) => string;
+      exportFailed: string; // {status}
       shareTitle: string;
       shareText: string;
       noticeSuccess: string;
@@ -168,7 +171,7 @@ export type AppCopy = {
     };
     momentum: {
       eyebrow: string;
-      streak: (days: number) => string;
+      streak: string; // {days}
       empty: string;
       nextTarget: string;
     };
@@ -198,7 +201,7 @@ export type AppCopy = {
       sets: string;
       exercises: string;
       goalHits: string;
-      ariaLabel: (planName: string) => string;
+      ariaLabel: string; // {planName}
     };
     logistics: {
       title: string;
@@ -372,7 +375,7 @@ export type AppCopy = {
     selectedPlan: string;
     recentPerformed: string;
     summaryLabel: string;
-    summaryWithCounts: (logs: number, sets: number) => string;
+    summaryWithCounts: string; // {logs}·{sets}
     summarySelectPlan: string;
     logsTitle: string;
     logsLoadError: string;
@@ -548,7 +551,7 @@ export const appCopyByLocale: Record<AppLocale, AppCopy> = {
         },
       },
       dataExportPage: {
-        exportFailed: (status) => `데이터 내보내기 실패 (${status})`,
+        exportFailed: "데이터 내보내기 실패 ({status})",
         shareTitle: "Workout Log Export",
         shareText: "운동 데이터 백업 파일",
         noticeSuccess: "내보내기 완료",
@@ -590,7 +593,7 @@ export const appCopyByLocale: Record<AppLocale, AppCopy> = {
       },
       momentum: {
         eyebrow: "현재 모멘텀",
-        streak: (days) => `${days}일 연속 진행 중.`,
+        streak: "{days}일 연속 진행 중.",
         empty: "운동을 시작하세요.",
         nextTarget: "다음 목표",
       },
@@ -620,7 +623,7 @@ export const appCopyByLocale: Record<AppLocale, AppCopy> = {
         sets: "세트",
         exercises: "운동",
         goalHits: "목표 달성",
-        ariaLabel: (planName) => `지난 세션: ${planName}`,
+        ariaLabel: "지난 세션: {planName}",
       },
       logistics: {
         title: "바로가기",
@@ -797,7 +800,7 @@ export const appCopyByLocale: Record<AppLocale, AppCopy> = {
       selectedPlan: "선택 플랜",
       recentPerformed: "최근 수행",
       summaryLabel: "히스토리 요약",
-      summaryWithCounts: (logs, sets) => `현재 ${logs}개 로그 / ${sets}세트를 표시합니다.`,
+      summaryWithCounts: "현재 {logs}개 로그 / {sets}세트를 표시합니다.",
       summarySelectPlan: "표시할 플랜을 선택하세요.",
       logsTitle: "수행 로그",
       logsLoadError: "수행 로그 조회 실패",
@@ -971,7 +974,7 @@ export const appCopyByLocale: Record<AppLocale, AppCopy> = {
         },
       },
       dataExportPage: {
-        exportFailed: (status) => `Export failed (${status})`,
+        exportFailed: "Export failed ({status})",
         shareTitle: "Workout Log Export",
         shareText: "Workout data backup file",
         noticeSuccess: "Export Complete",
@@ -1013,7 +1016,7 @@ export const appCopyByLocale: Record<AppLocale, AppCopy> = {
       },
       momentum: {
         eyebrow: "Current Momentum",
-        streak: (days) => `${days}-day streak in progress.`,
+        streak: "{days}-day streak in progress.",
         empty: "Start your workout.",
         nextTarget: "Next target",
       },
@@ -1043,7 +1046,7 @@ export const appCopyByLocale: Record<AppLocale, AppCopy> = {
         sets: "sets",
         exercises: "exercises",
         goalHits: "Goal Hits",
-        ariaLabel: (planName) => `Last session: ${planName}`,
+        ariaLabel: "Last session: {planName}",
       },
       logistics: {
         title: "Quick Links",
@@ -1220,7 +1223,7 @@ export const appCopyByLocale: Record<AppLocale, AppCopy> = {
       selectedPlan: "Selected Plan",
       recentPerformed: "Recent",
       summaryLabel: "History Summary",
-      summaryWithCounts: (logs, sets) => `Showing ${logs} logs / ${sets} sets.`,
+      summaryWithCounts: "Showing {logs} logs / {sets} sets.",
       summarySelectPlan: "Select a plan to display.",
       logsTitle: "Workout Logs",
       logsLoadError: "Could not load workout logs",
@@ -1281,6 +1284,10 @@ export const appCopyByLocale: Record<AppLocale, AppCopy> = {
 export function getAppCopy(locale: AppLocale): AppCopy {
   return appCopyByLocale[locale];
 }
+
+// formatCopy는 ./format으로 분리 — 클라이언트가 포매터만 쓸 때 카탈로그가
+// eager 번들로 끌려오지 않도록(F4). 서버/기존 importer 호환을 위해 재export.
+export { formatCopy } from "./format";
 
 export function getLocaleLabel(locale: AppLocale) {
   return locale === "ko" ? "한국어" : "English";

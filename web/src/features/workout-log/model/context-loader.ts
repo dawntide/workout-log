@@ -10,7 +10,7 @@ import { type WorkoutPreferences } from "@/lib/settings/workout-preferences";
 import {
   applyRecentWeightsToCustomExercises,
   buildLastSessionSummary,
-} from "./last-session-summary";
+} from "@/lib/workout-record/last-session-summary";
 import type {
   WorkoutLogDetailResponse,
   WorkoutLogDetailedLogItem,
