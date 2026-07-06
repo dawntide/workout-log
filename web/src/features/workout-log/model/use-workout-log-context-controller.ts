@@ -9,7 +9,7 @@ import {
 import {
   readWorkoutLogQueryContext,
   type WorkoutLogQueryContext,
-} from "@/features/workout-log/model/query-context";
+} from "@/lib/workout-record/query-context";
 import type {
   WorkoutLogPlanItem,
 } from "@/features/workout-log/model/types";

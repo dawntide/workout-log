@@ -26,8 +26,8 @@ import {
   V2Card,
   V2Chip,
   V2PrimaryBtn,
-} from "./primitives";
-import { useV2BottomDockTabs } from "./v2-bottom-dock-context";
+} from "@/components/v2/primitives";
+import { useV2BottomDockTabs } from "@/components/v2/v2-bottom-dock-context";
 import { StatsContainer } from "@/widgets/stats-screen";
 import { HomeGoalSection } from "@/widgets/goal-aware/home-goal-section";
 

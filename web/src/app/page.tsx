@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import { getHomeData } from "@workout/core/home/home-service";
 import { requireAuthenticatedUserId } from "@/server/auth/user";
 import { resolveRequestLocale } from "@/lib/i18n/messages";
-import { V2HomeDashboard } from "@/components/v2/v2-home-dashboard";
+import { V2HomeDashboard } from "@/widgets/home-dashboard/v2-home-dashboard";
 import { V2OnboardingRedirect } from "@/components/v2/v2-onboarding-redirect";
 import HomeLoading from "./loading";
 

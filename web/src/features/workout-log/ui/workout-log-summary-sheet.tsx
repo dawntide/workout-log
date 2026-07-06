@@ -12,7 +12,7 @@ import {
   draftAtom,
   workoutPreferencesAtom,
 } from "@/features/workout-log/store/workout-log-atoms";
-import { TargetWeightChip } from "@/features/progression/ui/target-weight-chip";
+import { TargetWeightChip } from "@/components/v2/target-weight-chip";
 import type {
   CycleOverviewResponse,
   CycleOverviewSession,

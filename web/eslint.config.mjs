@@ -117,6 +117,57 @@ const eslintConfig = defineConfig([
       ],
     },
   },
+  // ── 레이어 방향 강제 (web/docs/architecture-layers.md) ──
+  // app→widgets→features→primitives→lib→server 위→아래 의존만 허용. 상향 import를
+  // error로 차단한다. type-only는 런타임 의존이 아니라 허용(allowTypeImports —
+  // 감사 2026-07: 서버의 features 타입 참조 ~수건은 무해로 판정). 테스트 파일은
+  // 런타임 그래프 밖이라 제외. 선행 부채(v2-home-dashboard 상향 import 등)는
+  // 해소 완료 — 이 룰이 재유입을 막는다.
+  ...[
+    {
+      layer: "widgets/",
+      files: ["src/widgets/**/*.ts", "src/widgets/**/*.tsx"],
+      forbidden: ["@/app/*"],
+    },
+    {
+      layer: "features/",
+      files: ["src/features/**/*.ts", "src/features/**/*.tsx"],
+      forbidden: ["@/app/*", "@/widgets/*"],
+    },
+    {
+      layer: "components/v2/primitives/",
+      files: ["src/components/v2/primitives/**/*.ts", "src/components/v2/primitives/**/*.tsx"],
+      forbidden: ["@/app/*", "@/widgets/*", "@/features/*", "@/server/*"],
+    },
+    {
+      layer: "lib/",
+      files: ["src/lib/**/*.ts", "src/lib/**/*.tsx"],
+      // entities/shared 파사드의 실체는 lib — lib 내부에서 파사드를 거치면 우회 순환.
+      forbidden: ["@/app/*", "@/widgets/*", "@/features/*", "@/components/*", "@/entities/*", "@/shared/*"],
+    },
+    {
+      layer: "server/ (최하위)",
+      files: ["src/server/**/*.ts", "src/server/**/*.tsx"],
+      forbidden: ["@/app/*", "@/widgets/*", "@/features/*", "@/components/*"],
+    },
+  ].map(({ layer, files, forbidden }) => ({
+    files,
+    ignores: ["**/*.test.ts", "**/*.test.tsx"],
+    rules: {
+      "@typescript-eslint/no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: forbidden,
+              allowTypeImports: true,
+              message: `${layer} 레이어의 상향 import 금지 — 공유가 필요하면 lib/로 내린다 (web/docs/architecture-layers.md).`,
+            },
+          ],
+        },
+      ],
+    },
+  })),
   // Override default ignores of eslint-config-next.
   globalIgnores([
     // Default ignores of eslint-config-next:
