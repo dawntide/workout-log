@@ -2,7 +2,7 @@
  * A simple debounce utility.
  * Returns a debounced wrapper with a `.cancel()` to clear any pending call.
  */
-export function debounce<F extends (...args: any[]) => any>(
+export function debounce<F extends (...args: never[]) => unknown>(
   func: F,
   delay: number
 ): ((...args: Parameters<F>) => void) & { cancel: () => void } {

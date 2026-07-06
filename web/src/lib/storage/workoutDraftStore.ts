@@ -39,12 +39,14 @@ const getLocalStorageKey = (key: string) => `workout-draft-${key}`;
 /**
  * Helper to get DB with timeout
  */
-async function getDBWithTimeout(timeoutMs = 150): Promise<any> {
+async function getDBWithTimeout(timeoutMs = 150): Promise<Awaited<NonNullable<typeof dbPromise>> | null> {
   if (!dbPromise) return null;
   
   return Promise.race([
     dbPromise,
-    new Promise((_, reject) => setTimeout(() => reject(new Error("IndexedDB timeout")), timeoutMs))
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error("IndexedDB timeout")), timeoutMs),
+    ),
   ]).catch(() => null);
 }
 

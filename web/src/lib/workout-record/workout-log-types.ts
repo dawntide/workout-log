@@ -26,6 +26,7 @@ export type WorkoutLogRecentLogItem = {
 };
 
 export type WorkoutLogDetailedLogItem = ExistingWorkoutLogLike & {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- generated-session jsonb: 프로그램별 가변 구조, 방어적 optional chain으로만 소비
   generatedSession: (ExistingWorkoutLogLike["generatedSession"] & { sessionKey: string; snapshot: any }) | null;
 };
 

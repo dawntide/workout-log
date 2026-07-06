@@ -1,4 +1,5 @@
 "use client";
+import { errorMessage } from "@/lib/error-message";
 
 import { useEffect, useState } from "react";
 import { useLocale } from "@/components/locale-provider";
@@ -73,8 +74,8 @@ export function V2PasswordSheet({
       setCurrent("");
       setNext("");
       setConfirm("");
-    } catch (err: any) {
-      setError(err?.message ?? "Network error");
+    } catch (err) {
+      setError(errorMessage(err) ?? "Network error");
     } finally {
       setSubmitting(false);
     }

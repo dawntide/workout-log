@@ -1,4 +1,5 @@
 "use client";
+import { errorMessage } from "@/lib/error-message";
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { apiGet, apiPatch, apiPost, isAbortError } from "@/lib/api";
@@ -216,7 +217,7 @@ function buildOneRmRecommendations(
 }
 
 function readOneRmFromPlanParams(
-  params: any,
+  params: unknown,
   key: string,
   tmPercent: number,
   fallbackKey?: string | null,
@@ -225,14 +226,18 @@ function readOneRmFromPlanParams(
     Boolean(String(value ?? "").trim()),
   );
 
+  const source = (params ?? {}) as {
+    oneRepMaxKg?: Record<string, unknown>;
+    trainingMaxKg?: Record<string, unknown>;
+  };
   for (const lookupKey of lookupKeys) {
-    const oneRmRaw = Number(params?.oneRepMaxKg?.[lookupKey]);
+    const oneRmRaw = Number(source.oneRepMaxKg?.[lookupKey]);
     if (Number.isFinite(oneRmRaw) && oneRmRaw > 0) return oneRmRaw;
   }
 
   if (tmPercent > 0) {
     for (const lookupKey of lookupKeys) {
-      const tmRaw = Number(params?.trainingMaxKg?.[lookupKey]);
+      const tmRaw = Number(source.trainingMaxKg?.[lookupKey]);
       if (Number.isFinite(tmRaw) && tmRaw > 0) {
         return Math.round((tmRaw / tmPercent) * 100) / 100;
       }
@@ -385,7 +390,7 @@ export function useProgramStoreStartProgramController({
                 : "No 1RM recommendations are available yet.",
           };
         });
-      } catch (error: any) {
+      } catch (error) {
         if (
           isAbortError(error) ||
           oneRmRecommendationControllerRef.current !== controller
@@ -398,7 +403,7 @@ export function useProgramStoreStartProgramController({
             ...prev,
             recommendationStatus: "failed",
             recommendationMessage:
-              error?.message ??
+              errorMessage(error) ??
               (locale === "ko"
                 ? "1RM 추천값을 불러오지 못했습니다."
                 : "Could not load 1RM recommendations."),
@@ -604,9 +609,9 @@ export function useProgramStoreStartProgramController({
       void loadStore({ isRefresh: true });
       setStartProgramDraft(null);
       onStarted(targetPlanId, startProgramDraft.today);
-    } catch (error: any) {
+    } catch (error) {
       setError(
-        error?.message ??
+        errorMessage(error) ??
           (locale === "ko"
             ? "프로그램을 시작하지 못했습니다."
             : "Could not start the program."),

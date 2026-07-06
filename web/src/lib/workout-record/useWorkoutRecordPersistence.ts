@@ -162,7 +162,7 @@ export function useWorkoutRecordPersistence(
       }
     };
 
-    const handlePageShow = (event: any) => {
+    const handlePageShow = (event: PageTransitionEvent) => {
       console.log(`[Persistence] Page shown (persisted: ${event.persisted})`);
       if (keyRef.current && enabledRef.current && !isRestoringRef.current) {
         attemptRestore(keyRef.current);

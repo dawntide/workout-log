@@ -1,4 +1,5 @@
 "use client";
+import { errorMessage } from "@/lib/error-message";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { apiGet } from "@/lib/api";
@@ -128,10 +129,10 @@ export function useCalendarDataController({
           }
           return response.items[0]?.id ?? "";
         });
-      } catch (error: any) {
+      } catch (error) {
         if (!cancelled) {
           setError(
-            error?.message ??
+            errorMessage(error) ??
               (locale === "ko"
                 ? "플랜을 불러오지 못했습니다."
                 : "Could not load plans."),
@@ -166,10 +167,10 @@ export function useCalendarDataController({
           `/api/generated-sessions?${searchParams.toString()}`,
         );
         if (!cancelled) setRecentSessions(response.items);
-      } catch (error: any) {
+      } catch (error) {
         if (!cancelled) {
           setError(
-            error?.message ??
+            errorMessage(error) ??
               (locale === "ko"
                 ? "세션을 불러오지 못했습니다."
                 : "Could not load sessions."),
@@ -214,13 +215,13 @@ export function useCalendarDataController({
         setSelectedLog(response.items[0] ?? null);
         setSelectedLogKey(fetchKey);
         setCompletedLogKey(fetchKey);
-      } catch (error: any) {
+      } catch (error) {
         if (!cancelled) {
           setSelectedLog(null);
           setSelectedLogKey(fetchKey);
           setCompletedLogKey(fetchKey);
           setError(
-            error?.message ??
+            errorMessage(error) ??
               (locale === "ko"
                 ? "운동기록을 불러오지 못했습니다."
                 : "Could not load workout logs."),

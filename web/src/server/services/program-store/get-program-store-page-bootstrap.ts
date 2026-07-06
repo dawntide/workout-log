@@ -105,7 +105,7 @@ async function fetchPlansServer(userId: string): Promise<PlanItem[]> {
     name: r.name,
     type: r.type as "SINGLE" | "COMPOSITE" | "MANUAL",
     rootProgramVersionId: r.rootProgramVersionId ?? null,
-    params: r.params,
+    params: r.params as Record<string, unknown> | null,
   }));
 }
 

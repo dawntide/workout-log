@@ -1,3 +1,4 @@
+import { errorMessage } from "@/lib/error-message";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { apiGet, isAbortError } from "@/lib/api";
 import type { ProgramTemplate } from "@workout/core/program-store/model";
@@ -87,12 +88,12 @@ export function useProgramStoreBootstrapController({
         storeHasLoadedRef.current = true;
         setTemplates(templatesRes.items ?? []);
         setPlans(plansRes.items ?? []);
-      } catch (error: any) {
+      } catch (error) {
         if (isAbortError(error) || storeLoadControllerRef.current !== controller) {
           return;
         }
         setError(
-          error?.message ??
+          errorMessage(error) ??
             (locale === "ko"
               ? "프로그램 데이터를 불러오지 못했습니다."
               : "Could not load program data."),

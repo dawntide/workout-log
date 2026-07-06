@@ -1,3 +1,4 @@
+import { errorMessage } from "@/lib/error-message";
 import { useCallback, useRef, useState } from "react";
 import type {
   FailureProtocolResult,
@@ -127,16 +128,15 @@ export function useWorkoutLogSaveController({
         persistenceKey,
       });
 
+      const savedResponse = saved as { log?: { id?: unknown } } | null | undefined;
       const savedLogId =
-        saved && typeof (saved as any).log?.id === "string"
-          ? ((saved as any).log.id as string)
-          : null;
+        typeof savedResponse?.log?.id === "string" ? savedResponse.log.id : null;
 
       setWorkflowState("done");
       onSaved(savedLogId);
-    } catch (error: any) {
+    } catch (error) {
       setSaveError(
-        error?.message ??
+        errorMessage(error) ??
           (locale === "ko"
             ? "운동기록 저장에 실패했습니다."
             : "Failed to save the workout log."),

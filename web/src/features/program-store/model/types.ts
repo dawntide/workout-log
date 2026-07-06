@@ -5,7 +5,7 @@ export type PlanItem = {
   name: string;
   type: "SINGLE" | "COMPOSITE" | "MANUAL";
   rootProgramVersionId: string | null;
-  params: any;
+  params: Record<string, unknown> | null;
 };
 
 export type ExerciseOption = {

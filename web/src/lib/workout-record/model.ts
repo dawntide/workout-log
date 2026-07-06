@@ -95,6 +95,7 @@ export type GeneratedSessionLike = {
   id: string;
   planId: string;
   sessionKey: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- generated-session jsonb: 프로그램별 가변 구조, 방어적 optional chain으로만 소비
   snapshot: any;
 };
 
@@ -474,6 +475,7 @@ function normalizeScheduleEntries(value: unknown) {
     .filter(Boolean);
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- generated-session jsonb: 프로그램별 가변 구조, 방어적 optional chain으로만 소비
 function sessionsPerWeekFromSnapshot(snapshot: any) {
   const firstBlock = Array.isArray(snapshot?.blocks) ? snapshot.blocks[0] ?? null : null;
   const candidates = [
@@ -492,6 +494,7 @@ function sessionsPerWeekFromSnapshot(snapshot: any) {
   return null;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- generated-session jsonb: 프로그램별 가변 구조, 방어적 optional chain으로만 소비
 function isOperatorSnapshot(snapshot: any, planName: string) {
   const firstBlock = Array.isArray(snapshot?.blocks) ? snapshot.blocks[0] ?? null : null;
   const candidates = [
@@ -512,6 +515,7 @@ function isOperatorSnapshot(snapshot: any, planName: string) {
 
 function toSessionType(
   day: number,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- generated-session jsonb: 프로그램별 가변 구조, 방어적 optional chain으로만 소비
   snapshot: any,
   planName: string,
   sessionKey: string,

@@ -1,4 +1,5 @@
 "use client";
+import { errorMessage } from "@/lib/error-message";
 
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -43,8 +44,8 @@ export function V2ResetPasswordForm() {
       }
       router.replace("/");
       router.refresh();
-    } catch (err: any) {
-      setError(err?.message ?? "Network error");
+    } catch (err) {
+      setError(errorMessage(err) ?? "Network error");
     } finally {
       setSubmitting(false);
     }

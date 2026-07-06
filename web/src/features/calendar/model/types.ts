@@ -3,7 +3,7 @@ export type CalendarPlan = {
   userId: string;
   name: string;
   type: "SINGLE" | "COMPOSITE" | "MANUAL";
-  params: any;
+  params: Record<string, unknown> | null;
   createdAt: string;
 };
 

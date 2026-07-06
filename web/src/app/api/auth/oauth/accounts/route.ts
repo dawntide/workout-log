@@ -1,3 +1,4 @@
+import { errorMessage } from "@/lib/error-message";
 import { NextResponse } from "next/server";
 import { desc, eq } from "drizzle-orm";
 import { db } from "@workout/core/db/client";
@@ -54,8 +55,8 @@ async function GETImpl(_req: Request) {
         createdAt: row.createdAt.toISOString(),
       })),
     });
-  } catch (e: any) {
-    if (e?.message?.startsWith("Unauthorized")) {
+  } catch (e) {
+    if (errorMessage(e)?.startsWith("Unauthorized")) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     logError("api.handler_error", { error: e, route: "auth.oauth.accounts.list" });

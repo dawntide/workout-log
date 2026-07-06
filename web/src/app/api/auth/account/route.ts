@@ -1,3 +1,4 @@
+import { errorMessage } from "@/lib/error-message";
 import { NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { db } from "@workout/core/db/client";
@@ -136,8 +137,8 @@ async function DELETEImpl(req: Request) {
     const res = NextResponse.json({ ok: true });
     res.cookies.delete(SESSION_COOKIE_NAME);
     return res;
-  } catch (e: any) {
-    if (e?.message?.startsWith("Unauthorized")) {
+  } catch (e) {
+    if (errorMessage(e)?.startsWith("Unauthorized")) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     logError("api.handler_error", { error: e, route: "auth.account.delete" });

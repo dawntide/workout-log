@@ -9,7 +9,7 @@ type SerializedPlan = {
   userId: string;
   name: string;
   type: "SINGLE" | "COMPOSITE" | "MANUAL";
-  params: any;
+  params: Record<string, unknown> | null;
   createdAt: string;
 };
 
@@ -97,7 +97,7 @@ export async function getCalendarPageBootstrap(): Promise<CalendarPageBootstrap>
       userId: entry.userId,
       name: entry.name,
       type: entry.type,
-      params: entry.params,
+      params: entry.params as Record<string, unknown> | null,
       createdAt: entry.createdAt.toISOString(),
     })),
     initialSessions: recentSessions.map((entry) => ({

@@ -1,4 +1,5 @@
 "use client";
+import { errorMessage } from "@/lib/error-message";
 
 import { memo, useCallback, useEffect, useState } from "react";
 import { useLocale } from "@/components/locale-provider";
@@ -45,9 +46,9 @@ export const StrengthSummaryGrid = memo(function StrengthSummaryGrid({
         "/api/stats/strength-summary?days=60&limit=4",
       );
       setData(response.items);
-    } catch (e: any) {
+    } catch (e) {
       setError(
-        e?.message ??
+        errorMessage(e) ??
           (locale === "ko"
             ? "데이터를 불러오지 못했습니다."
             : "Could not load the data."),

@@ -1,4 +1,5 @@
 "use client";
+import { errorMessage } from "@/lib/error-message";
 
 import { useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
@@ -31,8 +32,8 @@ export function V2ForgotPasswordForm() {
         return;
       }
       setDone(true);
-    } catch (err: any) {
-      setError(err?.message ?? "Network error");
+    } catch (err) {
+      setError(errorMessage(err) ?? "Network error");
     } finally {
       setSubmitting(false);
     }

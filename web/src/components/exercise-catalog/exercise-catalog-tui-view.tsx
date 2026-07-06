@@ -1,4 +1,5 @@
 "use client";
+import { errorMessage } from "@/lib/error-message";
 
 import {
   useCallback,
@@ -92,10 +93,10 @@ export function ExerciseCatalogTuiView() {
         if (requestId !== loadRequestIdRef.current) return;
         catalogLoadedRef.current = true;
         setItems(res.items ?? []);
-      } catch (e: any) {
+      } catch (e) {
         if (requestId !== loadRequestIdRef.current) return;
         setError(
-          e?.message ??
+          errorMessage(e) ??
             (ko
               ? "운동종목 목록을 불러오지 못했습니다."
               : "Could not load the exercise list."),
@@ -173,9 +174,9 @@ export function ExerciseCatalogTuiView() {
             : "That exercise already exists.",
       );
       await loadExercises(query, true);
-    } catch (e: any) {
+    } catch (e) {
       setError(
-        e?.message ??
+        errorMessage(e) ??
           (ko ? "운동종목 추가에 실패했습니다." : "Failed to add the exercise."),
       );
       void loadExercises(query, true);
@@ -209,9 +210,9 @@ export function ExerciseCatalogTuiView() {
       });
       setNotice(ko ? "운동종목이 수정되었습니다." : "Exercise updated.");
       await loadExercises(query, true);
-    } catch (e: any) {
+    } catch (e) {
       setError(
-        e?.message ??
+        errorMessage(e) ??
           (ko ? "운동종목 수정에 실패했습니다." : "Failed to update the exercise."),
       );
       void loadExercises(query, true);
@@ -239,9 +240,9 @@ export function ExerciseCatalogTuiView() {
       await apiDelete(`/api/exercises/${encodeURIComponent(item.id)}`);
       setNotice(ko ? "운동종목이 삭제되었습니다." : "Exercise deleted.");
       await loadExercises(query, true);
-    } catch (e: any) {
+    } catch (e) {
       setError(
-        e?.message ??
+        errorMessage(e) ??
           (ko ? "운동종목 삭제에 실패했습니다." : "Failed to delete the exercise."),
       );
       void loadExercises(query, true);

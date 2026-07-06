@@ -1,4 +1,5 @@
 "use client";
+import { errorMessage } from "@/lib/error-message";
 
 import { useState } from "react";
 import { useAppDialog } from "@/components/ui/app-dialog-provider";
@@ -92,8 +93,8 @@ export default function SettingsDataPage() {
       }
 
       setNotice(locale === "ko" ? "캐시를 성공적으로 삭제했습니다." : "Cache was cleared successfully.");
-    } catch (e: any) {
-      const message = e?.message ?? (locale === "ko" ? "캐시 삭제에 실패했습니다." : "Failed to clear the cache.");
+    } catch (e) {
+      const message = errorMessage(e) ?? (locale === "ko" ? "캐시 삭제에 실패했습니다." : "Failed to clear the cache.");
       setError(message);
       await alert({
         title: locale === "ko" ? "캐시 삭제 실패" : "Cache Clear Failed",
@@ -153,8 +154,8 @@ export default function SettingsDataPage() {
       });
 
       window.location.assign("/settings");
-    } catch (e: any) {
-      const message = e?.message ?? (locale === "ko" ? "앱 데이터 초기화에 실패했습니다." : "Failed to reset app data.");
+    } catch (e) {
+      const message = errorMessage(e) ?? (locale === "ko" ? "앱 데이터 초기화에 실패했습니다." : "Failed to reset app data.");
       setError(message);
       await alert({
         title: locale === "ko" ? "초기화 실패" : "Reset Failed",

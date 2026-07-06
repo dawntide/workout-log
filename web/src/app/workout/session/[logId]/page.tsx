@@ -1,4 +1,5 @@
 "use client";
+import { errorMessage } from "@/lib/error-message";
 
 import { useEffect, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
@@ -40,11 +41,11 @@ export default function WorkoutSessionDetailPage() {
           `/api/logs/${encodeURIComponent(logId)}`,
         );
         if (!cancelled) setItem(res.item);
-      } catch (e: any) {
+      } catch (e) {
         if (!cancelled) {
           setItem(null);
           setError(
-            e?.message ??
+            errorMessage(e) ??
               (locale === "ko"
                 ? "세션 상세를 불러오지 못했습니다."
                 : "Could not load the session details."),
@@ -81,9 +82,9 @@ export default function WorkoutSessionDetailPage() {
           setLoading(true);
           apiGet<LogResponse>(`/api/logs/${encodeURIComponent(logId)}`)
             .then((res) => setItem(res.item))
-            .catch((e: any) =>
+            .catch((e: unknown) =>
               setError(
-                e?.message ??
+                errorMessage(e) ??
                   (locale === "ko"
                     ? "세션 상세를 다시 불러오지 못했습니다."
                     : "Could not reload the session details."),

@@ -81,9 +81,10 @@ const eslintConfig = defineConfig([
   ...nextTs,
   {
     rules: {
-      // 감사(2026-07 §5.4) 승격 1단계: off→warn — 경고는 CI 비차단이지만 신규 any를
-      // 가시화하고 기존 ~200건을 점진 감축한다. 전부 정리되면 error로 재승격.
-      "@typescript-eslint/no-explicit-any": "warn",
+      // 감사(2026-07 §5.4) 승격 완료: 기존 85건 전부 실타입화(#509 warn→가시화,
+      // 이후 정리). 예외는 generated-session jsonb 5곳뿐 — 사유 명시
+      // eslint-disable로만 허용. 신규 any는 CI에서 차단된다.
+      "@typescript-eslint/no-explicit-any": "error",
       "react-hooks/set-state-in-effect": "off",
       // _prefix 로 시작하는 변수는 의도적으로 사용하지 않는 매개변수임을 표시 — 무시.
       "@typescript-eslint/no-unused-vars": [

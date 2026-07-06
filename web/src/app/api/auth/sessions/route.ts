@@ -1,3 +1,4 @@
+import { errorMessage } from "@/lib/error-message";
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { and, desc, eq, ne } from "drizzle-orm";
@@ -47,8 +48,8 @@ async function GETImpl(_req: Request) {
     });
 
     return NextResponse.json({ items });
-  } catch (e: any) {
-    if (e?.message?.startsWith("Unauthorized")) {
+  } catch (e) {
+    if (errorMessage(e)?.startsWith("Unauthorized")) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     logError("api.handler_error", { error: e, route: "auth.sessions.list" });
@@ -92,8 +93,8 @@ async function DELETEImpl(req: Request) {
     }).catch(() => {});
 
     return NextResponse.json({ ok: true, revoked });
-  } catch (e: any) {
-    if (e?.message?.startsWith("Unauthorized")) {
+  } catch (e) {
+    if (errorMessage(e)?.startsWith("Unauthorized")) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     logError("api.handler_error", {

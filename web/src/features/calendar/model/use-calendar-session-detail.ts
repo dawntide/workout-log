@@ -1,4 +1,5 @@
 "use client";
+import { errorMessage } from "@/lib/error-message";
 
 import { useEffect, useRef, useState } from "react";
 import { apiGet } from "@/lib/api";
@@ -53,11 +54,11 @@ export function useCalendarSessionDetail({
         const nextDetail = res.items[0] ?? null;
         sessionDetailCacheRef.current.set(cacheKey, nextDetail);
         setSelectedSessionDetail(nextDetail);
-      } catch (error: any) {
+      } catch (error) {
         if (cancelled) return;
         setSelectedSessionDetail(null);
         setError(
-          error?.message ??
+          errorMessage(error) ??
             (locale === "ko"
               ? "세션 상세를 불러오지 못했습니다."
               : "Could not load session details."),

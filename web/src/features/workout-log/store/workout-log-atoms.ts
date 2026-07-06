@@ -84,7 +84,7 @@ export const prevPerformanceMapAtom = atom((get) => {
 export const memoizedProgramEntryStatesAtom = atom((get) => {
   const visibleExercises = get(visibleExercisesAtom);
   const entryStateMap = get(programEntryStateAtom);
-  const result: Record<string, any> = {};
+  const result: Record<string, ReturnType<typeof createFallbackProgramEntryState>> = {};
   for (const exercise of visibleExercises) {
     if (exercise.source === "PROGRAM") {
       result[exercise.id] = createFallbackProgramEntryState(exercise, entryStateMap[exercise.id]);

@@ -1,4 +1,5 @@
 "use client";
+import { errorMessage } from "@/lib/error-message";
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -134,9 +135,9 @@ export default function SettingsAccountPage() {
         );
       }
       void loadMe();
-    } catch (e: any) {
+    } catch (e) {
       setError(
-        e?.message ??
+        errorMessage(e) ??
           (locale === "ko"
             ? "인증 메일 발송에 실패했습니다."
             : "Failed to send verification email."),
@@ -160,9 +161,9 @@ export default function SettingsAccountPage() {
       }
       setOauthAccounts(payload.items ?? []);
       setHasPassword(Boolean(payload.hasPassword));
-    } catch (e: any) {
+    } catch (e) {
       setError(
-        e?.message ??
+        errorMessage(e) ??
           (locale === "ko"
             ? "연결된 계정을 불러오지 못했습니다."
             : "Failed to load connected accounts."),
@@ -184,9 +185,9 @@ export default function SettingsAccountPage() {
         throw new Error(payload.error ?? `failed (${response.status})`);
       }
       setSessions(payload.items ?? []);
-    } catch (e: any) {
+    } catch (e) {
       setError(
-        e?.message ??
+        errorMessage(e) ??
           (locale === "ko"
             ? "세션 목록을 불러오지 못했습니다."
             : "Failed to load sessions."),
@@ -244,9 +245,9 @@ export default function SettingsAccountPage() {
       setSetupPassword("");
       setSetupConfirm("");
       void loadOauthAccounts();
-    } catch (e: any) {
+    } catch (e) {
       setError(
-        e?.message ??
+        errorMessage(e) ??
           (locale === "ko" ? "비밀번호 설정에 실패했습니다." : "Failed to set password."),
       );
     } finally {
@@ -301,9 +302,9 @@ export default function SettingsAccountPage() {
           : `Disconnected ${providerLabel}.`,
       );
       void loadOauthAccounts();
-    } catch (e: any) {
+    } catch (e) {
       setError(
-        e?.message ??
+        errorMessage(e) ??
           (locale === "ko" ? "연결 해제에 실패했습니다." : "Failed to disconnect."),
       );
     } finally {
@@ -350,9 +351,9 @@ export default function SettingsAccountPage() {
           : `Revoked ${payload.revoked ?? 0} other sessions.`,
       );
       void loadSessions();
-    } catch (e: any) {
+    } catch (e) {
       setError(
-        e?.message ??
+        errorMessage(e) ??
           (locale === "ko" ? "세션 종료에 실패했습니다." : "Failed to revoke sessions."),
       );
     } finally {
@@ -409,15 +410,15 @@ export default function SettingsAccountPage() {
             : "Your account has been deleted. Returning to the sign-in screen.",
       });
       router.replace("/login");
-    } catch (e: any) {
+    } catch (e) {
       setError(
-        e?.message ??
+        errorMessage(e) ??
           (locale === "ko" ? "계정 삭제에 실패했습니다." : "Failed to delete account."),
       );
       await alert({
         title: locale === "ko" ? "삭제 실패" : "Delete Failed",
         message:
-          e?.message ??
+          errorMessage(e) ??
           (locale === "ko"
             ? "계정 삭제에 실패했습니다."
             : "Failed to delete the account."),

@@ -203,7 +203,9 @@ export async function fetchLogDetailServer(
           .from(generatedSession)
           .where(eq(generatedSession.id, log.generatedSessionId))
           .limit(1)
-      : Promise.resolve([] as any[]),
+      : Promise.resolve(
+          [] as Array<{ id: string; planId: string; sessionKey: string; snapshot: unknown; updatedAt: Date | null }>,
+        ),
   ]);
 
   const gen = Array.isArray(generatedRow) ? generatedRow[0] : null;

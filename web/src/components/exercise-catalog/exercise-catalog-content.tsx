@@ -1,4 +1,5 @@
 "use client";
+import { errorMessage } from "@/lib/error-message";
 
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type TouchEvent } from "react";
 import { useWindowVirtualizer } from "@tanstack/react-virtual";
@@ -473,9 +474,9 @@ export function ExerciseCatalogContent() {
       if (requestId !== loadRequestIdRef.current) return;
       catalogLoadedRef.current = true;
       setItems(res.items ?? []);
-    } catch (e: any) {
+    } catch (e) {
       if (requestId !== loadRequestIdRef.current) return;
-      setError(e?.message ?? (locale === "ko" ? "운동종목 목록을 불러오지 못했습니다." : "Could not load the exercise list."));
+      setError(errorMessage(e) ?? (locale === "ko" ? "운동종목 목록을 불러오지 못했습니다." : "Could not load the exercise list."));
     } finally {
       if (requestId !== loadRequestIdRef.current) return;
       setLoading(false);
@@ -537,8 +538,8 @@ export function ExerciseCatalogContent() {
       }
       setNotice(res.created ? (locale === "ko" ? "운동종목이 추가되었습니다." : "Exercise added.") : (locale === "ko" ? "이미 존재하는 운동종목입니다." : "That exercise already exists."));
       await loadExercises(query, true);
-    } catch (e: any) {
-      setError(e?.message ?? (locale === "ko" ? "운동종목 추가에 실패했습니다." : "Failed to add the exercise."));
+    } catch (e) {
+      setError(errorMessage(e) ?? (locale === "ko" ? "운동종목 추가에 실패했습니다." : "Failed to add the exercise."));
       void loadExercises(query, true);
     } finally {
       setSavingCreate(false);
@@ -563,8 +564,8 @@ export function ExerciseCatalogContent() {
       await apiPatch(`/api/exercises/${encodeURIComponent(targetId)}`, { name: newName, category: newCategory });
       setNotice(locale === "ko" ? "운동종목이 수정되었습니다." : "Exercise updated.");
       await loadExercises(query, true);
-    } catch (e: any) {
-      setError(e?.message ?? (locale === "ko" ? "운동종목 수정에 실패했습니다." : "Failed to update the exercise."));
+    } catch (e) {
+      setError(errorMessage(e) ?? (locale === "ko" ? "운동종목 수정에 실패했습니다." : "Failed to update the exercise."));
       void loadExercises(query, true);
     } finally {
       setSavingEdit(false);
@@ -589,8 +590,8 @@ export function ExerciseCatalogContent() {
       await apiDelete(`/api/exercises/${encodeURIComponent(item.id)}`);
       setNotice(locale === "ko" ? "운동종목이 삭제되었습니다." : "Exercise deleted.");
       await loadExercises(query, true);
-    } catch (e: any) {
-      setError(e?.message ?? (locale === "ko" ? "운동종목 삭제에 실패했습니다." : "Failed to delete the exercise."));
+    } catch (e) {
+      setError(errorMessage(e) ?? (locale === "ko" ? "운동종목 삭제에 실패했습니다." : "Failed to delete the exercise."));
       void loadExercises(query, true);
     } finally {
       setDeletingId(null);

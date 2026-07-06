@@ -1,4 +1,5 @@
 "use client";
+import { errorMessage } from "@/lib/error-message";
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
@@ -154,8 +155,8 @@ export function V2AuthForm({ mode }: { mode: Mode }) {
       void remember;
       router.replace(next);
       router.refresh();
-    } catch (err: any) {
-      setError(err?.message ?? "Network error");
+    } catch (err) {
+      setError(errorMessage(err) ?? "Network error");
     } finally {
       setSubmitting(false);
     }

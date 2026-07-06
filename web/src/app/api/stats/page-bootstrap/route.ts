@@ -17,7 +17,7 @@ async function GETImpl(req: Request) {
     return NextResponse.json(payload, {
       headers: { "Cache-Control": "private, max-age=60, stale-while-revalidate=300" },
     });
-  } catch (e: any) {
+  } catch (e) {
     logError("api.handler_error", { error: e });
     return apiErrorResponse(e);
   }

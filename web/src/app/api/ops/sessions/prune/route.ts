@@ -27,7 +27,7 @@ async function POSTImpl(req: Request) {
   const result = await db
     .delete(authSession)
     .where(lt(authSession.expiresAt, new Date()));
-  const deleted = (result as any)?.rowCount ?? 0;
+  const deleted = (result as { rowCount?: number | null })?.rowCount ?? 0;
   return NextResponse.json({
     deleted,
     at: new Date().toISOString(),

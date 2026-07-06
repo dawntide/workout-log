@@ -1,4 +1,5 @@
 "use client";
+import { errorMessage } from "@/lib/error-message";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createPersistServerSetting, fetchSettingsSnapshot } from "./settings-api";
@@ -55,8 +56,8 @@ export function useMinimumPlateRulesSetting(): UseMinimumPlateRulesSettingReturn
           }
         }
         setNameMap(map);
-      } catch (e: any) {
-        if (!cancelled) setLoadError(e?.message ?? "규칙을 불러오지 못했습니다.");
+      } catch (e) {
+        if (!cancelled) setLoadError(errorMessage(e) ?? "규칙을 불러오지 못했습니다.");
       } finally {
         if (!cancelled) setLoading(false);
       }

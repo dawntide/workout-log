@@ -1,4 +1,5 @@
 "use client";
+import { errorMessage } from "@/lib/error-message";
 
 import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import { resolveWorkoutLogBootstrap } from "@/features/workout-log/model/bootstrap";
@@ -121,12 +122,12 @@ export function useWorkoutLogContextController({
         setLastSession(result.lastSession);
         setWorkflowState((prev) => (hasRestoredDraft() ? prev : "idle"));
         contextHasLoadedRef.current = true;
-      } catch (e: any) {
+      } catch (e) {
         setDraft(null);
         setProgramEntryState({});
         setLastSession(null);
         setError(
-          e?.message ??
+          errorMessage(e) ??
             (locale === "ko"
               ? "운동기록 화면 데이터를 불러오지 못했습니다."
               : "Could not load the workout log screen."),
@@ -246,12 +247,12 @@ export function useWorkoutLogContextController({
         if (bootstrap.openAdd) {
           onBootstrapOpenAddSheet();
         }
-      } catch (e: any) {
+      } catch (e) {
         if (!cancelled) {
           setDraft(null);
           setProgramEntryState({});
           setError(
-            e?.message ??
+            errorMessage(e) ??
               (locale === "ko" ? "플랜 목록을 불러오지 못했습니다." : "Could not load the plans list."),
           );
           setLoading(false);

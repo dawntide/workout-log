@@ -1,3 +1,4 @@
+import { errorMessage } from "@/lib/error-message";
 import type { Dispatch, SetStateAction } from "react";
 import {
   useCallback,
@@ -86,10 +87,10 @@ export function useWorkoutLogAddExerciseController({
         const nextItems = await fetchWorkoutExerciseOptions(queryValue, controller.signal);
         exerciseOptionsCacheRef.current.set(normalizedQuery, nextItems);
         setExerciseOptions(nextItems);
-      } catch (error: any) {
-        if (error?.name === "AbortError") return;
+      } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") return;
         setExerciseOptionsError(
-          error?.message ??
+          errorMessage(error) ??
             (locale === "ko"
               ? "운동종목 목록을 불러오지 못했습니다."
               : "Could not load the exercise list."),

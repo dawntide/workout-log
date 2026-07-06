@@ -1,4 +1,5 @@
 "use client";
+import { errorMessage } from "@/lib/error-message";
 
 // plans-manage 컨트롤러 훅 — 화면 컴포넌트(app/plans/manage/plans-manage-content.tsx)에서
 // 상태·파생·데이터 로딩·뮤테이션 전부를 추출(god-component 분해 2단계, 감사 §5.4-4).
@@ -169,8 +170,8 @@ export function usePlansManageController({ initialPlans }: { initialPlans: Plan[
       const res = await apiGet<{ items: Plan[] }>("/api/plans");
       storeHasLoadedRef.current = true;
       setPlans(res.items ?? []);
-    } catch (e: any) {
-      setError(e?.message ?? "플랜 목록을 불러오지 못했습니다.");
+    } catch (e) {
+      setError(errorMessage(e) ?? "플랜 목록을 불러오지 못했습니다.");
     } finally {
       setLoading(false);
     }
@@ -306,10 +307,10 @@ export function usePlansManageController({ initialPlans }: { initialPlans: Plan[
         message: "현재 TM이 조정되었습니다.",
         buttonText: "확인",
       });
-    } catch (e: any) {
+    } catch (e) {
       await alert({
         title: "조정 실패",
-        message: e?.message ?? "현재 TM 조정에 실패했습니다.",
+        message: errorMessage(e) ?? "현재 TM 조정에 실패했습니다.",
         buttonText: "확인",
         tone: "danger",
       });
@@ -417,11 +418,11 @@ export function usePlansManageController({ initialPlans }: { initialPlans: Plan[
         message: `플랜 정보가 변경되었습니다.\n${res.plan.name}`,
         buttonText: "확인",
       });
-    } catch (e: any) {
+    } catch (e) {
       if (managedPlan) {
         setPlans((prev) => prev.map((item) => (item.id === managedPlan.id ? prevPlan : item)));
       }
-      const message = e?.message ?? "플랜 정보 수정에 실패했습니다.";
+      const message = errorMessage(e) ?? "플랜 정보 수정에 실패했습니다.";
       setError(message);
       await alert({
         title: "수정 실패",
@@ -461,9 +462,9 @@ export function usePlansManageController({ initialPlans }: { initialPlans: Plan[
         message: `플랜이 삭제되었습니다.\n${managedPlan.name}`,
         buttonText: "확인",
       });
-    } catch (e: any) {
+    } catch (e) {
       void loadPlans({ isRefresh: true });
-      const message = e?.message ?? "플랜 삭제에 실패했습니다.";
+      const message = errorMessage(e) ?? "플랜 삭제에 실패했습니다.";
       setError(message);
       await alert({
         title: "삭제 실패",

@@ -1,4 +1,5 @@
 "use client";
+import { errorMessage } from "@/lib/error-message";
 
 import { useEffect, useId, useMemo, useState } from "react";
 import Link from "next/link";
@@ -222,10 +223,10 @@ export function V2PlanSheet({
           staleWhileRevalidateMs: 300_000,
         });
         if (!cancelled) setPlans(res.items ?? []);
-      } catch (e: any) {
+      } catch (e) {
         if (!cancelled) {
           setError(
-            e?.message ??
+            errorMessage(e) ??
               (locale === "ko" ? "플랜을 불러오지 못했습니다." : "Failed to load."),
           );
           setPlans([]);

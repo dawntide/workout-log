@@ -200,7 +200,7 @@ async function resolveInitialContext(
     if (!plan) return null;
 
     const matchKey = `${plan.id}:${dateKey}:${rawLogId ?? ""}`;
-    const preferences = readWorkoutPreferences(settings as any);
+    const preferences = readWorkoutPreferences(settings);
     const planParams = plan.params as Record<string, unknown> | null;
     const locale = (preferences.locale ?? "ko") as "ko" | "en";
 

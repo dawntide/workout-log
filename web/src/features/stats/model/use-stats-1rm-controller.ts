@@ -1,4 +1,5 @@
 "use client";
+import { errorMessage } from "@/lib/error-message";
 
 import {
   useCallback,
@@ -154,10 +155,10 @@ export function useStats1RMController({
         prev && nextPlans.some((entry) => entry.id === prev) ? prev : "",
       );
       optionsHasLoadedRef.current = true;
-    } catch (e: any) {
-      if (e?.name === "AbortError") return;
+    } catch (e) {
+      if (e instanceof DOMException && e.name === "AbortError") return;
       setOptionsError(
-        e?.message ??
+        errorMessage(e) ??
           (locale === "ko"
             ? "필터 옵션을 불러오지 못했습니다."
             : "Could not load filter options."),
@@ -223,10 +224,10 @@ export function useStats1RMController({
         setStats(response);
         setActivePointIndex(response.series.length > 0 ? response.series.length - 1 : 0);
         dataHasLoadedRef.current = true;
-      } catch (e: any) {
-        if (cancelled || e?.name === "AbortError") return;
+      } catch (e) {
+        if (cancelled || (e instanceof DOMException && e.name === "AbortError")) return;
         setError(
-          e?.message ??
+          errorMessage(e) ??
             (locale === "ko"
               ? "1RM 데이터를 불러오지 못했습니다."
               : "Could not load 1RM data."),

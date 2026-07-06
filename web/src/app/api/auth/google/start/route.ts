@@ -55,7 +55,7 @@ async function GETImpl(req: Request) {
     response.cookies.set({ ...baseCookie, name: VERIFIER_COOKIE, value: verifier });
     response.cookies.set({ ...baseCookie, name: NEXT_COOKIE, value: safeNext });
     return response;
-  } catch (e: any) {
+  } catch (e) {
     logError("api.handler_error", { error: e, route: "auth.google.start" });
     return apiErrorResponse(e);
   }

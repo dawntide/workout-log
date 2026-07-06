@@ -1,4 +1,5 @@
 "use client";
+import { errorMessage } from "@/lib/error-message";
 
 import { useMemo, useRef, useState } from "react";
 import { V2NavRow } from "@/components/v2/primitives";
@@ -144,8 +145,8 @@ export default function SettingsDataExportPage() {
       } else {
         setNotice(format === "json" ? copy.settings.dataExportPage.json.downloaded : copy.settings.dataExportPage.csv.downloaded);
       }
-    } catch (e: any) {
-      setError(e?.message ?? copy.settings.dataExportPage.genericError);
+    } catch (e) {
+      setError(errorMessage(e) ?? copy.settings.dataExportPage.genericError);
     } finally {
       setExporting(null);
     }
@@ -165,11 +166,11 @@ export default function SettingsDataExportPage() {
       setImportedFile({ name: file.name, payload: json });
       const preview = await postImport("dryRun", json);
       setImportPreview(preview);
-    } catch (e: any) {
+    } catch (e) {
       setImportedFile(null);
       setImportPreview(null);
       setError(
-        e?.message ??
+        errorMessage(e) ??
           (locale === "ko"
             ? "import 파일을 읽지 못했습니다."
             : "Failed to read import file."),
@@ -212,15 +213,15 @@ export default function SettingsDataExportPage() {
             ? "데이터 교체가 완료되었습니다. 화면을 새로고침해 변경 내용을 반영하세요."
             : "Data replacement is complete. Refresh to see updates across the app.",
       });
-    } catch (e: any) {
+    } catch (e) {
       setError(
-        e?.message ??
+        errorMessage(e) ??
           (locale === "ko" ? "Import 적용에 실패했습니다." : "Failed to apply import."),
       );
       await alert({
         title: locale === "ko" ? "Import 실패" : "Import Failed",
         message:
-          e?.message ??
+          errorMessage(e) ??
           (locale === "ko" ? "import 적용에 실패했습니다." : "Failed to apply import."),
         tone: "danger",
       });

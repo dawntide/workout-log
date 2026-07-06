@@ -1,4 +1,5 @@
 "use client";
+import { errorMessage } from "@/lib/error-message";
 
 import { useCallback } from "react";
 import type { AppConfirmOptions } from "@/components/ui/app-dialog-provider";
@@ -67,7 +68,7 @@ function validateCustomSessions(
   return errors;
 }
 
-async function putProgramVersionDefinition(versionId: string, definition: any) {
+async function putProgramVersionDefinition(versionId: string, definition: unknown) {
   await apiPut(`/api/program-versions/${encodeURIComponent(versionId)}`, {
     definition,
   });
@@ -147,9 +148,9 @@ export function useProgramStoreTemplateMutationController({
             ? `커스텀 프로그램을 삭제했습니다: ${formatProgramDisplayName(item.template.name)}${deletedPlanSuffix}`
             : `Deleted custom program: ${formatProgramDisplayName(item.template.name)}${deletedPlanSuffix}`,
         );
-      } catch (error: any) {
+      } catch (error) {
         setError(
-          error?.message ??
+          errorMessage(error) ??
             (locale === "ko"
               ? "커스텀 프로그램을 삭제하지 못했습니다."
               : "Could not delete the custom program."),
@@ -226,9 +227,9 @@ export function useProgramStoreTemplateMutationController({
         setCustomizeDraft(null);
         setDetailTargetId(null);
         void loadStore({ isRefresh: true });
-      } catch (error: any) {
+      } catch (error) {
         setError(
-          error?.message ??
+          errorMessage(error) ??
             (locale === "ko"
               ? "커스터마이징을 저장하지 못했습니다."
               : "Could not save the customization."),
@@ -302,9 +303,9 @@ export function useProgramStoreTemplateMutationController({
         );
         setCreateDraft(null);
         void loadStore({ isRefresh: true });
-      } catch (error: any) {
+      } catch (error) {
         setError(
-          error?.message ??
+          errorMessage(error) ??
             (locale === "ko"
               ? "커스텀 프로그램을 만들지 못했습니다."
               : "Could not create the custom program."),

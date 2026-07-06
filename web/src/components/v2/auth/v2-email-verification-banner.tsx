@@ -1,4 +1,5 @@
 "use client";
+import { errorMessage } from "@/lib/error-message";
 
 import { useEffect, useState, type ReactNode } from "react";
 import { useLocale } from "@/components/locale-provider";
@@ -61,8 +62,8 @@ export function V2EmailVerificationBanner() {
         return;
       }
       setSent(true);
-    } catch (err: any) {
-      setError(err?.message ?? "Network error");
+    } catch (err) {
+      setError(errorMessage(err) ?? "Network error");
     } finally {
       setSending(false);
     }
