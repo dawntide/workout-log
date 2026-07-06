@@ -138,20 +138,35 @@ func downloadBinary(ver string) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("다운로드 실패 (%s): %w", name, err)
 	}
-	// Verify the SHA256 against the published checksums (skipped only if the
-	// checksums file is unreachable, so a normal release always verifies).
-	if sums, err := fetch(base + "/checksums.txt"); err == nil {
-		if want := checksumFor(string(sums), name); want != "" {
-			got := sha256.Sum256(archive)
-			if hex.EncodeToString(got[:]) != want {
-				return nil, fmt.Errorf("체크섬 불일치 (%s) — 손상되었거나 변조되었습니다", name)
-			}
-		}
+	// Verify the SHA256 against the published checksums. Hard-fail: an
+	// unreachable checksums.txt or a missing entry aborts the update — a binary
+	// swap must never proceed unverified (GoReleaser always publishes the file,
+	// so a legitimate release can't hit this).
+	sums, err := fetch(base + "/checksums.txt")
+	if err != nil {
+		return nil, fmt.Errorf("체크섬 파일(checksums.txt) 다운로드 실패: %w — 무결성 검증 없이는 설치하지 않습니다", err)
+	}
+	if err := verifyChecksum(string(sums), name, archive); err != nil {
+		return nil, err
 	}
 	if runtime.GOOS == "windows" {
 		return extractZip(archive)
 	}
 	return extractTarGz(archive)
+}
+
+// verifyChecksum matches archive's SHA256 against the entry for name in a
+// checksums.txt listing. A missing entry is an error, not a pass.
+func verifyChecksum(sums, name string, archive []byte) error {
+	want := checksumFor(sums, name)
+	if want == "" {
+		return fmt.Errorf("checksums.txt에 %s 항목이 없습니다 — 무결성 검증 없이는 설치하지 않습니다", name)
+	}
+	got := sha256.Sum256(archive)
+	if hex.EncodeToString(got[:]) != want {
+		return fmt.Errorf("체크섬 불일치 (%s) — 손상되었거나 변조되었습니다", name)
+	}
+	return nil
 }
 
 // checksumFor returns the hex SHA256 for file from a `<hash>  <file>` listing.

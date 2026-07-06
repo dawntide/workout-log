@@ -4,6 +4,9 @@ import (
 	"archive/tar"
 	"bytes"
 	"compress/gzip"
+	"crypto/sha256"
+	"encoding/hex"
+	"strings"
 	"testing"
 )
 
@@ -32,6 +35,28 @@ func TestChecksumFor(t *testing.T) {
 	}
 	if got := checksumFor(sums, "ironlog_0.3.1_macos_amd64.tar.gz"); got != "" {
 		t.Errorf("checksumFor missing file = %q, want empty", got)
+	}
+}
+
+func TestVerifyChecksum(t *testing.T) {
+	archive := []byte("release archive bytes")
+	sum := sha256.Sum256(archive)
+	name := "ironlog_0.3.2_linux_amd64.tar.gz"
+	sums := hex.EncodeToString(sum[:]) + "  " + name + "\n"
+
+	if err := verifyChecksum(sums, name, archive); err != nil {
+		t.Errorf("matching checksum should pass, got %v", err)
+	}
+	// Hard-fail: an entry missing from checksums.txt must NOT silently pass.
+	if err := verifyChecksum(sums, "ironlog_0.3.2_macos_arm64.tar.gz", archive); err == nil {
+		t.Error("missing entry should fail, got nil")
+	} else if !strings.Contains(err.Error(), "항목이 없습니다") {
+		t.Errorf("missing entry error = %v", err)
+	}
+	if err := verifyChecksum(sums, name, []byte("tampered bytes")); err == nil {
+		t.Error("mismatched checksum should fail, got nil")
+	} else if !strings.Contains(err.Error(), "불일치") {
+		t.Errorf("mismatch error = %v", err)
 	}
 }
 

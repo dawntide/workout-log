@@ -29,7 +29,8 @@ const NAV_HIDDEN_PATH_PREFIXES = [
 
 // PERF: 앱 시작 시 즉시 prefetch할 주요 네비게이션 경로
 // 사용자가 탭을 클릭하기 전에 미리 JS 청크를 다운로드 → 네비게이션 체감 속도 향상
-const PREFETCH_ROUTES = ["/", "/workout/log", "/stats", "/calendar", "/plans"];
+// 스탯 홈은 별도 페이지가 아니라 "/?deck=stats"(홈 데크)라 "/" prefetch가 커버한다.
+const PREFETCH_ROUTES = ["/", "/workout/log", "/calendar", "/plans"];
 
 // terminal 테마 셸의 탭 스트립 = 네비게이션(paper의 V2BottomNav 대체). href로 SPA 이동.
 const TERM_TABS: TermTab[] = [
