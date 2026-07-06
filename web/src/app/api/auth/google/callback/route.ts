@@ -14,6 +14,7 @@ import { findOrCreateUserFromOAuth } from "@/server/auth/oauth-link";
 import { createSession, SESSION_COOKIE_NAME } from "@workout/core/auth/session";
 import { logAuthEvent } from "@workout/core/auth/security-events";
 import { isSafeRelativePath } from "@/server/auth/oauth-state";
+import { sessionCookieSecure } from "@/server/auth/session-cookie";
 
 const STATE_COOKIE = "wl_oauth_state";
 const VERIFIER_COOKIE = "wl_oauth_verifier";
@@ -146,7 +147,7 @@ async function GETImpl(req: Request) {
       value: session.token,
       httpOnly: true,
       sameSite: "lax",
-      secure: process.env.NODE_ENV === "production",
+      secure: sessionCookieSecure(),
       path: "/",
       expires: session.cookieExpiresAt, // sliding: 쿠키는 절대상한으로 길게(실제 게이트는 DB expiresAt)
     });

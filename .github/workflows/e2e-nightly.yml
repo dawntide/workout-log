@@ -52,7 +52,7 @@ jobs:
       - name: Seed DB
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/workout_log_ci
-          WORKOUT_AUTH_USER_ID: ci-user
+          WORKOUT_AUTH_USER_ID: 00000000-0000-4000-8000-000000c1c1c1
         run: pnpm db:seed
 
       # 데이터 라우트는 web이 apps/api로 프록시하므로(catch-all route.ts) 백엔드가
@@ -76,11 +76,18 @@ jobs:
       - name: Run full E2E suite
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/workout_log_ci
-          WORKOUT_AUTH_USER_ID: ci-user
+          WORKOUT_AUTH_USER_ID: 00000000-0000-4000-8000-000000c1c1c1
           APPS_API_BASE: http://127.0.0.1:8787
           NEXT_PUBLIC_APP_URL: http://127.0.0.1:3100
           NEXT_TELEMETRY_DISABLED: "1"
-          PLAYWRIGHT_SERVER_MODE: dev
+          # prod 빌드로 실행: dev 컴파일 지연이 타이밍 민감 스펙(async-ux·stats-1rm의
+          # 지연 mock 창)을 상시 잡아먹던 것을 구조적으로 제거(smoke #494와 동일 전환).
+          PLAYWRIGHT_SERVER_MODE: prod
+          # prod 빌드는 세션 쿠키를 Secure로 굽는데 CI는 http://127.0.0.1 구동이라
+          # 쿠키가 저장되지 않아 실계정 스펙 전부 401 → CI 한정 옵트아웃(session-cookie.ts).
+          WORKOUT_ALLOW_INSECURE_COOKIES: "1"
+          # 실계정 스펙 25+개가 한 러너 IP에서 signup → 5/hr 한도 429. CI 한정 해제.
+          WORKOUT_DISABLE_RATE_LIMIT: "1"
           CI: "true"
         run: pnpm exec playwright test --project chromium
 

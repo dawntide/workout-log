@@ -81,6 +81,12 @@ export function rateLimitInMemory(input: RateLimitInput): RateLimitResult {
  * 무너지지 않도록).
  */
 export async function rateLimit(input: RateLimitInput): Promise<RateLimitResult> {
+  // CI e2e 옵트아웃: nightly가 실계정 스펙 25+개를 한 러너 IP에서 signup하므로
+  // 5/hr 한도에 걸린다(prod 전환 후 실측 429). 실배포엔 이 env가 없어 동작 무변경 —
+  // WORKOUT_ALLOW_INSECURE_COOKIES와 같은 CI-전용 스위치 계열.
+  if (process.env.WORKOUT_DISABLE_RATE_LIMIT === "1") {
+    return { allowed: true, remaining: Number.MAX_SAFE_INTEGER, retryAfterMs: 0 };
+  }
   if (isRedisRateLimitConfigured()) {
     try {
       return await redisRateLimit(input);

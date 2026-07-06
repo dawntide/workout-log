@@ -14,6 +14,7 @@ import {
 import { getClientIp, rateLimit } from "@workout/core/auth/rate-limit";
 import { assertSameOrigin } from "@/server/auth/origin";
 import { logAuthEvent } from "@workout/core/auth/security-events";
+import { sessionCookieSecure } from "@/server/auth/session-cookie";
 
 export async function POST(req: Request) {
   const originErr = assertSameOrigin(req);
@@ -139,7 +140,7 @@ export async function POST(req: Request) {
     value: session.token,
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
+    secure: sessionCookieSecure(),
     path: "/",
     expires: session.cookieExpiresAt, // sliding: 쿠키는 절대상한으로 길게(실제 게이트는 DB expiresAt)
   });

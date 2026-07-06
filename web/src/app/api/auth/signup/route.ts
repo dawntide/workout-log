@@ -14,6 +14,7 @@ import { createEmailVerificationToken } from "@workout/core/auth/email-verificat
 import { sendEmailVerificationEmail } from "@workout/core/auth/auth-email";
 import { logAuthEvent } from "@workout/core/auth/security-events";
 import { getRequestOrigin } from "@workout/core/email/sender";
+import { sessionCookieSecure } from "@/server/auth/session-cookie";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -135,7 +136,7 @@ export async function POST(req: Request) {
     value: session.token,
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
+    secure: sessionCookieSecure(),
     path: "/",
     expires: session.expiresAt,
   });

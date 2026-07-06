@@ -162,7 +162,10 @@ test.describe("design harmonization: full-screen audit", () => {
           return;
         }
 
-        expect(screenshot.byteLength).toBeGreaterThan(15_000);
+        // non-blank 휴리스틱. 15KB는 과도했음 — CI(390×844, flat paper 톤) 실측에서
+        // 유효한 sparse 화면들이 11.1~14.8KB로 걸림(2026-07-06 nightly 트리아지).
+        // 진짜 blank(단색) PNG는 ~3-5KB라 8KB면 여전히 빈 화면을 잡는다.
+        expect(screenshot.byteLength).toBeGreaterThan(8_000);
       });
     }
   }

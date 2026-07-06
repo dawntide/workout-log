@@ -177,7 +177,7 @@ jobs:
       - name: Seed DB
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/workout_log_ci
-          WORKOUT_AUTH_USER_ID: ci-user
+          WORKOUT_AUTH_USER_ID: 00000000-0000-4000-8000-000000c1c1c1
         run: pnpm db:seed
 
       # PLAYWRIGHT_SERVER_MODE=prod → webServer가 `pnpm build && pnpm start`(프로덕션 런타임).
@@ -185,7 +185,7 @@ jobs:
       - name: Run smoke E2E tests (prod build)
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/workout_log_ci
-          WORKOUT_AUTH_USER_ID: ci-user
+          WORKOUT_AUTH_USER_ID: 00000000-0000-4000-8000-000000c1c1c1
           NEXT_PUBLIC_APP_URL: http://127.0.0.1:3100
           NEXT_TELEMETRY_DISABLED: "1"
           PLAYWRIGHT_SERVER_MODE: prod
