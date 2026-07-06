@@ -15,6 +15,7 @@ import {
 import type { UserDataExport } from "../export/userExport";
 import { validateExportShape } from "./validateExportShape";
 import { deleteUserDomainData } from "../data/deleteUserData";
+import { invalidatePersonalRecordsFrom } from "../services/workout-log/personal-records";
 
 export { validateExportShape };
 
@@ -307,6 +308,10 @@ export async function importUserData(
       await tx.insert(workoutSet).values(sanitizedSets as any);
     }
   });
+
+  // D1(frozen PR): import는 백데이트 로그를 삽입/치환할 수 있어 기존 로그들의
+  // '그 당시 PR' 판정이 바뀔 수 있다 → 유저 전체 동결값 무효화(조회 시 lazy 재계산).
+  await invalidatePersonalRecordsFrom({ userId, fromPerformedAt: new Date(0) });
 
   return {
     applied: true,

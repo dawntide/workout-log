@@ -15,6 +15,13 @@
       "when": 1783303217126,
       "tag": "0001_perf_plan_scoped_indexes",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1783322051196,
+      "tag": "0002_workout_log_personal_records",
+      "breakpoints": true
     }
   ]
 }

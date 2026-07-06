@@ -28,6 +28,10 @@ import {
 import { rebuildAutoProgressionForPlan } from "@workout/core/progression/autoProgression";
 import { invalidateStatsCacheForUser } from "@workout/core/stats/cache";
 import { upsertWorkoutLogService } from "@workout/core/services/workout-log/upsert-log";
+import {
+  getOrFreezePersonalRecords,
+  invalidatePersonalRecordsFrom,
+} from "@workout/core/services/workout-log/personal-records";
 import { getSettingsSnapshotForUser } from "@workout/core/services/settings/settings-snapshot";
 import { readWorkoutPreferences } from "@workout/core/settings/workout-preferences";
 import { resolveLoggedTotalLoadKg } from "@workout/core/bodyweight-load";
@@ -109,184 +113,8 @@ function buildLocalDateRangeFilter(dateFilter: string, timezone: string) {
   `;
 }
 
-function epley(weightKg: number, reps: number): number {
-  if (!Number.isFinite(weightKg) || weightKg <= 0) return 0;
-  const r = Number.isFinite(reps) && reps > 0 ? reps : 1;
-  return weightKg * (1 + r / 30);
-}
-
-type PersonalRecordPayload = {
-  exerciseName: string;
-  topWeightKg: number;
-  topReps: number;
-  estOneRm: number;
-  previousBestE1rm: number | null;
-  deltaE1rm: number;
-};
-
-type MatchKey = string;
-const nameKey = (name: string): MatchKey => `name:${name.trim().toLowerCase()}`;
-const idKey = (exerciseId: string): MatchKey => `eid:${exerciseId}`;
-
-/**
- * PR 감지 — exerciseId 우선, 없으면 alias 정규화로 canonical exercise.id 매칭.
- * 맨몸 운동은 총부하(체중+추가)로 e1RM 비교 (통계 서비스와 일관).
- * web/src/app/api/logs/[logId]/route.ts 의 detectPersonalRecords 와 동일.
- */
-async function detectPersonalRecords(input: {
-  userId: string;
-  logId: string;
-  sets: Array<{
-    exerciseName: string;
-    exerciseId: string | null;
-    reps: number | null;
-    weightKg: number | null;
-    isExtra: boolean | null;
-    meta: Record<string, unknown> | null;
-  }>;
-  performedAt: Date;
-}): Promise<PersonalRecordPayload[]> {
-  const { userId, logId, sets, performedAt } = input;
-
-  const namesInLog = Array.from(
-    new Set(
-      sets
-        .map((s) => String(s.exerciseName ?? "").trim().toLowerCase())
-        .filter(Boolean),
-    ),
-  );
-  const aliasToId = new Map<string, string>();
-  if (namesInLog.length > 0) {
-    const aliasRows = await db
-      .select({ alias: exerciseAlias.alias, exerciseId: exerciseAlias.exerciseId })
-      .from(exerciseAlias)
-      .where(inArray(exerciseAlias.alias, namesInLog));
-    for (const r of aliasRows) {
-      aliasToId.set(r.alias.trim().toLowerCase(), r.exerciseId);
-    }
-    const baseRows = await db
-      .select({ id: exercise.id, name: exercise.name })
-      .from(exercise)
-      .where(inArray(exercise.name, namesInLog));
-    for (const r of baseRows) {
-      aliasToId.set(r.name.trim().toLowerCase(), r.id);
-    }
-  }
-
-  function resolveKey(exerciseId: string | null, name: string): MatchKey | null {
-    if (exerciseId) return idKey(exerciseId);
-    const lower = name.trim().toLowerCase();
-    if (!lower) return null;
-    const aliased = aliasToId.get(lower);
-    if (aliased) return idKey(aliased);
-    return nameKey(lower);
-  }
-
-  type Best = { weightKg: number; reps: number; e1rm: number; displayName: string };
-  const currentTop = new Map<MatchKey, Best>();
-  for (const s of sets) {
-    if (s.isExtra) continue;
-    const w = Number(
-      resolveLoggedTotalLoadKg({
-        exerciseName: s.exerciseName,
-        weightKg: s.weightKg,
-        meta: s.meta,
-      }) ?? 0,
-    );
-    const r = Number(s.reps ?? 0);
-    if (!Number.isFinite(w) || w <= 0 || !Number.isFinite(r) || r <= 0) continue;
-    const displayName = String(s.exerciseName ?? "").trim();
-    const key = resolveKey(s.exerciseId, displayName);
-    if (!key) continue;
-    const e = epley(w, r);
-    const cur = currentTop.get(key);
-    if (!cur || e > cur.e1rm) {
-      currentTop.set(key, { weightKg: w, reps: r, e1rm: e, displayName });
-    }
-  }
-  if (currentTop.size === 0) return [];
-
-  const priorRows = await db
-    .select({
-      exerciseId: workoutSet.exerciseId,
-      exerciseName: workoutSet.exerciseName,
-      reps: workoutSet.reps,
-      weightKg: workoutSet.weightKg,
-      isExtra: workoutSet.isExtra,
-      meta: workoutSet.meta,
-    })
-    .from(workoutSet)
-    .innerJoin(workoutLog, eq(workoutLog.id, workoutSet.logId))
-    .where(
-      and(
-        eq(workoutLog.userId, userId),
-        ne(workoutLog.id, logId),
-        lt(workoutLog.performedAt, performedAt),
-      ),
-    );
-
-  const priorNames = new Set<string>();
-  for (const r of priorRows) {
-    if (!r.exerciseId) {
-      const n = String(r.exerciseName ?? "").trim().toLowerCase();
-      if (n && !aliasToId.has(n)) priorNames.add(n);
-    }
-  }
-  if (priorNames.size > 0) {
-    const arr = Array.from(priorNames);
-    const aliasRows = await db
-      .select({ alias: exerciseAlias.alias, exerciseId: exerciseAlias.exerciseId })
-      .from(exerciseAlias)
-      .where(inArray(exerciseAlias.alias, arr));
-    for (const r of aliasRows) {
-      aliasToId.set(r.alias.trim().toLowerCase(), r.exerciseId);
-    }
-    const baseRows = await db
-      .select({ id: exercise.id, name: exercise.name })
-      .from(exercise)
-      .where(inArray(exercise.name, arr));
-    for (const r of baseRows) {
-      aliasToId.set(r.name.trim().toLowerCase(), r.id);
-    }
-  }
-
-  const priorBest = new Map<MatchKey, number>();
-  for (const r of priorRows) {
-    if (r.isExtra) continue;
-    const w = Number(
-      resolveLoggedTotalLoadKg({
-        exerciseName: String(r.exerciseName ?? ""),
-        weightKg: r.weightKg,
-        meta: r.meta as Record<string, unknown> | null,
-      }) ?? 0,
-    );
-    const reps = Number(r.reps ?? 0);
-    if (!Number.isFinite(w) || w <= 0 || !Number.isFinite(reps) || reps <= 0) continue;
-    const key = resolveKey(r.exerciseId, String(r.exerciseName ?? ""));
-    if (!key) continue;
-    const e = epley(w, reps);
-    const cur = priorBest.get(key);
-    if (cur == null || e > cur) priorBest.set(key, e);
-  }
-
-  const out: PersonalRecordPayload[] = [];
-  for (const [key, cur] of currentTop.entries()) {
-    const prev = priorBest.get(key) ?? null;
-    const isPr = prev == null || cur.e1rm > prev + 0.1;
-    if (!isPr) continue;
-    out.push({
-      exerciseName: cur.displayName,
-      topWeightKg: cur.weightKg,
-      topReps: cur.reps,
-      estOneRm: Number(cur.e1rm.toFixed(2)),
-      previousBestE1rm: prev != null ? Number(prev.toFixed(2)) : null,
-      deltaE1rm: prev != null ? Number((cur.e1rm - prev).toFixed(2)) : cur.e1rm,
-    });
-    void key;
-  }
-  out.sort((a, b) => b.deltaE1rm - a.deltaE1rm);
-  return out.slice(0, 3);
-}
+// PR 감지(detectPersonalRecords)는 @workout/core services/workout-log/personal-records로
+// 이동(D1 frozen-at-save) — 상세 조회는 동결값을 읽고 없을 때만 계산·동결한다.
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Routes — mounted at /api/logs. requireAuth supplies c.get("userId").
@@ -601,6 +429,7 @@ logsRoutes.get("/:logId", async (c) => {
         durationMinutes: workoutLog.durationMinutes,
         notes: workoutLog.notes,
         tags: workoutLog.tags,
+        personalRecords: workoutLog.personalRecords,
         createdAt: workoutLog.createdAt,
       })
       .from(workoutLog)
@@ -661,9 +490,10 @@ logsRoutes.get("/:logId", async (c) => {
       ? buildProgressionSummary({ mode: "upsert", eventRow: progressionEvent })
       : null;
 
-    const personalRecords = await detectPersonalRecords({
+    const personalRecords = await getOrFreezePersonalRecords({
       userId,
       logId,
+      frozen: log.personalRecords,
       sets: sets.map((s) => ({
         exerciseName: s.exerciseName,
         exerciseId: s.exerciseId,
@@ -788,7 +618,12 @@ logsRoutes.delete("/:logId", async (c) => {
     const logId = c.req.param("logId");
 
     const existingRows = await db
-      .select({ id: workoutLog.id, userId: workoutLog.userId, planId: workoutLog.planId })
+      .select({
+        id: workoutLog.id,
+        userId: workoutLog.userId,
+        planId: workoutLog.planId,
+        performedAt: workoutLog.performedAt,
+      })
       .from(workoutLog)
       .where(eq(workoutLog.id, logId))
       .limit(1);
@@ -807,6 +642,8 @@ logsRoutes.delete("/:logId", async (c) => {
 
     const deleted = await db.transaction(async (tx) => {
       await tx.delete(workoutLog).where(eq(workoutLog.id, logId));
+      // 삭제는 이후 로그들의 "그 당시 PR" 판정을 바꾼다 → 동결값 무효화(조회 시 lazy 재계산).
+      await invalidatePersonalRecordsFrom({ dbi: tx, userId, fromPerformedAt: existing.performedAt });
 
       const rebuildResult = existing.planId
         ? await rebuildAutoProgressionForPlan({ tx, userId, planId: existing.planId })

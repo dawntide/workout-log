@@ -6,6 +6,7 @@ import { applyAutoProgressionFromLog, rebuildAutoProgressionForPlan } from "@wor
 import type { ProgressionTargetDecision } from "@workout/core/progression/autoProgression";
 import { buildProgressionSummary, readProgressEventByLog } from "@workout/core/progression/progress-events";
 import { invalidateStatsCacheForUser } from "../../stats/cache";
+import { invalidatePersonalRecordsFrom } from "./personal-records";
 
 
 export type UpsertWorkoutLogInput = {
@@ -169,6 +170,16 @@ export async function upsertWorkoutLogService({
         })
         .returning();
     }
+
+    // D1(frozen PR): 저장/편집은 영향권(performed_at >= 시점)의 동결 PR 판정을
+    // 무효화한다 — 자기 자신 포함(상세 첫 조회가 lazy 재계산·동결). 편집으로
+    // performedAt이 당겨진 경우 구·신 중 이른 쪽부터 무효화해야 사이 로그들의
+    // "그 당시 PR"이 어긋나지 않는다.
+    const prInvalidateFrom =
+      existingLog && existingLog.performedAt < performedAt!
+        ? existingLog.performedAt
+        : performedAt!;
+    await invalidatePersonalRecordsFrom({ dbi: tx, userId, fromPerformedAt: prInvalidateFrom });
 
     await tx.insert(workoutSet).values(
       sets.map((s: any, idx: number) => {

@@ -1,0 +1,1 @@
+ALTER TABLE "workout_log" ADD COLUMN "personal_records" jsonb;

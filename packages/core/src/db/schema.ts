@@ -329,6 +329,11 @@ export const workoutLog = table(
     notes: text("notes"),
     tags: text("tags").array(),
 
+    // D1(frozen-at-save): 저장/편집 시 null로 두고 상세 첫 조회가 계산·동결(lazy freeze).
+    // null = 미확정 → 조회 시 사전 이력 스캔으로 계산 후 저장. 백데이트 저장·편집·삭제는
+    // 이후 로그를 null로 무효화해 '그 당시 PR' 시맨틱을 보존한다(personal-records.ts).
+    personalRecords: jsonb("personal_records"),
+
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => [
