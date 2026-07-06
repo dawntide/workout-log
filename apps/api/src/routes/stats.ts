@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 
 import { db } from "@workout/core/db/client";
-import { and, desc, eq, gte, lte, or, sql } from "@workout/core/db/ops";
+import { and, desc, eq, gte, inArray, lte, or, sql } from "@workout/core/db/ops";
 import { exercise, workoutLog, workoutSet } from "@workout/core/db/schema";
 import { logError } from "@workout/core/observability/logger";
 import { resolveLoggedTotalLoadKg } from "@workout/core/bodyweight-load";
@@ -214,85 +214,126 @@ statsRoutes.get("/strength-summary", async (c) => {
       return c.json({ items: [] });
     }
 
-    const settled = await Promise.all(
-      priorityExercises.map(async (ex) => {
-        const exerciseFilter = ex.exerciseId
-          ? eq(workoutSet.exerciseId, ex.exerciseId)
-          : eq(workoutSet.exerciseName, ex.exerciseName);
-
-        const allTimeBestRows = await db
+    // ── D7: 종목별 이력 조회 N+1(각 최대 1000행) → window function 배치 ──
+    // 우선순위 종목의 필터 키가 이원적(id가 있으면 id, 없으면 name)이고, 한 행이
+    // "다른 종목의 id 그룹"과 "name 그룹"에 동시에 속할 수 있는 기존 시맨틱을
+    // 보존해야 하므로 partition을 섞지 않고 키 종류별 2쿼리로 나눈다.
+    // 정렬 결정화: 구 코드는 performedAt 타이(같은 세션의 세트들) 순서가 미지정이라
+    // current가 비결정적이었다(2026-07-02 리라이트 divergence의 원인). 물리 삽입
+    // 순서에 상응하는 (sortOrder, setNumber, id) 2차 키로 고정한다.
+    const rankOrder = sql`${workoutLog.performedAt} desc, ${workoutSet.sortOrder} asc, ${workoutSet.setNumber} asc, ${workoutSet.id} asc`;
+    const fetchRankedHistory = (partitionKey: ReturnType<typeof sql>, keyFilter: ReturnType<typeof sql> | ReturnType<typeof eq>) => {
+      const ranked = db.$with("ranked_history").as(
+        db
           .select({
             weightKg: workoutSet.weightKg,
             reps: workoutSet.reps,
             performedAt: workoutLog.performedAt,
             exerciseName: workoutSet.exerciseName,
+            exerciseId: workoutSet.exerciseId,
             meta: workoutSet.meta,
+            rn: sql<number>`row_number() over (partition by ${partitionKey} order by ${rankOrder})`.as("rn"),
           })
           .from(workoutLog)
           .innerJoin(workoutSet, eq(workoutSet.logId, workoutLog.id))
           .where(
             and(
               eq(workoutLog.userId, userId),
-              exerciseFilter,
+              keyFilter,
               sql`${workoutSet.weightKg} is not null`,
               sql`${workoutSet.reps} > 0`,
             ),
-          )
-          .orderBy(desc(workoutLog.performedAt))
-          .limit(1000);
+          ),
+      );
+      return db.with(ranked).select().from(ranked).where(lte(ranked.rn, 1000));
+    };
 
-        const points = allTimeBestRows
-          .map((r) => {
-            const w = resolveLoggedTotalLoadKg({
-              exerciseName: r.exerciseName,
-              weightKg: r.weightKg,
-              meta: r.meta as any,
-            });
-            const reps = Number(r.reps || 0);
-            if (w === null || w === undefined) return null;
-            return {
-              date: r.performedAt.toISOString().slice(0, 10),
-              e1rm: epley1RM(w, reps),
-              weightKg: w,
-              reps,
-            };
-          })
-          .filter(
-            (p): p is { date: string; e1rm: number; weightKg: number; reps: number } =>
-              p !== null,
-          );
+    const idKeys = priorityExercises.flatMap((ex) => (ex.exerciseId ? [ex.exerciseId] : []));
+    const nameKeys = priorityExercises.filter((ex) => !ex.exerciseId).map((ex) => ex.exerciseName);
 
-        if (points.length === 0) return null;
+    const [idRows, nameRows] = await Promise.all([
+      idKeys.length
+        ? fetchRankedHistory(sql`${workoutSet.exerciseId}`, inArray(workoutSet.exerciseId, idKeys))
+        : Promise.resolve([]),
+      nameKeys.length
+        ? fetchRankedHistory(sql`${workoutSet.exerciseName}`, inArray(workoutSet.exerciseName, nameKeys))
+        : Promise.resolve([]),
+    ]);
 
-        const best = points.reduce((acc, p) => (p.e1rm > acc.e1rm ? p : acc), points[0]);
-        const current = points[0];
+    type RankedRow = (typeof idRows)[number];
+    const groupBy = (rows: RankedRow[], key: (r: RankedRow) => string | null) => {
+      const map = new Map<string, RankedRow[]>();
+      for (const r of rows) {
+        const k = key(r);
+        if (k === null) continue;
+        const bucket = map.get(k);
+        if (bucket) bucket.push(r);
+        else map.set(k, [r]);
+      }
+      return map;
+    };
+    const historyById = groupBy(idRows, (r) => r.exerciseId);
+    const historyByName = groupBy(nameRows, (r) => r.exerciseName);
 
-        const eightWeeksAgo = new Date();
-        eightWeeksAgo.setDate(eightWeeksAgo.getDate() - 56);
-        const recentSeries = points
-          .filter((p) => new Date(p.date) >= eightWeeksAgo)
-          .reverse();
+    const results = priorityExercises.flatMap((ex) => {
+      const rows = ex.exerciseId
+        ? historyById.get(ex.exerciseId) ?? []
+        : historyByName.get(ex.exerciseName) ?? [];
+      // 그룹 내 정렬은 rn(=performedAt desc + 결정적 2차 키)으로 보장.
+      rows.sort((a, b) => a.rn - b.rn);
 
-        return {
-          exerciseId: ex.exerciseId,
-          exerciseName: ex.exerciseName,
-          current: {
-            e1rm: Math.round(current.e1rm * 10) / 10,
-            date: current.date,
-            weightKg: current.weightKg,
-            reps: current.reps,
-          },
-          best: {
-            e1rm: Math.round(best.e1rm * 10) / 10,
-            date: best.date,
-          },
-          recentSeries: recentSeries.map((p) => Math.round(p.e1rm * 10) / 10),
-          improvement: best.e1rm > 0 ? (current.e1rm / best.e1rm - 1) * 100 : 0,
-        };
-      }),
-    );
+      const points = rows
+        .map((r) => {
+          const w = resolveLoggedTotalLoadKg({
+            exerciseName: r.exerciseName,
+            weightKg: r.weightKg,
+            meta: r.meta as any,
+          });
+          const reps = Number(r.reps || 0);
+          if (w === null || w === undefined) return null;
+          return {
+            date: r.performedAt.toISOString().slice(0, 10),
+            ts: r.performedAt.getTime(),
+            e1rm: epley1RM(w, reps),
+            weightKg: w,
+            reps,
+          };
+        })
+        .filter((p): p is NonNullable<typeof p> => p !== null);
 
-    const results = settled.filter((r): r is NonNullable<typeof r> => r !== null);
+      if (points.length === 0) return [];
+
+      const best = points.reduce((acc, p) => (p.e1rm > acc.e1rm ? p : acc), points[0]);
+      // current = 최신 세션(동일 timestamp)의 최고 e1rm 세트. 구 코드는 points[0]인데
+      // DB가 동일 performedAt 세트들을 미지정 순서로 반환해 요청마다 값이 흔들렸다
+      // (dev 실측: 같은 데이터에서 147↔142.9 flap). 시맨틱을 명시해 고정한다.
+      const latestTs = points[0].ts;
+      const latestSets = points.filter((p) => p.ts === latestTs);
+      const current = latestSets.reduce((acc, p) => (p.e1rm > acc.e1rm ? p : acc), latestSets[0]);
+
+      const eightWeeksAgo = new Date();
+      eightWeeksAgo.setDate(eightWeeksAgo.getDate() - 56);
+      const recentSeries = points
+        .filter((p) => new Date(p.date) >= eightWeeksAgo)
+        .reverse();
+
+      return [{
+        exerciseId: ex.exerciseId,
+        exerciseName: ex.exerciseName,
+        current: {
+          e1rm: Math.round(current.e1rm * 10) / 10,
+          date: current.date,
+          weightKg: current.weightKg,
+          reps: current.reps,
+        },
+        best: {
+          e1rm: Math.round(best.e1rm * 10) / 10,
+          date: best.date,
+        },
+        recentSeries: recentSeries.map((p) => Math.round(p.e1rm * 10) / 10),
+        improvement: best.e1rm > 0 ? (current.e1rm / best.e1rm - 1) * 100 : 0,
+      }];
+    });
 
     c.header("Cache-Control", CACHE_HEADER);
     return c.json({ items: results, recordedAt: new Date().toISOString() });
