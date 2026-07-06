@@ -19,7 +19,7 @@ import { useWorkoutLogDraftPersistence } from "@/features/workout-log/model/use-
 import { useWorkoutLogEditorController } from "@/features/workout-log/model/use-workout-log-editor-controller";
 import { useWorkoutLogKeyboardOpenEffect } from "@/features/workout-log/model/use-workout-log-keyboard-open-effect";
 import { useWorkoutLogPlanSheetController } from "@/features/workout-log/model/use-workout-log-plan-sheet-controller";
-import { readWorkoutLogQueryContext } from "@/features/workout-log/model/query-context";
+import { readWorkoutLogQueryContext } from "@/lib/workout-record/query-context";
 import { useWorkoutLogSaveController } from "@/features/workout-log/model/use-workout-log-save-controller";
 import { applyWorkoutLogWeightRulesToDraft } from "@/lib/workout-record/weight-rules";
 import { migrateWorkoutRecordDraft } from "@/entities/workout-record";
@@ -27,7 +27,7 @@ import { sessionHasBodyweightExercise } from "@workout/core/bodyweight-load";
 import { readWorkoutPreferences } from "@/lib/settings/workout-preferences";
 import { apiPatch } from "@/lib/api";
 import { BodyweightCheckBanner } from "./bodyweight-check-banner";
-import { formatDateFriendly } from "@/features/workout-log/model/last-session-summary";
+import { formatDateFriendly } from "@/lib/workout-record/last-session-summary";
 import { parseSessionKey } from "@workout/core/session-key";
 import { WorkoutLogOverlaySheets } from "@/features/workout-log/ui/workout-log-overlay-sheets";
 import {
@@ -52,7 +52,7 @@ import {
   totalSetsCountAtom,
   workflowStateAtom,
 } from "@/features/workout-log/store/workout-log-atoms";
-import WorkoutRecordLoading from "@/app/workout/log/loading";
+import WorkoutRecordLoading from "./workout-record-skeleton";
 
 // 체중 확인 안내: 마지막 확인 시각 설정 키 + 스테일 임계(14일). 이 기간 내에 확인했으면 다시 안 묻는다.
 const BODYWEIGHT_CHECKED_AT_KEY = "prefs.bodyweight.checkedAtMs";

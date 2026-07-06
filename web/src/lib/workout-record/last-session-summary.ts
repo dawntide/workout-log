@@ -1,6 +1,6 @@
 import type {
   WorkoutRecordDraft,
-} from "@/entities/workout-record";
+} from "@/lib/workout-record/model";
 import { formatPerformedHistoryCompact } from "@/lib/workout-notation";
 import { parseSessionKey } from "@workout/core/session-key";
 import {
@@ -12,7 +12,7 @@ import {
 import type {
   WorkoutLogLastSessionSummary,
   WorkoutLogRecentLogItem,
-} from "./types";
+} from "./workout-log-types";
 
 function resolveLastSessionWeekAndType(
   log: WorkoutLogRecentLogItem,

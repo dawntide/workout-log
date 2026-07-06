@@ -153,7 +153,7 @@ S1은 web에 이미 있는 `@/server/auth/rate-limit` 재장착으로 해결(신
 
 1. ~~`packages/core` 추출~~ ✅ **완료(2026-07-03, #497~#503)** — 7개 PR 점진 추출: 워크스페이스 인프라 → 순수 lib(+Go/TS golden fixture, Stage 3 잔여 흡수) → db → auth → 도메인 엔진 → 서비스(locale 명시 인자화) → alias 제거/경계 린트. 부수 수정: TUI trimNum 정밀도, getHomeData 쿠키 스냅샷 오용(TUI 홈 설정 미반영).
 2. PBKDF2 600k 상향 + 로그인 시 점진 재해시, 세션 슬라이딩 만료·자동 prune (S3)
-3. `no-explicit-any` warn 승격 → 점진 감축, 레이어 린트 error 강제(선행 부채 3건 해소 후)
+3. ~~`no-explicit-any` warn 승격 · 레이어 린트 error 강제~~ ✅ **완료(2026-07-06, #509·#510)** — any warn 승격(85건 가시화, 점진 감축은 계속), 레이어 부채 3건+승격 중 발견 1건(widgets→app loading) 해소 후 방향 린트 error 강제(type-only·테스트 예외). 상세: [architecture-layers.md](../web/docs/architecture-layers.md) "강제 현황".
 4. god-component 분해: `plans-manage-content` 로직의 `features/*/model` 이동부터
 
 ---

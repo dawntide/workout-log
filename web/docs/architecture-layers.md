@@ -2,7 +2,7 @@
 
 이 문서는 `web/src` 코드의 **정식(canonical) 레이어 모델**을 명문화한다. 2026-05 코드베이스 감사([codebase-audit-2026-05.md](./codebase-audit-2026-05.md))에서 부분적 FSD + 전통 레이아웃이 혼재하지만 라이브 코드는 하나의 일관된 흐름을 따른다는 점이 확인되었고, 그 흐름을 기준으로 삼는다.
 
-> ⚠️ 이 문서는 **방향성 가이드**다. 현재 ESLint로 레이어 경계를 `error`로 강제하지는 않는다(이유는 아래 "강제하지 않는 이유" 참고). 새 코드는 이 모델을 따르고, 기존 위반은 손대는 김에 점진적으로 정리한다.
+> ✅ 레이어 방향은 **ESLint로 `error` 강제된다**(2026-07-06, `eslint.config.mjs`의 `@typescript-eslint/no-restricted-imports` — 아래 "강제 현황" 참고). type-only import와 테스트 파일은 예외.
 
 ## 레이어 흐름 (위 → 아래로만 의존)
 
@@ -35,19 +35,22 @@ server/               DB(Drizzle) 접근 + 서버 도메인 엔진 (progression,
 - `lib/` 내부 코드는 파사드(`@/entities/*`)를 거치지 말고 **실체(`@/lib/...`)를 직접 import**한다 (lib→entities→lib 우회 방지).
 - `features/`·`widgets/`·`app/`에서는 파사드를 써도 무방하다.
 
-## "강제하지 않는 이유" — 레이어 ESLint를 지금 error로 켜지 않는다
+## 강제 현황 — 레이어 ESLint `error` (2026-07-06 승격)
 
-감사 적대적 검증에서 확인된 사실: 라이브 홈 화면 `components/v2/v2-home-dashboard.tsx`가 `@/widgets/*`를 **상향 import**한다(`components/v2`는 본래 primitive 커널 레이어인데 화면 조립기가 섞여 있음). 이 상태에서 `components/v2/** → @/widgets` 금지 룰을 `error`로 켜면 **라이브 코드가 깨진다.**
+`eslint.config.mjs`가 레이어별 glob에 `@typescript-eslint/no-restricted-imports`를 `error`로 건다:
+widgets→app, features→widgets/app, `components/v2/primitives`→상향 전부, lib→상향 전부+파사드(`@/entities`·`@/shared`), server→상향 전부.
+**예외 2가지**: ① `import type`(런타임 의존 아님 — `allowTypeImports`) ② `*.test.ts(x)`(런타임 그래프 밖).
 
-따라서 순서는:
-1. (지금) 이 문서로 모델을 **명문화**하고 새 코드에 적용.
-2. (후속) `v2-home-dashboard` 같은 화면 조립기를 `components/v2/`에서 분리하고, 레이어 룰의 glob을 `components/v2/primitives/**`로 한정.
-3. (그 후) `no-restricted-imports`를 레이어 방향 기준으로 `error` 승격.
+승격 전 해소한 선행 부채(감사 2026-07 §4.5의 3건 + 승격 작업 중 발견 1건):
+- `v2-home-dashboard` 화면 조립기 → `widgets/home-dashboard/`로 이동 (components/v2는 primitives 커널만).
+- `features/workout-log` → `features/progression/ui/target-weight-chip` 횡단 import → 칩을 `components/v2/`로 하강(공용 프레젠테이셔널).
+- `server/…/load-workout-log-context` → features 런타임 import → `last-session-summary`·`query-context`·`workout-log-types`를 `lib/workout-record/`로 하강(weight-rules 선례), feature 쪽 `model/types`는 재export 셸.
+- `widgets/workout-log-screen` → `@/app/workout/log/loading` 상향 import(승격 중 발견) → 스켈레톤을 widget으로 내리고 route `loading.tsx`는 재export.
 
-## 알려진 잔여 위반 / 후속 과제
+## 후속 과제
 
-- `components/v2/v2-home-dashboard.tsx` → `@/widgets/*` 상향 import (위 참조).
 - 정규 FSD 전면 전환(빈 `entities/`·`shared/` 실제 구현, `lib/` 세그먼트 슬라이싱)은 1인 앱 비용 대비 효과가 낮아 **하지 않는다**(감사 결론).
+- 기능 간 횡단 import(features/A→features/B) 전면 금지는 per-slice 룰 생성이 필요해 미도입 — 규칙 4로 지양 유지, 위반 발견 시 lib 하강.
 
 ## 시스템 토폴로지 — 멀티프론트 / 단일 백엔드 (2026-06 cutover)
 
