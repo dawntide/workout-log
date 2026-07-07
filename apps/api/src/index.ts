@@ -89,7 +89,8 @@ app.onError((err, c) => {
 });
 
 const port = Number(process.env.PORT ?? 8787);
-serve({ fetch: app.fetch, port }, (info) => {
+const hostname = process.env.APPS_API_HOST?.trim() || undefined;
+serve({ fetch: app.fetch, port, hostname }, (info) => {
   // eslint-disable-next-line no-console
   console.log(`ironlog-api listening on :${info.port}`);
 });

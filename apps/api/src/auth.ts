@@ -26,10 +26,28 @@ export function sessionToken(c: Context): string {
   return "";
 }
 
+/**
+ * Explicit local-dev fallback shared with the Next.js app.
+ *
+ * This is opt-in and disabled in production so merely setting
+ * WORKOUT_AUTH_USER_ID can never bypass API authentication in a deployment.
+ */
+function localDevUserId(): string {
+  if (process.env.NODE_ENV === "production") return "";
+  if (process.env.WORKOUT_API_ALLOW_ENV_AUTH !== "1") return "";
+  return (process.env.WORKOUT_AUTH_USER_ID ?? "").trim();
+}
+
 /** requireAuth rejects with 401 unless the request carries a valid session. */
 export async function requireAuth(c: Context<AppEnv>, next: Next) {
   const token = sessionToken(c);
   if (!token) {
+    const userId = localDevUserId();
+    if (userId) {
+      c.set("userId", userId);
+      await next();
+      return;
+    }
     return c.json({ error: "Unauthorized" }, 401);
   }
   let session: Awaited<ReturnType<typeof findActiveSession>>;

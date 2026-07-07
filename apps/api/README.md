@@ -99,6 +99,14 @@ DATABASE_URL=... pnpm -C apps/api start   # PORT defaults to 8787
 
 `DATABASE_URL` is the same Postgres connection string the web app uses.
 
+For local web development without a login session, set both
+`WORKOUT_AUTH_USER_ID=<local-user>` and `WORKOUT_API_ALLOW_ENV_AUTH=1` in the
+API process. The fallback is opt-in and is always disabled when
+`NODE_ENV=production`. With those values in `web/.env.local`, run
+`pnpm --dir apps/api dev:web` from the repository root. Also set
+`APPS_API_HOST=127.0.0.1` so the development API is not exposed beyond the
+local machine.
+
 ## Roadmap
 - **B1** ✅: logs, stats (core), exercises, settings, plans (core), misc (templates/home/export/import), auth — **all TUI-used routes ported**.
 - **B2**: TUI Bearer client ✅ (dual-mode, live_test verified) + deploy artifacts ✅
