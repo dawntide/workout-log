@@ -5,6 +5,7 @@
   "description": "ironlog-api — standalone Hono backend consuming @workout/core with token (Bearer) auth",
   "scripts": {
     "dev": "tsx watch src/index.ts",
+    "dev:web": "tsx watch --env-file=../../web/.env.local src/index.ts",
     "start": "tsx src/index.ts",
     "typecheck": "tsc --noEmit"
   },
