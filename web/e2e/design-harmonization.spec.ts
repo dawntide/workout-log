@@ -10,7 +10,6 @@ type AuditMetrics = {
   bgWhiteBg: string | null;
   bottomSheetVisible: boolean;
   bottomSheetPanelBg: string | null;
-  bottomSheetBackdropBg: string | null;
   hasSettingsModalBackground: boolean;
   settingsModalBackgroundOpacity: number | null;
 };
@@ -73,7 +72,6 @@ async function readAuditMetrics(page: Page) {
         const firstUiCard = document.querySelector<HTMLElement>(".ui-card, .motion-card");
         const firstBgWhite = document.querySelector<HTMLElement>(".bg-white");
         const firstPanel = document.querySelector<HTMLElement>(".mobile-bottom-sheet-panel");
-        const firstBackdrop = document.querySelector<HTMLElement>(".mobile-bottom-sheet-backdrop");
         const settingsModalBg = document.querySelector<HTMLElement>(".settings-child-modal-background");
 
         return {
@@ -84,7 +82,6 @@ async function readAuditMetrics(page: Page) {
           bgWhiteBg: firstBgWhite ? window.getComputedStyle(firstBgWhite).backgroundColor : null,
           bottomSheetVisible: Boolean(firstPanel && firstPanel.getBoundingClientRect().height > 0),
           bottomSheetPanelBg: firstPanel ? window.getComputedStyle(firstPanel).backgroundColor : null,
-          bottomSheetBackdropBg: firstBackdrop ? window.getComputedStyle(firstBackdrop).backgroundColor : null,
           hasSettingsModalBackground: Boolean(settingsModalBg),
           settingsModalBackgroundOpacity: settingsModalBg
             ? Number(window.getComputedStyle(settingsModalBg).opacity)
@@ -136,9 +133,10 @@ test.describe("design harmonization: full-screen audit", () => {
           expect(metrics.bottomSheetVisible).toBe(true);
         }
 
+        // backdrop 요소는 검사하지 않는다 — blur backdrop은 Safari 상태바 배경색
+        // 오염 때문에 의도적으로 제거됨(ddb1b7b). 시트는 패널 배경 + 외부 클릭 닫기만 가진다.
         if (metrics.bottomSheetVisible) {
           expect(metrics.bottomSheetPanelBg).not.toBeNull();
-          expect(metrics.bottomSheetBackdropBg).not.toBeNull();
         }
 
         if (metrics.hasSettingsModalBackground) {

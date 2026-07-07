@@ -97,6 +97,22 @@ function buildE1rmPayload(rangeDays: number) {
   };
 }
 
+// /stats 라우트는 홈 stats 덱으로 통합됨(7182561). defer1rmBootstrap=1이면 page-bootstrap이
+// 필터 옵션·e1rm을 비워서 돌려주고, 1rm 컨트롤러가 클라이언트에서 /api/exercises·/api/plans·
+// /api/stats/e1rm을 지연 fetch한다 — 구 스펙의 지연쿼리 시나리오가 덱 밑에서 그대로 성립.
+const deferredPageBootstrap = {
+  initialBundle: { sessions30d: 0, tonnage30d: 0, prs90d: [] },
+  initialExercises: undefined,
+  initialPlans: undefined,
+  initialE1rm: null,
+  initialVolumeWeekly: null,
+  initialSelectedExerciseId: null,
+  initialSelectedPlanId: "",
+  goal: "general",
+  goalMetrics: { muscleVolume: null, strengthScore: null, endurance: null },
+  asymptoteMonitor: null,
+};
+
 test.describe("stats-1rm async continuity", () => {
   test.use({
     viewport: { width: 390, height: 844 },
@@ -107,6 +123,8 @@ test.describe("stats-1rm async continuity", () => {
     await page.addInitScript(() => {
       window.localStorage.clear();
       window.sessionStorage.clear();
+      // 홈 첫 방문 온보딩 redirect 억제 — 이 스펙의 관심사는 1rm 패널의 지연쿼리 UX.
+      window.localStorage.setItem("workout-log.v2.onboarding.done", "1");
     });
   });
 
@@ -121,10 +139,11 @@ test.describe("stats-1rm async continuity", () => {
         body: { settings: {} },
       },
       {
-        id: "stats.bundle",
+        id: "stats.pageBootstrap",
         method: "GET",
-        path: "/api/stats/bundle",
-        body: { sessions30d: 0, tonnage30d: 0, prs90d: [] },
+        path: "/api/stats/page-bootstrap",
+        delayMs: 120,
+        body: deferredPageBootstrap,
       },
       {
         id: "options.exercises",
@@ -157,7 +176,7 @@ test.describe("stats-1rm async continuity", () => {
       },
     ]);
 
-    await page.goto("/stats?defer1rmBootstrap=1", { waitUntil: "domcontentloaded" });
+    await page.goto("/?deck=stats&defer1rmBootstrap=1", { waitUntil: "domcontentloaded" });
 
     const chartEmptyState = page.getByText("선택한 필터 조합에 데이터가 없습니다", { exact: true });
     await assertNeverVisibleDuring(chartEmptyState, 700);
@@ -173,7 +192,7 @@ test.describe("stats-1rm async continuity", () => {
     await expect(page.getByRole("heading", { name: "e1RM 상세 추이" })).toBeVisible();
     await expect(chartEmptyState).toBeHidden();
 
-    apiMocks.assertHit("settings.snapshot");
+    apiMocks.assertHit("stats.pageBootstrap");
     apiMocks.assertHit("options.exercises");
     apiMocks.assertHit("options.plans");
     apiMocks.assertHit("stats.e1rm");
@@ -191,11 +210,11 @@ test.describe("stats-1rm async continuity", () => {
         body: { settings: {} },
       },
       {
-        id: "stats.bundle",
+        id: "stats.pageBootstrap",
         method: "GET",
-        path: "/api/stats/bundle",
-        delayMs: 860,
-        body: { sessions30d: 0, tonnage30d: 0, prs90d: [] },
+        path: "/api/stats/page-bootstrap",
+        delayMs: 120,
+        body: deferredPageBootstrap,
       },
       {
         id: "options.exercises",
@@ -213,14 +232,13 @@ test.describe("stats-1rm async continuity", () => {
       },
     ]);
 
-    await page.goto("/stats?defer1rmBootstrap=1", { waitUntil: "domcontentloaded" });
+    await page.goto("/?deck=stats&defer1rmBootstrap=1", { waitUntil: "domcontentloaded" });
 
     const noExerciseState = page.getByText("운동종목이 없습니다", { exact: true });
     await assertNeverVisibleDuring(noExerciseState, 760);
     await expect(noExerciseState).toBeVisible();
-    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
 
-    apiMocks.assertHit("settings.snapshot");
+    apiMocks.assertHit("stats.pageBootstrap");
     apiMocks.assertHit("options.exercises");
     apiMocks.assertHit("options.plans");
   });

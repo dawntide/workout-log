@@ -43,3 +43,8 @@ next-env.d.ts
 # Playwright test artifacts
 playwright-report/
 test-results/
+
+# Playwright 로컬 브라우저 라이브러리 캐시 (scripts/ensure-playwright-linux-libs.sh가
+# 필요 시 재생성). 과거 실수로 커밋됐다가 Windows→WSL 이관에서 심링크가 깨진 채
+# 배포되는 함정이 있었음 — 리포에 두지 않는다.
+/.local/

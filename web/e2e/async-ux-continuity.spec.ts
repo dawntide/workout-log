@@ -88,84 +88,52 @@ const commonEndpoints: MockEndpoint[] = [
   },
 ];
 
-const plansManageEndpoints: MockEndpoint[] = [
+// /stats 라우트는 홈 stats 덱으로 통합됨(7182561): 덱 활성 시 StatsContainer가
+// /api/stats/page-bootstrap을 클라이언트에서 지연 fetch한다 — 이것이 현재의 지연쿼리
+// 표면이다. (plans/manage는 서버 컴포넌트가 initialPlans를 SSR 주입하고 마운트 시
+// 클라이언트 fetch가 없어 empty-state flicker 창 자체가 소멸 → 해당 시나리오 삭제.)
+const statsDeckEndpoints: MockEndpoint[] = [
   {
-    id: "plans.list",
+    id: "stats.pageBootstrap",
     method: "GET",
-    path: "/api/plans",
+    path: "/api/stats/page-bootstrap",
     body: {
-      items: [
-        {
-          id: "plan-1",
-          userId: "dev",
-          name: "Mock Plan",
-          type: "SINGLE",
-          rootProgramVersionId: "531-v1",
-          params: {
-            startDate: "2026-02-01",
-            timezone: "Asia/Seoul",
-            sessionKeyMode: "DATE",
+      initialBundle: {
+        sessions30d: 24,
+        tonnage30d: 12500,
+        prs90d: [
+          {
+            exerciseId: "sq-1",
+            exerciseName: "Back Squat",
+            best: { date: "2026-03-01", e1rm: 195, weightKg: 170, reps: 3 },
+            latest: { date: "2026-03-01", e1rm: 195, weightKg: 170, reps: 3 },
+            improvement: 7,
           },
-          createdAt: "2026-02-21T01:00:00.000Z",
-        },
-      ],
-    },
-  },
-];
-
-const statsDashboardEndpoints: MockEndpoint[] = [
-  {
-    id: "plans.list",
-    method: "GET",
-    path: "/api/plans",
-    body: {
-      items: [{ id: "plan-1", name: "Mock Plan", type: "SINGLE" }],
-    },
-  },
-  {
-    id: "stats.bundle",
-    method: "GET",
-    path: "/api/stats/bundle",
-    body: {
-      sessions30d: 24,
-      tonnage30d: 12500,
-      prs90d: [
-        {
-          exerciseId: "sq",
-          exerciseName: "Back Squat",
-          best: { date: "2026-03-01", e1rm: 195, weightKg: 170, reps: 3 },
-          latest: { date: "2026-03-01", e1rm: 195, weightKg: 170, reps: 3 },
-          improvement: 7,
-        },
-      ],
-    },
-  },
-  {
-    id: "options.exercises",
-    method: "GET",
-    path: "/api/exercises",
-    body: {
-      items: [
+        ],
+      },
+      initialExercises: [
         { id: "sq-1", name: "Back Squat" },
         { id: "bp-1", name: "Bench Press" },
       ],
-    },
-  },
-  {
-    id: "stats.e1rm",
-    method: "GET",
-    path: "/api/stats/e1rm",
-    body: {
-      from: "2025-12-01",
-      to: "2026-03-04",
-      rangeDays: 90,
-      exercise: "Back Squat",
-      exerciseId: "sq-1",
-      best: { date: "2026-03-01", e1rm: 195, weightKg: 170, reps: 3 },
-      series: [
-        { date: "2026-02-10", e1rm: 188, weightKg: 165, reps: 2 },
-        { date: "2026-03-01", e1rm: 195, weightKg: 170, reps: 3 },
-      ],
+      initialPlans: [{ id: "plan-1", name: "Mock Plan" }],
+      initialE1rm: {
+        from: "2025-12-01",
+        to: "2026-03-04",
+        rangeDays: 90,
+        exercise: "Back Squat",
+        exerciseId: "sq-1",
+        best: { date: "2026-03-01", e1rm: 195, weightKg: 170, reps: 3 },
+        series: [
+          { date: "2026-02-10", e1rm: 188, weightKg: 165, reps: 2 },
+          { date: "2026-03-01", e1rm: 195, weightKg: 170, reps: 3 },
+        ],
+      },
+      initialVolumeWeekly: null,
+      initialSelectedExerciseId: "sq-1",
+      initialSelectedPlanId: "",
+      goal: "general",
+      goalMetrics: { muscleVolume: null, strengthScore: null, endurance: null },
+      asymptoteMonitor: null,
     },
   },
 ];
@@ -180,28 +148,15 @@ test.describe("async ux continuity: no empty-state flicker on delayed queries", 
     await page.addInitScript(() => {
       window.localStorage.clear();
       window.sessionStorage.clear();
+      // 홈 첫 방문 온보딩 redirect 억제 — 이 스펙의 관심사는 stats 덱의 지연쿼리 UX.
+      window.localStorage.setItem("workout-log.v2.onboarding.done", "1");
     });
   });
 
-  test("plans/manage keeps empty state hidden until delayed data resolves", async ({ page }) => {
-    const apiMocks = await installApiMocks(page, [...commonEndpoints, ...plansManageEndpoints]);
+  test("stats deck keeps analytic empty states hidden while delayed bootstrap is in flight", async ({ page }) => {
+    const apiMocks = await installApiMocks(page, [...commonEndpoints, ...statsDeckEndpoints]);
 
-    await page.goto("/plans/manage", { waitUntil: "domcontentloaded" });
-
-    const emptyStateLabel = page.getByText("플랜이 없습니다", { exact: true });
-    await assertNeverVisibleDuring(emptyStateLabel, 760);
-
-    await expect(page.getByText("Mock Plan")).toBeVisible();
-    await expect(emptyStateLabel).toBeHidden();
-
-    apiMocks.assertHit("settings.snapshot");
-    apiMocks.assertHit("plans.list");
-  });
-
-  test("stats keeps analytic empty states hidden while delayed queries are in flight", async ({ page }) => {
-    const apiMocks = await installApiMocks(page, [...commonEndpoints, ...statsDashboardEndpoints]);
-
-    await page.goto("/stats", { waitUntil: "domcontentloaded" });
+    await page.goto("/?deck=stats", { waitUntil: "domcontentloaded" });
 
     const emptyStateLabel = page.getByText("운동종목이 없습니다", { exact: true });
     await assertNeverVisibleDuring(emptyStateLabel, 820);
@@ -210,9 +165,6 @@ test.describe("async ux continuity: no empty-state flicker on delayed queries", 
     await expect(page.getByRole("heading", { name: "e1RM 상세 추이" })).toBeVisible();
     await expect(emptyStateLabel).toBeHidden();
 
-    apiMocks.assertHit("settings.snapshot");
-    apiMocks.assertHit("plans.list");
-    apiMocks.assertHit("stats.bundle");
-    apiMocks.assertHit("stats.e1rm");
+    apiMocks.assertHit("stats.pageBootstrap");
   });
 });
