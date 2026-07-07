@@ -6,20 +6,27 @@
 import {
   ASYMPTOTE_SESSIONS,
   ASYMPTOTE_SESSION_LABELS,
+  ASYMPTOTE_SESSION_NUMBER_BY_LABEL,
   ASYMPTOTE_AMRAP_TARGETS_BY_SESSION,
   ASYMPTOTE_HYBRID_TM_PERCENT,
+  ASYMPTOTE_SQUAT_A_COEF,
+  ASYMPTOTE_TOP_SET,
   type AsymptoteLift,
   type AsymptoteLiftRow,
+  type AsymptoteTopSetSpec,
 } from "@workout/core/program-store/asymptote-blueprint";
 
 // 슬롯 구성·하이브리드 상수는 청사진이 단일 진실원. 기존 import 경로(이 모듈) 호환을 위해 re-export.
 export {
   ASYMPTOTE_SESSIONS,
   ASYMPTOTE_SESSION_LABELS,
+  ASYMPTOTE_SESSION_NUMBER_BY_LABEL,
   ASYMPTOTE_AMRAP_TARGETS_BY_SESSION,
   ASYMPTOTE_HYBRID_TM_PERCENT,
+  ASYMPTOTE_SQUAT_A_COEF,
+  ASYMPTOTE_TOP_SET,
 };
-export type { AsymptoteLift, AsymptoteLiftRow };
+export type { AsymptoteLift, AsymptoteLiftRow, AsymptoteTopSetSpec };
 
 export const ASYMPTOTE_CYCLE_COEF: Record<number, number> = {
   1: 0.925,

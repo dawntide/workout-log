@@ -124,24 +124,26 @@ test("wiring: 비-AMRAP 작업 세트는 stopOnGrind=true (week1 전 세트)", (
 test("wiring: week3 AMRAP 세트는 stopOnGrind 미부착, 나머지는 부착", () => {
   const out = plannedExercisesFromAsymptoteManualSession(sessionA(), 3, TM, {});
   const squat = out[0]!;
-  // 마지막 세트 = AMRAP (restDayGap 미지정 → 보류 안 함, 기존 동작 보존)
-  assert.equal(squat.sets[3]!.amrap, true);
-  assert.equal(squat.sets[3]!.stopOnGrind, undefined, "AMRAP 세트엔 그라인딩 정지 안 붙음");
-  // 앞 3세트는 작업 세트 → stopOnGrind
-  for (let i = 0; i < 3; i += 1) {
-    assert.equal(squat.sets[i]!.amrap, false);
-    assert.equal(squat.sets[i]!.stopOnGrind, true);
+  // 마지막 세트 = AMRAP (restDayGap 미지정 → 보류 안 함, 기존 동작 보존).
+  // v0.5: cycle3엔 선두 프라이밍 탑세트가 붙으므로 하드 인덱스 대신 마지막 세트로 판정.
+  const amrapSet = squat.sets.at(-1)!;
+  assert.equal(amrapSet.amrap, true);
+  assert.equal(amrapSet.stopOnGrind, undefined, "AMRAP 세트엔 그라인딩 정지 안 붙음");
+  // 나머지(작업 세트 + 탑세트)는 전부 stopOnGrind
+  for (const set of squat.sets.slice(0, -1)) {
+    assert.equal(set.amrap, false);
+    assert.equal(set.stopOnGrind, true);
   }
   // 비-amrap 슬롯(BENCH)은 검증 사이클이라도 전 세트 작업 세트
   const bench = out[1]!;
-  assert.equal(bench.sets[3]!.amrap, false);
-  assert.equal(bench.sets[3]!.stopOnGrind, true);
+  assert.equal(bench.sets.at(-1)!.amrap, false);
+  assert.equal(bench.sets.at(-1)!.stopOnGrind, true);
 });
 
 test("wiring: week3 + 연속일(restDayGap=1) → AMRAP 보류, 작업 세트로 강등", () => {
   const out = plannedExercisesFromAsymptoteManualSession(sessionA(), 3, { ...TM, restDayGap: 1 }, {});
   const squat = out[0]!;
-  const lastSet = squat.sets[3]!;
+  const lastSet = squat.sets.at(-1)!;
   assert.equal(lastSet.amrap, false, "연속일이면 AMRAP 보류");
   assert.equal(lastSet.stopOnGrind, true, "보류된 AMRAP은 그라인딩-정지 작업 세트로 강등");
   assert.match(String(lastSet.note), /보류/);
@@ -150,6 +152,6 @@ test("wiring: week3 + 연속일(restDayGap=1) → AMRAP 보류, 작업 세트로
 test("wiring: week3 + 충분한 휴식(restDayGap=2) → AMRAP 유지", () => {
   const out = plannedExercisesFromAsymptoteManualSession(sessionA(), 3, { ...TM, restDayGap: 2 }, {});
   const squat = out[0]!;
-  assert.equal(squat.sets[3]!.amrap, true, "48h 이상이면 AMRAP 진행");
-  assert.match(String(squat.sets[3]!.note), /AMRAP/);
+  assert.equal(squat.sets.at(-1)!.amrap, true, "48h 이상이면 AMRAP 진행");
+  assert.match(String(squat.sets.at(-1)!.note), /AMRAP/);
 });

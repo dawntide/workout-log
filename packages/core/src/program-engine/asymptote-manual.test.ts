@@ -60,20 +60,23 @@ test("slotted: cycle3(week3)에서 amrap 슬롯의 마지막 세트만 AMRAP", (
   const bench = out[1]!;
 
   // SQUAT 슬롯은 amrap=true → 마지막 세트 AMRAP
-  assert.equal(squat.sets[3]!.amrap, true);
+  // (v0.5: cycle3엔 선두 프라이밍 탑세트가 붙으므로 하드 인덱스 대신 마지막 세트로 판정)
+  assert.equal(squat.sets.at(-1)!.amrap, true);
   assert.equal(squat.sets[0]!.amrap, false);
-  assert.match(String(squat.sets[3]!.note), /AMRAP/);
+  assert.match(String(squat.sets.at(-1)!.note), /AMRAP/);
 
   // BENCH 슬롯은 amrap=false → 검증 사이클이라도 AMRAP 아님
-  assert.equal(bench.sets[3]!.amrap, false);
+  assert.equal(bench.sets.at(-1)!.amrap, false);
 
+  // v0.5: cycle3 선두는 프라이밍 탑세트(coef 1.0), 작업 세트는 그 다음부터 원본 공식.
+  assert.equal(squat.sets[0]!.meta?.topSet, true);
   const expected = calculateAsymptoteWorkingWeight({
     tmKg: 160,
     cycleInBlock: 3,
     sessionInCycle: 1,
     lift: "SQUAT",
   });
-  assert.equal(squat.sets[0]!.targetWeightKg, expected);
+  assert.equal(squat.sets[1]!.targetWeightKg, expected);
 });
 
 test("slotted: CUSTOM 행은 슬롯 흐름 없이 저장 세트를 그대로 통과", () => {

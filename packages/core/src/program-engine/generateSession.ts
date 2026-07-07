@@ -17,9 +17,11 @@ import {
   ASYMPTOTE_LIGHT_CYCLE_COEF,
   ASYMPTOTE_SESSIONS,
   ASYMPTOTE_SESSION_LABELS,
+  ASYMPTOTE_SESSION_NUMBER_BY_LABEL,
   asymptoteDayGap,
   asymptoteShouldDeferAmrap,
   floorToMultiple2p5,
+  type AsymptoteTopSetSpec,
 } from "./asymptote";
 import { roundToNearest2p5 } from "./round";
 import { mapExerciseNameToTarget as inferTargetFromExerciseName } from "@workout/core/strength-engine/target-mapping";
@@ -92,6 +94,8 @@ type PlannedSet = {
   // 하이브리드(Asymptote × Async): AMRAP이 아닌 작업 세트의 "그라인딩 정지" 가이드.
   // true면 UI/유저는 렙 타겟을 다 못 채워도 바가 느려지는 첫 렙에서 멈춘다(자동 보정).
   stopOnGrind?: boolean;
+  // v0.5 프라이밍 탑세트 마킹(meta.topSet) — UI 배지·분석용 표식일 뿐 진행 로직은 읽지 않는다.
+  meta?: { topSet?: true };
 };
 
 export type PlannedExercise = {
@@ -591,6 +595,37 @@ function resolveAsymptoteTm(
   return null;
 }
 
+// v0.5 프라이밍 탑세트(proximity patch §A.1) — LOGIC·slot 두 처방 경로가 공유하는 단일 생성기
+// (동작 일치를 구조로 보장). 발동: topSet 스펙 보유 + 발동 사이클(2·3) + 비-lightBlockMode.
+// 처방: 1×reps @ TM×cycleCoef×coef(=1.0), stopOnGrind 고정, amrap 금지(진행 신호 아님),
+// meta.topSet 마킹. RPE는 비워둔다 — 근최대 노출이라 사이클 기본 RPE(7·8)가 오히려 오도하고,
+// 그라인딩-정지가 유일한 강도 밸브다. 렙 미달은 실패가 아니며 failureStreak에 반영되지 않는다
+// (asymptote 저장 경로는 plannedRef를 스탬프하지 않아 reducer의 setWasCompleted가 렙 비교를
+// 하지 않고, AMRAP 수집은 마지막 세트 기준이라 선두 삽입과 무간섭 — reducer 무변경, §A.3).
+function buildAsymptoteTopSet(input: {
+  spec: AsymptoteTopSetSpec | undefined;
+  cycleInBlock: number;
+  lightBlockMode: boolean;
+  tm: number | null;
+  cycleCoef: number;
+  baseTag: string;
+}): PlannedSet | null {
+  const spec = input.spec;
+  if (!spec || input.lightBlockMode || !spec.cycles.includes(input.cycleInBlock)) return null;
+  const set: PlannedSet = {
+    reps: spec.reps,
+    percent: input.cycleCoef * spec.coef,
+    amrap: false,
+    stopOnGrind: true,
+    note: `${input.baseTag} · 프라이밍 탑세트 · 그라인딩 정지`,
+    meta: { topSet: true },
+  };
+  const weightKg =
+    input.tm !== null ? floorToMultiple2p5(input.tm * input.cycleCoef * spec.coef) : null;
+  if (weightKg !== null) set.targetWeightKg = weightKg;
+  return set;
+}
+
 function generateAsymptote(_def: LogicDefinitionV1, ctx: GeneratorCtx): PlannedExercise[] {
   // Asymptote Protocol: ctx.week ∈ {1..4} = 블록 내 사이클, ctx.day ∈ {1..3} = 세션 A/B/C.
   // ctx.params.lightBlockMode === true 면 light 계수 사용 (이전 블록 AMRAP ≤2 트리거).
@@ -618,12 +653,12 @@ function generateAsymptote(_def: LogicDefinitionV1, ctx: GeneratorCtx): PlannedE
   return session.map((row, i) => {
     const tm = resolveAsymptoteTm(row.target, ctx.params, ctx.defaults);
     const workingWeightKg = tm !== null ? floorToMultiple2p5(tm * cycleCoef * row.coef) : null;
+    const baseTag = `Asymptote C${cycleInBlock}${sessionLabel}${lightBlockMode ? " · light" : ""}`;
     const sets: PlannedSet[] = Array.from({ length: row.sets }, (_, setIdx) => {
       const isLastSet = setIdx === row.sets - 1;
       const amrapEligible = isAmrapCycle && row.amrap && isLastSet;
       const deferAmrap = asymptoteShouldDeferAmrap({ amrapEligible, restDayGap });
       const isAmrapSet = amrapEligible && !deferAmrap;
-      const baseTag = `Asymptote C${cycleInBlock}${sessionLabel}${lightBlockMode ? " · light" : ""}`;
       const note = isAmrapSet
         ? `${baseTag} · AMRAP ${row.reps}+`
         : deferAmrap
@@ -643,6 +678,16 @@ function generateAsymptote(_def: LogicDefinitionV1, ctx: GeneratorCtx): PlannedE
       if (!isAmrapSet) set.stopOnGrind = true;
       return set;
     });
+    // v0.5 프라이밍 탑세트: 작업 세트 앞(선두)에 삽입 — AMRAP은 마지막 세트 판정이라 무간섭.
+    const topSet = buildAsymptoteTopSet({
+      spec: row.topSet,
+      cycleInBlock,
+      lightBlockMode,
+      tm,
+      cycleCoef,
+      baseTag,
+    });
+    if (topSet) sets.unshift(topSet);
 
     return {
       exerciseName: row.name,
@@ -970,6 +1015,20 @@ export function plannedExercisesFromAsymptoteManualSession(
           if (!isAmrapSet) set.stopOnGrind = true;
           return set;
         });
+        // v0.5 프라이밍 탑세트 — LOGIC 경로(generateAsymptote)와 동일 규칙(§A.3: 두 경로 일치
+        // 필수). 슬롯 스냅샷에는 topSet 메타가 없으므로 청사진(단일 진실원)에서 (sessionKey,
+        // target)으로 파생 — 기존 저장 플랜에도 즉시 적용되고 스냅샷-청사진 drift가 불가능하다.
+        const blueprintSession =
+          ASYMPTOTE_SESSIONS[ASYMPTOTE_SESSION_NUMBER_BY_LABEL[String(slot.sessionKey ?? "")] ?? -1];
+        const topSet = buildAsymptoteTopSet({
+          spec: blueprintSession?.find((row) => row.target === progressionTarget)?.topSet,
+          cycleInBlock,
+          lightBlockMode,
+          tm,
+          cycleCoef,
+          baseTag,
+        });
+        if (topSet) sets.unshift(topSet);
 
         return {
           exerciseId: typeof item?.exerciseId === "string" ? item.exerciseId : null,
