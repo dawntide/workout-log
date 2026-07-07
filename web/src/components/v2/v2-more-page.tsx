@@ -13,7 +13,6 @@ import { useSettingRowMutation } from "@/lib/settings/use-setting-row-mutation";
 import {
   applyThemePreferenceToDocument,
   applyThemeSkinToDocument,
-  DEFAULT_THEME_SKIN,
   DEFAULT_TRAINING_GOAL_PRIMARY,
   normalizeLocalePreference,
   normalizeThemePreference,
@@ -48,11 +47,11 @@ type SettingsResponse = {
 // skin 분기 래퍼 — terminal이면 SettingsTuiView(테마 토글 포함), paper는 기존(무수정).
 export function V2MorePage() {
   const skin = useThemeSkin();
-  if (skin === "terminal") return <SettingsTuiView />;
-  return <V2MorePagePaper />;
+  if (skin === "terminal") return <SettingsTuiView activeSkin={skin} />;
+  return <V2MorePagePaper activeSkin={skin} />;
 }
 
-function V2MorePagePaper() {
+function V2MorePagePaper({ activeSkin }: { activeSkin: ThemeSkin }) {
   const { locale } = useLocale();
   const headingId = useId();
   const [me, setMe] = useState<MeResponse["user"] | null>(null);
@@ -257,6 +256,7 @@ function V2MorePagePaper() {
       <Section title={locale === "ko" ? "앱" : "App"}>
         <ThemeSkinRow
           snapshot={snapshot}
+          activeSkin={activeSkin}
           expanded={expandedRow === "theme-skin"}
           onToggle={(next) => setExpandedRow(next ? "theme-skin" : null)}
         />
@@ -352,18 +352,23 @@ function Section({
 
 function ThemeSkinRow({
   snapshot,
+  activeSkin,
   expanded,
   onToggle,
 }: {
   snapshot: SettingsSnapshot | null;
+  activeSkin: ThemeSkin;
   expanded: boolean;
   onToggle: (next: boolean) => void;
 }) {
   const { locale } = useLocale();
-  const serverSkin = normalizeThemeSkin(snapshot?.[SETTINGS_KEYS.themeSkin]);
+  const serverSkin =
+    snapshot === null
+      ? activeSkin
+      : normalizeThemeSkin(snapshot[SETTINGS_KEYS.themeSkin]);
   const skin = useSettingRowMutation<string>({
     key: SETTINGS_KEYS.themeSkin,
-    fallbackValue: DEFAULT_THEME_SKIN,
+    fallbackValue: activeSkin,
     serverValue: serverSkin,
     persistServer: createPersistServerSetting<string>(),
     successMessage:
@@ -373,8 +378,9 @@ function ThemeSkinRow({
   });
 
   useEffect(() => {
+    if (snapshot === null) return;
     applyThemeSkinToDocument(normalizeThemeSkin(skin.value));
-  }, [skin.value]);
+  }, [skin.value, snapshot]);
 
   const selected = normalizeThemeSkin(skin.value);
   const options: Array<{ value: ThemeSkin; label: string }> = useMemo(

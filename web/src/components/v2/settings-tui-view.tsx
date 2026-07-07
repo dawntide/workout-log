@@ -7,7 +7,6 @@ import { createPersistServerSetting } from "@/lib/settings/settings-api";
 import { useSettingRowMutation } from "@/lib/settings/use-setting-row-mutation";
 import {
   applyThemeSkinToDocument,
-  DEFAULT_THEME_SKIN,
   DEFAULT_TRAINING_GOAL_PRIMARY,
   normalizeLocalePreference,
   normalizeThemeSkin,
@@ -59,7 +58,7 @@ const NAV: { label: string; href: string }[] = [
   { label: "debug", href: "/settings/debug" },
 ];
 
-export function SettingsTuiView() {
+export function SettingsTuiView({ activeSkin }: { activeSkin: ThemeSkin }) {
   const { locale, setLocale } = useLocale();
   const [me, setMe] = useState<MeUser | null>(null);
   const [snapshot, setSnapshot] = useState<SettingsSnapshot | null>(null);
@@ -90,16 +89,20 @@ export function SettingsTuiView() {
 
   const skin = useSettingRowMutation<string>({
     key: SETTINGS_KEYS.themeSkin,
-    fallbackValue: DEFAULT_THEME_SKIN,
-    serverValue: normalizeThemeSkin(snapshot?.[SETTINGS_KEYS.themeSkin]),
+    fallbackValue: activeSkin,
+    serverValue:
+      snapshot === null
+        ? activeSkin
+        : normalizeThemeSkin(snapshot[SETTINGS_KEYS.themeSkin]),
     persistServer: createPersistServerSetting<string>(),
     successMessage: locale === "ko" ? "테마를 저장했습니다." : "Saved the theme.",
     rollbackNotice:
       locale === "ko" ? "테마 저장에 실패했습니다." : "Failed to save the theme.",
   });
   useEffect(() => {
+    if (snapshot === null) return;
     applyThemeSkinToDocument(normalizeThemeSkin(skin.value));
-  }, [skin.value]);
+  }, [skin.value, snapshot]);
   const selectedSkin = normalizeThemeSkin(skin.value);
   const skinOptions: { value: ThemeSkin; label: string }[] = [
     { value: "paper", label: "paper" },
