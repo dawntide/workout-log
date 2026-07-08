@@ -11,7 +11,6 @@ import {
   type TermLogEntry,
 } from "@/components/v2/terminal";
 import { SetRowFocusChainProvider } from "@/features/workout-log/model/use-set-row-focus-chain";
-import { useRestTimer } from "@/features/workout-log/model/use-rest-timer";
 import {
   completedSetsCountAtom,
   prevPerformanceMapAtom,
@@ -26,7 +25,7 @@ import { TermTable } from "@/features/workout-log/ui/term-table";
 // terminal(ironlog) 운동 로그 본문 뷰 — paper WorkoutLogStackedList의 terminal
 // 대응(Step 1c). 동일 SetRowFocusChainProvider 안에서 TermTable을 mount해 focus
 // chain을 공유한다(R-3). Step 2: 세션 SETS 진행바 + 세트 완료(✓) 시 자동 시작되는
-// 휴식바(TermProgress + useRestTimer). 헤더·DateNav·로그·mode·저장(⏎)·3-way
+// 헤더·DateNav·로그·mode·저장(⏎)·3-way
 // 게이트는 후속(Step 4~6). 이 뷰는 TermShell ViewPane 안에서 렌더되므로 외곽 패딩은 없음.
 type Props = {
   onExerciseAction: (exerciseId: string, action: ExerciseRowAction) => void;
@@ -36,7 +35,6 @@ type Props = {
 };
 
 // 세트 완료 시 시작하는 기본 휴식(초). 설정값이 생기면 그때 주입(현재 스키마 없음).
-const DEFAULT_REST_SEC = 120;
 
 export function WorkoutLogTuiView({
   onExerciseAction,
@@ -69,22 +67,6 @@ function TuiViewContent({
     () => visibleExercises.filter((ex) => !ex.deleted),
     [visibleExercises],
   );
-
-  const {
-    running: restRunning,
-    remainingSec,
-    totalSec,
-    start: startRest,
-    adjust: adjustRest,
-    stop: stopRest,
-  } = useRestTimer();
-
-  // 세트 완료(✓) = 세션 완료 세트 수 증가 → 휴식 자동 시작(client-only).
-  const prevCompleted = useRef(completedSets);
-  useEffect(() => {
-    if (completedSets > prevCompleted.current) startRest(DEFAULT_REST_SEC);
-    prevCompleted.current = completedSets;
-  }, [completedSets, startRest]);
 
   const setsComplete = totalSets > 0 && completedSets >= totalSets;
 
@@ -153,7 +135,7 @@ function TuiViewContent({
     return () => window.clearTimeout(captureId);
   }, [exercises, programEntryState]);
 
-  // ── 셸 푸터 등록: mode-accent + keyHints([⏎]log=저장, [r]rest) + statusRight(vol) ──
+  // ── 셸 푸터 등록: mode-accent + keyHints([⏎]log=저장) + statusRight(vol) ──
   const workflowState = useAtomValue(workflowStateAtom);
   const volumeKg = useMemo(() => {
     let v = 0;
@@ -179,19 +161,17 @@ function TuiViewContent({
     // 정보량이 0이라, mode pill을 "다음 할 운동"으로, statusRight를 그 운동의
     // 직전 세션 최고 세트(prev 100 × 5)로 대체해 "이 무게로 시작" 맥락을 준다.
     // 직전 기록이 없으면(처음 하는 운동) 오늘 할 양(운동수·세트수)으로 폴백.
-    const idle = workflowState !== "saving" && !restRunning && completedSets === 0;
+    const idle = workflowState !== "saving" && completedSets === 0;
     const nextName = exercises[0]?.exerciseName;
     const nextPrev = nextName ? prevPerformanceMap[nextName] : undefined;
     const m =
       workflowState === "saving"
         ? { text: "-- SAVING --", tone: "saving" as const }
-        : restRunning
-          ? { text: "-- REST --", tone: "rest" as const }
-          : completedSets > 0
-            ? { text: "-- LOGGING --", tone: "logging" as const }
-            : nextName
-              ? { text: `▶ ${nextName}`, tone: "normal" as const }
-              : { text: "-- NORMAL --", tone: "normal" as const };
+        : completedSets > 0
+          ? { text: "-- LOGGING --", tone: "logging" as const }
+          : nextName
+            ? { text: `▶ ${nextName}`, tone: "normal" as const }
+            : { text: "-- NORMAL --", tone: "normal" as const };
     return {
       id: "workout-log",
       mode: m.text,
@@ -201,22 +181,17 @@ function TuiViewContent({
           ? `prev ${nextPrev}`
           : `${exercises.length} ${isKo ? "운동" : "ex"} · ${totalSets} ${isKo ? "세트" : "sets"}`
         : `${completedSets}/${totalSets} · vol ${(volumeKg / 1000).toFixed(1)}t`,
-      keyHints: [
-        { key: "⏎", label: "log", onPress: onSave },
-        { key: "r", label: "rest", onPress: () => startRest(DEFAULT_REST_SEC) },
-      ],
+      keyHints: [{ key: "⏎", label: "log", onPress: onSave }],
     };
   }, [
     locale,
     workflowState,
-    restRunning,
     completedSets,
     totalSets,
     volumeKg,
     exercises,
     prevPerformanceMap,
     onSave,
-    startRest,
   ]);
   useRegisterTermFooter(footer);
 
@@ -272,72 +247,12 @@ function TuiViewContent({
         />
       ) : null}
 
-      {/* 휴식: ✓ 시 자동 시작, [−15]/[+15]/[skip] */}
-      {restRunning ? (
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            gap: "var(--v2-s-1)",
-          }}
-        >
-          <TermProgress
-            glyph="⏳"
-            label="REST"
-            value={`${fmtClock(remainingSec)} / ${fmtClock(totalSec)}`}
-            ratio={totalSec > 0 ? remainingSec / totalSec : 0}
-            tone="meter"
-          />
-          <div style={{ display: "flex", gap: "var(--v2-s-1)" }}>
-            <RestButton label="−15" onClick={() => adjustRest(-15)} />
-            <RestButton label="+15" onClick={() => adjustRest(15)} />
-            <RestButton
-              label={locale === "ko" ? "건너뛰기" : "skip"}
-              onClick={stopRest}
-            />
-          </div>
-        </div>
-      ) : null}
-
       {/* combat log — 세션 한정 ephemeral, 최근 3줄 */}
       <TermLog entries={logEntries} max={3} />
     </section>
   );
 }
 
-function fmtClock(totalSeconds: number): string {
-  const s = Math.max(0, Math.floor(totalSeconds));
-  const m = Math.floor(s / 60);
-  return `${m}:${String(s % 60).padStart(2, "0")}`;
-}
-
-// 휴식 조정 = 44px 터치 버튼, 리터럴 bracket(터미널 keyhint 스타일).
-function RestButton({
-  label,
-  onClick,
-}: {
-  label: string;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="v2-mono-label"
-      style={{
-        minHeight: "var(--v2-touch)",
-        padding: "0 var(--v2-s-2)",
-        background: "transparent",
-        border: "none",
-        color: "var(--term-cyan)",
-        cursor: "pointer",
-        whiteSpace: "nowrap",
-      }}
-    >
-      [{label}]
-    </button>
-  );
-}
 
 // 운동 추가 = 전폭 keyhint 버튼(box 프레임=boxShadow inset, border 금지, radius0).
 function AddExerciseAction({

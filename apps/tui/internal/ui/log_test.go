@@ -30,9 +30,6 @@ func TestLogCompleteSet(t *testing.T) {
 	if !l2.groups[0].sets[2].done {
 		t.Fatal("expected the set to be marked done")
 	}
-	if !l2.rest.active {
-		t.Error("expected rest armed")
-	}
 	if len(l2.groups[0].sets) != 3 {
 		t.Errorf("completeSet must not append a set (sets are added only via addSet/\"o\"); got %d", len(l2.groups[0].sets))
 	}
@@ -152,10 +149,6 @@ func TestLogModeTransitions(t *testing.T) {
 		t.Errorf("want INSERT, got %q", l.Mode().Label)
 	}
 	l.editing = false
-	l.rest = restState{active: true, remaining: 42, total: 90}
-	if !strings.Contains(l.Mode().Label, "REST") {
-		t.Errorf("want REST, got %q", l.Mode().Label)
-	}
 }
 
 func TestLogBodyGrouped(t *testing.T) {

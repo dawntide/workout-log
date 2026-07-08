@@ -83,7 +83,6 @@ func sampleTodayFrame() Frame {
 		{name: "Bench Press", prev: "70×5", sets: []setEntry{{}}},
 	}
 	l.gi, l.si, l.col = 0, 2, colReps
-	l.rest = restState{active: true, remaining: 48, total: 90}
 	l.planName, l.sessionKey, l.planID = "5/3/1 Leader", "C2W6D1", "p1"
 	f.views[vToday] = l
 	return f

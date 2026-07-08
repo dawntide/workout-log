@@ -16,8 +16,6 @@ import (
 	"github.com/sharru0701/workout-log/apps/tui/internal/theme"
 )
 
-const defaultRestSeconds = 90
-
 type logCol int
 
 const (
@@ -79,12 +77,6 @@ func cloneGroups(gs []exGroup) []exGroup {
 		out[i] = g
 	}
 	return out
-}
-
-type restState struct {
-	active    bool
-	remaining int
-	total     int
 }
 
 type saveResultMsg struct {
@@ -388,7 +380,6 @@ type Log struct {
 	editing     bool
 	target      editTarget
 	edit        textinput.Model
-	rest        restState
 	saving      bool
 	editID      string        // non-empty when editing a past log (saves via PATCH)
 	performedAt time.Time     // preserved on edit; zero = now (new log)
@@ -425,8 +416,6 @@ func (l Log) Init() tea.Cmd { return autoloadCmd(l.client, l.drafts) }
 
 func (l Log) Mode() Mode {
 	switch {
-	case l.rest.active:
-		return Mode{Label: fmt.Sprintf("REST %ds", l.rest.remaining), Tone: theme.Cyan}
 	case l.saving:
 		return Mode{Label: "SAVING", Tone: theme.Amber}
 	case l.editing:
@@ -484,14 +473,6 @@ func (l Log) Update(msg tea.Msg) (Screen, tea.Cmd) {
 	switch m := msg.(type) {
 	case tea.WindowSizeMsg:
 		l.w, l.h = m.Width, m.Height
-		return l, nil
-	case tickMsg:
-		if l.rest.active && l.rest.remaining > 0 {
-			l.rest.remaining--
-			if l.rest.remaining <= 0 {
-				l.rest.active = false
-			}
-		}
 		return l, nil
 	case saveResultMsg:
 		l.saving = false
@@ -620,8 +601,6 @@ func (l Log) updateNormal(m tea.KeyPressMsg) (Log, tea.Cmd) {
 		if l.col < colRPE {
 			l.col++
 		}
-	case "r":
-		l.rest.active = false
 	case "i", "enter":
 		if len(l.groups) == 0 {
 			return l, openExercisePickerCmd(l.client)
@@ -821,7 +800,6 @@ func (l Log) toggleDone() (Log, tea.Cmd) {
 	}
 	s.done = true
 	l.status, l.statusErr = "", false
-	l.rest = restState{active: true, remaining: defaultRestSeconds, total: defaultRestSeconds}
 	l.persistDraft()
 	return l, nil
 }
@@ -834,13 +812,12 @@ func (l Log) completeSet() (Log, tea.Cmd) {
 	}
 	l.groups[l.gi].sets[l.si].done = true
 	l.status, l.statusErr = "", false
-	l.rest = restState{active: true, remaining: defaultRestSeconds, total: defaultRestSeconds}
 	l.persistDraft()
 	// 세트 추가는 addSet("o")로만 — reps 엔터는 현재 세트 완료까지만 하고
 	// 빈 세트를 자동으로 덧붙이지 않는다.
 	// 입력 리듬: reps 완료 = 세트 완료이므로 커서를 다음 세트로 옮겨(운동 경계 넘어감)
-	// 휴식 후 엔터 한 번으로 바로 이어 입력하게 한다. 마지막 세트면 제자리(moveSet이 no-op).
-	// 에디터를 자동으로 열지는 않는다 — 휴식 중 j/k/s 키를 편집기가 삼키면 안 된다.
+	// 엔터 한 번으로 바로 이어 입력하게 한다. 마지막 세트면 제자리(moveSet이 no-op).
+	// 에디터를 자동으로 열지는 않는다 — 이동/저장 키(j/k/s)를 편집기가 삼키면 안 된다.
 	l.moveSet(1)
 	l.col = colWeight
 	return l, nil
@@ -900,7 +877,6 @@ func (l *Log) loadForEdit(m editLogMsg) {
 	if m.bodyweight > 0 {
 		l.bodyweight = m.bodyweight
 	}
-	l.rest.active = false
 	l.load, l.undo = loadIdle, nil
 	l.status, l.statusErr = theme.GlyphDone+" 편집 로드됨 — s로 저장", false
 }
@@ -1017,9 +993,9 @@ func (l Log) Body(w, h int) string {
 	}
 
 	// Pinned chrome: the session header (plan name + cycle label) and edit banner
-	// stick to the top; the rest gauge and status line stick to the bottom so a
-	// live countdown / save confirmation stays visible no matter how many
-	// exercises scroll between them.
+	// stick to the top; feedback lines and the status line stick to the bottom so
+	// a save confirmation stays visible no matter how many exercises scroll
+	// between them.
 	var head, foot []string
 	if sh := l.sessionHeader(); sh != "" {
 		head = append(head, sh)
@@ -1029,9 +1005,6 @@ func (l Log) Body(w, h int) string {
 	}
 	if len(head) > 0 && !compact {
 		head = append(head, "")
-	}
-	if l.rest.active {
-		foot = append(foot, l.restBar(w))
 	}
 	foot = append(foot, l.feedback...)
 	if l.status != "" {
@@ -1212,31 +1185,6 @@ func (l Log) repsCell(active bool, s setEntry) string {
 		return lipgloss.NewStyle().Foreground(theme.Ghost).Width(3).Render(strconv.Itoa(s.tgtReps))
 	}
 	return l.setCell(active, colReps, orDot(s.reps), 3)
-}
-
-func (l Log) restBar(w int) string {
-	cells := 16
-	if w < 44 {
-		cells = 12
-	}
-	frac := 0.0
-	if l.rest.total > 0 {
-		frac = float64(l.rest.remaining) / float64(l.rest.total)
-	}
-	if frac < 0 {
-		frac = 0
-	}
-	filled := int(frac * float64(cells))
-	tone := theme.Green
-	if frac < 0.5 {
-		tone = theme.Amber
-	}
-	if frac < 0.2 {
-		tone = theme.Red
-	}
-	gauge := lipgloss.NewStyle().Foreground(tone).Render(strings.Repeat("█", filled) + strings.Repeat("░", cells-filled))
-	clock := lipgloss.NewStyle().Foreground(theme.Dim).Render(fmt.Sprintf(" rest %d:%02d  ", l.rest.remaining/60, l.rest.remaining%60))
-	return "▕" + gauge + "▏" + clock + hint("r", "skip")
 }
 
 // feedbackLines renders the server-assembled progression feedback (judgment

@@ -183,7 +183,6 @@ func (l *Log) loadFromDraft(d todayDraft) {
 	if d.Bodyweight > 0 {
 		l.bodyweight = d.Bodyweight
 	}
-	l.rest.active = false
 	l.load, l.undo = loadIdle, nil
 	l.status, l.statusErr = theme.GlyphDone+" 미저장 기록 복원됨 — 확인 후 s로 저장", false
 }
