@@ -109,7 +109,7 @@ func TestLiveCreateLog(t *testing.T) {
 		t.Fatalf("Signup: %v", err)
 	}
 
-	id, err := c.CreateLog(ctx, CreateLogRequest{
+	id, _, err := c.CreateLog(ctx, CreateLogRequest{
 		PerformedAt: time.Now(),
 		Sets: []WorkoutSet{
 			{ExerciseName: "Squat", WeightKg: 100, Reps: 5},
@@ -158,7 +158,7 @@ func TestLiveHome(t *testing.T) {
 	if _, err := c.Signup(ctx, SignupRequest{Email: email, Password: "spike-passw0rd", DisplayName: "TUI Home"}); err != nil {
 		t.Fatalf("Signup: %v", err)
 	}
-	if _, err := c.CreateLog(ctx, CreateLogRequest{
+	if _, _, err := c.CreateLog(ctx, CreateLogRequest{
 		PerformedAt: time.Now(),
 		Sets: []WorkoutSet{
 			{ExerciseName: "Squat", WeightKg: 100, Reps: 5},
@@ -199,7 +199,7 @@ func TestLiveStats(t *testing.T) {
 	if _, err := c.Signup(ctx, SignupRequest{Email: email, Password: "spike-passw0rd", DisplayName: "TUI Stats"}); err != nil {
 		t.Fatalf("Signup: %v", err)
 	}
-	if _, err := c.CreateLog(ctx, CreateLogRequest{
+	if _, _, err := c.CreateLog(ctx, CreateLogRequest{
 		PerformedAt: time.Now(),
 		Sets:        []WorkoutSet{{ExerciseName: "Squat", WeightKg: 100, Reps: 5}, {ExerciseName: "Squat", WeightKg: 102.5, Reps: 5}},
 	}); err != nil {
@@ -242,7 +242,7 @@ func TestLiveHistory(t *testing.T) {
 	if _, err := c.Signup(ctx, SignupRequest{Email: email, Password: "spike-passw0rd", DisplayName: "TUI Hist"}); err != nil {
 		t.Fatalf("Signup: %v", err)
 	}
-	if _, err := c.CreateLog(ctx, CreateLogRequest{
+	if _, _, err := c.CreateLog(ctx, CreateLogRequest{
 		PerformedAt: time.Now(),
 		Sets:        []WorkoutSet{{ExerciseName: "Squat", WeightKg: 102.5, Reps: 5}},
 	}); err != nil {
@@ -286,7 +286,7 @@ func TestLiveExercises(t *testing.T) {
 	if _, err := c.Signup(ctx, SignupRequest{Email: email, Password: "spike-passw0rd"}); err != nil {
 		t.Fatalf("Signup: %v", err)
 	}
-	if _, err := c.CreateLog(ctx, CreateLogRequest{
+	if _, _, err := c.CreateLog(ctx, CreateLogRequest{
 		PerformedAt: time.Now(),
 		Sets:        []WorkoutSet{{ExerciseName: "Squat", WeightKg: 100, Reps: 5}},
 	}); err != nil {
@@ -597,7 +597,7 @@ func TestLiveEditLog(t *testing.T) {
 	}
 
 	performedAt := time.Now().Add(-72 * time.Hour)
-	id, err := c.CreateLog(ctx, CreateLogRequest{
+	id, _, err := c.CreateLog(ctx, CreateLogRequest{
 		PerformedAt: performedAt,
 		Sets:        []WorkoutSet{{ExerciseName: "Squat", WeightKg: 100, Reps: 5}},
 	})
@@ -605,7 +605,7 @@ func TestLiveEditLog(t *testing.T) {
 		t.Fatalf("CreateLog: %v", err)
 	}
 
-	if err := c.UpdateLog(ctx, id, CreateLogRequest{
+	if _, err := c.UpdateLog(ctx, id, CreateLogRequest{
 		PerformedAt: performedAt,
 		Sets: []WorkoutSet{
 			{ExerciseName: "Squat", WeightKg: 105, Reps: 5},
@@ -664,7 +664,7 @@ func TestLiveLogRPE(t *testing.T) {
 		t.Fatalf("Signup: %v", err)
 	}
 	rpe := 8
-	id, err := c.CreateLog(ctx, CreateLogRequest{
+	id, _, err := c.CreateLog(ctx, CreateLogRequest{
 		PerformedAt: time.Now(),
 		Sets:        []WorkoutSet{{ExerciseName: "Squat", WeightKg: 100, Reps: 5, RPE: &rpe}},
 	})
@@ -778,7 +778,7 @@ func TestLiveExportImport(t *testing.T) {
 	if _, err := c.Signup(ctx, SignupRequest{Email: fmt.Sprintf("tui-io+%d@example.com", time.Now().UnixNano()), Password: "spike-passw0rd"}); err != nil {
 		t.Fatalf("Signup: %v", err)
 	}
-	if _, err := c.CreateLog(ctx, CreateLogRequest{
+	if _, _, err := c.CreateLog(ctx, CreateLogRequest{
 		PerformedAt: time.Now(),
 		Sets:        []WorkoutSet{{ExerciseName: "Squat", WeightKg: 100, Reps: 5}},
 	}); err != nil {
@@ -826,7 +826,7 @@ func TestLiveVolumeSeries(t *testing.T) {
 	if _, err := c.Signup(ctx, SignupRequest{Email: fmt.Sprintf("tui-vol+%d@example.com", time.Now().UnixNano()), Password: "spike-passw0rd"}); err != nil {
 		t.Fatalf("Signup: %v", err)
 	}
-	if _, err := c.CreateLog(ctx, CreateLogRequest{
+	if _, _, err := c.CreateLog(ctx, CreateLogRequest{
 		PerformedAt: time.Now(),
 		Sets:        []WorkoutSet{{ExerciseName: "Squat", WeightKg: 100, Reps: 5}, {ExerciseName: "Squat", WeightKg: 100, Reps: 5}},
 	}); err != nil {

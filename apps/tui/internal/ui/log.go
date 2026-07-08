@@ -91,7 +91,8 @@ type saveResultMsg struct {
 	detail      *api.LogDetail
 	err         error
 	edited      bool
-	performedAt time.Time // when the saved log is dated, for the edit banner
+	performedAt time.Time                // when the saved log is dated, for the edit banner
+	feedback    *api.ProgressionFeedback // 서버 조립 판정 카드·배너(문구 그대로 표시)
 }
 
 // saveCmd persists the done sets: PATCH when editID is set (editing a past
@@ -129,16 +130,17 @@ func saveCmd(c *api.Client, groups []exGroup, editID string, performedAt time.Ti
 		}
 		req := api.CreateLogRequest{Sets: sets, PerformedAt: at}
 		id, err := editID, error(nil)
+		var feedback *api.ProgressionFeedback
 		if editID != "" {
-			err = c.UpdateLog(context.Background(), editID, req)
+			feedback, err = c.UpdateLog(context.Background(), editID, req)
 		} else {
-			id, err = c.CreateLog(context.Background(), req)
+			id, feedback, err = c.CreateLog(context.Background(), req)
 		}
 		if err != nil {
 			return saveResultMsg{err: err, edited: editID != ""}
 		}
 		detail, err := c.GetLog(context.Background(), id)
-		return saveResultMsg{detail: detail, err: err, edited: editID != "", performedAt: at}
+		return saveResultMsg{detail: detail, err: err, edited: editID != "", performedAt: at, feedback: feedback}
 	}
 }
 
@@ -398,9 +400,13 @@ type Log struct {
 	bodyweight  float64       // user bodyweight (kg) for bodyweight-exercise load math
 	load        loadState     // boot-time auto-load of today's session
 	undo        *undoSnapshot // last delete, restorable with `u`
-	status      string
-	statusErr   bool
-	w, h        int
+	// v0.5.1 피드백: 세션 태그(스냅샷 승격 메타)와 저장 직후 판정 라인(서버 조립 문구).
+	amrapDeferred bool     // 오늘 AMRAP 보류(연속일) — 헤더 태그
+	lightBlock    bool     // 라이트(회복) 블록 — 헤더 태그
+	feedback      []string // 저장 응답의 판정 카드/배너 라인(styled) — 다음 로드/편집 시 소거
+	status        string
+	statusErr     bool
+	w, h          int
 }
 
 // NewLog starts in loadPending so the very first render shows "loading today's
@@ -501,6 +507,7 @@ func (l Log) Update(msg tea.Msg) (Screen, tea.Cmd) {
 		// so it reads as "today's record" instead of a blank canvas; re-saving
 		// edits the same log.
 		l.status, l.statusErr = summarizeSaved(l.groups, m.detail, m.edited), false
+		l.feedback = feedbackLines(m.feedback)
 		l.keepDoneOnly()
 		if m.detail != nil {
 			l.editID = m.detail.ID
@@ -510,6 +517,7 @@ func (l Log) Update(msg tea.Msg) (Screen, tea.Cmd) {
 		l.clearDraft() // 서버 상태 == 버퍼 — draft는 역할 종료
 		return l, nil
 	case editLogMsg:
+		l.amrapDeferred, l.lightBlock, l.feedback = false, false, nil
 		l.loadForEdit(m)
 		return l, nil
 	case draftRestoredMsg:
@@ -575,6 +583,11 @@ func (l Log) Update(msg tea.Msg) (Screen, tea.Cmd) {
 		}
 		l.planName, l.sessionKey, l.planID = m.planName, m.sessionKey, m.planID
 		l.bodyweight = m.bodyweight
+		l.amrapDeferred, l.lightBlock = false, false
+		if m.snapshot != nil {
+			l.amrapDeferred, l.lightBlock = m.snapshot.AmrapDeferred, m.snapshot.LightBlockMode
+		}
+		l.feedback = nil
 		l.loadSnapshot(m.snapshot, m.prev)
 		return l, nil
 	case tea.KeyPressMsg:
@@ -1015,6 +1028,7 @@ func (l Log) Body(w, h int) string {
 	if l.rest.active {
 		foot = append(foot, l.restBar(w))
 	}
+	foot = append(foot, l.feedback...)
 	if l.status != "" {
 		tone := theme.Green
 		if l.statusErr {
@@ -1071,6 +1085,13 @@ func (l Log) sessionHeader() string {
 	}
 	if lab := sessionLabel(l.sessionKey); lab != "" {
 		parts = append(parts, lipgloss.NewStyle().Foreground(theme.Cyan).Bold(true).Render(lab))
+	}
+	// v0.5.1 세션 태그(F3·F4) — 스냅샷 승격 메타를 한 줄 태그로. 웹 배너의 TUI-최적 축약.
+	if l.amrapDeferred {
+		parts = append(parts, lipgloss.NewStyle().Foreground(theme.Amber).Render("AMRAP보류"))
+	}
+	if l.lightBlock {
+		parts = append(parts, lipgloss.NewStyle().Foreground(theme.Dim).Render("라이트블록"))
 	}
 	return strings.Join(parts, lipgloss.NewStyle().Foreground(theme.Dim).Render(" · "))
 }
@@ -1211,6 +1232,35 @@ func (l Log) restBar(w int) string {
 	gauge := lipgloss.NewStyle().Foreground(tone).Render(strings.Repeat("█", filled) + strings.Repeat("░", cells-filled))
 	clock := lipgloss.NewStyle().Foreground(theme.Dim).Render(fmt.Sprintf(" rest %d:%02d  ", l.rest.remaining/60, l.rest.remaining%60))
 	return "▕" + gauge + "▏" + clock + hint("r", "skip")
+}
+
+// feedbackLines renders the server-assembled progression feedback (judgment
+// card / early-deload banner) as pinned foot lines. Copy comes verbatim from
+// the API (core feedback-catalog) so web and TUI wording never drift; this only
+// styles and caps it for narrow phone viewports. Cleared on the next session
+// load or edit entry.
+func feedbackLines(fb *api.ProgressionFeedback) []string {
+	if fb == nil {
+		return nil
+	}
+	var out []string
+	amber := lipgloss.NewStyle().Foreground(theme.Amber)
+	cyan := lipgloss.NewStyle().Foreground(theme.Cyan)
+	if b := fb.EarlyDeloadBanner; b != nil {
+		out = append(out, amber.Bold(true).Render(b.Title), amber.Render(b.Body))
+	}
+	if r := fb.Report; r != nil && len(r.Rows) > 0 {
+		out = append(out, amber.Bold(true).Render(r.Title))
+		for _, row := range r.Rows {
+			out = append(out, cyan.Render("  "+row.Text))
+		}
+	}
+	// 좁은 뷰포트 보호: 판정 라인이 테이블을 밀어내지 않게 상한을 둔다.
+	const maxLines = 7
+	if len(out) > maxLines {
+		out = out[:maxLines]
+	}
+	return out
 }
 
 // summarizeSaved builds the post-save status line: a count + tonnage headline

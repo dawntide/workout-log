@@ -132,6 +132,9 @@ type SessionSnapshot struct {
 	SessionKey string            `json:"sessionKey"`
 	Plan       SnapshotPlan      `json:"plan"`
 	Exercises  []PlannedExercise `json:"exercises"`
+	// v0.5.1 세션 수준 피드백 메타(서버 승격) — today 헤더 태그의 근거.
+	AmrapDeferred  bool `json:"amrapDeferred"`  // 연속일로 오늘 AMRAP 보류됨
+	LightBlockMode bool `json:"lightBlockMode"` // 라이트(회복) 블록 계수로 처방됨
 }
 
 // GeneratedSession wraps the saved session row returned by POST

@@ -39,26 +39,65 @@ func (c *Client) ListLogs(ctx context.Context, p ListLogsParams) ([]LogItem, err
 	return out.Items, nil
 }
 
-// CreateLog saves a workout and returns the new log id. The POST response is
-// {log, progression}; PRs are computed on the read path, so fetch them via
-// GetLog.
-func (c *Client) CreateLog(ctx context.Context, req CreateLogRequest) (string, error) {
-	var out struct {
-		Log struct {
-			ID string `json:"id"`
-		} `json:"log"`
-	}
+// FeedbackBanner is a server-assembled notice (title+body) — e.g. the asymptote
+// early-deload banner. Copy is composed server-side (core feedback-catalog) so
+// web and TUI show identical wording; render as-is, no re-formatting.
+type FeedbackBanner struct {
+	Title string `json:"title"`
+	Body  string `json:"body"`
+}
+
+// ProgressReportRow is one judgment line ("스쿼트 +2.5 (6연속 성공)" …).
+type ProgressReportRow struct {
+	Target string `json:"target"`
+	Text   string `json:"text"`
+}
+
+// ProgressReport is the server-assembled progression judgment card (block-end
+// TM changes, freezes, GZCLP stage moves …). nil when the event is noise.
+type ProgressReport struct {
+	EventID string              `json:"eventId"`
+	Title   string              `json:"title"`
+	Rows    []ProgressReportRow `json:"rows"`
+}
+
+// ProgressionFeedback is the `progression.feedback` payload on save responses.
+type ProgressionFeedback struct {
+	Report            *ProgressReport `json:"report"`
+	EarlyDeloadBanner *FeedbackBanner `json:"earlyDeloadBanner"`
+}
+
+// saveResponse is the {log, progression} envelope shared by POST and PATCH.
+type saveResponse struct {
+	Log struct {
+		ID string `json:"id"`
+	} `json:"log"`
+	Progression struct {
+		Feedback *ProgressionFeedback `json:"feedback"`
+	} `json:"progression"`
+}
+
+// CreateLog saves a workout and returns the new log id plus the server-assembled
+// progression feedback (judgment card / early-deload banner; nil when none).
+// PRs are computed on the read path, so fetch them via GetLog.
+func (c *Client) CreateLog(ctx context.Context, req CreateLogRequest) (string, *ProgressionFeedback, error) {
+	var out saveResponse
 	if err := c.do(ctx, "POST", "/api/logs", req, &out); err != nil {
-		return "", err
+		return "", nil, err
 	}
-	return out.Log.ID, nil
+	return out.Log.ID, out.Progression.Feedback, nil
 }
 
 // UpdateLog replaces a past log's sets (and performedAt) via PATCH. The server
-// upserts the set list wholesale and rebuilds plan progression. PRs are computed
-// on the read path, so fetch them via GetLog afterward.
-func (c *Client) UpdateLog(ctx context.Context, id string, req CreateLogRequest) error {
-	return c.do(ctx, "PATCH", "/api/logs/"+id, req, nil)
+// upserts the set list wholesale and rebuilds plan progression, returning the
+// same feedback envelope as CreateLog. PRs are computed on the read path, so
+// fetch them via GetLog afterward.
+func (c *Client) UpdateLog(ctx context.Context, id string, req CreateLogRequest) (*ProgressionFeedback, error) {
+	var out saveResponse
+	if err := c.do(ctx, "PATCH", "/api/logs/"+id, req, &out); err != nil {
+		return nil, err
+	}
+	return out.Progression.Feedback, nil
 }
 
 // DeleteLog removes a workout log (the server rebuilds plan progression).
