@@ -107,6 +107,20 @@ jobs:
         working-directory: packages/core
         run: pnpm test
 
+  bundle-budget:
+    name: Next.js Client Bundle Budget
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-pnpm-node
+
+      - name: Analyze route client graphs
+        working-directory: web
+        env:
+          DATABASE_URL: postgres://ci:ci@127.0.0.1:5432/ci_bundle_analysis
+          NEXT_TELEMETRY_DISABLED: "1"
+        run: pnpm analyze:bundle
+
   # ──────────────────────────────────────────────
   # Job: TUI (apps/tui) build · vet · test
   # Go tests were previously developer-run only (never gated). live_test.go is
@@ -182,7 +196,7 @@ jobs:
 
       # PLAYWRIGHT_SERVER_MODE=prod → webServer가 `pnpm build && pnpm start`(프로덕션 런타임).
       # build가 migrate를 재실행하나 멱등(위 seed는 여전히 필요). prod 렌더 크래시를 여기서 게이트.
-      - name: Run smoke E2E tests (prod build)
+      - name: Run smoke + runtime accessibility E2E tests (prod build)
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/workout_log_ci
           WORKOUT_AUTH_USER_ID: 00000000-0000-4000-8000-000000c1c1c1
@@ -190,7 +204,7 @@ jobs:
           NEXT_TELEMETRY_DISABLED: "1"
           PLAYWRIGHT_SERVER_MODE: prod
           CI: "true"
-        run: pnpm exec playwright test e2e/smoke.spec.ts --project chromium
+        run: pnpm exec playwright test e2e/smoke.spec.ts e2e/a11y-runtime.spec.ts --project chromium
 
       # 실패 시 trace/screenshot/video를 artifact로 보관
       - name: Upload Playwright artifacts

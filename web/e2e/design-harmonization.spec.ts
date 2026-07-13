@@ -54,7 +54,7 @@ async function addFreezeStyle(page: Page) {
     try {
       await page.addStyleTag({
         content:
-          "*,:before,:after{animation:none!important;transition:none!important;caret-color:transparent!important;}",
+          "*,:before,:after{animation:none!important;transition:none!important;caret-color:transparent!important;}.program-list-card{content-visibility:visible!important;contain-intrinsic-size:auto!important;}",
       });
       return;
     } catch (error) {

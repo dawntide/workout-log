@@ -14,9 +14,16 @@ import { getHomeData } from "@workout/core/home/home-service";
 import { buildUserDataExport, buildWorkoutSetCsv } from "@workout/core/export/userExport";
 import { importUserData, type ImportMode } from "@workout/core/import/userImport";
 import { invalidateStatsCacheForUser } from "@workout/core/stats/cache";
+import { rateLimit } from "@workout/core/auth/rate-limit";
+import {
+  ANONYMOUS_WEB_VITAL_USER_ID,
+  normalizePublicWebVitalEvent,
+  type PublicWebVitalEvent,
+} from "@workout/core/observability/web-vital-event";
 
 import { requireAuth, type AppEnv } from "../auth";
 import { apiError, normalizeTimezone, resolveLocale } from "../lib/http";
+import { getClientIp } from "../lib/rate-limit";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Misc — the remaining TUI-used routes that don't form a larger group, each a
@@ -615,7 +622,87 @@ function toSafeEvent(raw: unknown): IncomingUxEvent | null {
 }
 
 export const uxEventsRoutes = new Hono<AppEnv>();
-uxEventsRoutes.use("*", requireAuth);
+
+// The public endpoint accepts only privacy-minimized Core Web Vitals. Every
+// other UX event remains behind normal session authentication.
+uxEventsRoutes.use("*", async (c, next) => {
+  if (new URL(c.req.url).pathname === "/api/ux-events/public") {
+    await next();
+    return;
+  }
+  return requireAuth(c, next);
+});
+
+async function persistUxEvents(
+  userId: string,
+  events: Array<IncomingUxEvent | PublicWebVitalEvent>,
+) {
+  await db
+    .insert(uxEventLog)
+    .values(
+      events.map((event) => ({
+        userId,
+        clientEventId: event.id,
+        name: event.name,
+        recordedAt: new Date(event.recordedAt),
+        props: event.props ?? {},
+      })),
+    )
+    .onConflictDoNothing();
+}
+
+uxEventsRoutes.post("/public", async (c) => {
+  const limit = await rateLimit({
+    key: `public-web-vitals:${getClientIp(c.req.raw)}`,
+    max: 120,
+    windowMs: 60_000,
+  });
+  if (!limit.allowed) {
+    return c.json({ error: "Too many telemetry requests." }, 429, {
+      "Retry-After": String(Math.ceil(limit.retryAfterMs / 1000)),
+    });
+  }
+
+  const contentLength = Number(c.req.header("content-length") ?? 0);
+  if (Number.isFinite(contentLength) && contentLength > 16_384) {
+    return c.json({ error: "Telemetry payload is too large." }, 413);
+  }
+
+  const rawBody = await c.req.text();
+  if (Buffer.byteLength(rawBody, "utf8") > 16_384) {
+    return c.json({ error: "Telemetry payload is too large." }, 413);
+  }
+
+  let body: unknown = {};
+  try {
+    body = JSON.parse(rawBody);
+  } catch {
+    return c.json({ error: "Invalid telemetry payload." }, 400);
+  }
+
+  const rawEvents: unknown[] =
+    isPlainObject(body) && Array.isArray(body.events) ? body.events : [];
+  if (rawEvents.length > 20) {
+    return c.json({ error: "events must be <= 20." }, 400);
+  }
+
+  const acceptedById = new Map<string, PublicWebVitalEvent>();
+  for (const rawEvent of rawEvents) {
+    const event = normalizePublicWebVitalEvent(rawEvent);
+    if (event) acceptedById.set(event.id, event);
+  }
+  const accepted = Array.from(acceptedById.values());
+  if (accepted.length > 0) {
+    await persistUxEvents(ANONYMOUS_WEB_VITAL_USER_ID, accepted);
+  }
+
+  c.header("Cache-Control", "no-store");
+  return c.json({
+    acceptedIds: accepted.map((event) => event.id),
+    acceptedCount: accepted.length,
+    droppedCount: rawEvents.length - accepted.length,
+  });
+});
 
 uxEventsRoutes.post("/", async (c) => {
   const locale = resolveLocale(c);
@@ -645,18 +732,7 @@ uxEventsRoutes.post("/", async (c) => {
     for (const event of normalized) dedupedById.set(event.id, event);
     const accepted = Array.from(dedupedById.values());
 
-    await db
-      .insert(uxEventLog)
-      .values(
-        accepted.map((event) => ({
-          userId,
-          clientEventId: event.id,
-          name: event.name,
-          recordedAt: new Date(event.recordedAt),
-          props: event.props ?? {},
-        })),
-      )
-      .onConflictDoNothing();
+    await persistUxEvents(userId, accepted);
 
     return c.json({
       acceptedIds: accepted.map((event) => event.id),

@@ -34,7 +34,14 @@ export function SearchInputRow({
   const hasQuery = value.trim().length > 0;
 
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: "var(--v2-s-2)" }}>
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: "var(--v2-s-2)",
+        minHeight: "var(--v2-touch)",
+      }}
+    >
       {/* magnifier icon */}
       <span
         aria-hidden="true"
@@ -69,6 +76,7 @@ export function SearchInputRow({
           background: "transparent",
           color: "var(--v2-ink)",
           minWidth: 0,
+          minHeight: "var(--v2-touch)",
           // iOS Safari auto-zoom 방지 — .v2-body(15px) 오버라이드.
           fontSize: "var(--v2-t-16)",
         }}
@@ -88,6 +96,8 @@ export function SearchInputRow({
             border: "none",
             cursor: "pointer",
             padding: "var(--v2-s-1)",
+            minWidth: "var(--v2-touch)",
+            minHeight: "var(--v2-touch)",
             color: "var(--v2-ink-2)",
             flexShrink: 0,
           }}
@@ -150,7 +160,7 @@ export function SearchInput({
           display: "flex",
           alignItems: "center",
           width: "100%",
-          padding: "var(--v2-s-2) var(--v2-s-4)",
+          padding: "0 var(--v2-s-4)",
           borderRadius: "var(--v2-r-1)",
           backgroundColor: "var(--v2-paper-2)",
           boxSizing: "border-box",
@@ -163,7 +173,7 @@ export function SearchInput({
 
   return (
     <div className="search-card-focus-ring">
-      <V2Card padding="var(--v2-s-2)" tone="inset">
+      <V2Card padding="0 var(--v2-s-3)" tone="inset">
         {row}
       </V2Card>
     </div>

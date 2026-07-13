@@ -1,5 +1,3 @@
-"use client";
-
 export function V2DotsLoader({
   size = 6,
   label = "Loading",

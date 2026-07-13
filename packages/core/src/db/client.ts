@@ -1,9 +1,6 @@
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 
-const connectionString = process.env.DATABASE_URL;
-if (!connectionString) throw new Error("DATABASE_URL is not set");
-
 declare global {
   var __dbPool: Pool | undefined;
 }
@@ -16,22 +13,46 @@ declare global {
 // keepAlive: true — TCP 연결 재사용으로 reconnect 오버헤드 제거 (특히 cold start 후 첫 쿼리)
 // statement_timeout — 런어웨이 쿼리가 커넥션을 무한 점유하지 못하도록(opt-in). export/rebuild 등
 //       긴 작업이 있어 기본은 비활성(0); 배포에서 DB_STATEMENT_TIMEOUT_MS로 상한을 준다.
-const poolMax = Number(process.env.DB_POOL_MAX ?? 5);
-const statementTimeoutMs = Number(process.env.DB_STATEMENT_TIMEOUT_MS ?? 0);
-const pool =
-  global.__dbPool ??
-  new Pool({
-    connectionString,
-    max: Number.isFinite(poolMax) && poolMax > 0 ? poolMax : 5,
-    idleTimeoutMillis: 30_000,
-    connectionTimeoutMillis: 5_000,
-    keepAlive: true,
-    keepAliveInitialDelayMillis: 10_000,
-    ...(Number.isFinite(statementTimeoutMs) && statementTimeoutMs > 0
-      ? { statement_timeout: statementTimeoutMs }
-      : {}),
-  });
+type WorkoutDb = ReturnType<typeof drizzle>;
 
-global.__dbPool = pool;
+let database: WorkoutDb | null = null;
 
-export const db = drizzle(pool);
+export function getDb(): WorkoutDb {
+  if (database) return database;
+
+  const connectionString = process.env.DATABASE_URL;
+  if (!connectionString) throw new Error("DATABASE_URL is not set");
+
+  const poolMax = Number(process.env.DB_POOL_MAX ?? 5);
+  const statementTimeoutMs = Number(process.env.DB_STATEMENT_TIMEOUT_MS ?? 0);
+  const pool =
+    global.__dbPool ??
+    new Pool({
+      connectionString,
+      max: Number.isFinite(poolMax) && poolMax > 0 ? poolMax : 5,
+      idleTimeoutMillis: 30_000,
+      connectionTimeoutMillis: 5_000,
+      keepAlive: true,
+      keepAliveInitialDelayMillis: 10_000,
+      ...(Number.isFinite(statementTimeoutMs) && statementTimeoutMs > 0
+        ? { statement_timeout: statementTimeoutMs }
+        : {}),
+    });
+
+  global.__dbPool = pool;
+  database = drizzle(pool);
+  return database;
+}
+
+/**
+ * Backwards-compatible lazy facade. Existing services can keep `db.select()`
+ * while importing the module no longer reads env vars or creates a Pool during
+ * `next build` and pure unit-test discovery.
+ */
+export const db = new Proxy({} as WorkoutDb, {
+  get(_target, property) {
+    const resolved = getDb();
+    const value = Reflect.get(resolved, property, resolved) as unknown;
+    return typeof value === "function" ? value.bind(resolved) : value;
+  },
+});

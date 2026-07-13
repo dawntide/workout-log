@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { isOnboardingDone, markOnboardingDone } from "./v2-onboarding";
+import { isOnboardingDone, markOnboardingDone } from "./onboarding-state";
 
 /**
  * 첫 방문 감지 컴포넌트.

@@ -35,8 +35,8 @@ const NAV_BUTTON_STYLE = {
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
-  width: 30,
-  height: 30,
+  width: "var(--v2-touch)",
+  height: "var(--v2-touch)",
   background: "var(--v2-paper-3)",
   border: "none",
   borderRadius: "50%",
@@ -127,6 +127,7 @@ export const CalendarMonthCard = memo(function CalendarMonthCard({
               background: "transparent",
               border: "none",
               padding: "var(--v2-s-1) var(--v2-s-1)",
+              minHeight: "var(--v2-touch)",
               cursor: "pointer",
               fontSize: "var(--v2-t-16)",
               fontWeight: 700,
@@ -233,6 +234,7 @@ export const CalendarMonthCard = memo(function CalendarMonthCard({
         {Array.from({ length: Math.ceil(cells.length / 7) }, (_, week) => (
           <div
             key={`${anchorDate}-week-${week}`}
+            role="row"
             style={{
               display: "grid",
               gridTemplateColumns: "repeat(7, 1fr)",
@@ -273,9 +275,9 @@ export const CalendarMonthCard = memo(function CalendarMonthCard({
                     flexDirection: "column",
                     alignItems: "center",
                     justifyContent: "center",
-                    width: 36,
-                    height: 36,
-                    margin: "4px auto",
+                    width: "var(--v2-touch)",
+                    height: "var(--v2-touch)",
+                    margin: "0 auto",
                     padding: 0,
                     border: "none",
                     background: cellBg,

@@ -147,22 +147,17 @@ export function ProgramListCard({
   );
 
   return (
-    <div
-      role="button"
-      tabIndex={0}
-      onClick={onPress}
-      onKeyDown={(event) => {
-        if (event.key === "Enter" || event.key === " ") onPress();
-      }}
-      className="v2-pressable"
+    <article
+      aria-label={item.name}
+      className="program-list-card"
       style={{
         background: "var(--v2-paper)",
         borderRadius: "var(--v2-r-3)",
-        padding: "var(--v2-s-6)",
-        cursor: "pointer",
-        marginBottom: "var(--v2-s-4)",
-        outline: "none",
+        padding: "var(--v2-s-4)",
+        marginBottom: "var(--v2-s-3)",
         boxShadow: "var(--v2-elev-1)",
+        contentVisibility: "auto",
+        containIntrinsicSize: "0 230px",
       }}
     >
       <div
@@ -263,7 +258,9 @@ export function ProgramListCard({
               key={meta.label}
               style={{ display: "flex", flexDirection: "column", gap: 2 }}
             >
-              <span className="v2-eyebrow">{meta.label}</span>
+              <span className="v2-eyebrow" style={{ color: "var(--v2-ink-2)" }}>
+                {meta.label}
+              </span>
               <span
                 className="v2-small"
                 style={{
@@ -345,6 +342,6 @@ export function ProgramListCard({
           )}
         </span>
       </div>
-    </div>
+    </article>
   );
 }

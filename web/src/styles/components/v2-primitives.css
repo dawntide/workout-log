@@ -91,6 +91,7 @@
 .v2-textfield-input {
   width: 100%;
   min-width: 0;
+  min-height: var(--v2-touch);
   border: none;
   outline: none;
   background: transparent;

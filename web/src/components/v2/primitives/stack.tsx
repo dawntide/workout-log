@@ -1,5 +1,3 @@
-"use client";
-
 import type { CSSProperties, ReactNode } from "react";
 
 type V2SpacingStep = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;

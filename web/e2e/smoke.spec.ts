@@ -11,6 +11,13 @@ import { expect, test, type Page } from "@playwright/test";
 // CI에서 서버가 응답하기까지 여유를 줌
 const NAV_TIMEOUT = 30_000;
 
+function expectSuccessfulPageResponse(
+  response: Awaited<ReturnType<Page["goto"]>>,
+) {
+  expect(response, "navigation should return a document response").not.toBeNull();
+  expect(response?.status(), "page should resolve to HTTP 200").toBe(200);
+}
+
 // 렌더 크래시(에러 바운더리 노출) 감지.
 // status 검사만으론 부족하다 — RSC 직렬화 크래시(#491 F4) 같은 렌더 에러는 200 + 커스텀
 // 에러 바운더리("다시 시도")로 나타난다. "다시 시도" 텍스트는 정상 retry UI에도 쓰여
@@ -26,49 +33,50 @@ async function expectNoRenderCrash(page: Page) {
 test.describe("smoke — core pages render", () => {
   test("홈 페이지 정상 로드", async ({ page }) => {
     const response = await page.goto("/", { timeout: NAV_TIMEOUT });
-    expect(response?.status()).not.toBe(500);
+    expectSuccessfulPageResponse(response);
     await expectNoRenderCrash(page);
   });
 
   test("운동 기록 페이지 정상 로드", async ({ page }) => {
     const response = await page.goto("/workout/log", { timeout: NAV_TIMEOUT });
-    expect(response?.status()).not.toBe(500);
+    expectSuccessfulPageResponse(response);
     await expectNoRenderCrash(page);
   });
 
   test("통계 페이지 정상 로드", async ({ page }) => {
     const response = await page.goto("/stats", { timeout: NAV_TIMEOUT });
-    expect(response?.status()).not.toBe(500);
+    expectSuccessfulPageResponse(response);
+    await expect(page).toHaveURL(/\/?deck=stats$/);
     await expectNoRenderCrash(page);
   });
 
   test("플랜 페이지 정상 로드", async ({ page }) => {
     const response = await page.goto("/plans", { timeout: NAV_TIMEOUT });
-    expect(response?.status()).not.toBe(500);
+    expectSuccessfulPageResponse(response);
     await expectNoRenderCrash(page);
   });
 
   test("설정 페이지 정상 로드", async ({ page }) => {
     const response = await page.goto("/settings", { timeout: NAV_TIMEOUT });
-    expect(response?.status()).not.toBe(500);
+    expectSuccessfulPageResponse(response);
     await expectNoRenderCrash(page);
   });
 
   test("계정 설정 페이지 정상 로드", async ({ page }) => {
     const response = await page.goto("/settings/account", { timeout: NAV_TIMEOUT });
-    expect(response?.status()).not.toBe(500);
+    expectSuccessfulPageResponse(response);
     await expectNoRenderCrash(page);
   });
 
   test("PR 이력 페이지 정상 로드", async ({ page }) => {
     const response = await page.goto("/stats/prs", { timeout: NAV_TIMEOUT });
-    expect(response?.status()).not.toBe(500);
+    expectSuccessfulPageResponse(response);
     await expectNoRenderCrash(page);
   });
 
   test("로그인 페이지 정상 로드", async ({ page }) => {
     const response = await page.goto("/login", { timeout: NAV_TIMEOUT });
-    expect(response?.status()).not.toBe(500);
+    expectSuccessfulPageResponse(response);
     await expectNoRenderCrash(page);
   });
 });
@@ -76,9 +84,7 @@ test.describe("smoke — core pages render", () => {
 test.describe("smoke — API health", () => {
   test("health API 200 응답", async ({ request }) => {
     const response = await request.get("/api/health");
-    // health endpoint가 없으면 404도 허용 — 500만 아니면 됨
-    expect(response.status()).not.toBe(500);
-    expect(response.status()).not.toBe(503);
+    expect(response.status()).toBe(200);
   });
 });
 
@@ -90,8 +96,28 @@ test.describe("smoke — core navigation flow", () => {
       // networkidle이 오래 걸릴 수 있어 timeout 무시
     });
 
-    // /workout/log 직접 이동으로 검증 (내비게이션 엘리먼트 의존 X)
-    const response = await page.goto("/workout/log", { timeout: NAV_TIMEOUT });
-    expect(response?.status()).not.toBe(500);
+    // 실제 하단 내비게이션을 눌러 AppShell의 클라이언트 전환까지 검증한다.
+    await page.getByRole("link", { name: /기록|Log/ }).click();
+    await expect(page).toHaveURL(/\/workout\/log/);
+    await expectNoRenderCrash(page);
+  });
+
+  test("프로그램 스토어 화면 밖 카드가 스크롤 시 렌더", async ({ page }) => {
+    const response = await page.goto("/program-store", {
+      timeout: NAV_TIMEOUT,
+    });
+    expectSuccessfulPageResponse(response);
+
+    const cards = page.locator(".program-list-card");
+    await expect(cards.first()).toBeVisible();
+    const cardCount = await cards.count();
+    expect(cardCount).toBeGreaterThan(2);
+
+    const lastCard = cards.last();
+    await lastCard.scrollIntoViewIfNeeded();
+    await expect(lastCard).toBeVisible();
+    const lastCardHeading = lastCard.getByRole("heading", { level: 2 });
+    await expect(lastCardHeading).toBeVisible();
+    await expect(lastCardHeading).toHaveText(/\S/);
   });
 });

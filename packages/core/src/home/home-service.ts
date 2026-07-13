@@ -1,6 +1,10 @@
 import { and, desc, eq, gte, isNotNull, lte, sql } from "drizzle-orm";
 import { db } from "@workout/core/db/client";
 import {
+  parseDatabaseDate,
+  requireDatabaseDate,
+} from "@workout/core/db/date";
+import {
   exercise,
   plan,
   programTemplate,
@@ -8,7 +12,9 @@ import {
   workoutLog,
   workoutSet,
 } from "@workout/core/db/schema";
-import { generateAndSaveSession } from "@workout/core/program-engine/generateSession";
+import { generateSessionSnapshot } from "@workout/core/program-engine/generateSession";
+import { logInfo } from "@workout/core/observability/logger";
+import { runSingleFlight } from "@workout/core/performance/single-flight";
 import { getStatsCache, setStatsCache } from "../stats/cache";
 import {
   fetchEnduranceStats,
@@ -155,10 +161,27 @@ export type HomeData = {
   goalMetrics: HomeGoalMetrics;
 };
 
+type HomePlanRecord = {
+  id: string;
+  name: string;
+  type: string;
+  rootProgramVersionId: string | null;
+  createdAt: Date;
+  baseProgramName: string;
+  lastPerformedAt: Date | null;
+};
+
 // ─── Constants ──────────────────────────────────────────────────────
 
 const DEFAULT_RECENT_LIMIT = 3;
 const HOME_CACHE_MAX_AGE_SECONDS = 90;
+
+declare global {
+  var __homeDataInflight: Map<string, Promise<HomeData>> | undefined;
+}
+const homeDataInflight =
+  global.__homeDataInflight ?? new Map<string, Promise<HomeData>>();
+global.__homeDataInflight = homeDataInflight;
 
 // ─── Formatting Helpers ─────────────────────────────────────────────
 
@@ -236,29 +259,52 @@ function epley1RM(weightKg: number, reps: number) {
 
 // ─── Service ────────────────────────────────────────────────────────
 
-export async function getHomeData(params: {
+type GetHomeDataParams = {
   userId: string;
   locale: AppLocale;
   timezone?: string;
   recentLimit?: number;
-}): Promise<HomeData> {
+};
+
+export function getHomeData(params: GetHomeDataParams): Promise<HomeData> {
   const { userId, locale, timezone = "UTC", recentLimit = DEFAULT_RECENT_LIMIT } = params;
   const now = new Date();
   const todayKey = dateOnlyInTimezone(now, timezone);
+  const inflightKey = JSON.stringify([
+    userId,
+    locale,
+    timezone,
+    recentLimit,
+    todayKey,
+  ]);
 
-  const settings = await getSettingsSnapshotForUser(userId);
-  const prefs = readWorkoutPreferences(settings);
-  const goal = prefs.trainingGoalPrimary;
-  const bodyweightKg = prefs.bodyweightKg;
+  return runSingleFlight(homeDataInflight, inflightKey, () =>
+    loadHomeData({ userId, locale, timezone, recentLimit, now, todayKey }),
+  );
+}
 
+async function loadHomeData(params: {
+  userId: string;
+  locale: AppLocale;
+  timezone: string;
+  recentLimit: number;
+  now: Date;
+  todayKey: string;
+}): Promise<HomeData> {
+  const startedAt = Date.now();
+  const { userId, locale, timezone, recentLimit, now, todayKey } = params;
+
+  // Settings mutations invalidate this user cache. Keeping preference values out
+  // of the key lets a warm home request complete with one cache lookup instead
+  // of always reading user_setting first.
   const homeCacheParams = {
     locale,
     timezone,
     recentLimit,
     todayKey,
-    goal,
   };
 
+  const cacheStartedAt = Date.now();
   const cached = await getStatsCache<HomeData>({
     userId,
     metric: "home_v2",
@@ -266,12 +312,21 @@ export async function getHomeData(params: {
     maxAgeSeconds: HOME_CACHE_MAX_AGE_SECONDS,
   });
   if (cached) return cached;
+  const cacheMs = Date.now() - cacheStartedAt;
+
+  const settingsStartedAt = Date.now();
+  const settings = await getSettingsSnapshotForUser(userId);
+  const prefs = readWorkoutPreferences(settings);
+  const goal = prefs.trainingGoalPrimary;
+  const bodyweightKg = prefs.bodyweightKg;
+  const settingsMs = Date.now() - settingsStartedAt;
 
   const prRangeDays = 365;
   const prFrom = new Date(now);
   prFrom.setDate(prFrom.getDate() - prRangeDays);
 
   // 병렬로 데이터 조회
+  const queriesStartedAt = Date.now();
   const [plans, logs, prs, volumeSeries, goalMetrics] = await Promise.all([
     fetchPlans(userId, locale),
     fetchLogs(userId, 40),
@@ -281,28 +336,32 @@ export async function getHomeData(params: {
     fetchVolumeSeries(userId),
     fetchGoalMetrics(userId, goal, bodyweightKg, now),
   ]);
+  const queriesMs = Date.now() - queriesStartedAt;
 
   // 세션 스냅샷 생성 (highlightedPlan 필요)
-  // PERF: 8초 타임아웃 — 세션 생성이 느려도 SSR을 무한 차단하지 않음.
+  // PERF: 홈은 읽기 전용 미리보기만 계산하고 generated_session을 쓰지 않는다.
+  // 1.5초 안에 준비되지 않으면 나머지 홈 데이터를 먼저 제공한다.
   // 타임아웃 시 snapshot=null로 빌드 → 오늘 계획 운동 목록만 비어있고 나머지 홈 데이터는 정상 표시.
   const highlightedPlan = resolveHighlightedPlan(plans, logs, todayKey);
   let snapshot = null;
+  const snapshotStartedAt = Date.now();
   if (highlightedPlan) {
     try {
       const timeoutPromise = new Promise<null>((resolve) =>
-        setTimeout(() => resolve(null), 8_000),
+        setTimeout(() => resolve(null), 1_500),
       );
-      const generatePromise = generateAndSaveSession({
+      const generatePromise = generateSessionSnapshot({
         userId,
         planId: highlightedPlan.id,
         sessionDate: todayKey,
         timezone,
-      }).then((res) => res?.snapshot ?? null).catch(() => null);
+      }).catch(() => null);
       snapshot = await Promise.race([generatePromise, timeoutPromise]);
     } catch {
       // ignore
     }
   }
+  const snapshotMs = Date.now() - snapshotStartedAt;
 
   // 데이터 가공 및 빌드
   const payload = buildHomeData({
@@ -320,14 +379,31 @@ export async function getHomeData(params: {
     bodyweightKg,
   });
 
-  // PERF: 캐시 쓰기를 fire-and-forget으로 처리 → 응답 지연 없이 캐시 갱신
-  // setStatsCache 실패는 무시 (다음 요청 때 다시 시도)
-  void setStatsCache({
+  // Keep the single-flight entry alive until the cache is visible. Otherwise a
+  // request arriving in the small post-build/pre-upsert window can rebuild it.
+  // Cache persistence failure is non-fatal; the next request can retry.
+  await setStatsCache({
     userId,
     metric: "home_v2",
     params: homeCacheParams,
     payload,
     maxAgeSeconds: HOME_CACHE_MAX_AGE_SECONDS,
+  }).catch(() => {});
+
+  // Cache misses are infrequent (90s/user), so one structured timing event gives
+  // production visibility without logging every warm request or any user data.
+  logInfo("home.data_built", {
+    cache: "miss",
+    cacheMs,
+    settingsMs,
+    queriesMs,
+    snapshotMs,
+    totalMs: Date.now() - startedAt,
+    snapshotStatus: highlightedPlan
+      ? snapshot
+        ? "ready"
+        : "fallback"
+      : "no_plan",
   });
 
   return payload;
@@ -368,7 +444,10 @@ async function fetchGoalMetrics(
 
 // ─── Fetchers ───────────────────────────────────────────────────────
 
-async function fetchPlans(userId: string, locale: AppLocale) {
+async function fetchPlans(
+  userId: string,
+  locale: AppLocale,
+): Promise<HomePlanRecord[]> {
   const rows = await db
     .select({
       id: plan.id,
@@ -377,7 +456,9 @@ async function fetchPlans(userId: string, locale: AppLocale) {
       rootProgramVersionId: plan.rootProgramVersionId,
       createdAt: plan.createdAt,
       templateName: programTemplate.name,
-      lastPerformedAt: sql<Date | null>`max(${workoutLog.performedAt})`,
+      // Raw SQL aggregate values are not guaranteed to run through the
+      // timestamp column decoder. Normalize the unknown driver value below.
+      lastPerformedAt: sql<unknown>`max(${workoutLog.performedAt})`,
     })
     .from(plan)
     .leftJoin(programVersion, eq(programVersion.id, plan.rootProgramVersionId))
@@ -401,9 +482,9 @@ async function fetchPlans(userId: string, locale: AppLocale) {
       name: row.name,
       type: row.type,
       rootProgramVersionId: row.rootProgramVersionId,
-      createdAt: row.createdAt,
+      createdAt: requireDatabaseDate(row.createdAt, "plan.createdAt"),
       baseProgramName,
-      lastPerformedAt: row.lastPerformedAt,
+      lastPerformedAt: parseDatabaseDate(row.lastPerformedAt),
     };
   });
 }
@@ -543,7 +624,7 @@ async function fetchPrs(userId: string, from: Date, to: Date, limit: number, loc
     .slice(0, limit);
 
   // PERF: fire-and-forget 캐시 쓰기
-  void setStatsCache({ userId, metric: "prs", params: cacheParams, payload: { items } });
+  void setStatsCache({ userId, metric: "prs", params: cacheParams, payload: { items } }).catch(() => {});
   return items;
 }
 
@@ -580,14 +661,14 @@ async function fetchVolumeSeries(userId: string) {
   }));
 
   // PERF: fire-and-forget 캐시 쓰기
-  void setStatsCache({ userId, metric: "volume_series", params: cacheParams, payload: { series } });
+  void setStatsCache({ userId, metric: "volume_series", params: cacheParams, payload: { series } }).catch(() => {});
   return series;
 }
 
 // ─── Builders ───────────────────────────────────────────────────────
 
 function buildHomeData(params: {
-  plans: any[];
+  plans: HomePlanRecord[];
   logs: any[];
   prs: any[];
   volumeSeries: any[];
@@ -619,19 +700,31 @@ function buildHomeData(params: {
   };
 }
 
-function resolveHighlightedPlan(plans: any[], logs: any[], todayKey: string) {
+function resolveHighlightedPlan(
+  plans: HomePlanRecord[],
+  logs: any[],
+  todayKey: string,
+) {
   if (plans.length === 0) return null;
   const todayLog = logs.find((l) => toLocalDateKey(l.performedAt) === todayKey && l.planId) ?? null;
   if (todayLog?.planId) {
     const found = plans.find((p) => p.id === todayLog.planId);
     if (found) return found;
   }
-  const withLastPerformed = plans.filter((p) => p.lastPerformedAt).sort((a, b) => b.lastPerformedAt.getTime() - a.lastPerformedAt.getTime());
+  const withLastPerformed = plans
+    .filter(
+      (candidate): candidate is HomePlanRecord & { lastPerformedAt: Date } =>
+        candidate.lastPerformedAt !== null,
+    )
+    .sort(
+      (a, b) =>
+        b.lastPerformedAt.getTime() - a.lastPerformedAt.getTime(),
+    );
   if (withLastPerformed[0]) return withLastPerformed[0];
   return [...plans].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())[0] ?? null;
 }
 
-function buildTodaySummary(plans: any[], logs: any[], plannedExercises: any[], totalPlannedSets: number, locale: AppLocale, todayKey: string, bodyweightKg: number | null): HomeTodaySummary {
+function buildTodaySummary(plans: HomePlanRecord[], logs: any[], plannedExercises: any[], totalPlannedSets: number, locale: AppLocale, todayKey: string, bodyweightKg: number | null): HomeTodaySummary {
   const copy = HOME_TEXT[locale];
   const plansById = new Map(plans.map((p) => [p.id, p.name]));
   const todayLogs = logs.filter((l) => toLocalDateKey(l.performedAt) === todayKey);
@@ -669,7 +762,7 @@ function buildTodaySummary(plans: any[], logs: any[], plannedExercises: any[], t
   };
 }
 
-function buildPlanOverview(plans: any[], locale: AppLocale): HomePlanOverview {
+function buildPlanOverview(plans: HomePlanRecord[], locale: AppLocale): HomePlanOverview {
   if (plans.length === 0) return { totalPlans: 0, highlightedPlanId: null, highlightedPlanName: null, highlightedProgramName: null, lastPerformedAtLabel: null };
   const highlightedPlan = resolveHighlightedPlan(plans, [], ""); // Simplified for overview
   return {
@@ -713,7 +806,7 @@ function buildWeeklySummary(logs: any[], locale: AppLocale, todayKey: string): H
   return { activeDays: resolvedDays.filter(d => d.hasWorkout).length, restDays: 7 - resolvedDays.filter(d => d.hasWorkout).length, sessionCount, completedSets, days: resolvedDays };
 }
 
-function buildRecentSessions(plans: any[], logs: any[], limit: number, locale: AppLocale, todayKey: string): HomeRecentSession[] {
+function buildRecentSessions(plans: HomePlanRecord[], logs: any[], limit: number, locale: AppLocale, todayKey: string): HomeRecentSession[] {
   const copy = HOME_TEXT[locale];
   const plansById = new Map(plans.map(p => [p.id, p.name]));
   return logs.filter(l => toLocalDateKey(l.performedAt) !== todayKey).slice(0, limit).map(l => ({
@@ -725,7 +818,7 @@ function buildRecentSessions(plans: any[], logs: any[], limit: number, locale: A
   }));
 }
 
-function buildLastSession(plans: any[], logs: any[], plannedWeightByExercise: Map<string, number>, locale: AppLocale, todayKey: string, bodyweightKg: number | null): HomeLastSession | null {
+function buildLastSession(plans: HomePlanRecord[], logs: any[], plannedWeightByExercise: Map<string, number>, locale: AppLocale, todayKey: string, bodyweightKg: number | null): HomeLastSession | null {
   const copy = HOME_TEXT[locale];
   const lastLog = logs.find(l => toLocalDateKey(l.performedAt) !== todayKey);
   if (!lastLog) return null;

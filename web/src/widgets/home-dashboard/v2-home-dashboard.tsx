@@ -7,6 +7,7 @@ import {
   useMemo,
   useState,
 } from "react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { APP_ROUTES } from "@/lib/app-routes";
@@ -28,8 +29,23 @@ import {
   V2PrimaryBtn,
 } from "@/components/v2/primitives";
 import { useV2BottomDockTabs } from "@/components/v2/v2-bottom-dock-context";
-import { StatsContainer } from "@/widgets/stats-screen";
 import { HomeGoalSection } from "@/widgets/goal-aware/home-goal-section";
+
+const StatsContainer = dynamic(
+  () =>
+    import("@/widgets/stats-screen/stats-container").then((module) => ({
+      default: module.StatsContainer,
+    })),
+  {
+    loading: () => (
+      <div
+        aria-busy="true"
+        aria-label="Loading statistics"
+        style={{ minHeight: "50dvh" }}
+      />
+    ),
+  },
+);
 
 /* ─────────────────────────── helpers ────────────────────────────── */
 
@@ -387,7 +403,12 @@ function TodayDeck({
               </div>
               <Link
                 href={APP_ROUTES.statsHome}
-                style={{ textDecoration: "none" }}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  minHeight: "var(--v2-touch)",
+                  textDecoration: "none",
+                }}
               >
                 <span
                   className="v2-mono-label"
