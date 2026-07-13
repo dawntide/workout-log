@@ -39,6 +39,14 @@ test("resolveLoggedTotalLoadKg prefers logged total load meta for bodyweight exe
   );
   assert.equal(
     resolveLoggedTotalLoadKg({
+      exerciseName: "Weighted Pull-Up",
+      weightKg: 12.5,
+      meta: { ref5: { prescription: { pull: { actualTotalKg: 88.5 } } } },
+    }),
+    88.5,
+  );
+  assert.equal(
+    resolveLoggedTotalLoadKg({
       exerciseName: "Bench Press",
       weightKg: 90,
       meta: { totalLoadKg: 120 },

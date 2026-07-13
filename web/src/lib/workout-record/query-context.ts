@@ -3,6 +3,7 @@ export type WorkoutLogQueryContext = {
   date: string;
   hasExplicitDate: boolean;
   logId: string | null;
+  sessionId: string | null;
   openAdd: boolean;
 };
 
@@ -22,6 +23,7 @@ export function readWorkoutLogQueryContext(): WorkoutLogQueryContext {
       date: toDateKey(new Date()),
       hasExplicitDate: false,
       logId: null,
+      sessionId: null,
       openAdd: false,
     };
   }
@@ -30,12 +32,14 @@ export function readWorkoutLogQueryContext(): WorkoutLogQueryContext {
   const planId = params.get("planId");
   const date = params.get("date");
   const logId = params.get("logId");
+  const sessionId = params.get("sessionId");
 
   return {
     planId: planId && planId.trim() ? planId : null,
     date: date && DATE_ONLY_PATTERN.test(date) ? date : toDateKey(new Date()),
     hasExplicitDate: Boolean(date && DATE_ONLY_PATTERN.test(date)),
     logId: logId && logId.trim() ? logId : null,
+    sessionId: sessionId && sessionId.trim() ? sessionId : null,
     openAdd: params.get("openAdd") === "1",
   };
 }

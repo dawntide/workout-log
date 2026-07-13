@@ -7,15 +7,92 @@ import {
   familyFallbackKeyForBaselineKey,
   getProgramDescription,
   getProgramDetailInfo,
+  getProgramScheduleLabel,
   inferSessionDraftsFromTemplate,
   isAsymptoteTemplate,
   isOperatorTemplate,
+  isRef5Template,
   ASYMPTOTE_HYBRID_TM_PERCENT,
   resolveOperatorExerciseDefaults,
+  resolveProgramFamily,
   selectDisplayStrengthBaselineKeys,
   toManualDefinition,
   type ProgramTemplate,
 } from "./model";
+
+const ref5Template: ProgramTemplate = {
+  id: "template-ref5",
+  slug: "ref5-adaptive-strength",
+  name: "REF5 Adaptive Strength (Base)",
+  type: "LOGIC",
+  visibility: "PUBLIC",
+  description: "REF5 English seed description",
+  tags: ["strength", "barbell", "ref5", "intermediate", "session-based"],
+  latestVersion: {
+    id: "version-ref5",
+    version: 1,
+    definition: {
+      dslVersion: 1,
+      kind: "ref5",
+      family: "ref5",
+      protocolVersion: "1.1",
+      modules: ["SQUAT", "PULL", "BENCH", "DEADLIFT", "OHP"],
+    },
+    defaults: {
+      schemaVersion: 1,
+      protocolVersion: "1.1",
+    },
+  },
+};
+
+test("isRef5Template uses the independent REF5 public identifiers", () => {
+  assert.equal(isRef5Template(ref5Template), true);
+  assert.equal(isRef5Template({ ...ref5Template, slug: "renamed-ref5" }), true);
+  assert.equal(
+    isRef5Template({
+      ...ref5Template,
+      slug: "family-only",
+      latestVersion: {
+        ...ref5Template.latestVersion!,
+        definition: { family: "ref5" },
+      },
+    }),
+    true,
+  );
+  assert.equal(isRef5Template(operatorTemplate), false);
+  assert.equal(isRef5Template(null), false);
+});
+
+test("REF5 store copy is bilingual and describes an open-ended session schedule", () => {
+  const ko = getProgramDescription(ref5Template, "ko");
+  const en = getProgramDescription(ref5Template, "en");
+  assert.ok(ko && /[가-힣]/.test(ko));
+  assert.ok(en?.startsWith("A session-based strength program"));
+  assert.notEqual(ko, en);
+
+  const koInfo = getProgramDetailInfo(ref5Template, "ko");
+  const enInfo = getProgramDetailInfo(ref5Template, "en");
+  assert.equal(koInfo.scheduleLabel, "주 2–4회 · 세션 기반 · 블록 없음");
+  assert.equal(enInfo.scheduleLabel, "2–4 days/wk · Session-based · No blocks");
+  assert.equal(
+    getProgramScheduleLabel(ref5Template, "ko"),
+    "주 2–4회 · 세션 기반 · 블록 없음",
+  );
+  assert.equal(koInfo.stats.find((stat) => stat.key === "cycle")?.value, "블록 없음");
+  assert.equal(enInfo.stats.find((stat) => stat.key === "cycle")?.value, "No blocks");
+  assert.deepEqual(koInfo.modules, ["SQUAT", "PULL", "BENCH", "DEADLIFT", "OHP"]);
+  assert.equal(koInfo.sessions, null, "REF5 must not expose a finite week/day grid");
+  assert.match(koInfo.progressionNote ?? "", /PASS\/HOLD\/FAIL\/INVALID/);
+});
+
+test("REF5 exposes no 1RM targets to the generic program start flow", () => {
+  assert.deepEqual(extractOneRmTargetsFromTemplate(ref5Template), []);
+  assert.equal(
+    resolveProgramFamily(ref5Template),
+    null,
+    "REF5 must not inherit the generic fork/family registry semantics",
+  );
+});
 
 const operatorTemplate: ProgramTemplate = {
   id: "template-operator",

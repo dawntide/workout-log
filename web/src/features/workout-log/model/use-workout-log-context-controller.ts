@@ -6,6 +6,7 @@ import { resolveWorkoutLogBootstrap } from "@/features/workout-log/model/bootstr
 import {
   loadWorkoutContextData,
   type LoadWorkoutContextInput,
+  type Ref5StartRequiredWorkoutContextResult,
 } from "@/features/workout-log/model/context-loader";
 import {
   readWorkoutLogQueryContext,
@@ -14,7 +15,12 @@ import {
 import type {
   WorkoutLogPlanItem,
 } from "@/features/workout-log/model/types";
-import type { WorkoutRecordDraft } from "@/entities/workout-record";
+import {
+  createWorkoutRecordDraft,
+  prepareWorkoutRecordDraftForEntry,
+  type GeneratedSessionLike,
+  type WorkoutRecordDraft,
+} from "@/entities/workout-record";
 import { useQuerySettled } from "@/lib/ui/use-query-settled";
 import type { WorkoutPreferences } from "@/lib/settings/workout-preferences";
 
@@ -74,6 +80,8 @@ export function useWorkoutLogContextController({
   // 로드 실패(error)가 아니라 정책 안내다. error 와 분리해 에러 페이지 대신
   // 안내 배너로 표시한다.
   const [blockedMessage, setBlockedMessage] = useState<string | null>(null);
+  const [ref5StartContext, setRef5StartContext] =
+    useState<Ref5StartRequiredWorkoutContextResult | null>(null);
   
   const workoutPreferences = useAtomValue(workoutPreferencesAtom);
   const recentLogItems = useAtomValue(recentLogItemsAtom);
@@ -94,6 +102,9 @@ export function useWorkoutLogContextController({
         }
         setError(null);
         setBlockedMessage(null);
+        // Prevent a stale REF5 start action from surviving plan/date changes
+        // while the next context request is in flight.
+        setRef5StartContext(null);
         setSaveError(null);
 
         const result = await loadWorkoutContextData(input, {
@@ -106,11 +117,25 @@ export function useWorkoutLogContextController({
           setDraft(null);
           setProgramEntryState({});
           setLastSession(null);
+          setRef5StartContext(null);
           setBlockedMessage(result.message);
           setWorkflowState("idle");
           return;
         }
 
+        if (result.kind === "ref5-start-required") {
+          setSelectedPlanId(result.selectedPlanId);
+          setDraft(null);
+          setProgramEntryState({});
+          setRecentLogItems(result.recentLogItems);
+          setLastSession(result.lastSession);
+          setRef5StartContext(result);
+          setWorkflowState("idle");
+          contextHasLoadedRef.current = true;
+          return;
+        }
+
+        setRef5StartContext(null);
         setSelectedPlanId(result.selectedPlanId);
 
         if (!hasRestoredDraft()) {
@@ -126,6 +151,7 @@ export function useWorkoutLogContextController({
         setDraft(null);
         setProgramEntryState({});
         setLastSession(null);
+        setRef5StartContext(null);
         setError(
           errorMessage(e) ??
             (locale === "ko"
@@ -168,6 +194,7 @@ export function useWorkoutLogContextController({
         planAutoProgression: plan?.params?.autoProgression === true,
         planSchedule: plan?.params?.schedule,
         planParams: plan?.params ?? null,
+        generatedSessionId: currentQuery.sessionId,
         isRefresh: true,
       });
     });
@@ -183,7 +210,7 @@ export function useWorkoutLogContextController({
       const nextQuery = readWorkoutLogQueryContext();
       setQuery(nextQuery);
       setPlansLoadKey(
-        `workout-record:${nextQuery.date}:${nextQuery.planId ?? ""}:${nextQuery.logId ?? ""}:${Date.now()}`,
+        `workout-record:${nextQuery.date}:${nextQuery.planId ?? ""}:${nextQuery.logId ?? ""}:${nextQuery.sessionId ?? ""}:${Date.now()}`,
       );
       setLoading(true);
       setError(null);
@@ -205,6 +232,7 @@ export function useWorkoutLogContextController({
           setDraft(null);
           setProgramEntryState({});
           setLastSession(null);
+          setRef5StartContext(null);
           setWorkflowState("idle");
           setSaveError(null);
           setLoading(false);
@@ -216,7 +244,7 @@ export function useWorkoutLogContextController({
         setSelectedPlanId(bootstrap.loadInput.planId);
 
         // ── SSR initialContext 검증 후 사용 (API 호출 제거) ──────────────
-        const expectedMatchKey = `${bootstrap.loadInput.planId}:${bootstrap.loadInput.dateKey}:${bootstrap.loadInput.logId ?? ""}`;
+        const expectedMatchKey = `${bootstrap.loadInput.planId}:${bootstrap.loadInput.dateKey}:${bootstrap.loadInput.logId ?? ""}:${bootstrap.loadInput.generatedSessionId ?? ""}`;
         const ssrContext = initialContext?.matchKey === expectedMatchKey ? initialContext : null;
 
         if (ssrContext) {
@@ -225,9 +253,20 @@ export function useWorkoutLogContextController({
             setDraft(null);
             setProgramEntryState({});
             setLastSession(null);
+            setRef5StartContext(null);
             setBlockedMessage(ssrContext.message);
             setWorkflowState("idle");
+          } else if (ssrContext.kind === "ref5-start-required") {
+            setSelectedPlanId(ssrContext.selectedPlanId);
+            setDraft(null);
+            setProgramEntryState({});
+            setRecentLogItems(ssrContext.recentLogItems);
+            setLastSession(ssrContext.lastSession);
+            setRef5StartContext(ssrContext);
+            setWorkflowState("idle");
+            contextHasLoadedRef.current = true;
           } else {
+            setRef5StartContext(null);
             setSelectedPlanId(ssrContext.selectedPlanId);
             if (!hasRestoredDraft()) {
               setDraft(ssrContext.draft);
@@ -251,6 +290,7 @@ export function useWorkoutLogContextController({
         if (!cancelled) {
           setDraft(null);
           setProgramEntryState({});
+          setRef5StartContext(null);
           setError(
             errorMessage(e) ??
               (locale === "ko" ? "플랜 목록을 불러오지 못했습니다." : "Could not load the plans list."),
@@ -284,7 +324,7 @@ export function useWorkoutLogContextController({
 
   const handlePlanChange = useCallback(
     async (planId: string) => {
-      if (query.logId) return;
+      if (query.logId || query.sessionId) return;
       const plan = plans.find((entry) => entry.id === planId);
       if (!plan) return;
       setSelectedPlanId(plan.id);
@@ -298,13 +338,13 @@ export function useWorkoutLogContextController({
         planParams: plan.params ?? null,
       });
     },
-    [plans, loadWorkoutContext, query.date, query.logId, setSelectedPlanId, workoutPreferences],
+    [plans, loadWorkoutContext, query.date, query.logId, query.sessionId, setSelectedPlanId, workoutPreferences],
   );
 
   const retryCurrentContextLoad = useCallback(() => {
     const resolvedPlanId = selectedPlan?.id ?? query.planId ?? "";
     const resolvedPlanName = selectedPlan?.name ?? (locale === "ko" ? "프로그램 미선택" : "No Program Selected");
-    if (query.logId) {
+    if (query.logId || query.sessionId) {
       void loadWorkoutContext({
         planId: resolvedPlanId,
         planName: resolvedPlanName,
@@ -314,6 +354,7 @@ export function useWorkoutLogContextController({
         planSchedule: selectedPlan?.params?.schedule,
         planParams: selectedPlan?.params ?? null,
         logId: query.logId,
+        generatedSessionId: query.sessionId,
       });
       return;
     }
@@ -331,7 +372,61 @@ export function useWorkoutLogContextController({
   }, [loadWorkoutContext, locale, query, selectedPlan, workoutPreferences]);
 
   const isPlansSettled = useQuerySettled(plansLoadKey, loading);
-  const noPlan = isPlansSettled && !error && plans.length === 0 && !query.logId;
+  const noPlan = isPlansSettled && !error && plans.length === 0 && !query.logId && !query.sessionId;
+
+  const hydrateRef5GeneratedSession = useCallback(
+    (session: GeneratedSessionLike) => {
+      const context = ref5StartContext;
+      if (!context) {
+        throw new Error(
+          locale === "ko"
+            ? "REF5 시작 컨텍스트가 만료되었습니다."
+            : "The REF5 start context has expired.",
+        );
+      }
+
+      const prepared = prepareWorkoutRecordDraftForEntry(
+        createWorkoutRecordDraft(session, context.planName, {
+          sessionDate: context.dateKey,
+          timezone: browserTimezone,
+          locale,
+        }),
+      );
+      setSelectedPlanId(context.selectedPlanId);
+      setDraft(prepared.draft);
+      setProgramEntryState(prepared.programEntryState);
+      setRef5StartContext(null);
+      setBlockedMessage(null);
+      setWorkflowState("idle");
+      contextHasLoadedRef.current = true;
+      if (typeof session.id === "string" && session.id.trim()) {
+        const url = new URL(window.location.href);
+        url.searchParams.set("planId", context.planId);
+        url.searchParams.set("date", prepared.draft.session.sessionDate);
+        url.searchParams.set("sessionId", session.id);
+        url.searchParams.delete("logId");
+        window.history.replaceState(window.history.state, "", url.pathname + url.search);
+        setQuery((previous) => ({
+          ...previous,
+          planId: context.planId,
+          date: prepared.draft.session.sessionDate,
+          hasExplicitDate: true,
+          logId: null,
+          sessionId: session.id!,
+        }));
+      }
+    },
+    [
+      browserTimezone,
+      locale,
+      ref5StartContext,
+      setDraft,
+      setProgramEntryState,
+      setQuery,
+      setSelectedPlanId,
+      setWorkflowState,
+    ],
+  );
 
   return {
     query,
@@ -345,6 +440,8 @@ export function useWorkoutLogContextController({
     selectedPlan,
     noPlan,
     blockedMessage,
+    ref5StartContext,
+    hydrateRef5GeneratedSession,
     handlePlanChange,
     retryCurrentContextLoad,
   };

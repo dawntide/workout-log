@@ -11,6 +11,7 @@ export type CellInputProps = {
   onChange: (raw: string) => void;
   onKeyDown: (e: KeyboardEvent<HTMLInputElement>) => void;
   allowDecimal?: boolean;
+  readOnly?: boolean;
   /** 셀 배경 — paper 기본값. terminal은 transparent 등으로 override. */
   bg?: string;
   /** focus ring 색 — paper 기본 --v2-accent. terminal은 --term-amber 등. */
@@ -29,6 +30,7 @@ export const CellInput = forwardRef<HTMLInputElement, CellInputProps>(
       onChange,
       onKeyDown,
       allowDecimal,
+      readOnly = false,
       bg = "var(--v2-paper-2)",
       focusRing = "var(--v2-accent)",
     },
@@ -54,6 +56,7 @@ export const CellInput = forwardRef<HTMLInputElement, CellInputProps>(
         value={displayValue}
         placeholder={placeholder}
         aria-label={ariaLabel}
+        readOnly={readOnly}
         onChange={(e) => {
           const raw = e.target.value;
           setDraft(raw);
@@ -62,7 +65,7 @@ export const CellInput = forwardRef<HTMLInputElement, CellInputProps>(
         onKeyDown={onKeyDown}
         onFocus={(e) => {
           setFocused(true);
-          setDraft(e.currentTarget.value);
+          if (!readOnly) setDraft(e.currentTarget.value);
           try {
             e.currentTarget.select();
           } catch {
@@ -81,6 +84,7 @@ export const CellInput = forwardRef<HTMLInputElement, CellInputProps>(
           padding: "var(--v2-s-1) var(--v2-s-2)",
           borderRadius: "var(--v2-r-1)",
           background: bg,
+          opacity: readOnly ? 0.82 : 1,
           color,
           textAlign: "center",
           border: "none",

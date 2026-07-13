@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   createEmptyExerciseDraft,
   inferSessionDraftsFromTemplate,
+  isRef5Template,
   makeSessionKeys,
   moveExerciseBetweenSessions,
   reconcileSessionsByKeys,
@@ -400,10 +401,19 @@ export function useProgramStoreEditorController({
 
   const changeCreateSourceTemplate = useCallback(
     (nextSlug: string | null, templatesList: ProgramTemplate[]) => {
+      const requestedTemplate =
+        templatesList.find((template) => template.slug === nextSlug) ?? null;
+      if (requestedTemplate && isRef5Template(requestedTemplate)) {
+        setError(
+          locale === "ko"
+            ? "REF5는 전용 상태 머신을 사용하므로 일반 편집기로 변환할 수 없습니다."
+            : "REF5 uses a dedicated state machine and cannot be converted in the general editor.",
+        );
+        return;
+      }
       setCreateDraft((prev) => {
         if (!prev) return prev;
-        const source =
-          templatesList.find((template) => template.slug === nextSlug) ?? null;
+        const source = requestedTemplate;
         return {
           ...prev,
           sourceTemplateSlug: nextSlug,
@@ -411,7 +421,7 @@ export function useProgramStoreEditorController({
         };
       });
     },
-    [setCreateDraft],
+    [locale, setCreateDraft, setError],
   );
 
   const changeCreateSessionCount = useCallback(
@@ -436,6 +446,14 @@ export function useProgramStoreEditorController({
 
   const openCustomizeDraftFromTemplate = useCallback(
     (template: ProgramTemplate) => {
+      if (isRef5Template(template)) {
+        setError(
+          locale === "ko"
+            ? "REF5 전용 편집기가 제공되기 전에는 커스터마이징할 수 없습니다."
+            : "REF5 customization is unavailable until its dedicated editor is provided.",
+        );
+        return;
+      }
       setCustomizeDraft({
         name:
           locale === "ko"
@@ -445,7 +463,7 @@ export function useProgramStoreEditorController({
         sessions: inferSessionDraftsFromTemplate(template),
       });
     },
-    [locale, setCustomizeDraft],
+    [locale, setCustomizeDraft, setError],
   );
 
   return {

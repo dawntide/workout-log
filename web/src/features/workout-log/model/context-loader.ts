@@ -19,6 +19,7 @@ import type {
   WorkoutLogLogsResponse,
   WorkoutLogRecentLogItem,
 } from "./types";
+import { isRef5PlanParams } from "@/lib/workout-record/ref5-plan";
 
 export type LoadWorkoutContextInput = {
   planId: string;
@@ -29,6 +30,7 @@ export type LoadWorkoutContextInput = {
   planSchedule?: unknown;
   planParams?: Record<string, unknown> | null;
   logId?: string | null;
+  generatedSessionId?: string | null;
   initialLog?: WorkoutLogDetailedLogItem | null;
 };
 
@@ -55,9 +57,21 @@ export type BlockedWorkoutContextResult = {
   message: string;
 };
 
+export type Ref5StartRequiredWorkoutContextResult = {
+  kind: "ref5-start-required";
+  selectedPlanId: string;
+  planId: string;
+  planName: string;
+  dateKey: string;
+  planParams: Record<string, unknown> | null;
+  recentLogItems: WorkoutLogRecentLogItem[];
+  lastSession: WorkoutLogLastSessionSummary;
+};
+
 export type WorkoutContextResult =
   | LoadedWorkoutContextResult
-  | BlockedWorkoutContextResult;
+  | BlockedWorkoutContextResult
+  | Ref5StartRequiredWorkoutContextResult;
 
 function buildRecentLogsPath(planId: string) {
   return planId
@@ -131,22 +145,63 @@ export async function loadWorkoutContextData(
     };
   }
 
-  if (input.planId && input.dateKey) {
-    // generate + recentLogs 동시 요청 (기존 check→generate 2-round-trip → 1-round-trip)
+  if (input.generatedSessionId && input.planId) {
     const [sessionRes, logsRes] = await Promise.all([
-      apiPost<WorkoutLogGeneratedSessionResponse>(`/api/plans/${encodeURIComponent(input.planId)}/generate`, {
-        sessionDate: input.dateKey,
-        timezone: browserTimezone,
-      }),
+      apiGet<WorkoutLogGeneratedSessionResponse>(
+        `/api/plans/${encodeURIComponent(input.planId)}/generated-sessions/${encodeURIComponent(input.generatedSessionId)}`,
+      ),
       apiGet<WorkoutLogLogsResponse>(recentLogsPath),
     ]);
+    const prepared = prepareWorkoutRecordDraftForEntry(
+      applyWeightRulesToDraft(
+        createWorkoutRecordDraft(sessionRes.session, input.planName, {
+          timezone: browserTimezone,
+          planSchedule: input.planSchedule,
+          locale,
+        }),
+        input.preferences,
+      ),
+    );
+    return {
+      kind: "loaded",
+      selectedPlanId: input.planId,
+      draft: prepared.draft,
+      programEntryState: prepared.programEntryState,
+      recentLogItems: logsRes.items ?? [],
+      lastSession: buildLastSessionSummary(
+        logsRes.items ?? [],
+        prepared.draft.session.sessionDate,
+        input.planParams,
+        input.preferences.bodyweightKg,
+        locale,
+      ),
+    };
+  }
+
+  if (input.planId && input.dateKey) {
+    // REF5 preview/start is an explicit two-step protocol. Opening the page must
+    // never create a generated session or consume a runtime transition.
+    const ref5Plan = isRef5PlanParams(input.planParams);
+    const logsPromise = apiGet<WorkoutLogLogsResponse>(recentLogsPath);
+    const sessionPromise = ref5Plan
+      ? Promise.resolve<WorkoutLogGeneratedSessionResponse | null>(null)
+      : apiPost<WorkoutLogGeneratedSessionResponse>(
+          `/api/plans/${encodeURIComponent(input.planId)}/generate`,
+          {
+            sessionDate: input.dateKey,
+            timezone: browserTimezone,
+          },
+        );
+    const [sessionRes, logsRes] = await Promise.all([sessionPromise, logsPromise]);
 
     // 최근 로그에서 오늘 날짜 로그 탐지 (별도 check API 불필요)
     const todayLogItem = (logsRes.items ?? []).find((item) =>
       isLogOnDate(item.performedAt, input.dateKey, browserTimezone),
     );
 
-    if (todayLogItem) {
+    // REF5 allows more than one explicitly started session on the same calendar
+    // day. Only an explicit logId selects an existing REF5 log for editing.
+    if (todayLogItem && !ref5Plan) {
       // 오늘 기록이 이미 있으면 상세 정보만 추가 로드 (recentLogs는 이미 있음)
       const logRes = await apiGet<WorkoutLogDetailResponse>(
         `/api/logs/${encodeURIComponent(todayLogItem.id)}`,
@@ -181,7 +236,35 @@ export async function loadWorkoutContextData(
       };
     }
 
+    if (ref5Plan) {
+      return {
+        kind: "ref5-start-required",
+        selectedPlanId: input.planId,
+        planId: input.planId,
+        planName: input.planName,
+        dateKey: input.dateKey,
+        planParams: input.planParams ?? null,
+        recentLogItems: logsRes.items ?? [],
+        lastSession: buildLastSessionSummary(
+          logsRes.items ?? [],
+          input.dateKey,
+          input.planParams,
+          input.preferences.bodyweightKg,
+          locale,
+        ),
+      };
+    }
+
     // 오늘 기록 없음 → generate 결과 사용
+    if (!sessionRes) {
+      return {
+        kind: "blocked",
+        message:
+          locale === "ko"
+            ? "세션을 준비하지 못했습니다. 다시 시도해 주세요."
+            : "Could not prepare the session. Please try again.",
+      };
+    }
     const prepared = prepareWorkoutRecordDraftForEntry(
       applyRecentWeightsToCustomExercises(
         applyWeightRulesToDraft(

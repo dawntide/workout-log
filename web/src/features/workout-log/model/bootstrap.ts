@@ -110,6 +110,7 @@ export async function resolveWorkoutLogBootstrap(
       planAutoProgression: plan.params?.autoProgression === true,
       planSchedule: plan.params?.schedule,
       planParams: plan.params ?? null,
+      generatedSessionId: query.sessionId,
     },
   };
 }

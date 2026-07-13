@@ -89,6 +89,9 @@ export function useWorkoutLogEditorController() {
     (newDateKey: string) => {
       if (!/^\d{4}-\d{2}-\d{2}$/.test(newDateKey)) return;
       applyEditing((prev) => {
+        // REF5 chronology is the immutable first-squat start event, not an editable
+        // date bucket. A backdated correction is performed by deleting/restarting it.
+        if (prev.session.ref5) return prev;
         const [year, month, day] = newDateKey.split("-").map(Number);
         const prevPerformedAt = new Date(prev.session.performedAt);
         const newPerformedAt = new Date(

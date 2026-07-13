@@ -11,8 +11,10 @@ import { useAppDialog } from "@/components/ui/app-dialog-provider";
 import { apiDelete, apiGet, apiPatch, apiPost } from "@/lib/api";
 import { useQuerySettled } from "@/lib/ui/use-query-settled";
 import { useBodyweightKg } from "@/lib/settings/use-bodyweight";
+import { isRef5PlanParams } from "@/lib/workout-record/ref5-plan";
 import { bodyweightAddedSuffix } from "@workout/core/bodyweight-load";
 import { familyFallbackKeyForBaselineKey } from "@workout/core/program-store/model";
+import type { Ref5Status } from "@workout/core/program-engine/ref5-status";
 
 import {
   RECENT_THRESHOLD_DAYS,
@@ -61,6 +63,7 @@ export function usePlansManageController({ initialPlans }: { initialPlans: Plan[
     day: number;
   } | null>(null);
   const [lastEvents, setLastEvents] = useState<Record<string, TargetLastEvent>>({});
+  const [ref5Status, setRef5Status] = useState<Ref5Status | null>(null);
   // v0.5.1 F4: 라이트 블록(회복) 진행 중 배지 — progression-state의 lightBlockMode 파생.
   const [lightBlockActive, setLightBlockActive] = useState(false);
   const [showStartingBaseline, setShowStartingBaseline] = useState(false);
@@ -88,6 +91,10 @@ export function usePlansManageController({ initialPlans }: { initialPlans: Plan[
   );
   const isAutoProgression = useMemo(
     () => toRecord(managedPlan?.params).autoProgression === true,
+    [managedPlan],
+  );
+  const isRef5ManagedPlan = useMemo(
+    () => isRef5PlanParams(toRecord(managedPlan?.params)),
     [managedPlan],
   );
   const currentProgressRows = useMemo(() => {
@@ -200,6 +207,7 @@ export function usePlansManageController({ initialPlans }: { initialPlans: Plan[
     setIncrementDraft({});
     setProgressPosition(null);
     setLastEvents({});
+    setRef5Status(null);
     setLightBlockActive(false);
     setShowStartingBaseline(false);
     setShowIncrementSettings(false);
@@ -219,6 +227,15 @@ export function usePlansManageController({ initialPlans }: { initialPlans: Plan[
       const res = await apiGet<ProgressionStateApiResponse>(
         `/api/plans/${encodeURIComponent(planId)}/progression-state`,
       );
+      if (res.program === "ref5") {
+        setRef5Status(res.ref5Status ?? null);
+        setIncrementDraft({});
+        setProgressPosition(null);
+        setLastEvents({});
+        setLightBlockActive(false);
+        return;
+      }
+      setRef5Status(null);
       if (!res.program || !res.effectiveRules) {
         setIncrementDraft({});
         return;
@@ -246,6 +263,7 @@ export function usePlansManageController({ initialPlans }: { initialPlans: Plan[
       setLightBlockActive(res.program === "asymptote" && res.state?.lightBlockMode === true);
     } catch {
       setIncrementDraft({});
+      setRef5Status(null);
     } finally {
       setIncrementLoading(false);
     }
@@ -336,64 +354,62 @@ export function usePlansManageController({ initialPlans }: { initialPlans: Plan[
       return;
     }
 
-    const oneRepMaxKg: Record<string, number> = {};
-    const trainingMaxKg: Record<string, number> = {};
-    for (const row of strengthRows) {
-      if (row.oneRepMaxKg <= 0 && row.trainingMaxKg <= 0) {
-        await alert({
-          title: "입력 확인 필요",
-          message: `${row.label}의 1RM 또는 TM을 kg 기준으로 입력하세요.`,
-          buttonText: "확인",
-          tone: "danger",
-        });
-        return;
-      }
-      if (row.oneRepMaxKg > 0) oneRepMaxKg[row.key] = row.oneRepMaxKg;
-      if (row.trainingMaxKg > 0) trainingMaxKg[row.key] = row.trainingMaxKg;
-
-      // per-exercise(EX_) 행은 family canonical 키에도 같은 값을 기록한다. 표시 단계에서 접은
-      // family 그림자 행을 여기서 되살려, 자동 진행이 참조하는 family baseline이 사라지지 않게 한다.
-      // (프로그램 시작 시 submitStartProgram이 펼치는 fallbackKey 동기화와 동일한 패턴.)
-      const { fallbackKey } = row;
-      if (fallbackKey) {
-        if (row.oneRepMaxKg > 0 && oneRepMaxKg[fallbackKey] === undefined) {
-          oneRepMaxKg[fallbackKey] = row.oneRepMaxKg;
-        }
-        if (row.trainingMaxKg > 0 && trainingMaxKg[fallbackKey] === undefined) {
-          trainingMaxKg[fallbackKey] = row.trainingMaxKg;
-        }
-      }
-    }
-
     const prevPlan = managedPlan;
     const currentParams = toRecord(managedPlan.params);
-    const nextParams: Record<string, unknown> = {
-      ...currentParams,
-      oneRepMaxKg,
-      trainingMaxKg,
-    };
+    const nextParams: Record<string, unknown> = { ...currentParams };
 
-    const overrideEntries = Object.entries(incrementDraft);
-    if (overrideEntries.length > 0) {
-      const increaseKgMap: Record<string, number> = {};
-      const decreaseKgMap: Record<string, number> = {};
-      for (const [key, row] of overrideEntries) {
-        if (row.increaseKg !== row.defaultIncreaseKg) {
-          increaseKgMap[key] = row.increaseKg;
+    if (!isRef5ManagedPlan) {
+      const oneRepMaxKg: Record<string, number> = {};
+      const trainingMaxKg: Record<string, number> = {};
+      for (const row of strengthRows) {
+        if (row.oneRepMaxKg <= 0 && row.trainingMaxKg <= 0) {
+          await alert({
+            title: "입력 확인 필요",
+            message: `${row.label}의 1RM 또는 TM을 kg 기준으로 입력하세요.`,
+            buttonText: "확인",
+            tone: "danger",
+          });
+          return;
         }
-        if (row.decreaseKg > 0) {
-          decreaseKgMap[key] = row.decreaseKg;
+        if (row.oneRepMaxKg > 0) oneRepMaxKg[row.key] = row.oneRepMaxKg;
+        if (row.trainingMaxKg > 0) trainingMaxKg[row.key] = row.trainingMaxKg;
+
+        // Keep per-exercise baselines synchronized with their family fallback key.
+        const { fallbackKey } = row;
+        if (fallbackKey) {
+          if (row.oneRepMaxKg > 0 && oneRepMaxKg[fallbackKey] === undefined) {
+            oneRepMaxKg[fallbackKey] = row.oneRepMaxKg;
+          }
+          if (row.trainingMaxKg > 0 && trainingMaxKg[fallbackKey] === undefined) {
+            trainingMaxKg[fallbackKey] = row.trainingMaxKg;
+          }
         }
       }
-      const hasOverrides =
-        Object.keys(increaseKgMap).length > 0 || Object.keys(decreaseKgMap).length > 0;
-      if (hasOverrides) {
-        const incrementOverrides: Record<string, Record<string, number>> = {};
-        if (Object.keys(increaseKgMap).length > 0) incrementOverrides.increaseKg = increaseKgMap;
-        if (Object.keys(decreaseKgMap).length > 0) incrementOverrides.decreaseKg = decreaseKgMap;
-        nextParams.incrementOverrides = incrementOverrides;
-      } else {
-        delete nextParams.incrementOverrides;
+      nextParams.oneRepMaxKg = oneRepMaxKg;
+      nextParams.trainingMaxKg = trainingMaxKg;
+
+      const overrideEntries = Object.entries(incrementDraft);
+      if (overrideEntries.length > 0) {
+        const increaseKgMap: Record<string, number> = {};
+        const decreaseKgMap: Record<string, number> = {};
+        for (const [key, row] of overrideEntries) {
+          if (row.increaseKg !== row.defaultIncreaseKg) {
+            increaseKgMap[key] = row.increaseKg;
+          }
+          if (row.decreaseKg > 0) {
+            decreaseKgMap[key] = row.decreaseKg;
+          }
+        }
+        const hasOverrides =
+          Object.keys(increaseKgMap).length > 0 || Object.keys(decreaseKgMap).length > 0;
+        if (hasOverrides) {
+          const incrementOverrides: Record<string, Record<string, number>> = {};
+          if (Object.keys(increaseKgMap).length > 0) incrementOverrides.increaseKg = increaseKgMap;
+          if (Object.keys(decreaseKgMap).length > 0) incrementOverrides.decreaseKg = decreaseKgMap;
+          nextParams.incrementOverrides = incrementOverrides;
+        } else {
+          delete nextParams.incrementOverrides;
+        }
       }
     }
 
@@ -409,7 +425,7 @@ export function usePlansManageController({ initialPlans }: { initialPlans: Plan[
 
       const res = await apiPatch<{ plan: Plan }>(`/api/plans/${encodeURIComponent(managedPlan.id)}`, {
         name: nextName,
-        params: nextParams,
+        ...(!isRef5ManagedPlan ? { params: nextParams } : {}),
       });
       setPlans((prev) =>
         prev.map((item) =>
@@ -515,6 +531,8 @@ export function usePlansManageController({ initialPlans }: { initialPlans: Plan[
     managedPlan,
     strengthRows,
     isAutoProgression,
+    isRef5ManagedPlan,
+    ref5Status,
     currentProgressRows,
     filteredPlans,
     planRows,

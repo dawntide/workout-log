@@ -11,6 +11,7 @@ import {
   patchSeedExercise,
   toWorkoutLogPayload,
   updateUserExercise,
+  validateWorkoutDraft,
   type WorkoutRecordDraft,
 } from "./model";
 import {
@@ -18,6 +19,139 @@ import {
   appendSetWeight,
   removeSetWeightAtIndex,
 } from "@/features/workout-log/model/exercise-entry";
+import { toDefaultWorkoutPreferences } from "@/lib/settings/workout-preferences";
+import { applyWorkoutLogWeightRulesToDraft } from "./weight-rules";
+
+function makeRef5Session(): GeneratedSessionLike {
+  return {
+    id: "ref5-session-1",
+    planId: "ref5-plan-1",
+    sessionKey: "REF5:2026-07-13T09:00:00.000Z:start-1",
+    snapshot: {
+      schemaVersion: 4,
+      protocolVersion: "1.1",
+      sessionKey: "REF5:2026-07-13T09:00:00.000Z:start-1",
+      sessionDate: "2026-07-13",
+      timezone: "Asia/Seoul",
+      program: { slug: "ref5-adaptive-strength" },
+      ref5: {
+        protocolVersion: "1.1",
+        actualStartAt: "2026-07-13T09:00:00.000Z",
+        timezone: "Asia/Seoul",
+        startEventId: "start-1",
+        runtimeRevisionBefore: 4,
+        runtimeRevisionAfter: 5,
+      },
+      exercises: [
+        {
+          exerciseName: "Weighted Pull-Up",
+          rowType: "AUTO",
+          progressionTarget: "PULL",
+          ref5: {
+            exerciseKey: "PULL_FOCUS",
+            stream: "PULL_FOCUS",
+            targetTotalKg: 87.5,
+            lockedAddedKg: 12.5,
+            todayBodyweightKg: 76,
+            actualTotalKg: 88.5,
+            windowId: "pull-focus-3",
+          },
+          sets: [
+            { reps: 3, targetWeightKg: 12.5, meta: { immutableMarker: "a" } },
+            { reps: 3, targetWeightKg: 12.5, meta: { immutableMarker: "b" } },
+            { reps: 3, targetWeightKg: 12.5, meta: { immutableMarker: "c" } },
+          ],
+        },
+      ],
+    },
+  };
+}
+
+test("REF5 draft freezes the exact start, locked added load, and termination metadata", () => {
+  let draft = createWorkoutRecordDraft(makeRef5Session(), "REF5", {
+    sessionDate: "2026-07-14",
+    timezone: "Asia/Seoul",
+  });
+  assert.equal(draft.session.performedAt, "2026-07-13T09:00:00.000Z");
+  assert.equal(draft.session.sessionDate, "2026-07-13", "snapshot calendar date stays canonical");
+  assert.equal(draft.session.week, null, "REF5 must not fabricate a finite week");
+  assert.equal(draft.session.day, null, "REF5 must not fabricate a finite day");
+  assert.equal(draft.session.estimatedE1rmKg, null);
+  assert.equal(draft.session.estimatedTmKg, null);
+  assert.deepEqual(draft.seedExercises[0]?.set.weightKgPerSet, [12.5, 12.5, 12.5]);
+  assert.equal(validateWorkoutDraft(draft, "en").valid, false, "termination reason is required");
+
+  draft = patchSeedExercise(draft, "seed-1", {
+    set: { repsPerSet: [3, 2, 0] },
+    ref5: { terminationReason: "CLEAR_SLOWDOWN" },
+  });
+  const payload = toWorkoutLogPayload(draft, {
+    bodyweightKg: 99,
+    isBodyweightExercise: () => true,
+  });
+  assert.deepEqual(payload.sets.map((set) => set.weightKg), [12.5, 12.5, 12.5]);
+  assert.deepEqual(payload.sets.map((set) => set.reps), [3, 2, 0]);
+  const meta = payload.sets[1]!.meta;
+  assert.equal(meta.bodyweightKg, undefined, "current settings must not rewrite locked REF5 BW");
+  assert.equal(meta.immutableMarker, "b");
+  assert.deepEqual(meta.ref5, {
+    prescription: draft.seedExercises[0]!.ref5!.prescription,
+    terminationReason: "CLEAR_SLOWDOWN",
+    protocolVersion: "1.1",
+    actualStartAt: "2026-07-13T09:00:00.000Z",
+    startEventId: "start-1",
+    completionEventId: "start-1:completion",
+    runtimeRevisionBefore: 4,
+    runtimeRevisionAfter: 5,
+    plannedReps: 3,
+    actualReps: 2,
+    setIndex: 1,
+  });
+});
+
+test("REF5 reload preserves frozen external PULL loads and bypasses generic plate rules", () => {
+  const draft = createWorkoutRecordDraft(makeRef5Session(), "REF5");
+  const reloaded = applyWorkoutLogWeightRulesToDraft(draft, {
+    ...toDefaultWorkoutPreferences(),
+    bodyweightKg: 75,
+    minimumPlateDefaultKg: 10,
+  });
+
+  assert.equal(reloaded, draft, "immutable REF5 drafts must not be rewritten");
+  assert.deepEqual(reloaded.seedExercises[0]?.set.weightKgPerSet, [12.5, 12.5, 12.5]);
+});
+
+test("REF5 log edit round-trips arbitrary set metadata without recomputing bodyweight", () => {
+  let draft = createWorkoutRecordDraft(makeRef5Session(), "REF5");
+  draft = patchSeedExercise(draft, "seed-1", {
+    set: { repsPerSet: [3, 3, 3] },
+    ref5: { terminationReason: "NORMAL" },
+  });
+  const firstPayload = toWorkoutLogPayload(draft);
+  const editedDraft = createWorkoutRecordDraftFromLog(
+    {
+      id: "log-ref5-1",
+      planId: draft.session.planId,
+      generatedSessionId: makeRef5Session().id,
+      performedAt: draft.session.performedAt,
+      sets: firstPayload.sets,
+      generatedSession: makeRef5Session(),
+    },
+    "REF5",
+  );
+  assert.equal(editedDraft.session.estimatedE1rmKg, null);
+  assert.equal(editedDraft.session.estimatedTmKg, null);
+  const exerciseId = editedDraft.userExercises[0]!.id;
+  const changed = updateUserExercise(editedDraft, exerciseId, {
+    set: { repsPerSet: [0, 2, 3] },
+    ref5: { terminationReason: "SAFETY" },
+  });
+  const secondPayload = toWorkoutLogPayload(changed, { bodyweightKg: 120, isBodyweightExercise: () => true });
+  assert.deepEqual(secondPayload.sets.map((set) => set.weightKg), [12.5, 12.5, 12.5]);
+  assert.deepEqual(secondPayload.sets.map((set) => set.reps), [0, 2, 3]);
+  assert.equal(secondPayload.sets[0]!.meta.immutableMarker, "a");
+  assert.equal((secondPayload.sets[0]!.meta.ref5 as { terminationReason: string }).terminationReason, "SAFETY");
+});
 
 test("createWorkoutRecordDraft labels operator logic sessions as D1/D2/D3", () => {
   const session: GeneratedSessionLike = {

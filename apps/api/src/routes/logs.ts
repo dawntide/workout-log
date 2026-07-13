@@ -17,6 +17,7 @@ import {
   exercise,
   exerciseAlias,
   generatedSession,
+  plan,
   planProgressEvent,
   workoutLog,
   workoutSet,
@@ -27,6 +28,13 @@ import {
 } from "@workout/core/progression/progress-events";
 import { buildProgressionFeedbackFromEvent } from "@workout/core/progression/feedback-catalog";
 import { rebuildAutoProgressionForPlan } from "@workout/core/progression/autoProgression";
+import {
+  Ref5LogValidationError,
+  acquireRef5PlanLock,
+  isRef5GeneratedSessionSnapshot,
+  isRef5PlanParameters,
+  rebuildRef5ProgressionForPlan,
+} from "@workout/core/progression/ref5-auto-progression";
 import { invalidateStatsCacheForUser } from "@workout/core/stats/cache";
 import { upsertWorkoutLogService } from "@workout/core/services/workout-log/upsert-log";
 import {
@@ -340,8 +348,9 @@ logsRoutes.post("/", async (c) => {
       ),
     });
 
-    return c.json(created, 201);
+    return c.json(created, (created as { idempotent?: boolean }).idempotent ? 200 : 201);
   } catch (e) {
+    if (e instanceof Ref5LogValidationError) return c.json({ error: e.message }, 400);
     return apiError(c, e, locale);
   }
 });
@@ -553,7 +562,12 @@ logsRoutes.patch("/:logId", async (c) => {
       }
 
       const existingRows = await db
-        .select({ id: workoutLog.id, userId: workoutLog.userId, planId: workoutLog.planId })
+        .select({
+          id: workoutLog.id,
+          userId: workoutLog.userId,
+          planId: workoutLog.planId,
+          generatedSessionId: workoutLog.generatedSessionId,
+        })
         .from(workoutLog)
         .where(eq(workoutLog.id, logId))
         .limit(1);
@@ -570,10 +584,49 @@ logsRoutes.patch("/:logId", async (c) => {
           403,
         );
 
+      const [sessionRow, planRow] = await Promise.all([
+        existing.generatedSessionId
+          ? db
+              .select({ snapshot: generatedSession.snapshot })
+              .from(generatedSession)
+              .where(eq(generatedSession.id, existing.generatedSessionId))
+              .limit(1)
+          : Promise.resolve([]),
+        existing.planId
+          ? db
+              .select({ params: plan.params })
+              .from(plan)
+              .where(eq(plan.id, existing.planId))
+              .limit(1)
+          : Promise.resolve([]),
+      ]);
+      if (
+        isRef5GeneratedSessionSnapshot(sessionRow[0]?.snapshot) ||
+        isRef5PlanParameters(planRow[0]?.params)
+      ) {
+        return c.json(
+          {
+            error:
+              locale === "ko"
+                ? "REF5 기록의 시작 시각은 변경할 수 없습니다."
+                : "A REF5 log's immutable start time cannot be changed.",
+          },
+          400,
+        );
+      }
+
+      const movedAt = new Date(body.performedAt);
+      if (Number.isNaN(movedAt.getTime())) {
+        return c.json(
+          { error: locale === "ko" ? "올바른 날짜/시간이 아닙니다." : "Invalid datetime." },
+          400,
+        );
+      }
+
       await db.transaction(async (tx) => {
         await tx
           .update(workoutLog)
-          .set({ performedAt: new Date(body.performedAt) })
+          .set({ performedAt: movedAt })
           .where(eq(workoutLog.id, logId));
 
         if (existing.planId) {
@@ -613,6 +666,7 @@ logsRoutes.patch("/:logId", async (c) => {
 
     return c.json(updated, 200);
   } catch (e) {
+    if (e instanceof Ref5LogValidationError) return c.json({ error: e.message }, 400);
     return apiError(c, e, locale);
   }
 });
@@ -630,6 +684,7 @@ logsRoutes.delete("/:logId", async (c) => {
         id: workoutLog.id,
         userId: workoutLog.userId,
         planId: workoutLog.planId,
+        generatedSessionId: workoutLog.generatedSessionId,
         performedAt: workoutLog.performedAt,
       })
       .from(workoutLog)
@@ -648,13 +703,46 @@ logsRoutes.delete("/:logId", async (c) => {
         403,
       );
 
+    const [generatedRow, planRow] = await Promise.all([
+      existing.generatedSessionId
+        ? db
+            .select({ snapshot: generatedSession.snapshot })
+            .from(generatedSession)
+            .where(eq(generatedSession.id, existing.generatedSessionId))
+            .limit(1)
+        : Promise.resolve([]),
+      existing.planId
+        ? db
+            .select({ params: plan.params })
+            .from(plan)
+            .where(eq(plan.id, existing.planId))
+            .limit(1)
+        : Promise.resolve([]),
+    ]);
+    const isRef5 =
+      isRef5GeneratedSessionSnapshot(generatedRow[0]?.snapshot) ||
+      isRef5PlanParameters(planRow[0]?.params);
+    if (isRef5 && !existing.planId) {
+      throw new Ref5LogValidationError(["REF5 log is missing its canonical plan"]);
+    }
+
     const deleted = await db.transaction(async (tx) => {
+      if (isRef5 && existing.planId) {
+        await acquireRef5PlanLock(tx, existing.planId);
+      }
       await tx.delete(workoutLog).where(eq(workoutLog.id, logId));
       // 삭제는 이후 로그들의 "그 당시 PR" 판정을 바꾼다 → 동결값 무효화(조회 시 lazy 재계산).
       await invalidatePersonalRecordsFrom({ dbi: tx, userId, fromPerformedAt: existing.performedAt });
 
       const rebuildResult = existing.planId
-        ? await rebuildAutoProgressionForPlan({ tx, userId, planId: existing.planId })
+        ? isRef5
+          ? await rebuildRef5ProgressionForPlan({
+              tx,
+              userId,
+              planId: existing.planId,
+              lockAlreadyHeld: true,
+            })
+          : await rebuildAutoProgressionForPlan({ tx, userId, planId: existing.planId })
         : { applied: false as const, reason: "skip:no-plan" as const };
 
       await invalidateStatsCacheForUser(userId, tx);

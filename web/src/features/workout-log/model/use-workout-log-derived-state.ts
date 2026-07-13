@@ -83,7 +83,8 @@ export function useWorkoutLogDerivedState({
           const entryState = programEntryState[exercise.id];
           const rawValue = entryState?.repsInputs[index]?.trim() ?? "";
           const actual = exercise.source === "PROGRAM" ? Number(rawValue) : setReps;
-          return Number.isFinite(actual) && actual > 0;
+          return Number.isFinite(actual) &&
+            (exercise.ref5 ? rawValue !== "" && actual >= 0 : actual > 0);
         });
       }).length,
     [programEntryState, visibleExercises],

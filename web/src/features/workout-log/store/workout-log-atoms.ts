@@ -141,7 +141,7 @@ export const completedExercisesCountAtom = atom((get) => {
       const entryState = entryStateMap[exercise.id];
       const rawValue = entryState?.repsInputs[index]?.trim() ?? "";
       const actual = exercise.source === "PROGRAM" ? Number(rawValue) : setReps;
-      return Number.isFinite(actual) && actual > 0;
+      return Number.isFinite(actual) && (exercise.ref5 ? rawValue !== "" && actual >= 0 : actual > 0);
     });
   }).length;
 });
@@ -158,7 +158,10 @@ export const completedSetsCountAtom = atom((get) => {
         exercise.source === "PROGRAM"
           ? Number(rawValue)
           : exercise.set.repsPerSet[i];
-      if (Number.isFinite(actual) && actual > 0) count++;
+      if (
+        Number.isFinite(actual) &&
+        (exercise.ref5 ? rawValue !== "" && actual >= 0 : actual > 0)
+      ) count++;
     }
   }
   return count;

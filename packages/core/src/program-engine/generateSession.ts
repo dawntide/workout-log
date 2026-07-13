@@ -31,6 +31,10 @@ import {
 } from "@workout/core/program-store/program-registry";
 import { buildSlottedLpSlot } from "@workout/core/program-store/model";
 import {
+  buildRef5PlanSession,
+  isRef5PlanParams,
+} from "./ref5-integration";
+import {
   wendler531WeekSets,
   WENDLER_531_FSL_SETS,
   WENDLER_531_FSL_REPS,
@@ -1612,6 +1616,15 @@ export type GenerateSessionInput = {
   day?: number;
   sessionDate?: string;
   timezone?: string;
+  /** REF5 is generated from an exact first-work-set start, never a date bucket. */
+  ref5?: {
+    actualStartAt: string;
+    todayBodyweightKg: number;
+    manualMicro: boolean;
+    climbingWithin48h: boolean;
+    startEventId: string;
+    omitPullVolume?: boolean;
+  };
 };
 
 async function buildSession(
@@ -1630,6 +1643,12 @@ async function buildSession(
   const p = pRows[0];
   if (!p) throw new Error("Plan not found");
   if (p.userId !== input.userId) throw new Error("Forbidden");
+
+  // REF5 owns exact-time generation, snapshot immutability, and the first-SQ
+  // start transition. It must not pass through cycle/week/TM/override logic.
+  if (isRef5PlanParams(p.params)) {
+    return buildRef5PlanSession(input, persist);
+  }
 
   const runtimeState = runtimeRows[0]?.state ?? null;
   const effectivePlanParams = mergePlanParamsWithRuntimeState(p.params ?? {}, runtimeState);

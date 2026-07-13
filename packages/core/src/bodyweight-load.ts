@@ -7,6 +7,25 @@ function roundTo2(value: number) {
   return Math.round(value * 100) / 100;
 }
 
+function toRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
+function readLoggedMetaTotalLoadKg(meta: Record<string, unknown> | null | undefined) {
+  const direct = toFiniteNumber(meta?.totalLoadKg);
+  if (direct !== null) return direct;
+  const ref5 = toRecord(meta?.ref5);
+  const ref5Direct = toFiniteNumber(ref5.totalLoadKg);
+  if (ref5Direct !== null) return ref5Direct;
+  const directPull = toRecord(ref5.pull);
+  const directPullTotal = toFiniteNumber(directPull.actualTotalKg);
+  if (directPullTotal !== null) return directPullTotal;
+  const prescriptionPull = toRecord(toRecord(ref5.prescription).pull);
+  return toFiniteNumber(prescriptionPull.actualTotalKg);
+}
+
 // core는 DOM lib 없이 typecheck된다 — 브라우저 전역은 globalThis 옵셔널 접근으로만
 // 읽는다(브라우저: html lang → navigator.language 순, 서버: "en" 폴백. 기존 동작 동일).
 function resolveBrowserLocale(): "ko" | "en" {
@@ -114,7 +133,7 @@ export function resolveLoggedTotalLoadKg(input: {
 }): number | null {
   const loggedWeightKg = toFiniteNumber(input.weightKg);
   if (!isBodyweightExerciseName(input.exerciseName)) return loggedWeightKg;
-  const metaTotalLoadKg = toFiniteNumber(input.meta?.totalLoadKg);
+  const metaTotalLoadKg = readLoggedMetaTotalLoadKg(input.meta);
   if (metaTotalLoadKg !== null && metaTotalLoadKg > 0) return roundTo2(metaTotalLoadKg);
   return loggedWeightKg;
 }
@@ -162,7 +181,7 @@ export function resolveLoggedLoadDisplay(input: {
   if (!isBodyweightExerciseName(input.exerciseName)) {
     return { totalKg, suffix: null };
   }
-  const metaTotalLoadKg = toFiniteNumber(input.meta?.totalLoadKg);
+  const metaTotalLoadKg = readLoggedMetaTotalLoadKg(input.meta);
   // 총부하 메타가 없으면 총무게로 환산 불가 → 원래 값 그대로, 병기 없음.
   if (metaTotalLoadKg === null || metaTotalLoadKg <= 0) {
     return { totalKg, suffix: null };

@@ -81,7 +81,9 @@ export function PrescriptionInline({
     return null;
   }
   const repsText = `${reps}${lastSetAmrap ? "+" : ""}`;
-  const isWeight = typeof weightKg === "number" && weightKg > 0;
+  const isWeight =
+    typeof weightKg === "number" &&
+    (weightKg > 0 || (weightKg === 0 && Boolean(weightSuffix)));
   const intensityText = isWeight
     ? `${weightKg}kg`
     : typeof percent === "number" && percent > 0

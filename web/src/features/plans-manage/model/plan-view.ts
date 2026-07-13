@@ -3,6 +3,7 @@
 // "로직의 features/*/model 이동부터"). 데이터 로딩/뮤테이션 훅 추출은 후속.
 import type { PlanForManage } from "@/server/services/plans/get-plans-for-manage";
 import { selectDisplayStrengthBaselineKeys } from "@workout/core/program-store/model";
+import type { Ref5Status } from "@workout/core/program-engine/ref5-status";
 
 export type Plan = PlanForManage;
 export type StrengthBaselineDraft = Record<string, { oneRepMaxKg: number; trainingMaxKg: number }>;
@@ -43,6 +44,7 @@ export type ProgressionStateApiResponse = {
     }
   >;
   targetsLastEvent?: Record<string, TargetLastEvent>;
+  ref5Status?: Ref5Status | null;
 };
 
 export const TARGET_LABELS: Record<string, string> = {

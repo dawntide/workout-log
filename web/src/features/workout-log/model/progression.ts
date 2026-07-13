@@ -224,8 +224,8 @@ export async function resolveWorkoutLogProgressionOverride({
 }: {
   selectedPlanId: string | null | undefined;
   autoProgressionEnabled: boolean;
-  sessionWeek: number;
-  sessionDay: number;
+  sessionWeek: number | null;
+  sessionDay: number | null;
   visibleExercises: WorkoutExerciseViewModel[];
   programEntryState: WorkoutProgramExerciseEntryStateMap;
   locale: "ko" | "en";
@@ -236,6 +236,11 @@ export async function resolveWorkoutLogProgressionOverride({
     targets: FailureProtocolTarget[];
   }) => Promise<FailureProtocolResult>;
 }): Promise<ResolvedProgressionOverride> {
+  // REF5 owns PASS/HOLD/FAIL/INVALID and its exact ±2.5 kg decisions. The generic
+  // failure-protocol sheet would double-apply an unrelated LP/block policy.
+  if (visibleExercises.some((exercise) => Boolean(exercise.ref5))) {
+    return { cancelled: false, decisions: null };
+  }
   if (!selectedPlanId || !autoProgressionEnabled) {
     return { cancelled: false, decisions: null };
   }

@@ -4,7 +4,6 @@ import {
   exercise,
   exerciseAlias,
   plan as planTable,
-  planModule,
   programTemplate,
   programVersion,
   statsCache,
@@ -12,7 +11,13 @@ import {
   uxEventLog,
   workoutLog,
 } from "./schema";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
+import {
+  REF5_IDENTIFIERS,
+  REF5_INITIAL_DIRECT_STANDARDS_KG,
+  REF5_RUNTIME_SCHEMA_VERSION,
+  deriveRef5ControlRefs,
+} from "../program-engine/ref5";
 
 export type SeedRunOptions = {
   shouldHardReset?: boolean;
@@ -21,7 +26,6 @@ export type SeedRunOptions = {
 };
 
 export async function runSeed(options: SeedRunOptions = {}) {
-  const legacyProgramSlugs = ["starter-fullbody-3day", "531", "candito-linear", "wendler-531", "wendler-531-fsl", "wendler-531-bbb"] as const;
   const shouldHardReset = options.shouldHardReset === true;
   const includeDemoPlans = options.includeDemoPlans === true;
 
@@ -144,6 +148,25 @@ export async function runSeed(options: SeedRunOptions = {}) {
     return inserted[0];
   }
 
+  async function ensurePlanForUser(userId: string, name: string, values: any) {
+    const existing = await db
+      .select()
+      .from(planTable)
+      .where(and(eq(planTable.userId, userId), eq(planTable.name, name)))
+      .limit(1);
+    if (existing[0]) return existing[0];
+
+    const inserted = await db
+      .insert(planTable)
+      .values({
+        userId,
+        name,
+        ...values,
+      })
+      .returning();
+    return inserted[0];
+  }
+
   async function hardResetSeedData() {
     await db.delete(workoutLog);
     await db.delete(planTable);
@@ -153,60 +176,6 @@ export async function runSeed(options: SeedRunOptions = {}) {
     await db.delete(userSetting);
     await db.delete(uxEventLog);
     console.log("[seed] hard reset done (workout/program/exercise/stats/settings/ux)");
-  }
-
-  async function removeLegacyProgramSeeds() {
-    const templates = await db
-      .select({
-        id: programTemplate.id,
-      })
-      .from(programTemplate)
-      .where(inArray(programTemplate.slug, [...legacyProgramSlugs]));
-
-    if (templates.length < 1) return;
-
-    const templateIds = templates.map((row) => row.id);
-    const versions = await db
-      .select({
-        id: programVersion.id,
-      })
-      .from(programVersion)
-      .where(inArray(programVersion.templateId, templateIds));
-    const versionIds = versions.map((row) => row.id);
-
-    if (versionIds.length > 0) {
-      const legacyRootPlans = await db
-        .select({
-          id: planTable.id,
-        })
-        .from(planTable)
-        .where(inArray(planTable.rootProgramVersionId, versionIds));
-
-      const legacyModulePlans = await db
-        .select({
-          planId: planModule.planId,
-        })
-        .from(planModule)
-        .where(inArray(planModule.programVersionId, versionIds));
-
-      const legacyPlanIds = Array.from(
-        new Set([
-          ...legacyRootPlans.map((row) => row.id),
-          ...legacyModulePlans.map((row) => row.planId),
-        ]),
-      );
-
-      if (legacyPlanIds.length > 0) {
-        await db.delete(workoutLog).where(inArray(workoutLog.planId, legacyPlanIds));
-        await db.delete(planTable).where(inArray(planTable.id, legacyPlanIds));
-      }
-
-      // Safety: remove module rows that can still reference legacy versions.
-      await db.delete(planModule).where(inArray(planModule.programVersionId, versionIds));
-    }
-
-    await db.delete(programTemplate).where(inArray(programTemplate.id, templateIds));
-    console.log(`[seed] removed legacy templates: ${legacyProgramSlugs.join(", ")}`);
   }
 
   function repeatSets(
@@ -232,7 +201,6 @@ export async function runSeed(options: SeedRunOptions = {}) {
   if (shouldHardReset) {
     await hardResetSeedData();
   }
-  await removeLegacyProgramSeeds();
 
   // 1) Tactical Barbell Operator (LOGIC)
   const templateOperator = await upsertTemplate("operator", {
@@ -686,6 +654,40 @@ export async function runSeed(options: SeedRunOptions = {}) {
     changelog: "v1.0 — 3-session A/B/C rotation, 4-cycle blocks, cycle-3 AMRAP gating",
   });
 
+  // REF5 Adaptive Strength — 독립 세션 기반 LOGIC 엔진. 1RM/TM 시작값이 아니라
+  // v1.1 정의서의 kg 직접 기준을 정본으로 보존한다.
+  const ref5StartConfig = {
+    schemaVersion: REF5_RUNTIME_SCHEMA_VERSION,
+    protocolVersion: REF5_IDENTIFIERS.protocolVersion,
+    startingValuesKg: { ...REF5_INITIAL_DIRECT_STANDARDS_KG },
+    controlRefsKg: deriveRef5ControlRefs({ ...REF5_INITIAL_DIRECT_STANDARDS_KG }),
+  } as const;
+
+  const templateRef5 = await upsertTemplate(REF5_IDENTIFIERS.slug, {
+    slug: REF5_IDENTIFIERS.slug,
+    name: REF5_IDENTIFIERS.baseTemplateName,
+    type: "LOGIC",
+    visibility: "PUBLIC",
+    description:
+      "A session-based adaptive strength program for irregular 2–4 day schedules. High-bar squat remains the priority across Squat, Weighted Pull-Up, Bench Press, Deadlift, and Overhead Press. It uses fixed starting kg baselines and PASS/HOLD/FAIL/INVALID outcomes instead of 1RM tests, AMRAP, RIR, or finite training blocks.",
+    tags: ["strength", "barbell", "ref5", "intermediate", "session-based", "adaptive"],
+  });
+
+  const templateRef5V1 = await upsertVersion(templateRef5.id, 1, {
+    definition: {
+      id: REF5_IDENTIFIERS.slug,
+      dslVersion: 1,
+      kind: REF5_IDENTIFIERS.kind,
+      family: REF5_IDENTIFIERS.family,
+      protocolVersion: REF5_IDENTIFIERS.protocolVersion,
+      modules: ["SQUAT", "PULL", "BENCH", "DEADLIFT", "OHP"],
+      progression: { profile: "ref5-v1.1" },
+    },
+    defaults: { ref5: ref5StartConfig },
+    changelog:
+      "Protocol v1.1 — fixed direct kg baselines, independent adaptive session state machine",
+  });
+
   const templateGreyskull = await upsertTemplate("greyskull-lp", {
     slug: "greyskull-lp",
     name: "Greyskull LP (Base)",
@@ -916,6 +918,23 @@ export async function runSeed(options: SeedRunOptions = {}) {
         },
       });
     }
+
+    if (templateRef5V1?.id) {
+      // A demo seed must never overwrite a plan the user has already started or
+      // customized. REF5 is inserted once and subsequent seed runs are no-ops.
+      await ensurePlanForUser(devUserId, "Program REF5 Adaptive Strength", {
+        type: "SINGLE",
+        rootProgramVersionId: templateRef5V1.id,
+        params: {
+          timezone: "Asia/Seoul",
+          startDate: "2026-01-05",
+          autoProgression: true,
+          programFamily: REF5_IDENTIFIERS.family,
+          protocolVersion: REF5_IDENTIFIERS.protocolVersion,
+          ref5: ref5StartConfig,
+        },
+      });
+    }
   }
 
   console.log(
@@ -926,7 +945,7 @@ export async function runSeed(options: SeedRunOptions = {}) {
     devUserId,
     includeDemoPlans,
     shouldHardReset,
-    baseTemplateCount: 10,
+    baseTemplateCount: 11,
     baseExerciseCount: seededExercises.length,
   };
 }

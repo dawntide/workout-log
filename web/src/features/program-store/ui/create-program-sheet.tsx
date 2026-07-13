@@ -17,6 +17,7 @@ import type {
   ProgramExerciseDraft,
   ProgramTemplate,
 } from "@workout/core/program-store/model";
+import { isRef5Template } from "@workout/core/program-store/model";
 
 const BottomSheet = dynamic(
   () => import("@/components/ui/bottom-sheet").then((mod) => mod.BottomSheet),
@@ -76,6 +77,10 @@ export function CreateProgramSheet({
   onDropExercise,
   onAddExercise,
 }: CreateProgramSheetProps) {
+  const customizablePublicTemplates = publicTemplates.filter(
+    (template) => !isRef5Template(template),
+  );
+
   return (
     <BottomSheet
       open={Boolean(draft)}
@@ -178,7 +183,7 @@ export function CreateProgramSheet({
               }
             >
               <option value="">{locale === "ko" ? "선택" : "Select"}</option>
-              {publicTemplates.map((template) => (
+              {customizablePublicTemplates.map((template) => (
                 <option key={template.id} value={template.slug}>
                   {formatProgramDisplayName(template.name)}
                 </option>

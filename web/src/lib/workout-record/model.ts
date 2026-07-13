@@ -1,4 +1,5 @@
 import type { AppLocale } from "@/lib/i18n/messages";
+import { validateAndClassifyRef5Outcome } from "@workout/core/program-engine/ref5";
 
 export type WorkoutWorkflowState = "idle" | "editing" | "saving" | "done";
 
@@ -28,6 +29,32 @@ export type WorkoutNoteModel = {
 export type WorkoutExerciseSource = "PROGRAM" | "USER";
 export type WorkoutExerciseBadge = "AUTO" | "CUSTOM" | "ADDED";
 
+export type Ref5TerminationReason =
+  | "NORMAL"
+  | "CLEAR_SLOWDOWN"
+  | "FORCE_OR_TECHNIQUE"
+  | "SAFETY"
+  | "EXTERNAL";
+
+export type WorkoutExerciseRef5Meta = {
+  /** Immutable prescription metadata copied from the generated-session snapshot. */
+  prescription: Record<string, unknown>;
+  /** The reason applies to the exercise as a whole and is repeated on every saved set. */
+  terminationReason: Ref5TerminationReason | null;
+  /** Full original set metadata, retained so an edit is lossless. */
+  originalSetMeta: Record<string, unknown>[];
+};
+
+export type WorkoutSessionRef5Meta = {
+  protocolVersion: "1.1";
+  actualStartAt: string;
+  startEventId: string;
+  completionEventId: string;
+  runtimeRevisionBefore: number;
+  runtimeRevisionAfter: number;
+  snapshot: Record<string, unknown>;
+};
+
 export type WorkoutExerciseModel = {
   id: string;
   exerciseId: string | null;
@@ -50,6 +77,7 @@ export type WorkoutExerciseModel = {
   // SS/StrongLifts 정석(v2): 고정 reps 미달을 실패로 감지하기 위해 reps-only plannedRef를
   // 흘릴지 마킹. progressionKey 없이 reps만 흘려 family 진행은 유지한다.
   enforcePlannedReps?: boolean;
+  ref5?: WorkoutExerciseRef5Meta | null;
   set: WorkoutSetModel;
   note: WorkoutNoteModel;
 };
@@ -63,14 +91,16 @@ export type WorkoutSessionModel = {
   planId: string;
   planName: string;
   sessionKey: string;
-  week: number;
-  day: number;
+  /** Finite program coordinate; REF5 is open-ended and keeps both null. */
+  week: number | null;
+  day: number | null;
   sessionType: string;
   estimatedE1rmKg: number | null;
   estimatedTmKg: number | null;
   // v0.5.1: 세션 수준 피드백 메타(snapshot에서 승격) — F3 AMRAP 보류 배너·F4 라이트 블록 배지.
   amrapDeferred?: boolean;
   lightBlockMode?: boolean;
+  ref5?: WorkoutSessionRef5Meta | null;
   note: WorkoutNoteModel;
 };
 
@@ -79,6 +109,7 @@ export type SeedExerciseEditPatch = {
   exerciseName?: string;
   set?: Partial<WorkoutSetModel>;
   note?: Partial<WorkoutNoteModel>;
+  ref5?: Partial<Pick<WorkoutExerciseRef5Meta, "terminationReason">>;
   deleted?: boolean;
 };
 
@@ -157,6 +188,8 @@ type SnapshotSet = {
   weightKg?: number;
   percent?: number;
   note?: string;
+  meta?: unknown;
+  ref5?: unknown;
 };
 
 type SnapshotExercise = {
@@ -171,6 +204,7 @@ type SnapshotExercise = {
   stage?: number | null;
   texasRole?: string | null;
   enforcePlannedReps?: boolean;
+  ref5?: unknown;
   sets?: SnapshotSet[];
 };
 
@@ -186,6 +220,10 @@ const WORKOUT_RECORD_TEXT = {
     invalidSetShape: (row: number) => `${row}번째 운동의 세트별 횟수 정보가 올바르지 않습니다.`,
     invalidReps: (row: number, setIndex: number) => `${row}번째 운동의 ${setIndex + 1}세트 횟수는 1~100 범위여야 합니다.`,
     invalidWeight: (row: number) => `${row}번째 운동의 무게는 0~9999kg 범위여야 합니다.`,
+    missingRef5TerminationReason: (row: number) =>
+      `${row}번째 REF5 운동의 종료 사유를 선택해 주세요.`,
+    invalidRef5Outcome: (row: number) =>
+      `${row}번째 REF5 운동의 유효 반복과 종료 사유 조합을 확인해 주세요.`,
   },
   en: {
     noExerciseInfo: "No Exercise Info",
@@ -196,6 +234,10 @@ const WORKOUT_RECORD_TEXT = {
     invalidSetShape: (row: number) => `Exercise ${row} has invalid per-set rep data.`,
     invalidReps: (row: number, setIndex: number) => `Exercise ${row} set ${setIndex + 1} reps must be between 1 and 100.`,
     invalidWeight: (row: number) => `Exercise ${row} weight must be between 0 and 9999kg.`,
+    missingRef5TerminationReason: (row: number) =>
+      `Select a termination reason for REF5 exercise ${row}.`,
+    invalidRef5Outcome: (row: number) =>
+      `Check the effective reps and termination reason for REF5 exercise ${row}.`,
   },
 } as const;
 
@@ -380,6 +422,59 @@ function migrateWeightKgPerSet(set: WorkoutSetModel): number[] {
 function nonEmpty(value: string, fallback: string) {
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : fallback;
+}
+
+function toRecord(value: unknown): Record<string, unknown> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  return value as Record<string, unknown>;
+}
+
+const REF5_TERMINATION_REASONS = new Set<Ref5TerminationReason>([
+  "NORMAL",
+  "CLEAR_SLOWDOWN",
+  "FORCE_OR_TECHNIQUE",
+  "SAFETY",
+  "EXTERNAL",
+]);
+
+function toRef5TerminationReason(value: unknown): Ref5TerminationReason | null {
+  const normalized = String(value ?? "").trim().toUpperCase() as Ref5TerminationReason;
+  return REF5_TERMINATION_REASONS.has(normalized) ? normalized : null;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- versioned JSONB snapshot
+function readRef5SessionMeta(snapshot: any): WorkoutSessionRef5Meta | null {
+  const raw = toRecord(snapshot?.ref5);
+  const protocolVersion = String(raw.protocolVersion ?? snapshot?.protocolVersion ?? "");
+  if (protocolVersion !== "1.1" && String(snapshot?.program?.slug ?? "") !== "ref5-adaptive-strength") {
+    return null;
+  }
+  const actualStartAt = String(raw.actualStartAt ?? snapshot?.actualStartAt ?? "").trim();
+  const startEventId = String(raw.startEventId ?? snapshot?.startEventId ?? "").trim();
+  if (!actualStartAt || !startEventId) return null;
+  const before = Number(raw.runtimeRevisionBefore ?? 0);
+  const after = Number(raw.runtimeRevisionAfter ?? before + 1);
+  return {
+    protocolVersion: "1.1",
+    actualStartAt,
+    startEventId,
+    // Deterministic across reloads/retries. The generated session is the idempotency anchor.
+    completionEventId: `${startEventId}:completion`,
+    runtimeRevisionBefore: Number.isFinite(before) ? before : 0,
+    runtimeRevisionAfter: Number.isFinite(after) ? after : 1,
+    snapshot: structuredClone(raw),
+  };
+}
+
+function readSnapshotRef5Exercise(exercise: SnapshotExercise): WorkoutExerciseRef5Meta | null {
+  const prescription = toRecord(exercise.ref5);
+  if (Object.keys(prescription).length === 0) return null;
+  const sets = Array.isArray(exercise.sets) ? exercise.sets : [];
+  return {
+    prescription: structuredClone(prescription),
+    terminationReason: null,
+    originalSetMeta: sets.map((set) => structuredClone(toRecord(set.meta))),
+  };
 }
 
 function estimateE1rm(weightKg: number, reps: number) {
@@ -592,6 +687,7 @@ function toSeedExercise(exercise: SnapshotExercise, index: number): WorkoutExerc
     stage: typeof exercise.stage === "number" ? exercise.stage : null,
     texasRole: typeof exercise.texasRole === "string" ? exercise.texasRole : null,
     enforcePlannedReps: exercise.enforcePlannedReps === true ? true : undefined,
+    ref5: readSnapshotRef5Exercise(exercise),
     set: {
       count: repsPerSet.length,
       reps: repsPerSet[0] ?? 5,
@@ -705,6 +801,15 @@ function mergeSeedExercise(base: WorkoutExerciseModel, patch: SeedExerciseEditPa
     note: {
       memo: patch.note?.memo ?? base.note.memo,
     },
+    ref5: base.ref5
+      ? {
+          ...base.ref5,
+          terminationReason:
+            patch.ref5?.terminationReason !== undefined
+              ? patch.ref5.terminationReason
+              : base.ref5.terminationReason,
+        }
+      : base.ref5,
     isEdited: true,
     deleted: Boolean(patch.deleted),
   };
@@ -729,6 +834,7 @@ function groupLoggedExercises(
     memo: string;
     plannedSetMeta: WorkoutPlannedSetMeta | null;
     badge: WorkoutExerciseBadge;
+    ref5: WorkoutExerciseRef5Meta | null;
   }> = [];
 
   for (const rawSet of sets ?? []) {
@@ -740,6 +846,8 @@ function groupLoggedExercises(
     const rpe = normalizeRpeValue(rawSet?.rpe, 0);
     const weightKg = Math.max(0, toNumber(rawSet?.weightKg, 0));
     const memo = extractMemoFromMeta(rawSet?.meta);
+    const rawMeta = toRecord(rawSet?.meta);
+    const loggedRef5 = toRecord(rawMeta.ref5);
     const isExtra = Boolean(rawSet?.isExtra);
     const previous = grouped[grouped.length - 1] ?? null;
     const isContinuation =
@@ -752,6 +860,7 @@ function groupLoggedExercises(
       previous.repsPerSet.push(reps);
       previous.rpePerSet.push(rpe);
       previous.weightKgPerSet.push(weightKg);
+      previous.ref5?.originalSetMeta.push(structuredClone(rawMeta));
       if (!previous.memo && memo) {
         previous.memo = memo;
       }
@@ -773,6 +882,14 @@ function groupLoggedExercises(
       memo,
       plannedSetMeta: snapshotExerciseEntry?.plannedSetMeta ?? null,
       badge: snapshotExerciseEntry?.badge ?? (isExtra ? "ADDED" : "AUTO"),
+      ref5:
+        Object.keys(loggedRef5).length > 0
+          ? {
+              prescription: structuredClone(toRecord(loggedRef5.prescription ?? loggedRef5)),
+              terminationReason: toRef5TerminationReason(loggedRef5.terminationReason),
+              originalSetMeta: [structuredClone(rawMeta)],
+            }
+          : null,
     });
   }
 
@@ -784,6 +901,7 @@ function groupLoggedExercises(
     badge: exercise.badge,
     prescribedWeightKg: null,
     plannedSetMeta: exercise.plannedSetMeta,
+    ref5: exercise.ref5,
     set: {
       count: exercise.repsPerSet.length,
       reps: exercise.repsPerSet[0] ?? 5,
@@ -817,12 +935,17 @@ export function createWorkoutRecordDraft(
 ): WorkoutRecordDraft {
   const copy = WORKOUT_RECORD_TEXT[options.locale ?? "ko"];
   const snapshot = session.snapshot ?? {};
-  const week = Math.max(1, Math.round(toNumber(snapshot.week, 1)));
-  const day = Math.max(1, Math.round(toNumber(snapshot.day, 1)));
   const exercises = (Array.isArray(snapshot.exercises) ? snapshot.exercises : []) as SnapshotExercise[];
-  const estimate = deriveEstimateFromSnapshot(exercises);
+  const ref5Session = readRef5SessionMeta(snapshot);
+  const week = ref5Session ? null : Math.max(1, Math.round(toNumber(snapshot.week, 1)));
+  const day = ref5Session ? null : Math.max(1, Math.round(toNumber(snapshot.day, 1)));
+  const estimate = ref5Session
+    ? { estimatedE1rmKg: null, estimatedTmKg: null }
+    : deriveEstimateFromSnapshot(exercises);
   const sessionDate =
-    typeof options.sessionDate === "string" && options.sessionDate.trim()
+    ref5Session && typeof snapshot.sessionDate === "string" && snapshot.sessionDate.trim()
+      ? snapshot.sessionDate.trim()
+      : typeof options.sessionDate === "string" && options.sessionDate.trim()
       ? options.sessionDate.trim()
       : nonEmpty(String(snapshot.sessionDate ?? session.sessionKey ?? ""), toLocalDateKey(new Date()));
   const timezone = nonEmpty(options.timezone ?? "", "UTC");
@@ -832,19 +955,22 @@ export function createWorkoutRecordDraft(
     session: {
       logId: null,
       generatedSessionId: session.id ?? null,
-      performedAt: toPerformedAtForSessionDate(sessionDate),
+      performedAt: ref5Session?.actualStartAt ?? toPerformedAtForSessionDate(sessionDate),
       sessionDate,
-      timezone,
+      timezone: ref5Session
+        ? nonEmpty(String(toRecord(snapshot.ref5).timezone ?? snapshot.timezone ?? timezone), timezone)
+        : timezone,
       planId: session.planId,
       planName: nonEmpty(planName, copy.noProgramSelected),
       sessionKey: resolvedSessionKey,
       week,
       day,
-      sessionType: toSessionType(day, snapshot, planName, resolvedSessionKey, options.planSchedule),
+      sessionType: toSessionType(day ?? 1, snapshot, planName, resolvedSessionKey, options.planSchedule),
       estimatedE1rmKg: estimate.estimatedE1rmKg,
       estimatedTmKg: estimate.estimatedTmKg,
       amrapDeferred: snapshot.amrapDeferred === true,
       lightBlockMode: snapshot.lightBlockMode === true,
+      ref5: ref5Session,
       note: { memo: "" },
     },
     seedExercises: exercises.map(toSeedExercise),
@@ -865,19 +991,24 @@ export function createWorkoutRecordDraftFromLog(
 ): WorkoutRecordDraft {
   const copy = WORKOUT_RECORD_TEXT[options.locale ?? "ko"];
   const snapshot = log.generatedSession?.snapshot ?? {};
-  const week = Math.max(1, Math.round(toNumber(snapshot.week, 1)));
-  const day = Math.max(1, Math.round(toNumber(snapshot.day, 1)));
   const snapshotExercises = (Array.isArray(snapshot.exercises) ? snapshot.exercises : []) as SnapshotExercise[];
   const loggedExercises = groupLoggedExercises(Array.isArray(log.sets) ? log.sets : [], snapshotExercises, options.locale);
-  const estimateFromSnapshot = deriveEstimateFromSnapshot(
-    snapshotExercises,
-  );
-  const estimateFromLog = deriveEstimateFromLoggedExercises(loggedExercises);
   const parsedPerformedAt = new Date(log.performedAt);
   const fallbackSessionDate =
     Number.isNaN(parsedPerformedAt.getTime()) ? toLocalDateKey(new Date()) : toLocalDateKey(parsedPerformedAt);
+  const ref5Session = readRef5SessionMeta(snapshot);
+  const week = ref5Session ? null : Math.max(1, Math.round(toNumber(snapshot.week, 1)));
+  const day = ref5Session ? null : Math.max(1, Math.round(toNumber(snapshot.day, 1)));
+  const estimateFromSnapshot = ref5Session
+    ? { estimatedE1rmKg: null, estimatedTmKg: null }
+    : deriveEstimateFromSnapshot(snapshotExercises);
+  const estimateFromLog = ref5Session
+    ? { estimatedE1rmKg: null }
+    : deriveEstimateFromLoggedExercises(loggedExercises);
   const sessionDate =
-    typeof options.sessionDate === "string" && options.sessionDate.trim()
+    ref5Session && typeof snapshot.sessionDate === "string" && snapshot.sessionDate.trim()
+      ? snapshot.sessionDate.trim()
+      : typeof options.sessionDate === "string" && options.sessionDate.trim()
       ? options.sessionDate.trim()
       : fallbackSessionDate;
   const timezone = nonEmpty(options.timezone ?? "", "UTC");
@@ -898,11 +1029,12 @@ export function createWorkoutRecordDraftFromLog(
       sessionKey: resolvedSessionKey,
       week,
       day,
-      sessionType: toSessionType(day, snapshot, planName, resolvedSessionKey, options.planSchedule),
+      sessionType: toSessionType(day ?? 1, snapshot, planName, resolvedSessionKey, options.planSchedule),
       estimatedE1rmKg: estimateFromLog.estimatedE1rmKg ?? estimateFromSnapshot.estimatedE1rmKg,
       estimatedTmKg: estimateFromSnapshot.estimatedTmKg,
       amrapDeferred: snapshot.amrapDeferred === true,
       lightBlockMode: snapshot.lightBlockMode === true,
+      ref5: ref5Session,
       note: {
         memo: typeof log.notes === "string" ? log.notes.trim() : "",
       },
@@ -942,7 +1074,8 @@ export function hasWorkoutEdits(draft: WorkoutRecordDraft) {
         patch.set?.rpePerSet !== undefined ||
         patch.set?.weightKg !== undefined ||
         patch.set?.weightKgPerSet !== undefined ||
-        patch.note?.memo !== undefined,
+        patch.note?.memo !== undefined ||
+        patch.ref5?.terminationReason !== undefined,
     );
   });
 }
@@ -966,6 +1099,10 @@ export function patchSeedExercise(
         note: {
           ...draft.seedEditLayer[seedId]?.note,
           ...patch.note,
+        },
+        ref5: {
+          ...draft.seedEditLayer[seedId]?.ref5,
+          ...patch.ref5,
         },
       },
     },
@@ -1036,6 +1173,15 @@ export function updateUserExercise(
         note: {
           memo: patch.note?.memo ?? exercise.note.memo,
         },
+        ref5: exercise.ref5
+          ? {
+              ...exercise.ref5,
+              terminationReason:
+                patch.ref5?.terminationReason !== undefined
+                  ? patch.ref5.terminationReason
+                  : exercise.ref5.terminationReason,
+            }
+          : exercise.ref5,
       };
     }),
   };
@@ -1097,7 +1243,8 @@ export function validateWorkoutDraft(
       errors.push(copy.invalidSetShape(row));
     }
     repsPerSet.forEach((reps, setIndex) => {
-      if (!Number.isFinite(reps) || reps < 1 || reps > 100) {
+      const minimumReps = exercise.ref5 ? 0 : 1;
+      if (!Number.isFinite(reps) || reps < minimumReps || reps > 100) {
         errors.push(copy.invalidReps(row, setIndex));
       }
     });
@@ -1107,6 +1254,19 @@ export function validateWorkoutDraft(
     );
     if (hasInvalidWeight) {
       errors.push(copy.invalidWeight(row));
+    }
+    if (exercise.ref5 && !exercise.ref5.terminationReason) {
+      errors.push(copy.missingRef5TerminationReason(row));
+    } else if (exercise.ref5?.terminationReason) {
+      const planned = exercise.plannedSetMeta?.repsPerSet ?? [];
+      const classified = validateAndClassifyRef5Outcome({
+        sets: planned.map((plannedReps, setIndex) => ({
+          plannedReps: Number(plannedReps),
+          effectiveReps: Number(repsPerSet[setIndex]),
+        })),
+        endReason: exercise.ref5.terminationReason,
+      });
+      if (!classified.ok) errors.push(copy.invalidRef5Outcome(row));
     }
   });
 
@@ -1141,21 +1301,38 @@ export function toWorkoutLogPayload(
     );
     const exerciseName = exercise.exerciseName.trim();
     const attachBodyweightMeta =
+      !exercise.ref5 &&
       Boolean(bodyweightKg) &&
       typeof isBodyweightExercise === "function" &&
       isBodyweightExercise(exerciseName);
     const amrapPerSet = exercise.plannedSetMeta?.amrapPerSet;
     repsPerSet.forEach((repsValue, index) => {
       const weightKg = roundTo2(Math.max(0, Number(weightKgPerSet[index] ?? weightKgPerSet[0] ?? 0)));
-      const meta: Record<string, unknown> = exercise.note.memo.trim()
-        ? { memo: exercise.note.memo.trim() }
+      const meta: Record<string, unknown> = exercise.ref5
+        ? structuredClone(exercise.ref5.originalSetMeta[index] ?? {})
         : {};
+      if (exercise.note.memo.trim()) meta.memo = exercise.note.memo.trim();
       if (attachBodyweightMeta && bodyweightKg !== null) {
         meta.bodyweightKg = bodyweightKg;
         meta.totalLoadKg = roundTo2(bodyweightKg + weightKg);
       }
       if (amrapPerSet?.[index] === true) {
         meta.amrap = true;
+      }
+      if (exercise.ref5 && draft.session.ref5) {
+        meta.ref5 = {
+          prescription: structuredClone(exercise.ref5.prescription),
+          terminationReason: exercise.ref5.terminationReason,
+          protocolVersion: draft.session.ref5.protocolVersion,
+          actualStartAt: draft.session.ref5.actualStartAt,
+          startEventId: draft.session.ref5.startEventId,
+          completionEventId: draft.session.ref5.completionEventId,
+          runtimeRevisionBefore: draft.session.ref5.runtimeRevisionBefore,
+          runtimeRevisionAfter: draft.session.ref5.runtimeRevisionAfter,
+          plannedReps: exercise.plannedSetMeta?.repsPerSet?.[index] ?? null,
+          actualReps: Math.max(0, Math.round(repsValue)),
+          setIndex: index,
+        };
       }
       // 슬롯 자동진행: 슬롯형(gzclp/texas, key=`{sessionKey}_s{n}`)만 plannedRef를 흘려 reducer가
       // 슬롯 독립 진행을 굴리게 한다. operator EX_키처럼 family와 1:1인 키는 부착 시 기존

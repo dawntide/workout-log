@@ -1,6 +1,6 @@
 import { db } from "@workout/core/db/client";
 import { plan, generatedSession, workoutLog, workoutSet } from "@workout/core/db/schema";
-import { and, eq, gt, lt, ne } from "drizzle-orm";
+import { and, asc, eq, gt, lt, ne } from "drizzle-orm";
 import { getExerciseById, resolveExerciseByName } from "@workout/core/exercise/resolve";
 import { applyAutoProgressionFromLog, rebuildAutoProgressionForPlan } from "@workout/core/progression/autoProgression";
 import type { ProgressionTargetDecision } from "@workout/core/progression/autoProgression";
@@ -8,6 +8,19 @@ import { buildProgressionSummary, readProgressEventByLog } from "@workout/core/p
 import { buildProgressionFeedbackFromEvent } from "@workout/core/progression/feedback-catalog";
 import { invalidateStatsCacheForUser } from "../../stats/cache";
 import { invalidatePersonalRecordsFrom } from "./personal-records";
+import {
+  Ref5LogValidationError,
+  acquireRef5PlanLock,
+  canonicalizeRef5WorkoutLog,
+  deriveRef5StateBeforeStart,
+  isRef5GeneratedSessionSnapshot,
+  isRef5PlanParameters,
+  probeRef5CanonicalCompletionAtStartTuple,
+  readRef5CompletedAtFromSets,
+  readRef5CompletionEventIdFromSets,
+  readRef5CompletionFingerprintFromSets,
+  rebuildRef5ProgressionForPlan,
+} from "@workout/core/progression/ref5-auto-progression";
 
 
 export type UpsertWorkoutLogInput = {
@@ -24,6 +37,277 @@ export type UpsertWorkoutLogInput = {
   progressionTargetDecisions?: Record<string, ProgressionTargetDecision> | null;
   locale: "ko" | "en";
 };
+
+type ExistingLogForUpsert = {
+  id: string;
+  userId: string;
+  planId: string | null;
+  generatedSessionId: string | null;
+  performedAt: Date;
+};
+
+async function readStoredSets(tx: any, logId: string) {
+  return tx
+    .select({
+      id: workoutSet.id,
+      logId: workoutSet.logId,
+      exerciseName: workoutSet.exerciseName,
+      sortOrder: workoutSet.sortOrder,
+      setNumber: workoutSet.setNumber,
+      reps: workoutSet.reps,
+      weightKg: workoutSet.weightKg,
+      rpe: workoutSet.rpe,
+      isExtra: workoutSet.isExtra,
+      meta: workoutSet.meta,
+    })
+    .from(workoutSet)
+    .where(eq(workoutSet.logId, logId))
+    .orderBy(asc(workoutSet.sortOrder), asc(workoutSet.setNumber), asc(workoutSet.id));
+}
+
+async function buildRef5WriteResponse(input: {
+  tx: any;
+  planId: string;
+  logId: string;
+  locale: "ko" | "en";
+  mode: "upsert" | "replay";
+  applyResult: Record<string, unknown>;
+  idempotent?: boolean;
+}) {
+  const progressionEvent = await readProgressEventByLog({
+    tx: input.tx,
+    planId: input.planId,
+    logId: input.logId,
+  });
+  return {
+    log: { id: input.logId },
+    ...(input.idempotent ? { idempotent: true } : {}),
+    progression: {
+      ...buildProgressionSummary({
+        mode: input.mode,
+        applyResult: input.applyResult,
+        eventRow: progressionEvent,
+      }),
+      feedback: buildProgressionFeedbackFromEvent(
+        { eventRow: progressionEvent },
+        input.locale,
+      ),
+    },
+  };
+}
+
+async function upsertRef5WorkoutLog(input: {
+  logId?: string;
+  existingLog: ExistingLogForUpsert | null;
+  userId: string;
+  planId: string;
+  generatedSessionId: string;
+  performedAt: Date;
+  durationMinutes?: number | null;
+  notes?: string | null;
+  tags?: string[] | null;
+  sets: unknown[];
+  locale: "ko" | "en";
+}) {
+  return db.transaction(async (tx) => {
+    await acquireRef5PlanLock(tx, input.planId);
+
+    const [planRows, sessionRows] = await Promise.all([
+      tx
+        .select({ id: plan.id, userId: plan.userId, params: plan.params })
+        .from(plan)
+        .where(eq(plan.id, input.planId))
+        .limit(1),
+      tx
+        .select({
+          id: generatedSession.id,
+          userId: generatedSession.userId,
+          planId: generatedSession.planId,
+          sessionKey: generatedSession.sessionKey,
+          snapshot: generatedSession.snapshot,
+        })
+        .from(generatedSession)
+        .where(eq(generatedSession.id, input.generatedSessionId))
+        .limit(1),
+    ]);
+    const planRow = planRows[0];
+    const sessionRow = sessionRows[0];
+    if (!planRow || planRow.userId !== input.userId) throw new Error("Forbidden");
+    if (!isRef5PlanParameters(planRow.params)) throw new Error("Plan is not REF5");
+    if (!sessionRow || sessionRow.userId !== input.userId) {
+      throw new Error("REF5 generated session not found");
+    }
+    if (sessionRow.planId !== input.planId) {
+      throw new Error("REF5 generated session belongs to another plan");
+    }
+    if (!isRef5GeneratedSessionSnapshot(sessionRow.snapshot)) {
+      throw new Error("Generated session is not REF5");
+    }
+
+    const logsForSession = await tx
+      .select({
+        id: workoutLog.id,
+        userId: workoutLog.userId,
+        performedAt: workoutLog.performedAt,
+      })
+      .from(workoutLog)
+      .where(eq(workoutLog.generatedSessionId, input.generatedSessionId))
+      .orderBy(asc(workoutLog.id));
+    if (logsForSession.length > 1) {
+      throw new Ref5LogValidationError([
+        "REF5 generated session already has duplicate workout logs",
+      ]);
+    }
+    const existingForSession = logsForSession[0] ?? null;
+    if (existingForSession && existingForSession.userId !== input.userId) {
+      throw new Error("Forbidden");
+    }
+    if (input.logId && existingForSession?.id !== input.logId) {
+      throw new Ref5LogValidationError([
+        "REF5 log does not match its immutable generated session",
+      ]);
+    }
+
+    const priorSets = existingForSession
+      ? await readStoredSets(tx, existingForSession.id)
+      : [];
+    const priorCompletedAt = readRef5CompletedAtFromSets(priorSets);
+    const priorCompletionEventId = readRef5CompletionEventIdFromSets(priorSets);
+    const completion = canonicalizeRef5WorkoutLog({
+      generatedSnapshot: sessionRow.snapshot,
+      performedAt: input.performedAt,
+      sets: input.sets,
+      completedAt: priorCompletedAt ?? new Date().toISOString(),
+    });
+
+    if (!input.logId && existingForSession) {
+      if (existingForSession.performedAt.getTime() !== input.performedAt.getTime()) {
+        throw new Ref5LogValidationError([
+          "REF5 completion retry contradicts the immutable actual start time",
+        ]);
+      }
+      const priorFingerprint = readRef5CompletionFingerprintFromSets(priorSets);
+      if (!priorFingerprint || priorFingerprint !== completion.fingerprint) {
+        throw new Ref5LogValidationError([
+          "REF5 completion retry contradicts the existing immutable completion",
+        ]);
+      }
+      return buildRef5WriteResponse({
+        tx,
+        planId: input.planId,
+        logId: existingForSession.id,
+        locale: input.locale,
+        mode: "upsert",
+        applyResult: {
+          applied: false,
+          reason: "skip:idempotent-ref5-completion",
+          eventType: "REF5_COMPLETE",
+          programSlug: "ref5-adaptive-strength",
+        },
+        idempotent: true,
+      });
+    }
+
+    if (input.logId) {
+      if (!priorCompletedAt || !priorCompletionEventId) {
+        throw new Ref5LogValidationError([
+          "Existing REF5 log has no canonical completion metadata",
+        ]);
+      }
+      if (priorCompletionEventId !== completion.completionEventId) {
+        throw new Ref5LogValidationError([
+          "REF5 completionEventId cannot change during an edit",
+        ]);
+      }
+    }
+
+    if (!input.logId) {
+      const beforeStart = await deriveRef5StateBeforeStart({
+        tx,
+        userId: input.userId,
+        planId: input.planId,
+        actualStartAt: completion.actualStartAt,
+        sessionKey: sessionRow.sessionKey,
+        lockAlreadyHeld: true,
+      });
+      const probe = probeRef5CanonicalCompletionAtStartTuple({
+        generatedSnapshot: sessionRow.snapshot,
+        priorState: beforeStart.state,
+        completion,
+      });
+      if (!probe.reduced.applied) {
+        throw new Ref5LogValidationError([
+          "REF5 completion was already applied at its canonical start tuple",
+        ]);
+      }
+    }
+
+    let savedLog: { id: string } | undefined;
+    if (input.logId) {
+      [savedLog] = await tx
+        .update(workoutLog)
+        .set({
+          // Canonicalization already proved exact equality with actualStartAt.
+          performedAt: input.performedAt,
+          durationMinutes:
+            input.durationMinutes === undefined ? undefined : input.durationMinutes,
+          notes: input.notes === undefined ? undefined : input.notes,
+          tags: input.tags === undefined ? undefined : input.tags,
+        })
+        .where(eq(workoutLog.id, input.logId))
+        .returning({ id: workoutLog.id });
+      if (!savedLog) throw new Error("REF5 log disappeared during edit");
+      await tx.delete(workoutSet).where(eq(workoutSet.logId, input.logId));
+    } else {
+      [savedLog] = await tx
+        .insert(workoutLog)
+        .values({
+          userId: input.userId,
+          planId: input.planId,
+          generatedSessionId: input.generatedSessionId,
+          performedAt: input.performedAt,
+          durationMinutes: input.durationMinutes ?? null,
+          notes: input.notes ?? null,
+          tags: input.tags ?? null,
+        })
+        .returning({ id: workoutLog.id });
+    }
+    if (!savedLog) throw new Error("REF5 log could not be saved");
+
+    await tx.insert(workoutSet).values(
+      completion.sets.map((set) => ({
+        ...set,
+        logId: savedLog!.id,
+      })),
+    );
+
+    const invalidateFrom =
+      input.existingLog && input.existingLog.performedAt < input.performedAt
+        ? input.existingLog.performedAt
+        : input.performedAt;
+    await invalidatePersonalRecordsFrom({
+      dbi: tx,
+      userId: input.userId,
+      fromPerformedAt: invalidateFrom,
+    });
+
+    const replayed = await rebuildRef5ProgressionForPlan({
+      tx,
+      userId: input.userId,
+      planId: input.planId,
+      lockAlreadyHeld: true,
+    });
+    await invalidateStatsCacheForUser(input.userId, tx);
+    return buildRef5WriteResponse({
+      tx,
+      planId: input.planId,
+      logId: savedLog.id,
+      locale: input.locale,
+      mode: input.logId ? "replay" : "upsert",
+      applyResult: replayed,
+    });
+  });
+}
 
 export async function upsertWorkoutLogService({
   logId,
@@ -112,6 +396,80 @@ export async function upsertWorkoutLogService({
       }
     }
 
+  }
+
+  // REF5 has its own immutable-snapshot write contract and canonical replay.
+  // Probe before the generic exercise resolver/reducer so no submitted weight,
+  // RPE, name or progression metadata can enter the generic path.
+  const [ref5PlanProbe, ref5SessionProbe] = await Promise.all([
+    effectivePlanId
+      ? db
+          .select({ id: plan.id, userId: plan.userId, params: plan.params })
+          .from(plan)
+          .where(eq(plan.id, effectivePlanId))
+          .limit(1)
+      : Promise.resolve([]),
+    effectiveSessionId
+      ? db
+          .select({
+            id: generatedSession.id,
+            userId: generatedSession.userId,
+            planId: generatedSession.planId,
+            snapshot: generatedSession.snapshot,
+          })
+          .from(generatedSession)
+          .where(eq(generatedSession.id, effectiveSessionId))
+          .limit(1)
+      : Promise.resolve([]),
+  ]);
+  const probedSession = ref5SessionProbe[0] ?? null;
+  if (!effectivePlanId && probedSession) effectivePlanId = probedSession.planId;
+  const probedPlan =
+    ref5PlanProbe[0] ??
+    (effectivePlanId
+      ? (
+          await db
+            .select({ id: plan.id, userId: plan.userId, params: plan.params })
+            .from(plan)
+            .where(eq(plan.id, effectivePlanId))
+            .limit(1)
+        )[0] ?? null
+      : null);
+  const planIsRef5 = isRef5PlanParameters(probedPlan?.params);
+  const sessionIsRef5 = isRef5GeneratedSessionSnapshot(probedSession?.snapshot);
+  if (planIsRef5 || sessionIsRef5) {
+    if (!probedPlan || probedPlan.userId !== userId) {
+      throw new Error(locale === "ko" ? "권한이 없습니다." : "Forbidden.");
+    }
+    if (!probedSession || !effectiveSessionId) {
+      throw new Ref5LogValidationError([
+        "REF5 workout logs require an explicitly started generated session",
+      ]);
+    }
+    if (probedSession.userId !== userId || probedSession.planId !== probedPlan.id) {
+      throw new Error(locale === "ko" ? "권한이 없습니다." : "Forbidden.");
+    }
+    if (!planIsRef5 || !sessionIsRef5) {
+      throw new Ref5LogValidationError([
+        "REF5 plan and generated-session protocol metadata contradict each other",
+      ]);
+    }
+    if (!performedAt || Number.isNaN(performedAt.getTime())) {
+      throw new Ref5LogValidationError(["REF5 performedAt is required"]);
+    }
+    return upsertRef5WorkoutLog({
+      logId,
+      existingLog,
+      userId,
+      planId: probedPlan.id,
+      generatedSessionId: effectiveSessionId,
+      performedAt,
+      durationMinutes,
+      notes,
+      tags,
+      sets,
+      locale,
+    });
   }
 
   // Resolve Exercises

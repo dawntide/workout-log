@@ -1,0 +1,129 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import type { ProgramTemplate } from "@workout/core/program-store/model";
+import {
+  buildRef5StartPlanParams,
+  readRef5StartConfigFromTemplate,
+  requestOneRmStatsForProgramStart,
+  shouldLoadOneRmRecommendations,
+} from "./use-program-store-start-program-controller";
+import { buildInitialCreateDraft } from "./use-program-store-sheet-entry-controller";
+
+const ref5Config = {
+  schemaVersion: 1,
+  protocolVersion: "1.1",
+  startingValuesKg: {
+    sqH3Kg: 82.5,
+    bpFocusKg: 82.5,
+    pullFocusTotalKg: 87.5,
+    deadliftKg: 72.5,
+    ohpKg: 32.5,
+  },
+  controlRefsKg: {
+    sqKg: 104,
+    bpKg: 101,
+    pullTotalKg: 108,
+    deadliftKg: 100,
+    ohpKg: 50,
+  },
+};
+
+const ref5Template: ProgramTemplate = {
+  id: "template-ref5",
+  slug: "ref5-adaptive-strength",
+  name: "REF5 Adaptive Strength (Base)",
+  type: "LOGIC",
+  visibility: "PUBLIC",
+  description: null,
+  tags: ["strength", "ref5"],
+  latestVersion: {
+    id: "version-ref5",
+    version: 1,
+    definition: {
+      kind: "ref5",
+      family: "ref5",
+      protocolVersion: "1.1",
+      modules: ["SQUAT", "PULL", "BENCH", "DEADLIFT", "OHP"],
+    },
+    defaults: { ref5: ref5Config },
+  },
+};
+
+const manualTemplate: ProgramTemplate = {
+  id: "template-manual",
+  slug: "manual",
+  name: "Manual Sessions",
+  type: "MANUAL",
+  visibility: "PUBLIC",
+  description: null,
+  tags: ["manual"],
+  latestVersion: {
+    id: "version-manual",
+    version: 1,
+    definition: { kind: "manual", sessions: [] },
+    defaults: {},
+  },
+};
+
+test("REF5 start config is read from the versioned seed defaults", () => {
+  assert.deepEqual(readRef5StartConfigFromTemplate(ref5Template), ref5Config);
+  assert.equal(
+    readRef5StartConfigFromTemplate({
+      ...ref5Template,
+      latestVersion: {
+        ...ref5Template.latestVersion!,
+        defaults: { ref5: { ...ref5Config, protocolVersion: "1.0" } },
+      },
+    }),
+    null,
+  );
+});
+
+test("REF5 start bypasses the PR/e1RM recommendation request", async () => {
+  assert.equal(shouldLoadOneRmRecommendations(ref5Template), false);
+  assert.equal(shouldLoadOneRmRecommendations(manualTemplate), true);
+
+  let apiCalls = 0;
+  const request = async () => {
+    apiCalls += 1;
+    return { items: [] };
+  };
+  const signal = new AbortController().signal;
+  assert.equal(
+    await requestOneRmStatsForProgramStart(ref5Template, signal, request),
+    null,
+  );
+  assert.equal(apiCalls, 0, "REF5 must not cross the 1RM/TM API boundary");
+  assert.deepEqual(
+    await requestOneRmStatsForProgramStart(manualTemplate, signal, request),
+    { items: [] },
+  );
+  assert.equal(apiCalls, 1);
+});
+
+test("REF5 plan params preserve fixed kg baselines without generic 1RM/TM or finite schedule fields", () => {
+  const params = buildRef5StartPlanParams({
+    timezone: "Asia/Seoul",
+    today: "2026-07-13",
+    config: ref5Config,
+  });
+
+  assert.equal(params.programFamily, "ref5");
+  assert.equal(params.protocolVersion, "1.1");
+  assert.equal(params.ref5.schemaVersion, 1);
+  assert.deepEqual(params.ref5.startingValuesKg, ref5Config.startingValuesKg);
+  assert.deepEqual(params.ref5.controlRefsKg, ref5Config.controlRefsKg);
+
+  const raw = params as Record<string, unknown>;
+  assert.equal("oneRepMaxKg" in raw, false);
+  assert.equal("trainingMaxKg" in raw, false);
+  assert.equal("schedule" in raw, false);
+  assert.equal("sessionsPerWeek" in raw, false);
+  assert.equal("week" in raw, false);
+  assert.equal("day" in raw, false);
+});
+
+test("REF5 is not offered as a generic official-template fork source", () => {
+  const draft = buildInitialCreateDraft([ref5Template, manualTemplate]);
+  assert.equal(draft.sourceTemplateSlug, "manual");
+});

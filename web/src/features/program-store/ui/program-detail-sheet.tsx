@@ -14,6 +14,7 @@ import { V2Icon } from "@/components/v2/primitives/v2-icon";
 import {
   getProgramDescription,
   getProgramDetailInfo,
+  isRef5Template,
   type ProgramListItem,
   type ProgramStoreLocale,
   type ProgramSessionDraft,
@@ -74,13 +75,20 @@ const INTENSITY_MAP: Record<string, number> = {
   일반: 3,
 };
 
-function moduleName(module: string, locale: ProgramStoreLocale) {
+function moduleName(
+  module: string,
+  locale: ProgramStoreLocale,
+  ref5 = false,
+) {
   if (module === "SQUAT") return locale === "ko" ? "스쿼트" : "Squat";
   if (module === "BENCH") return locale === "ko" ? "벤치프레스" : "Bench Press";
   if (module === "DEADLIFT") return locale === "ko" ? "데드리프트" : "Deadlift";
   if (module === "OHP")
     return locale === "ko" ? "오버헤드 프레스" : "Overhead Press";
-  if (module === "PULL") return locale === "ko" ? "풀업 / 로우" : "Pull-Up / Row";
+  if (module === "PULL") {
+    if (ref5) return locale === "ko" ? "중량 풀업" : "Weighted Pull-Up";
+    return locale === "ko" ? "풀업 / 로우" : "Pull-Up / Row";
+  }
   return module;
 }
 
@@ -270,8 +278,9 @@ function buildArchItems(
   });
 
   if (info.modules && info.modules.length > 0) {
+    const ref5 = isRef5Template(item.template);
     const moduleNames = info.modules
-      .map((m) => moduleName(m, locale))
+      .map((m) => moduleName(m, locale, ref5))
       .join(", ");
     items.push({
       icon: "fitness_center",
@@ -524,6 +533,7 @@ export function ProgramDetailSheet({
   const programDescription = getProgramDescription(item.template, locale);
   const tags = Array.isArray(item.template.tags) ? item.template.tags : [];
   const isCustom = item.source === "CUSTOM";
+  const canCustomize = !isRef5Template(item.template);
   const programName = formatName(item.template.name);
 
   const cycleStat = info.stats.find((s) => s.key === "cycle");
@@ -688,9 +698,11 @@ export function ProgramDetailSheet({
       >
         {locale === "ko" ? "이 프로그램으로 시작하기" : "Start This Program"}
       </V2PrimaryBtn>
-      <V2SecondaryBtn full onClick={onCustomize}>
-        {locale === "ko" ? "커스터마이징해서 사용하기" : "Customize Before Starting"}
-      </V2SecondaryBtn>
+      {canCustomize ? (
+        <V2SecondaryBtn full onClick={onCustomize}>
+          {locale === "ko" ? "커스터마이징해서 사용하기" : "Customize Before Starting"}
+        </V2SecondaryBtn>
+      ) : null}
       {isCustom && onDelete && (
         <V2SecondaryBtn full tone="danger" onClick={onDelete}>
           {locale === "ko" ? "커스텀 프로그램 삭제" : "Delete Custom Program"}

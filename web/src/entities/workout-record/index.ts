@@ -5,6 +5,7 @@ export type {
   WorkoutExerciseBadge,
   WorkoutExerciseModel,
   WorkoutExerciseSource,
+  WorkoutExerciseRef5Meta,
   WorkoutExerciseViewModel,
   WorkoutLogPayload,
   WorkoutNoteModel,
@@ -12,6 +13,8 @@ export type {
   WorkoutRecordDraft,
   WorkoutRecordValidation,
   WorkoutSessionModel,
+  WorkoutSessionRef5Meta,
+  Ref5TerminationReason,
   WorkoutSetModel,
   WorkoutWorkflowState,
 } from "@/lib/workout-record/model";

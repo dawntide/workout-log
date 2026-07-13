@@ -14,6 +14,7 @@ import type {
   WorkoutLogRecentLogItem,
   WorkoutLogLastSessionSummary,
 } from "@/features/workout-log/model/types";
+import { isRef5PlanParams } from "@/lib/workout-record/ref5-plan";
 
 export type WorkoutLogPlanListItem = {
   id: string;
@@ -30,7 +31,7 @@ export type WorkoutLogInitialContext =
   | {
       kind: "loaded";
       /** 클라이언트가 현재 query와 일치 여부를 검증하는 키 */
-      matchKey: string; // `${planId}:${dateKey}:${logId ?? ""}`
+      matchKey: string; // `${planId}:${dateKey}:${logId ?? ""}:${sessionId ?? ""}`
       selectedPlanId: string;
       draft: WorkoutRecordDraft;
       programEntryState: WorkoutProgramExerciseEntryStateMap;
@@ -41,6 +42,17 @@ export type WorkoutLogInitialContext =
       kind: "blocked";
       matchKey: string;
       message: string;
+    }
+  | {
+      kind: "ref5-start-required";
+      matchKey: string;
+      selectedPlanId: string;
+      planId: string;
+      planName: string;
+      dateKey: string;
+      planParams: Record<string, unknown> | null;
+      recentLogItems: WorkoutLogRecentLogItem[];
+      lastSession: WorkoutLogLastSessionSummary;
     };
 
 export type WorkoutLogPageBootstrap = {
@@ -106,6 +118,7 @@ export async function getWorkoutLogPageBootstrap(
   const hasExplicitContext =
     getString(searchParams, "planId") !== null ||
     getString(searchParams, "logId") !== null ||
+    getString(searchParams, "sessionId") !== null ||
     getString(searchParams, "date") !== null ||
     getString(searchParams, "context") !== null;
   if (!hasActivePlan && !hasExplicitContext) {
@@ -137,7 +150,8 @@ async function maybeRedirectToNextSessionDate(
   const rawPlanId = getString(searchParams, "planId");
   const rawDate = getString(searchParams, "date");
   const rawLogId = getString(searchParams, "logId");
-  if (rawDate || rawLogId) return;
+  const rawSessionId = getString(searchParams, "sessionId");
+  if (rawDate || rawLogId || rawSessionId) return;
 
   const activePlans = plans.filter((p) => !p.isArchived);
   const targetPlan =
@@ -145,6 +159,9 @@ async function maybeRedirectToNextSessionDate(
     activePlans[0] ??
     null;
   if (!targetPlan) return;
+  // REF5 keys sessions by exact start + event id and intentionally permits
+  // multiple sessions per calendar day. Do not force its next visit to tomorrow.
+  if (isRef5PlanParams(targetPlan.params)) return;
 
   let latestKey: string | null = null;
   try {
@@ -184,6 +201,7 @@ async function resolveInitialContext(
     const rawPlanId = getString(searchParams, "planId");
     const rawDate = getString(searchParams, "date");
     const rawLogId = getString(searchParams, "logId");
+    const rawSessionId = getString(searchParams, "sessionId");
 
     // 날짜: 명시된 경우 사용, 아니면 서버 UTC today
     const dateKey =
@@ -199,7 +217,7 @@ async function resolveInitialContext(
       null;
     if (!plan) return null;
 
-    const matchKey = `${plan.id}:${dateKey}:${rawLogId ?? ""}`;
+    const matchKey = `${plan.id}:${dateKey}:${rawLogId ?? ""}:${rawSessionId ?? ""}`;
     const preferences = readWorkoutPreferences(settings);
     const planParams = plan.params as Record<string, unknown> | null;
     const locale = (preferences.locale ?? "ko") as "ko" | "en";
@@ -213,12 +231,19 @@ async function resolveInitialContext(
       planSchedule: planParams?.schedule,
       planParams,
       logId: rawLogId,
+      generatedSessionId: rawSessionId,
       locale,
       matchKey,
     };
 
     // logId 또는 today 기존 로그: generateAndSaveSession 불필요
-    if (rawLogId) {
+    if (rawLogId || rawSessionId) {
+      return loadWorkoutContextServer(userId, input);
+    }
+
+    // REF5 has a pure preview followed by an explicit first-SQ-set start.
+    // SSR must not eagerly persist a generated session.
+    if (isRef5PlanParams(planParams)) {
       return loadWorkoutContextServer(userId, input);
     }
 

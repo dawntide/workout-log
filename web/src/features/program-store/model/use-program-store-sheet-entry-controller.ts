@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import {
   inferSessionDraftsFromTemplate,
+  isRef5Template,
   makeSessionKeys,
   type ProgramListItem,
   type ProgramSessionDraft,
@@ -35,8 +36,10 @@ export function buildInitialCreateDraft(
   templates: ProgramTemplate[],
 ): ProgramStoreCreateDraft {
   const sourceTemplate =
-    templates.find((template) => template.visibility === "PUBLIC") ??
-    templates[0] ??
+    templates.find(
+      (template) => template.visibility === "PUBLIC" && !isRef5Template(template),
+    ) ??
+    templates.find((template) => !isRef5Template(template)) ??
     null;
   const initialRule: SessionRule = { type: "NUMERIC", count: 2 };
   const keys = makeSessionKeys(initialRule);
@@ -89,7 +92,7 @@ export function useProgramStoreSheetEntryController({
 
     if (customizeSlug) {
       const item = listItems.find((entry) => entry.template.slug === customizeSlug);
-      if (item) {
+      if (item && !isRef5Template(item.template)) {
         setCustomizeDraft({
           name:
             locale === "ko"

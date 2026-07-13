@@ -51,6 +51,12 @@ export function applyWorkoutLogWeightRulesToDraft(
   sourceDraft: WorkoutRecordDraft,
   preferences: WorkoutPreferences,
 ) {
+  // REF5 generated-session snapshots are immutable. Their PULL weights are
+  // already external added loads (not generic total-load prescriptions), and
+  // every load is already rounded by the protocol. Reapplying user settings on
+  // reload/edit would reinterpret and mutate the frozen prescription.
+  if (sourceDraft.session.ref5) return sourceDraft;
+
   let seedChanged = false;
   const nextSeedExercises = sourceDraft.seedExercises.map((exercise) => {
     const { next, changed } = snapWeightPerSet(

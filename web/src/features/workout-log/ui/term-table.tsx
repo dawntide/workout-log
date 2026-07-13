@@ -28,6 +28,12 @@ import type { ExerciseRowAction } from "@/features/workout-log/model/editor-acti
 import { formatDateFriendly } from "@/lib/workout-record/last-session-summary";
 import { useSetRowFocusChain } from "@/features/workout-log/model/use-set-row-focus-chain";
 import { TermSetRow } from "@/features/workout-log/ui/term-set-row";
+import { AppSelect } from "@/components/ui/form-controls";
+import type { Ref5TerminationReason } from "@/entities/workout-record";
+import {
+  deriveRef5ExerciseOutcomeView,
+  resolveRef5PullDisplayLoad,
+} from "@/lib/workout-record/ref5-outcome";
 
 type Props = {
   exerciseId: string;
@@ -76,6 +82,11 @@ export function TermTable({ exerciseId, onExerciseAction }: Props) {
 
   const dispatchAction = (action: ExerciseRowAction) =>
     onExerciseAction(exerciseId, action);
+  const ref5Outcome = deriveRef5ExerciseOutcomeView(
+    exercise,
+    exerciseCard.programEntryState,
+  );
+  const ref5PullLoad = resolveRef5PullDisplayLoad(exercise);
 
   const isUser = exercise.source === "USER";
   const totalSets = exercise.set.repsPerSet.length;
@@ -144,18 +155,26 @@ export function TermTable({ exerciseId, onExerciseAction }: Props) {
     const inputs = exerciseCard.programEntryState?.repsInputs ?? [];
     for (let i = 0; i < totalSets; i++) {
       const v = (inputs[i] ?? "").trim();
-      if (v && Number(v) > 0) filledSets++;
+      if (exercise.ref5 ? v !== "" : v && Number(v) > 0) filledSets++;
     }
   } else {
-    filledSets = exercise.set.repsPerSet.filter((r) => r > 0).length;
+    filledSets = exercise.ref5
+      ? exercise.set.repsPerSet.length
+      : exercise.set.repsPerSet.filter((r) => r > 0).length;
   }
-  const cardComplete = totalSets > 0 && filledSets >= totalSets;
+  const cardComplete =
+    totalSets > 0 &&
+    filledSets >= totalSets &&
+    (!exercise.ref5 || Boolean(exercise.ref5.terminationReason));
 
   // ── 처방 표기 (WorkoutExerciseCard와 동일 로직 → 공유 formatPrescription 문자열) ──
+  const prescriptionReps = exercise.ref5
+    ? (exercise.plannedSetMeta?.repsPerSet ?? exercise.set.repsPerSet)
+    : exercise.set.repsPerSet;
   const allSame =
-    exercise.set.repsPerSet.length > 0 &&
-    exercise.set.repsPerSet.every((r) => r === exercise.set.repsPerSet[0]);
-  const firstReps = exercise.set.repsPerSet[0] ?? 0;
+    prescriptionReps.length > 0 &&
+    prescriptionReps.every((r) => r === prescriptionReps[0]);
+  const firstReps = prescriptionReps[0] ?? 0;
   const planUniform = allSame && firstReps > 0;
   const firstPercent = exercise.plannedSetMeta?.percentPerSet?.[0];
   const weightPerSet = exercise.set.weightKgPerSet ?? [];
@@ -168,7 +187,14 @@ export function TermTable({ exerciseId, onExerciseAction }: Props) {
   let presWeightKg: number | undefined;
   let presWeightSuffix: string | undefined;
   let presPercent: number | undefined;
-  if (
+  if (exercise.ref5 && weightUniform) {
+    presWeightKg = firstWeight;
+    if (isBodyweight) {
+      presWeightSuffix = ref5PullLoad
+        ? `(ADDED · TOTAL ${ref5PullLoad.actualTotalKg}kg)`
+        : "(ADDED)";
+    }
+  } else if (
     isBodyweight &&
     typeof recommendedWeightKg === "number" &&
     recommendedWeightKg > 0 &&
@@ -251,6 +277,22 @@ export function TermTable({ exerciseId, onExerciseAction }: Props) {
       text: TEXAS_ROLE_TERM[exercise.texasRole]!,
       tone: exercise.texasRole === "intensity" ? "accent" : "dim",
     });
+  }
+  if (ref5Outcome?.status === "classified") {
+    const outcome = ref5Outcome.value.outcome;
+    badges.push({
+      text: outcome,
+      tone:
+        outcome === "PASS"
+          ? "success"
+          : outcome === "FAIL"
+            ? "danger"
+            : outcome === "HOLD"
+              ? "accent"
+              : "dim",
+    });
+  } else if (ref5Outcome?.status === "invalid-input") {
+    badges.push({ text: "CHECK", tone: "danger" });
   }
 
   const headerCells = ["SET", "WT kg", "REPS", "RPE", "✓"];
@@ -344,6 +386,27 @@ export function TermTable({ exerciseId, onExerciseAction }: Props) {
         </div>
       ) : null}
 
+      {exercise.ref5 ? (
+        <AppSelect
+          label={locale === "ko" ? "종료 사유" : "Termination reason"}
+          chrome="row"
+          value={exercise.ref5.terminationReason ?? ""}
+          onChange={(event) =>
+            dispatchAction({
+              type: "CHANGE_REF5_TERMINATION_REASON",
+              value: event.target.value as Ref5TerminationReason,
+            })
+          }
+        >
+          <option value="" disabled>{locale === "ko" ? "선택" : "Select"}</option>
+          <option value="NORMAL">NORMAL</option>
+          <option value="CLEAR_SLOWDOWN">CLEAR SLOWDOWN</option>
+          <option value="FORCE_OR_TECHNIQUE">FORCE / TECHNIQUE</option>
+          <option value="SAFETY">SAFETY</option>
+          <option value="EXTERNAL">EXTERNAL</option>
+        </AppSelect>
+      ) : null}
+
       {/* 컬럼 헤더(단위 1회) — dim, 하단 hairline은 boxShadow inset */}
       <div
         className="v2-mono-label"
@@ -388,21 +451,25 @@ export function TermTable({ exerciseId, onExerciseAction }: Props) {
           gap: "var(--v2-s-1)",
         }}
       >
-        <TermAction
-          label="+set"
-          onClick={() => dispatchAction({ type: "ADD_SET" })}
-          color="var(--term-cyan)"
-        />
-        <TermAction
-          label="-set"
-          onClick={() => {
-            if (totalSets <= minSetCount) return;
-            dispatchAction({ type: "REMOVE_SET", index: totalSets - 1 });
-          }}
-          disabled={!canRemoveSet}
-          color="var(--term-cyan)"
-        />
-        {recommendedWeightKg != null ? (
+        {!exercise.ref5 ? (
+          <>
+            <TermAction
+              label="+set"
+              onClick={() => dispatchAction({ type: "ADD_SET" })}
+              color="var(--term-cyan)"
+            />
+            <TermAction
+              label="-set"
+              onClick={() => {
+                if (totalSets <= minSetCount) return;
+                dispatchAction({ type: "REMOVE_SET", index: totalSets - 1 });
+              }}
+              disabled={!canRemoveSet}
+              color="var(--term-cyan)"
+            />
+          </>
+        ) : null}
+        {recommendedWeightKg != null && !exercise.ref5 ? (
           <TermAction
             label="target"
             onClick={() => dispatchAction({ type: "APPLY_TARGET_WEIGHTS" })}
@@ -414,7 +481,7 @@ export function TermTable({ exerciseId, onExerciseAction }: Props) {
           onClick={toggleMemo}
           color="var(--term-cyan)"
         />
-        {!isProgramAuto ? (
+        {!exercise.ref5 && !isProgramAuto ? (
           <TermAction
             label="del"
             onClick={() => dispatchAction({ type: "DELETE" })}

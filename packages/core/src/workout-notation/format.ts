@@ -20,7 +20,7 @@ import { bodyweightAddedSuffix } from "../bodyweight-load";
 export interface PrescriptionInput {
   sets: number;
   reps: number;
-  /** 처방 무게 (kg). 0 이하/null이면 weight 부분 생략, percent가 있으면 percent 사용 */
+  /** 처방 무게 (kg). 0은 suffix가 있을 때만 표시하고, 그 외 0 이하/null은 생략 */
   weightKg?: number | null;
   /**
    * weight 뒤에 병기할 보조 라벨. 맨몸 운동에서 총무게(weightKg) 옆에 추가중량을
@@ -45,7 +45,10 @@ export function formatPrescription(input: PrescriptionInput): string {
   const setsRepsPart = sets > 1 ? `${sets} × ${repsToken}` : repsToken;
 
   let intensityPart = "";
-  if (typeof weightKg === "number" && weightKg > 0) {
+  if (
+    typeof weightKg === "number" &&
+    (weightKg > 0 || (weightKg === 0 && Boolean(weightSuffix)))
+  ) {
     const suffix = weightSuffix ? ` ${weightSuffix}` : "";
     intensityPart = ` @ ${weightKg}kg${suffix}`;
   } else if (typeof percent === "number" && percent > 0) {

@@ -27,6 +27,7 @@ import type {
 import type { GeneratedSessionLike } from "@/entities/workout-record";
 import type { WorkoutLogInitialContext } from "./get-workout-log-page-bootstrap";
 import { shouldBlockAutoProgressionNewLog } from "@workout/core/services/workout-log/logging-policy";
+import { isRef5PlanParams } from "@/lib/workout-record/ref5-plan";
 
 // ─── DB 헬퍼 ─────────────────────────────────────────────────────────────────
 
@@ -241,6 +242,32 @@ export async function fetchLogDetailServer(
   };
 }
 
+async function fetchGeneratedSessionServer(
+  userId: string,
+  planId: string,
+  generatedSessionId: string,
+): Promise<GeneratedSessionLike | null> {
+  const rows = await db
+    .select({
+      id: generatedSession.id,
+      userId: generatedSession.userId,
+      planId: generatedSession.planId,
+      sessionKey: generatedSession.sessionKey,
+      snapshot: generatedSession.snapshot,
+    })
+    .from(generatedSession)
+    .where(eq(generatedSession.id, generatedSessionId))
+    .limit(1);
+  const row = rows[0];
+  if (!row || row.userId !== userId || row.planId !== planId) return null;
+  return {
+    id: row.id,
+    planId: row.planId,
+    sessionKey: row.sessionKey,
+    snapshot: row.snapshot,
+  };
+}
+
 // ─── 컨텍스트 빌더 ──────────────────────────────────────────────────────────
 
 type ServerContextInput = {
@@ -252,6 +279,7 @@ type ServerContextInput = {
   planSchedule?: unknown;
   planParams?: Record<string, unknown> | null;
   logId?: string | null;
+  generatedSessionId?: string | null;
   locale: "ko" | "en";
   /** page.tsx searchParams 에서 읽은 매칭 키 */
   matchKey: string;
@@ -311,6 +339,41 @@ export async function loadWorkoutContextServer(
       };
     }
 
+
+    if (input.generatedSessionId) {
+      if (!isRef5PlanParams(input.planParams)) return null;
+      const [startedSession, recentLogs] = await Promise.all([
+        fetchGeneratedSessionServer(userId, planId, input.generatedSessionId),
+        fetchRecentLogsServer(userId, planId),
+      ]);
+      if (!startedSession) return null;
+      const prepared = prepareWorkoutRecordDraftForEntry(
+        applyWorkoutLogWeightRulesToDraft(
+          createWorkoutRecordDraft(startedSession, planName, {
+            timezone: "UTC",
+            planSchedule: input.planSchedule,
+            locale,
+          }),
+          preferences,
+        ),
+      );
+      return {
+        kind: "loaded",
+        matchKey,
+        selectedPlanId: planId,
+        draft: prepared.draft,
+        programEntryState: prepared.programEntryState,
+        recentLogItems: recentLogs,
+        lastSession: buildLastSessionSummary(
+          recentLogs,
+          prepared.draft.session.sessionDate,
+          input.planParams,
+          preferences.bodyweightKg,
+          locale,
+        ),
+      };
+    }
+
     // 선택 날짜 기록 + 최근 로그 + 이후 로그 존재 여부를 병렬 조회
     const [existingLogIdForDate, recentLogs, hasLaterLogs] = await Promise.all([
       findLogIdForDate(userId, planId, dateKey),
@@ -319,6 +382,28 @@ export async function loadWorkoutContextServer(
         ? hasLaterLog(userId, planId, dateKey)
         : Promise.resolve(false),
     ]);
+
+    // REF5 may start multiple sessions on the same plan-local calendar day, so
+    // date buckets never imply edit mode. Only input.logId does.
+    if (isRef5PlanParams(input.planParams)) {
+      return {
+        kind: "ref5-start-required",
+        matchKey,
+        selectedPlanId: planId,
+        planId,
+        planName,
+        dateKey,
+        planParams: input.planParams ?? null,
+        recentLogItems: recentLogs,
+        lastSession: buildLastSessionSummary(
+          recentLogs,
+          dateKey,
+          input.planParams,
+          preferences.bodyweightKg,
+          locale,
+        ),
+      };
+    }
 
     if (existingLogIdForDate) {
       const logDetail = await fetchLogDetailServer(userId, existingLogIdForDate);

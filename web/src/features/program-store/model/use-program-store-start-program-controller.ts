@@ -8,6 +8,7 @@ import {
   extractOneRmTargetsFromTemplate,
   isAsymptoteTemplate,
   isOperatorTemplate,
+  isRef5Template,
   resolveProgramFamily,
   type OneRmTarget,
   type ProgramTemplate,
@@ -24,6 +25,7 @@ export type OneRmRecommendation = {
 };
 
 export type StartProgramDraft = {
+  mode: "ONE_RM" | "REF5";
   template: ProgramTemplate;
   expectedPlanType: "SINGLE" | "MANUAL";
   existingPlanId: string | null;
@@ -35,9 +37,29 @@ export type StartProgramDraft = {
   recommendations: Record<string, OneRmRecommendation>;
   recommendationStatus: "idle" | "loading" | "ready" | "failed";
   recommendationMessage: string | null;
+  ref5Config: Ref5StartConfig | null;
 };
 
-type PrStatsResponse = {
+export type Ref5StartConfig = {
+  schemaVersion: number;
+  protocolVersion: string;
+  startingValuesKg: {
+    sqH3Kg: number;
+    bpFocusKg: number;
+    pullFocusTotalKg: number;
+    deadliftKg: number;
+    ohpKg: number;
+  };
+  controlRefsKg: {
+    sqKg: number;
+    bpKg: number;
+    pullTotalKg: number;
+    deadliftKg: number;
+    ohpKg: number;
+  };
+};
+
+export type PrStatsResponse = {
   items?: Array<{
     exerciseName: string;
     best?: { e1rm?: number; date?: string } | null;
@@ -71,6 +93,89 @@ function parsePositiveNumber(input: string) {
   const n = Number(input);
   if (!Number.isFinite(n) || n <= 0) return null;
   return Math.round(n * 100) / 100;
+}
+
+function isPositiveFinite(value: unknown): value is number {
+  return Number.isFinite(value) && Number(value) > 0;
+}
+
+export function readRef5StartConfigFromTemplate(
+  template: ProgramTemplate,
+): Ref5StartConfig | null {
+  if (!isRef5Template(template)) return null;
+  const raw = template.latestVersion?.defaults?.ref5 as
+    | Partial<Ref5StartConfig>
+    | null
+    | undefined;
+  const starts = raw?.startingValuesKg;
+  const refs = raw?.controlRefsKg;
+  if (
+    raw?.schemaVersion !== 1 ||
+    raw?.protocolVersion !== "1.1" ||
+    !starts ||
+    !refs ||
+    ![
+      starts.sqH3Kg,
+      starts.bpFocusKg,
+      starts.pullFocusTotalKg,
+      starts.deadliftKg,
+      starts.ohpKg,
+      refs.sqKg,
+      refs.bpKg,
+      refs.pullTotalKg,
+      refs.deadliftKg,
+      refs.ohpKg,
+    ].every(isPositiveFinite)
+  ) {
+    return null;
+  }
+
+  return {
+    schemaVersion: 1,
+    protocolVersion: "1.1",
+    startingValuesKg: { ...starts } as Ref5StartConfig["startingValuesKg"],
+    controlRefsKg: { ...refs } as Ref5StartConfig["controlRefsKg"],
+  };
+}
+
+export function shouldLoadOneRmRecommendations(template: ProgramTemplate) {
+  return !isRef5Template(template);
+}
+
+type OneRmStatsRequest = (
+  path: string,
+  options: { signal: AbortSignal },
+) => Promise<PrStatsResponse>;
+
+/** The network boundary used by the actual start flow, guarded inside the boundary. */
+export async function requestOneRmStatsForProgramStart(
+  template: ProgramTemplate,
+  signal: AbortSignal,
+  request: OneRmStatsRequest = (path, options) =>
+    apiGet<PrStatsResponse>(path, options),
+) {
+  if (!shouldLoadOneRmRecommendations(template)) return null;
+  return request("/api/stats/prs?days=3650&limit=100", { signal });
+}
+
+export function buildRef5StartPlanParams(input: {
+  timezone: string;
+  today: string;
+  config: Ref5StartConfig;
+}) {
+  return {
+    timezone: input.timezone,
+    startDate: input.today,
+    autoProgression: true,
+    programFamily: "ref5",
+    protocolVersion: input.config.protocolVersion,
+    ref5: {
+      schemaVersion: input.config.schemaVersion,
+      protocolVersion: input.config.protocolVersion,
+      startingValuesKg: { ...input.config.startingValuesKg },
+      controlRefsKg: { ...input.config.controlRefsKg },
+    },
+  };
 }
 
 function normalizeExerciseLookupKey(value: string) {
@@ -350,16 +455,16 @@ export function useProgramStoreStartProgramController({
   const oneRmRecommendationControllerRef = useRef<AbortController | null>(null);
 
   const loadOneRmRecommendations = useCallback(
-    async (templateId: string, targets: OneRmTarget[]) => {
+    async (template: ProgramTemplate, targets: OneRmTarget[]) => {
+      const templateId = template.id;
       const controller = replaceAbortController(oneRmRecommendationControllerRef);
 
       try {
-        const response = await apiGet<PrStatsResponse>(
-          "/api/stats/prs?days=3650&limit=100",
-          {
-            signal: controller.signal,
-          },
+        const response = await requestOneRmStatsForProgramStart(
+          template,
+          controller.signal,
         );
+        if (!response) return;
         if (oneRmRecommendationControllerRef.current !== controller) return;
 
         const recommendations = buildOneRmRecommendations(targets, response.items);
@@ -455,8 +560,19 @@ export function useProgramStoreStartProgramController({
             plan.rootProgramVersionId === template.latestVersion?.id &&
             plan.type === expectedPlanType,
         ) ?? null;
-      const tmPercent = resolveStartTmPercent(template);
-      const targets = extractOneRmTargetsFromTemplate(template);
+      const ref5 = isRef5Template(template);
+      const ref5Config = ref5 ? readRef5StartConfigFromTemplate(template) : null;
+      if (ref5 && !ref5Config) {
+        setError(
+          locale === "ko"
+            ? "REF5 v1.1 고정 시작 설정을 불러오지 못했습니다."
+            : "The fixed REF5 v1.1 start configuration is unavailable.",
+        );
+        return;
+      }
+
+      const tmPercent = ref5 ? 0 : resolveStartTmPercent(template);
+      const targets = ref5 ? [] : extractOneRmTargetsFromTemplate(template);
       const oneRmInputs: Record<string, string> = {};
 
       for (const target of targets) {
@@ -472,6 +588,7 @@ export function useProgramStoreStartProgramController({
       }
 
       setStartProgramDraft({
+        mode: ref5 ? "REF5" : "ONE_RM",
         template,
         expectedPlanType,
         existingPlanId: existing?.id ?? null,
@@ -481,12 +598,13 @@ export function useProgramStoreStartProgramController({
         targets,
         oneRmInputs,
         recommendations: {},
-        recommendationStatus: "loading",
+        recommendationStatus: ref5 ? "idle" : "loading",
         recommendationMessage: null,
+        ref5Config,
       });
       setError(null);
 
-      void loadOneRmRecommendations(template.id, targets);
+      void loadOneRmRecommendations(template, targets);
     },
     [loadOneRmRecommendations, locale, plans, setError],
   );
@@ -522,30 +640,50 @@ export function useProgramStoreStartProgramController({
   const submitStartProgram = useCallback(async () => {
     if (!startProgramDraft) return;
 
+    const isRef5Start = startProgramDraft.mode === "REF5";
+    const ref5PlanParams =
+      isRef5Start && startProgramDraft.ref5Config
+        ? buildRef5StartPlanParams({
+            timezone: startProgramDraft.timezone,
+            today: startProgramDraft.today,
+            config: startProgramDraft.ref5Config,
+          })
+        : null;
+    if (isRef5Start && !ref5PlanParams) {
+      setError(
+        locale === "ko"
+          ? "REF5 v1.1 시작 설정이 올바르지 않습니다."
+          : "The REF5 v1.1 start configuration is invalid.",
+      );
+      return;
+    }
+
     const oneRepMaxKg: Record<string, number> = {};
     const trainingMaxKg: Record<string, number> = {};
-    for (const target of startProgramDraft.targets) {
-      const parsed = parsePositiveNumber(
-        startProgramDraft.oneRmInputs[target.key] ?? "",
-      );
-      if (parsed === null) {
-        setError(
-          locale === "ko"
-            ? `${target.label} 1RM을 kg 기준으로 입력하세요.`
-            : `Enter ${target.label} 1RM in kg.`,
+    if (!isRef5Start) {
+      for (const target of startProgramDraft.targets) {
+        const parsed = parsePositiveNumber(
+          startProgramDraft.oneRmInputs[target.key] ?? "",
         );
-        return;
-      }
+        if (parsed === null) {
+          setError(
+            locale === "ko"
+              ? `${target.label} 1RM을 kg 기준으로 입력하세요.`
+              : `Enter ${target.label} 1RM in kg.`,
+          );
+          return;
+        }
 
-      oneRepMaxKg[target.key] = parsed;
-      trainingMaxKg[target.key] = roundToNearest2p5(
-        parsed * startProgramDraft.tmPercent,
-      );
+        oneRepMaxKg[target.key] = parsed;
+        trainingMaxKg[target.key] = roundToNearest2p5(
+          parsed * startProgramDraft.tmPercent,
+        );
 
-      const fallbackKey = String(target.fallbackKey ?? "").trim().toUpperCase();
-      if (fallbackKey && oneRepMaxKg[fallbackKey] === undefined) {
-        oneRepMaxKg[fallbackKey] = parsed;
-        trainingMaxKg[fallbackKey] = trainingMaxKg[target.key]!;
+        const fallbackKey = String(target.fallbackKey ?? "").trim().toUpperCase();
+        if (fallbackKey && oneRepMaxKg[fallbackKey] === undefined) {
+          oneRepMaxKg[fallbackKey] = parsed;
+          trainingMaxKg[fallbackKey] = trainingMaxKg[target.key]!;
+        }
       }
     }
 
@@ -559,25 +697,28 @@ export function useProgramStoreStartProgramController({
         : null;
 
       let targetPlanId = startProgramDraft.existingPlanId;
-      const defaultPlanParams = defaultStartPlanParamsFromTemplate(
-        startProgramDraft.template,
-      );
+      const defaultPlanParams = isRef5Start
+        ? {}
+        : defaultStartPlanParamsFromTemplate(startProgramDraft.template);
+      const nextPlanParams = ref5PlanParams ?? {
+        ...(existing?.params ?? {}),
+        ...defaultPlanParams,
+        startDate: startProgramDraft.today,
+        timezone: startProgramDraft.timezone,
+        sessionKeyMode: "DATE",
+        oneRepMaxKg,
+        trainingMaxKg,
+      };
 
       if (existing && targetPlanId) {
-        await apiPatch<{ plan: PlanItem }>(
-          `/api/plans/${encodeURIComponent(targetPlanId)}`,
-          {
-            params: {
-              ...(existing.params ?? {}),
-              ...defaultPlanParams,
-              startDate: startProgramDraft.today,
-              timezone: startProgramDraft.timezone,
-              sessionKeyMode: "DATE",
-              oneRepMaxKg,
-              trainingMaxKg,
+        if (!isRef5Start) {
+          await apiPatch<{ plan: PlanItem }>(
+            `/api/plans/${encodeURIComponent(targetPlanId)}`,
+            {
+              params: nextPlanParams,
             },
-          },
-        );
+          );
+        }
       } else {
         const created = await apiPost<{ plan: PlanItem }>("/api/plans", {
           name:
@@ -586,14 +727,7 @@ export function useProgramStoreStartProgramController({
               : `${formatProgramDisplayName(startProgramDraft.template.name)} Program`,
           type: startProgramDraft.expectedPlanType,
           rootProgramVersionId: startProgramDraft.template.latestVersion!.id,
-          params: {
-            ...defaultPlanParams,
-            startDate: startProgramDraft.today,
-            timezone: startProgramDraft.timezone,
-            sessionKeyMode: "DATE",
-            oneRepMaxKg,
-            trainingMaxKg,
-          },
+          params: nextPlanParams,
         });
         targetPlanId = created.plan.id;
       }

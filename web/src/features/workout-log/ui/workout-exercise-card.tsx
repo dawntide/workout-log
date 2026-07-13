@@ -33,6 +33,12 @@ import type { ExerciseRowAction } from "@/features/workout-log/model/editor-acti
 import { formatDateFriendly } from "@/lib/workout-record/last-session-summary";
 import { useSetRowFocusChain } from "@/features/workout-log/model/use-set-row-focus-chain";
 import { WorkoutSetRow } from "@/features/workout-log/ui/workout-set-row";
+import { AppSelect } from "@/components/ui/form-controls";
+import type { Ref5TerminationReason } from "@/entities/workout-record";
+import {
+  deriveRef5ExerciseOutcomeView,
+  resolveRef5PullDisplayLoad,
+} from "@/lib/workout-record/ref5-outcome";
 
 type Props = {
   exerciseId: string;
@@ -76,6 +82,11 @@ export function WorkoutExerciseCard({ exerciseId, onExerciseAction }: Props) {
 
   const dispatchAction = (action: ExerciseRowAction) =>
     onExerciseAction(exerciseId, action);
+  const ref5Outcome = deriveRef5ExerciseOutcomeView(
+    exercise,
+    exerciseCard.programEntryState,
+  );
+  const ref5PullLoad = resolveRef5PullDisplayLoad(exercise);
 
   const isUser = exercise.source === "USER";
   const totalSets = exercise.set.repsPerSet.length;
@@ -142,18 +153,26 @@ export function WorkoutExerciseCard({ exerciseId, onExerciseAction }: Props) {
     const inputs = exerciseCard.programEntryState?.repsInputs ?? [];
     for (let i = 0; i < totalSets; i++) {
       const v = (inputs[i] ?? "").trim();
-      if (v && Number(v) > 0) filledSets++;
+      if (exercise.ref5 ? v !== "" : v && Number(v) > 0) filledSets++;
     }
   } else {
-    filledSets = exercise.set.repsPerSet.filter((r) => r > 0).length;
+    filledSets = exercise.ref5
+      ? exercise.set.repsPerSet.length
+      : exercise.set.repsPerSet.filter((r) => r > 0).length;
   }
-  const cardComplete = totalSets > 0 && filledSets >= totalSets;
+  const cardComplete =
+    totalSets > 0 &&
+    filledSets >= totalSets &&
+    (!exercise.ref5 || Boolean(exercise.ref5.terminationReason));
 
+  const prescriptionReps = exercise.ref5
+    ? (exercise.plannedSetMeta?.repsPerSet ?? exercise.set.repsPerSet)
+    : exercise.set.repsPerSet;
   const allSame =
-    exercise.set.repsPerSet.length > 0 &&
-    exercise.set.repsPerSet.every((r) => r === exercise.set.repsPerSet[0]);
+    prescriptionReps.length > 0 &&
+    prescriptionReps.every((r) => r === prescriptionReps[0]);
   const setsLabel = locale === "ko" ? "세트" : "sets";
-  const firstReps = exercise.set.repsPerSet[0] ?? 0;
+  const firstReps = prescriptionReps[0] ?? 0;
   const planUniform = allSame && firstReps > 0;
   const firstPercent = exercise.plannedSetMeta?.percentPerSet?.[0];
   const weightPerSet = exercise.set.weightKgPerSet ?? [];
@@ -169,7 +188,18 @@ export function WorkoutExerciseCard({ exerciseId, onExerciseAction }: Props) {
   let presWeightKg: number | undefined;
   let presWeightSuffix: string | undefined;
   let presPercent: number | undefined;
-  if (
+  if (exercise.ref5 && weightUniform) {
+    presWeightKg = firstWeight;
+    if (isBodyweight) {
+      presWeightSuffix = ref5PullLoad
+        ? locale === "ko"
+          ? `(추가중량 · 총 ${ref5PullLoad.actualTotalKg}kg)`
+          : `(added · ${ref5PullLoad.actualTotalKg}kg total)`
+        : locale === "ko"
+          ? "(추가중량)"
+          : "(added)";
+    }
+  } else if (
     isBodyweight &&
     typeof recommendedWeightKg === "number" &&
     recommendedWeightKg > 0 &&
@@ -311,6 +341,23 @@ export function WorkoutExerciseCard({ exerciseId, onExerciseAction }: Props) {
                 {TEXAS_ROLE_LABEL[exercise.texasRole][locale]}
               </V2Chip>
             ) : null}
+            {ref5Outcome?.status === "classified" ? (
+              <V2Chip
+                tone={
+                  ref5Outcome.value.outcome === "PASS"
+                    ? "success"
+                    : ref5Outcome.value.outcome === "HOLD"
+                      ? "warning"
+                      : ref5Outcome.value.outcome === "FAIL"
+                        ? "danger"
+                        : "neutral"
+                }
+              >
+                {ref5Outcome.value.outcome}
+              </V2Chip>
+            ) : ref5Outcome?.status === "invalid-input" ? (
+              <V2Chip tone="danger">CHECK</V2Chip>
+            ) : null}
           </div>
           <span
             className="v2-mono-label"
@@ -360,7 +407,7 @@ export function WorkoutExerciseCard({ exerciseId, onExerciseAction }: Props) {
               {totalSets} {setsLabel}
             </span>
           )}
-          {recommendedWeightKg != null && (
+          {recommendedWeightKg != null && !exercise.ref5 && (
             <ChipButton
               onClick={handleApplyRecommendedWeight}
               icon="restart_alt"
@@ -423,6 +470,34 @@ export function WorkoutExerciseCard({ exerciseId, onExerciseAction }: Props) {
 
         <V2Hairline />
 
+        {exercise.ref5 ? (
+          <AppSelect
+            label={locale === "ko" ? "종료 사유" : "Termination reason"}
+            chrome="row"
+            value={exercise.ref5.terminationReason ?? ""}
+            onChange={(event) =>
+              dispatchAction({
+                type: "CHANGE_REF5_TERMINATION_REASON",
+                value: event.target.value as Ref5TerminationReason,
+              })
+            }
+            aria-label={locale === "ko" ? "REF5 종료 사유" : "REF5 termination reason"}
+          >
+            <option value="" disabled>
+              {locale === "ko" ? "선택" : "Select"}
+            </option>
+            <option value="NORMAL">NORMAL</option>
+            <option value="CLEAR_SLOWDOWN">
+              {locale === "ko" ? "뚜렷한 감속" : "CLEAR SLOWDOWN"}
+            </option>
+            <option value="FORCE_OR_TECHNIQUE">
+              {locale === "ko" ? "강제 반복/기술 붕괴" : "FORCE / TECHNIQUE"}
+            </option>
+            <option value="SAFETY">{locale === "ko" ? "안전" : "SAFETY"}</option>
+            <option value="EXTERNAL">{locale === "ko" ? "외부 사유" : "EXTERNAL"}</option>
+          </AppSelect>
+        ) : null}
+
         <div
           className="v2-mono-label"
           style={{
@@ -479,22 +554,26 @@ export function WorkoutExerciseCard({ exerciseId, onExerciseAction }: Props) {
           >
             {locale === "ko" ? "메모" : "Memo"}
           </ChipButton>
-          <ChipButton
-            onClick={handleAddSet}
-            icon="add"
-            style={{ flex: 1, justifyContent: "center", minWidth: 0 }}
-          >
-            {locale === "ko" ? "세트 추가" : "Add set"}
-          </ChipButton>
-          <ChipButton
-            onClick={handleRemoveLastSet}
-            icon="remove"
-            disabled={!canRemoveSet}
-            style={{ flex: 1, justifyContent: "center", minWidth: 0 }}
-          >
-            {locale === "ko" ? "세트 삭제" : "Remove set"}
-          </ChipButton>
-          {!isProgramAuto && (
+          {!exercise.ref5 ? (
+            <>
+              <ChipButton
+                onClick={handleAddSet}
+                icon="add"
+                style={{ flex: 1, justifyContent: "center", minWidth: 0 }}
+              >
+                {locale === "ko" ? "세트 추가" : "Add set"}
+              </ChipButton>
+              <ChipButton
+                onClick={handleRemoveLastSet}
+                icon="remove"
+                disabled={!canRemoveSet}
+                style={{ flex: 1, justifyContent: "center", minWidth: 0 }}
+              >
+                {locale === "ko" ? "세트 삭제" : "Remove set"}
+              </ChipButton>
+            </>
+          ) : null}
+          {!exercise.ref5 && !isProgramAuto && (
             <ChipButton
               onClick={handleDelete}
               icon="delete"

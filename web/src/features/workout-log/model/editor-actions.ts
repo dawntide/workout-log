@@ -10,6 +10,7 @@ import {
   type WorkoutExerciseViewModel,
   type WorkoutProgramExerciseEntryStateMap,
   type WorkoutRecordDraft,
+  type Ref5TerminationReason,
 } from "@/entities/workout-record";
 import {
   appendSetReps,
@@ -33,6 +34,7 @@ export type ExerciseRowAction =
   | { type: "APPLY_TARGET_WEIGHTS" }
   | { type: "CHANGE_SET_REPS"; setIndex: number; value: number }
   | { type: "CHANGE_SET_RPE"; setIndex: number; value: number }
+  | { type: "CHANGE_REF5_TERMINATION_REASON"; value: Ref5TerminationReason }
   | { type: "ADD_SET" }
   | { type: "REMOVE_SET"; index: number }
   | { type: "CHANGE_MEMO"; value: string }
@@ -65,6 +67,18 @@ export function buildExerciseActionUpdate(
   preferences: WorkoutPreferences,
   resolveWeightWithPreferences: ResolveWeightWithPreferences,
 ): ExerciseActionUpdate | null {
+  if (
+    exercise.ref5 &&
+    (action.type === "CHANGE_WEIGHT" ||
+      action.type === "APPLY_TARGET_WEIGHTS" ||
+      action.type === "CHANGE_SET_RPE" ||
+      action.type === "ADD_SET" ||
+      action.type === "REMOVE_SET" ||
+      action.type === "DELETE")
+  ) {
+    return null;
+  }
+
   switch (action.type) {
     case "CHANGE_WEIGHT": {
       const { setIndex, value } = action;
@@ -176,6 +190,15 @@ export function buildExerciseActionUpdate(
           exercise.source === "PROGRAM"
             ? patchSeedExercise(prev, exerciseId, { set: { rpePerSet } })
             : updateUserExercise(prev, exerciseId, { set: { rpePerSet } }),
+      };
+    }
+    case "CHANGE_REF5_TERMINATION_REASON": {
+      const ref5 = { terminationReason: action.value };
+      return {
+        draftUpdater: (prev) =>
+          exercise.source === "PROGRAM"
+            ? patchSeedExercise(prev, exerciseId, { ref5 })
+            : updateUserExercise(prev, exerciseId, { ref5 }),
       };
     }
     case "ADD_SET": {

@@ -15,6 +15,7 @@ import {
 } from "@workout/core/db/schema";
 import {
   generateAndSaveSession,
+  generateSessionSnapshot,
   previewSessionExercises,
 } from "@workout/core/program-engine/generateSession";
 import {
@@ -31,9 +32,19 @@ import { applyManualRuntimeAdjustment } from "@workout/core/progression/autoProg
 import { buildProgressionFeedbackFromEvent } from "@workout/core/progression/feedback-catalog";
 import { invalidateStatsCacheForUser } from "@workout/core/stats/cache";
 import { buildSessionKey } from "@workout/core/session-key";
+import {
+  extractRef5DomainSnapshot,
+  isRef5PlanParams,
+} from "@workout/core/program-engine/ref5-integration";
+import { buildRef5Status } from "@workout/core/program-engine/ref5-status";
+import {
+  REF5_IDENTIFIERS,
+  REF5_PROTOCOL_VERSION,
+  Ref5ValidationError,
+} from "@workout/core/program-engine/ref5";
 
 import { requireAuth, type AppEnv } from "../auth";
-import { apiError, resolveLocale } from "../lib/http";
+import { apiError, normalizeTimezone, resolveLocale } from "../lib/http";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Plans — the TUI-critical plan workflow (list/create/rename/delete/generate/
@@ -284,6 +295,45 @@ plansRoutes.post("/", async (c) => {
       );
     }
 
+    const versionRows = await db
+      .select({
+        definition: programVersion.definition,
+        defaults: programVersion.defaults,
+        templateId: programVersion.templateId,
+      })
+      .from(programVersion)
+      .where(eq(programVersion.id, rootProgramVersionId))
+      .limit(1);
+    const rootVersion = versionRows[0];
+    if (!rootVersion) {
+      return c.json(
+        { error: locale === "ko" ? "프로그램 버전을 찾을 수 없습니다." : "Program version not found." },
+        404,
+      );
+    }
+    const templateRows = await db
+      .select({ slug: programTemplate.slug })
+      .from(programTemplate)
+      .where(eq(programTemplate.id, rootVersion.templateId))
+      .limit(1);
+    const definition = asRecord(rootVersion.definition);
+    const isRef5Root =
+      templateRows[0]?.slug === REF5_IDENTIFIERS.slug ||
+      String(definition.kind ?? "").trim().toLowerCase() === REF5_IDENTIFIERS.kind;
+    const submittedParams = asRecord(body.params);
+    const versionDefaults = asRecord(rootVersion.defaults);
+    const canonicalParams = isRef5Root
+      ? {
+          timezone: normalizeTimezone(
+            typeof submittedParams.timezone === "string" ? submittedParams.timezone : null,
+          ),
+          autoProgression: true,
+          programFamily: REF5_IDENTIFIERS.family,
+          protocolVersion: REF5_PROTOCOL_VERSION,
+          ref5: asRecord(versionDefaults.ref5),
+        }
+      : withAutoProgressionDefaults(body.params);
+
     const [p] = await db
       .insert(planTable)
       .values({
@@ -291,7 +341,7 @@ plansRoutes.post("/", async (c) => {
         name,
         type,
         rootProgramVersionId,
-        params: withAutoProgressionDefaults(body.params),
+        params: canonicalParams,
       })
       .returning();
 
@@ -344,6 +394,18 @@ plansRoutes.patch("/:planId", async (c) => {
     if (!hasNamePatch && !hasParamsPatch) {
       return c.json(
         { error: locale === "ko" ? "수정할 내용이 없습니다." : "No patch payload." },
+        400,
+      );
+    }
+
+    if (isRef5PlanParams(asRecord(found.params)) && hasParamsPatch) {
+      return c.json(
+        {
+          error:
+            locale === "ko"
+              ? "REF5의 버전 고정 파라미터는 수정할 수 없습니다."
+              : "REF5 versioned parameters are immutable.",
+        },
         400,
       );
     }
@@ -440,6 +502,52 @@ plansRoutes.delete("/:planId", async (c) => {
   }
 });
 
+// GET /api/plans/:planId/generated-sessions/:sessionId — resume an explicitly
+// started, immutable REF5 session after reload or in another tab.
+plansRoutes.get("/:planId/generated-sessions/:sessionId", async (c) => {
+  const locale = resolveLocale(c);
+  try {
+    const userId = c.get("userId");
+    const planId = c.req.param("planId");
+    const sessionId = c.req.param("sessionId");
+    const [planRows, sessionRows] = await Promise.all([
+      db
+        .select({ userId: planTable.userId, params: planTable.params })
+        .from(planTable)
+        .where(eq(planTable.id, planId))
+        .limit(1),
+      db
+        .select()
+        .from(generatedSession)
+        .where(
+          and(
+            eq(generatedSession.id, sessionId),
+            eq(generatedSession.planId, planId),
+            eq(generatedSession.userId, userId),
+          ),
+        )
+        .limit(1),
+    ]);
+    const planRow = planRows[0];
+    const session = sessionRows[0];
+    if (
+      !planRow ||
+      planRow.userId !== userId ||
+      !isRef5PlanParams(planRow.params) ||
+      !session ||
+      !extractRef5DomainSnapshot(session.snapshot)
+    ) {
+      return c.json(
+        { error: locale === "ko" ? "시작된 REF5 세션을 찾을 수 없습니다." : "Started REF5 session not found." },
+        404,
+      );
+    }
+    return c.json({ session }, 200);
+  } catch (e) {
+    return apiError(c, e, locale);
+  }
+});
+
 // POST /api/plans/:planId/generate — generate (and save) a session for a plan.
 plansRoutes.post("/:planId/generate", async (c) => {
   const locale = resolveLocale(c);
@@ -459,6 +567,19 @@ plansRoutes.post("/:planId/generate", async (c) => {
         : undefined;
     const timezone =
       typeof body.timezone === "string" && body.timezone.trim() ? body.timezone.trim() : undefined;
+    const ref5Raw = asRecord(body.ref5);
+    const hasRef5Input = Object.keys(ref5Raw).length > 0;
+    const ref5Bodyweight = Number(ref5Raw.bodyweightKg ?? ref5Raw.todayBodyweightKg);
+    const ref5 = hasRef5Input
+      ? {
+          actualStartAt: String(ref5Raw.actualStartAt ?? "").trim(),
+          todayBodyweightKg: ref5Bodyweight,
+          manualMicro: ref5Raw.manualMicro === true,
+          climbingWithin48h: ref5Raw.climbingWithin48h === true,
+          startEventId: String(ref5Raw.startEventId ?? "").trim(),
+          omitPullVolume: ref5Raw.omitPullVolume === true,
+        }
+      : undefined;
 
     if (
       (week !== undefined && !Number.isFinite(week)) ||
@@ -475,17 +596,62 @@ plansRoutes.post("/:planId/generate", async (c) => {
       );
     }
 
-    const session = await generateAndSaveSession({
+    if (
+      ref5 &&
+      (!ref5.actualStartAt ||
+        Number.isNaN(new Date(ref5.actualStartAt).getTime()) ||
+        !Number.isFinite(ref5.todayBodyweightKg) ||
+        ref5.todayBodyweightKg <= 0 ||
+        !ref5.startEventId)
+    ) {
+      return c.json(
+        {
+          error:
+            locale === "ko"
+              ? "REF5에는 실제 시작 시각, 오늘 체중, 시작 사건 ID가 필요합니다."
+              : "REF5 requires an exact start time, today's bodyweight, and a start event ID.",
+        },
+        400,
+      );
+    }
+
+    const generationInput = {
       userId,
       planId,
       week,
       day,
       sessionDate,
       timezone,
-    });
+      ref5,
+    };
+
+    if (body.preview === true) {
+      if (!ref5) {
+        return c.json(
+          { error: locale === "ko" ? "REF5 미리보기 입력이 필요합니다." : "REF5 preview input is required." },
+          400,
+        );
+      }
+      const snapshot = await generateSessionSnapshot(generationInput);
+      return c.json(
+        {
+          preview: true,
+          session: {
+            id: null,
+            planId,
+            sessionKey: String((snapshot as { sessionKey?: unknown }).sessionKey ?? ""),
+            snapshot,
+          },
+        },
+        200,
+      );
+    }
+
+    const session = await generateAndSaveSession(generationInput);
 
     return c.json({ session }, 201);
   } catch (e) {
+    if (e instanceof Ref5ValidationError) return c.json({ error: e.message }, 400);
     return apiError(c, e, locale);
   }
 });
@@ -508,6 +674,17 @@ plansRoutes.post("/:planId/overrides", async (c) => {
       );
     if (p.userId !== userId)
       return c.json({ error: locale === "ko" ? "권한이 없습니다." : "Forbidden." }, 403);
+    if (isRef5PlanParams(asRecord(p.params))) {
+      return c.json(
+        {
+          error:
+            locale === "ko"
+              ? "REF5 처방은 커스터마이즈하거나 덮어쓸 수 없습니다."
+              : "REF5 prescriptions cannot be customized or overridden.",
+        },
+        400,
+      );
+    }
 
     const scope = body.scope;
     const patch = body.patch;
@@ -590,6 +767,24 @@ plansRoutes.get("/:planId/progression-state", async (c) => {
       .limit(1);
     const template = templateRows[0];
     if (!template) return c.json({ program: null, state: null });
+
+    if (isRef5PlanParams(params) || template.slug === "ref5-adaptive-strength") {
+      const runtimeRows = await db
+        .select({ state: planRuntimeState.state })
+        .from(planRuntimeState)
+        .where(eq(planRuntimeState.planId, planId))
+        .limit(1);
+      const state = runtimeRows[0]?.state ?? null;
+      return c.json({
+        program: "ref5",
+        state,
+        ref5Status: buildRef5Status(state),
+        effectiveRules: null,
+        targetsLastEvent: {},
+        lastEvent: null,
+        feedback: null,
+      });
+    }
 
     const program = resolveAutoProgressionProgram(template.slug, version.definition);
     if (!program) return c.json({ program: null, state: null });
@@ -964,6 +1159,26 @@ plansRoutes.get("/:planId/cycle-overview", async (c) => {
 
     const params = (plan.params ?? {}) as Record<string, unknown>;
     const autoProgression = params.autoProgression === true;
+
+    if (isRef5PlanParams(params)) {
+      const runtimeRows = await db
+        .select({ state: planRuntimeState.state })
+        .from(planRuntimeState)
+        .where(eq(planRuntimeState.planId, planId))
+        .limit(1);
+      return c.json({
+        program: "ref5",
+        finiteCycle: false,
+        totalWeeks: null,
+        sessionsPerWeek: null,
+        cycleNumber: null,
+        currentWeek: null,
+        currentDay: null,
+        sessions: [],
+        targets: [],
+        ref5Status: buildRef5Status(runtimeRows[0]?.state ?? null),
+      });
+    }
 
     const [runtimeRows, versionRows, moduleRows] = await Promise.all([
       db

@@ -16,6 +16,7 @@ import {
   type SetRowField,
 } from "@/features/workout-log/model/use-set-row-focus-chain";
 import type { WorkoutExerciseViewModel } from "@/lib/workout-record/model";
+import { resolveWorkoutSetRepsEntry } from "@/lib/workout-record/ref5-outcome";
 import { CellInput } from "./cell-input";
 
 type Props = {
@@ -51,14 +52,15 @@ export function WorkoutSetRow({
     };
   }, [focusChain, exercise.id, setIndex]);
 
-  const repsRaw = useMemo(() => {
-    if (exercise.source === "PROGRAM") {
-      const inputs = programEntryState[exercise.id]?.repsInputs ?? [];
-      return (inputs[setIndex] ?? "").trim();
-    }
-    const r = exercise.set.repsPerSet[setIndex] ?? 0;
-    return r > 0 ? String(r) : "";
-  }, [exercise, programEntryState, setIndex]);
+  const { plannedReps, repsRaw } = useMemo(
+    () =>
+      resolveWorkoutSetRepsEntry(
+        exercise,
+        setIndex,
+        programEntryState[exercise.id]?.repsInputs[setIndex] ?? "",
+      ),
+    [exercise, programEntryState, setIndex],
+  );
 
   const weightValue = useMemo(() => {
     const w = exercise.set.weightKgPerSet?.[setIndex] ?? 0;
@@ -72,11 +74,9 @@ export function WorkoutSetRow({
   }, [exercise.set.rpePerSet, setIndex]);
 
   const repsNum = Number(repsRaw);
-  const hasReps = !!repsRaw && Number.isFinite(repsNum) && repsNum > 0;
-  const plannedReps =
-    exercise.source === "PROGRAM"
-      ? (exercise.set.repsPerSet[setIndex] ?? 0)
-      : 0;
+  const hasReps = exercise.ref5
+    ? repsRaw !== "" && Number.isFinite(repsNum) && repsNum >= 0
+    : !!repsRaw && Number.isFinite(repsNum) && repsNum > 0;
   const isFailure = hasReps && plannedReps > 0 && repsNum < plannedReps;
   const isComplete = hasReps && (!plannedReps || repsNum >= plannedReps);
 
@@ -106,10 +106,13 @@ export function WorkoutSetRow({
       onExerciseAction({
         type: "CHANGE_SET_REPS",
         setIndex,
-        value: Math.max(0, Math.min(100, Math.round(num))),
+        value: Math.max(
+          0,
+          Math.min(exercise.ref5 && plannedReps >= 0 ? plannedReps : 100, Math.round(num)),
+        ),
       });
     },
-    [onExerciseAction, setIndex],
+    [exercise.ref5, onExerciseAction, plannedReps, setIndex],
   );
 
   const handleRpeChange = useCallback(
@@ -190,6 +193,7 @@ export function WorkoutSetRow({
         onChange={handleWeightChange}
         onKeyDown={onKeyDown("weight")}
         allowDecimal
+        readOnly={Boolean(exercise.ref5)}
       />
       <CellInput
         ref={repsRef}
@@ -213,6 +217,7 @@ export function WorkoutSetRow({
         onChange={handleRpeChange}
         onKeyDown={onKeyDown("rpe")}
         allowDecimal
+        readOnly={Boolean(exercise.ref5)}
       />
       <span
         aria-hidden

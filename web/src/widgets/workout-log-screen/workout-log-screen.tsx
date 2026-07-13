@@ -61,6 +61,7 @@ import {
   workflowStateAtom,
 } from "@/features/workout-log/store/workout-log-atoms";
 import WorkoutRecordLoading from "./workout-record-skeleton";
+import { Ref5SessionStartPanel } from "@/features/workout-log/ui/ref5-session-start-panel";
 
 // 체중 확인 안내: 마지막 확인 시각 설정 키 + 스테일 임계(14일). 이 기간 내에 확인했으면 다시 안 묻는다.
 const BODYWEIGHT_CHECKED_AT_KEY = "prefs.bodyweight.checkedAtMs";
@@ -109,7 +110,9 @@ function WorkoutLogScreenContent({
   );
 
   const persistenceKey =
-    selectedPlanId && query.date ? `${selectedPlanId}:${query.date}` : null;
+    selectedPlanId && query.date
+      ? `${selectedPlanId}:${query.date}:${query.sessionId ?? "new"}`
+      : null;
   const isWorkoutLogRouteActive = pathname?.startsWith("/workout/log") ?? true;
 
   const {
@@ -155,6 +158,8 @@ function WorkoutLogScreenContent({
     selectedPlan,
     noPlan,
     blockedMessage,
+    ref5StartContext,
+    hydrateRef5GeneratedSession,
     handlePlanChange,
     retryCurrentContextLoad,
   } = useWorkoutLogContextController({
@@ -252,6 +257,7 @@ function WorkoutLogScreenContent({
     });
 
   const isEditingExistingLog = Boolean(query.logId);
+  const isStartedRef5Session = Boolean(draft?.session.ref5);
 
   // 체중 확인 안내(B): 중량풀업을 수행하는 모든 프로그램에서, 마지막 확인 후 14일+ 지났을 때만
   // "업데이트/유지"를 권고한다(매 세션 마찰 회피). "유지"도 확인 시각을 기록해 14일간 다시 안 묻는다.
@@ -261,6 +267,7 @@ function WorkoutLogScreenContent({
   const isBodyweightStale = Date.now() - bodyweightCheckedAtMs >= BODYWEIGHT_CHECK_STALE_MS;
   const showBodyweightCheck =
     !isEditingExistingLog &&
+    !isStartedRef5Session &&
     Boolean(draft) &&
     currentSessionKey !== null &&
     bodyweightDismissedKey !== currentSessionKey &&
@@ -294,7 +301,7 @@ function WorkoutLogScreenContent({
   const handleDateChange = useCallback(
     (newDateKey: string) => {
       if (!/^\d{4}-\d{2}-\d{2}$/.test(newDateKey)) return;
-      if (isEditingExistingLog) {
+      if (isEditingExistingLog || isStartedRef5Session) {
         handleSessionDateChange(newDateKey);
       } else {
         const url = new URL(window.location.href);
@@ -302,10 +309,11 @@ function WorkoutLogScreenContent({
         if (selectedPlan?.id) {
           url.searchParams.set("planId", selectedPlan.id);
         }
+        url.searchParams.delete("sessionId");
         router.push(url.pathname + url.search);
       }
     },
-    [isEditingExistingLog, handleSessionDateChange, router, selectedPlan],
+    [isEditingExistingLog, isStartedRef5Session, handleSessionDateChange, router, selectedPlan],
   );
 
   const sessionDate = draft?.session.sessionDate ?? "";
@@ -429,7 +437,40 @@ function WorkoutLogScreenContent({
       />
       <EmptyStateRows className="v2-font-display" when={noPlan} label={copy.workoutLog.noPlans} />
 
-      {!noPlan && ((isDraftLoaded && draft) || blockedMessage) ? (
+      {!noPlan && ref5StartContext ? (
+        <AppPage>
+          <V2SectionHeader
+            level="h1"
+            eyebrow={locale === "ko" ? "오늘의 운동" : "TODAY"}
+            title={selectedPlan?.name ?? ref5StartContext.planName}
+            onTitleClick={openPlanSheet}
+            titleAriaLabel={locale === "ko" ? "플랜 선택 열기" : "Open plan selector"}
+            titleAriaExpanded={planSheetOpen}
+            titleAriaHasPopup="dialog"
+          />
+          <DateNav
+            dateKey={ref5StartContext.dateKey}
+            label={formatDateFriendly(ref5StartContext.dateKey, locale)}
+            onPrev={() => shiftDate(-1)}
+            onNext={() => shiftDate(1)}
+            onPick={handleDateChange}
+            ariaLabel={copy.workoutLog.dateChangeAriaLabel}
+            prevLabel={copy.workoutLog.dateNavPrev}
+            nextLabel={copy.workoutLog.dateNavNext}
+          />
+          <Ref5SessionStartPanel
+            key={`${ref5StartContext.planId}:${ref5StartContext.dateKey}`}
+            planId={ref5StartContext.planId}
+            planName={ref5StartContext.planName}
+            dateKey={ref5StartContext.dateKey}
+            locale={locale}
+            defaultBodyweightKg={bodyweightKg}
+            onStarted={hydrateRef5GeneratedSession}
+          />
+        </AppPage>
+      ) : null}
+
+      {!noPlan && !ref5StartContext && ((isDraftLoaded && draft) || blockedMessage) ? (
         skin === "terminal" ? (
           // ── terminal 본문: TUI 테이블 + 저장(⏎, 셸 푸터) + BW notice.
           //    DateNav·헤더는 후속. 시트/toast는 게이트 밖에서 양쪽 공유. ──
@@ -447,7 +488,7 @@ function WorkoutLogScreenContent({
               ) : null}
               <WorkoutLogTuiView
                 onExerciseAction={handleExerciseAction}
-                onOpenAddExerciseSheet={openAddExerciseSheet}
+                onOpenAddExerciseSheet={draft.session.ref5 ? undefined : openAddExerciseSheet}
                 onSave={requestSave}
               />
             </>
@@ -477,11 +518,11 @@ function WorkoutLogScreenContent({
                 : undefined
             }
             onTitleClick={openPlanSheet}
-            titleDisabled={isEditingExistingLog}
+            titleDisabled={isEditingExistingLog || isStartedRef5Session}
             titleAriaLabel={
               locale === "ko" ? "플랜 선택 열기" : "Open plan selector"
             }
-            titleAriaExpanded={!isEditingExistingLog && planSheetOpen}
+            titleAriaExpanded={!isEditingExistingLog && !isStartedRef5Session && planSheetOpen}
             titleAriaHasPopup="dialog"
           />
 
@@ -513,9 +554,10 @@ function WorkoutLogScreenContent({
               ariaLabel={copy.workoutLog.dateChangeAriaLabel}
               prevLabel={copy.workoutLog.dateNavPrev}
               nextLabel={copy.workoutLog.dateNavNext}
+              disabled={isStartedRef5Session}
               style={{ flex: 1, minWidth: 0 }}
             />
-            <button
+            {!isStartedRef5Session ? <button
               type="button"
               onClick={() => setSummaryOpen(true)}
               aria-label={
@@ -558,7 +600,7 @@ function WorkoutLogScreenContent({
                   {sessionLabel}
                 </span>
               ) : null}
-            </button>
+            </button> : null}
           </div>
 
           {!draft ? (
@@ -576,7 +618,7 @@ function WorkoutLogScreenContent({
           <WorkoutLogStackedList
             ref={stackedListRef}
             onExerciseAction={handleExerciseAction}
-            onOpenAddExerciseSheet={openAddExerciseSheet}
+            onOpenAddExerciseSheet={draft.session.ref5 ? undefined : openAddExerciseSheet}
           />
 
           <StickyActionBar>
@@ -683,11 +725,13 @@ function WorkoutLogScreenContent({
         )
       ) : null}
 
-      <WorkoutLogSummarySheet
-        open={summaryOpen}
-        onClose={() => setSummaryOpen(false)}
-        planId={selectedPlan?.id ?? null}
-      />
+      {!isStartedRef5Session ? (
+        <WorkoutLogSummarySheet
+          open={summaryOpen}
+          onClose={() => setSummaryOpen(false)}
+          planId={selectedPlan?.id ?? null}
+        />
+      ) : null}
 
       <WorkoutLogOverlaySheets
         locale={locale}
@@ -728,6 +772,7 @@ function DateNav({
   ariaLabel,
   prevLabel,
   nextLabel,
+  disabled = false,
   style,
 }: {
   dateKey: string;
@@ -738,6 +783,7 @@ function DateNav({
   ariaLabel: string;
   prevLabel: string;
   nextLabel: string;
+  disabled?: boolean;
   style?: React.CSSProperties;
 }) {
   return (
@@ -759,6 +805,7 @@ function DateNav({
         className="date-nav-btn"
         aria-label={prevLabel}
         onClick={onPrev}
+        disabled={disabled}
       >
         <span
           className="material-symbols-outlined"
@@ -777,6 +824,7 @@ function DateNav({
           minHeight: "var(--v2-touch)",
           fontWeight: 700,
           color: "var(--v2-ink)",
+          opacity: disabled ? 0.72 : 1,
         }}
       >
         <span aria-live="polite">{label}</span>
@@ -784,6 +832,7 @@ function DateNav({
           type="date"
           aria-label={ariaLabel}
           value={dateKey}
+          disabled={disabled}
           onChange={(e) => {
             if (e.target.value) onPick(e.target.value);
           }}
@@ -793,7 +842,7 @@ function DateNav({
             opacity: 0,
             width: "100%",
             height: "100%",
-            cursor: "pointer",
+            cursor: disabled ? "default" : "pointer",
           }}
         />
       </label>
@@ -802,6 +851,7 @@ function DateNav({
         className="date-nav-btn"
         aria-label={nextLabel}
         onClick={onNext}
+        disabled={disabled}
       >
         <span
           className="material-symbols-outlined"

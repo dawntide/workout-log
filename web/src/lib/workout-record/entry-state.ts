@@ -84,7 +84,8 @@ export function validateWorkoutRecordEntryState(
       }
 
       const parsedValue = Number(rawValue);
-      if (!Number.isFinite(parsedValue) || parsedValue < 1 || parsedValue > 100) {
+      const minimumReps = exercise.ref5 ? 0 : 1;
+      if (!Number.isFinite(parsedValue) || parsedValue < minimumReps || parsedValue > 100) {
         errors.push(copy.invalidReps(exercise.exerciseName, setIndex));
       }
     });

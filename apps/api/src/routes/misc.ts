@@ -15,6 +15,7 @@ import { buildUserDataExport, buildWorkoutSetCsv } from "@workout/core/export/us
 import { importUserData, type ImportMode } from "@workout/core/import/userImport";
 import { invalidateStatsCacheForUser } from "@workout/core/stats/cache";
 import { rateLimit } from "@workout/core/auth/rate-limit";
+import { REF5_IDENTIFIERS } from "@workout/core/program-engine/ref5";
 import {
   ANONYMOUS_WEB_VITAL_USER_ID,
   normalizePublicWebVitalEvent,
@@ -272,6 +273,28 @@ templatesRoutes.post("/:slug/fork", async (c) => {
         { error: locale === "ko" ? "원본 버전을 찾을 수 없습니다." : "Source version not found." },
         404,
       );
+
+    const sourceDefinition =
+      sourceVersion.definition &&
+      typeof sourceVersion.definition === "object" &&
+      !Array.isArray(sourceVersion.definition)
+        ? (sourceVersion.definition as Record<string, unknown>)
+        : {};
+    const isRef5Source =
+      sourceTemplate.slug === REF5_IDENTIFIERS.slug ||
+      String(sourceDefinition.kind ?? "").toLowerCase() === REF5_IDENTIFIERS.kind ||
+      String(sourceDefinition.family ?? "").toLowerCase() === REF5_IDENTIFIERS.family;
+    if (isRef5Source) {
+      return c.json(
+        {
+          error:
+            locale === "ko"
+              ? "REF5 전용 편집기가 제공되기 전에는 복제할 수 없습니다."
+              : "REF5 cannot be forked until a dedicated editor is available.",
+        },
+        400,
+      );
+    }
 
     const forkSlug = newSlug ?? `${slug}-${userId}-${Date.now()}`;
     const forkName = newName ?? `${sourceTemplate.name} (Fork)`;

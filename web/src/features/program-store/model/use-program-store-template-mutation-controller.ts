@@ -7,6 +7,7 @@ import { apiDelete, apiPost, apiPut } from "@/lib/api";
 import {
   hasAtLeastOneExercise,
   isOperatorTemplate,
+  isRef5Template,
   makeForkSlug,
   resolveProgramFamily,
   toManualDefinition,
@@ -176,6 +177,14 @@ export function useProgramStoreTemplateMutationController({
 
   const saveCustomizationDraft = useCallback(
     async (draft: ProgramStoreCustomizeDraft) => {
+      if (isRef5Template(draft.baseTemplate)) {
+        setError(
+          locale === "ko"
+            ? "REF5는 일반 프로그램으로 포크할 수 없습니다."
+            : "REF5 cannot be forked into a general program.",
+        );
+        return;
+      }
       const errors = validateCustomSessions(draft.sessions, locale);
       if (!draft.name.trim()) {
         errors.push(
@@ -267,6 +276,14 @@ export function useProgramStoreTemplateMutationController({
         sourceSlug = draft.sourceTemplateSlug;
       } else {
         sourceSlug = manualPublicTemplate?.slug ?? null;
+      }
+
+      if (String(sourceSlug ?? "").trim().toLowerCase() === "ref5-adaptive-strength") {
+        errors.push(
+          locale === "ko"
+            ? "REF5는 일반 프로그램으로 포크할 수 없습니다."
+            : "REF5 cannot be forked into a general program.",
+        );
       }
 
       if (!sourceSlug) {
