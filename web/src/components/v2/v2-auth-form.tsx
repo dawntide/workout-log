@@ -326,8 +326,8 @@ export function V2AuthForm({ mode }: { mode: Mode }) {
                       : "Show password"
                 }
                 style={{
-                  width: 36,
-                  height: 36,
+                  width: "var(--v2-touch)",
+                  height: "var(--v2-touch)",
                   border: "none",
                   borderRadius: "var(--v2-r-2)",
                   background: "transparent",
@@ -500,6 +500,9 @@ function AuthLink({
     <Link
       href={href}
       style={{
+        display: "inline-flex",
+        alignItems: "center",
+        minHeight: "var(--v2-touch)",
         color: "var(--v2-accent-ink)",
         fontWeight: 800,
         textDecoration: "none",

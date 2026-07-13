@@ -565,7 +565,7 @@ function ChipButton({
         color: disabled ? "var(--v2-ink-3)" : fg,
         border: "none",
         cursor: disabled ? "not-allowed" : "pointer",
-        minHeight: compact ? undefined : "var(--v2-s-8)",
+        minHeight: "var(--v2-touch)",
         fontWeight: compact ? 400 : 700,
         ...style,
       }}

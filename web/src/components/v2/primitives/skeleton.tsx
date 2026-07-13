@@ -1,5 +1,3 @@
-"use client";
-
 import type { CSSProperties } from "react";
 
 export type V2SkeletonShape = "rect" | "text" | "circle";

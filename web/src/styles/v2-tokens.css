@@ -18,7 +18,7 @@
   /* text */
   --v2-ink: #2b2a26;
   --v2-ink-2: #4a4842;
-  --v2-ink-3: #6f6a5e;
+  --v2-ink-3: #625e54;
   --v2-ink-4: #9d957f;
   --v2-ink-on-accent: #fbf7ee;
 
@@ -29,16 +29,16 @@
   --v2-accent-ink: #3528a8;
 
   /* domain */
-  --v2-c-weight: #4a3fb0;
-  --v2-c-reps: #2f7d6e;
-  --v2-c-volume: #b85c1c;
-  --v2-c-onerm: #5b4cdb;
-  --v2-c-progress: #4d8233;
-  --v2-c-pr: #9a6b00;
-  --v2-c-danger: #b13a2c;
-  --v2-c-success: #4d8233;
-  --v2-c-info: #2a7a8c;
-  --v2-c-warning: #b58900;
+  --v2-c-weight: #40359f;
+  --v2-c-reps: #236659;
+  --v2-c-volume: #93450e;
+  --v2-c-onerm: #4a3bbd;
+  --v2-c-progress: #3b6c27;
+  --v2-c-pr: #765200;
+  --v2-c-danger: #9b2d22;
+  --v2-c-success: #3b6c27;
+  --v2-c-info: #1f6878;
+  --v2-c-warning: #765a00;
 
   /* type */
   --v2-f-display: var(--font-inter, 'Inter'), 'Pretendard Variable', system-ui, sans-serif;

@@ -10,6 +10,14 @@ import { expect, test, type Page } from "@playwright/test";
 
 // CI에서 서버가 응답하기까지 여유를 줌
 const NAV_TIMEOUT = 30_000;
+const IS_EXTERNAL_E2E = Boolean(process.env.PLAYWRIGHT_BASE_URL);
+
+function expectSuccessfulPageResponse(
+  response: Awaited<ReturnType<Page["goto"]>>,
+) {
+  expect(response, "navigation should return a document response").not.toBeNull();
+  expect(response?.status(), "page should resolve to HTTP 200").toBe(200);
+}
 
 // 렌더 크래시(에러 바운더리 노출) 감지.
 // status 검사만으론 부족하다 — RSC 직렬화 크래시(#491 F4) 같은 렌더 에러는 200 + 커스텀
@@ -26,49 +34,54 @@ async function expectNoRenderCrash(page: Page) {
 test.describe("smoke — core pages render", () => {
   test("홈 페이지 정상 로드", async ({ page }) => {
     const response = await page.goto("/", { timeout: NAV_TIMEOUT });
-    expect(response?.status()).not.toBe(500);
+    expectSuccessfulPageResponse(response);
     await expectNoRenderCrash(page);
   });
 
   test("운동 기록 페이지 정상 로드", async ({ page }) => {
     const response = await page.goto("/workout/log", { timeout: NAV_TIMEOUT });
-    expect(response?.status()).not.toBe(500);
+    expectSuccessfulPageResponse(response);
     await expectNoRenderCrash(page);
   });
 
   test("통계 페이지 정상 로드", async ({ page }) => {
     const response = await page.goto("/stats", { timeout: NAV_TIMEOUT });
-    expect(response?.status()).not.toBe(500);
+    expectSuccessfulPageResponse(response);
+    // Preview E2E에는 인증 사용자가 없어 /login으로 이동한다. /stats → stats deck
+    // 호환 리다이렉트는 로컬 production smoke의 인증 fallback 환경에서 검증한다.
+    if (!IS_EXTERNAL_E2E) {
+      await expect(page).toHaveURL(/\/?deck=stats$/);
+    }
     await expectNoRenderCrash(page);
   });
 
   test("플랜 페이지 정상 로드", async ({ page }) => {
     const response = await page.goto("/plans", { timeout: NAV_TIMEOUT });
-    expect(response?.status()).not.toBe(500);
+    expectSuccessfulPageResponse(response);
     await expectNoRenderCrash(page);
   });
 
   test("설정 페이지 정상 로드", async ({ page }) => {
     const response = await page.goto("/settings", { timeout: NAV_TIMEOUT });
-    expect(response?.status()).not.toBe(500);
+    expectSuccessfulPageResponse(response);
     await expectNoRenderCrash(page);
   });
 
   test("계정 설정 페이지 정상 로드", async ({ page }) => {
     const response = await page.goto("/settings/account", { timeout: NAV_TIMEOUT });
-    expect(response?.status()).not.toBe(500);
+    expectSuccessfulPageResponse(response);
     await expectNoRenderCrash(page);
   });
 
   test("PR 이력 페이지 정상 로드", async ({ page }) => {
     const response = await page.goto("/stats/prs", { timeout: NAV_TIMEOUT });
-    expect(response?.status()).not.toBe(500);
+    expectSuccessfulPageResponse(response);
     await expectNoRenderCrash(page);
   });
 
   test("로그인 페이지 정상 로드", async ({ page }) => {
     const response = await page.goto("/login", { timeout: NAV_TIMEOUT });
-    expect(response?.status()).not.toBe(500);
+    expectSuccessfulPageResponse(response);
     await expectNoRenderCrash(page);
   });
 });
@@ -76,22 +89,51 @@ test.describe("smoke — core pages render", () => {
 test.describe("smoke — API health", () => {
   test("health API 200 응답", async ({ request }) => {
     const response = await request.get("/api/health");
-    // health endpoint가 없으면 404도 허용 — 500만 아니면 됨
-    expect(response.status()).not.toBe(500);
-    expect(response.status()).not.toBe(503);
+    expect(response.status()).toBe(200);
   });
 });
 
 test.describe("smoke — core navigation flow", () => {
   test("홈에서 운동 기록으로 이동", async ({ page }) => {
+    test.skip(IS_EXTERNAL_E2E, "외부 Preview에는 인증 테스트 사용자가 없습니다.");
+
     await page.goto("/", { timeout: NAV_TIMEOUT });
     // 앱이 로드될 때까지 대기
     await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {
       // networkidle이 오래 걸릴 수 있어 timeout 무시
     });
 
-    // /workout/log 직접 이동으로 검증 (내비게이션 엘리먼트 의존 X)
-    const response = await page.goto("/workout/log", { timeout: NAV_TIMEOUT });
-    expect(response?.status()).not.toBe(500);
+    // 빈 CI seed에서는 첫 방문 온보딩이 정상 노출된다. 실제 닫기 흐름을 거쳐
+    // 온보딩 상태 저장과 홈 복귀까지 확인한 뒤 하단 내비게이션을 검증한다.
+    if (new URL(page.url()).pathname === "/onboarding") {
+      await page.getByRole("button", { name: /닫기|Close/ }).click();
+      await expect(page).toHaveURL(/\/$/);
+    }
+
+    // 실제 하단 내비게이션을 눌러 AppShell의 클라이언트 전환까지 검증한다.
+    await page.getByRole("link", { name: /기록|Log/ }).click();
+    await expect(page).toHaveURL(/\/workout\/log/);
+    await expectNoRenderCrash(page);
+  });
+
+  test("프로그램 스토어 화면 밖 카드가 스크롤 시 렌더", async ({ page }) => {
+    test.skip(IS_EXTERNAL_E2E, "외부 Preview에는 인증 테스트 사용자가 없습니다.");
+
+    const response = await page.goto("/program-store", {
+      timeout: NAV_TIMEOUT,
+    });
+    expectSuccessfulPageResponse(response);
+
+    const cards = page.locator(".program-list-card");
+    await expect(cards.first()).toBeVisible();
+    const cardCount = await cards.count();
+    expect(cardCount).toBeGreaterThan(2);
+
+    const lastCard = cards.last();
+    await lastCard.scrollIntoViewIfNeeded();
+    await expect(lastCard).toBeVisible();
+    const lastCardHeading = lastCard.getByRole("heading", { level: 2 });
+    await expect(lastCardHeading).toBeVisible();
+    await expect(lastCardHeading).toHaveText(/\S/);
   });
 });

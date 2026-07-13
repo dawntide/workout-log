@@ -168,12 +168,17 @@ settingsRoutes.patch("/", async (c) => {
           set: { value: nextValue, updatedAt: new Date() },
         });
 
+      // Home/stats payloads include goal and bodyweight preferences. Settings
+      // writes are rare, so invalidate once here and keep warm reads query-free.
+      await invalidateStatsCacheForUser(userId);
+
       const settings = mergeWithDefaults(await readSettingsFromDb(userId));
       return c.json({ ok: true, setting: { key, value: settings[key] }, settings });
     } catch (error) {
       if (!isMissingTableError(error)) throw error;
       const snapshot = getFallbackStoreForUser(userId);
       snapshot[key] = nextValue;
+      await invalidateStatsCacheForUser(userId).catch(() => {});
       return c.json({
         ok: true,
         setting: { key, value: snapshot[key] },

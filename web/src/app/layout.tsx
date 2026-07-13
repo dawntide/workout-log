@@ -13,6 +13,8 @@ import { LocaleProvider } from "@/components/locale-provider";
 import { ThemeSkinProvider } from "@/components/use-theme-skin";
 import { FontStylesheetLoader } from "@/components/font-stylesheet-loader";
 import { ServiceWorkerRegister } from "@/components/service-worker-register";
+import { WebVitalsReporter } from "@/components/web-vitals-reporter";
+import { WorkoutUxEventSync } from "@/components/workout-ux-event-sync";
 import { resolveRequestLocale } from "@/lib/i18n/server";
 import { resolveRequestSkin } from "@/lib/settings/theme-skin-server";
 import { getAppCopy, type AppLocale } from "@/lib/i18n/messages";
@@ -145,6 +147,8 @@ export default function RootLayout({
       <body>
         <FontStylesheetLoader />
         <ServiceWorkerRegister />
+        <WebVitalsReporter />
+        <WorkoutUxEventSync />
         {/* PPR: 동적 쿠키/헤더 읽기를 Suspense 안으로 격리 → 정적 쉘 즉시 서빙 */}
         <Suspense fallback={null}>
           <LocaleShell>{children}</LocaleShell>

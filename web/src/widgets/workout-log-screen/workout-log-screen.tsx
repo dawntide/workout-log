@@ -774,6 +774,7 @@ function DateNav({
           position: "relative",
           display: "flex",
           alignItems: "center",
+          minHeight: "var(--v2-touch)",
           fontWeight: 700,
           color: "var(--v2-ink)",
         }}

@@ -23,24 +23,7 @@ import {
   V2SelectableRow,
   V2TextField,
 } from "./primitives";
-
-const ONBOARDING_DONE_KEY = "workout-log.v2.onboarding.done";
-
-export function markOnboardingDone() {
-  try {
-    window.localStorage.setItem(ONBOARDING_DONE_KEY, "1");
-  } catch {
-    // ignore
-  }
-}
-
-export function isOnboardingDone(): boolean {
-  try {
-    return window.localStorage.getItem(ONBOARDING_DONE_KEY) === "1";
-  } catch {
-    return false;
-  }
-}
+import { markOnboardingDone } from "./onboarding-state";
 
 const TOTAL_STEPS = 4;
 

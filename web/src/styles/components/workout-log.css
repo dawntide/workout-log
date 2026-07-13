@@ -416,8 +416,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  min-width: var(--v2-s-7);
-  min-height: var(--v2-s-7);
+  min-width: var(--v2-touch);
+  min-height: var(--v2-touch);
   padding: 0 2px;
   background: transparent;
   border: none;

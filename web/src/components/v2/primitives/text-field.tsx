@@ -12,8 +12,8 @@ import { V2Icon } from "./v2-icon";
 export type V2TextFieldSize = "md" | "sm";
 
 const SHELL_PADDING: Record<V2TextFieldSize, string> = {
-  md: "var(--v2-s-3) var(--v2-s-4)",
-  sm: "var(--v2-s-2) var(--v2-s-3)",
+  md: "var(--v2-s-1) var(--v2-s-4)",
+  sm: "0 var(--v2-s-3)",
 };
 
 const FONT_CLASS: Record<V2TextFieldSize, string> = {

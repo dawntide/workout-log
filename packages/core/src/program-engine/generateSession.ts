@@ -1605,14 +1605,19 @@ async function resolveRestDayGapDays(input: {
   }
 }
 
-export async function generateAndSaveSession(input: {
+export type GenerateSessionInput = {
   userId: string;
   planId: string;
   week?: number;
   day?: number;
   sessionDate?: string;
   timezone?: string;
-}) {
+};
+
+async function buildSession(
+  input: GenerateSessionInput,
+  persist: boolean,
+) {
   // plan + runtimeState 병렬 조회 (기존 2-round-trip → 1-round-trip)
   const [pRows, runtimeRows] = await Promise.all([
     db.select().from(planTable).where(eq(planTable.id, input.planId)).limit(1),
@@ -1861,6 +1866,10 @@ export async function generateAndSaveSession(input: {
     snapshot.lightBlockMode = true;
   }
 
+  // 홈 미리보기처럼 읽기 전용 호출은 동일 처방 로직을 쓰되 generated_session을
+  // 갱신하지 않는다. 화면 렌더가 DB mutation을 일으키지 않도록 경계를 분리한다.
+  if (!persist) return { snapshot };
+
   // 원자적 upsert: (plan_id, session_key) 유니크 제약 기준 INSERT-or-UPDATE.
   // 기존 SELECT→UPDATE/INSERT는 비트랜잭션이라 동시 렌더가 둘 다 SELECT 미스 후
   // INSERT하면 유니크 위반으로 렌더가 실패할 수 있었다(레이스). DO UPDATE가 항상
@@ -1881,6 +1890,21 @@ export async function generateAndSaveSession(input: {
     .returning();
 
   return saved;
+}
+
+/** DB write 없이 현재 런타임 위치의 세션 스냅샷을 계산한다. */
+export async function generateSessionSnapshot(input: GenerateSessionInput) {
+  const generated = await buildSession(input, false);
+  return generated.snapshot;
+}
+
+/** 운동 시작/명시적 생성 흐름에서 세션 스냅샷을 원자적으로 저장한다. */
+export async function generateAndSaveSession(input: GenerateSessionInput) {
+  const generated = await buildSession(input, true);
+  if (!("id" in generated)) {
+    throw new Error("Generated session was not persisted");
+  }
+  return generated;
 }
 
 export type PreviewSessionInput = {

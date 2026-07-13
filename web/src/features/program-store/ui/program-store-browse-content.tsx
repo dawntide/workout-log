@@ -139,6 +139,7 @@ export function ProgramStoreBrowseContent({
                   className="v2-eyebrow v2-pressable"
                   style={{
                     padding: "var(--v2-s-2) var(--v2-s-5)",
+                    minHeight: "var(--v2-touch)",
                     border: "none",
                     borderRadius: "var(--v2-r-pill)",
                     cursor: "pointer",

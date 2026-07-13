@@ -60,6 +60,9 @@ const nextConfig: NextConfig = {
   async redirects() {
     const isProd = process.env.NODE_ENV === "production";
     return [
+      // 통계 홈은 별도 페이지가 아니라 홈의 stats deck으로 통합됐다.
+      // 기존 북마크·외부 링크·TUI 딥링크는 canonical deck URL로 수렴시킨다.
+      { source: "/stats", destination: "/?deck=stats", permanent: false },
       // /workout/today 폐기 → 홈으로 영구 이동 (migration RM-1)
       { source: "/workout/today", destination: "/", permanent: true },
       // /workout/today/overrides → /workout/log/overrides 로 이전 (migration MV-2)
@@ -77,19 +80,9 @@ const nextConfig: NextConfig = {
     ];
   },
   async headers() {
-    const isProd = process.env.NODE_ENV === "production";
     return [
-      // 정적 자산 장기 캐싱 — content-hash URL이므로 1년 캐싱 안전
-      // 개발 모드에서는 HMR 동작을 보호하기 위해 헤더를 추가하지 않음
-      ...(isProd ? [{
-        source: "/_next/static/(.*)",
-        headers: [
-          {
-            key: "Cache-Control",
-            value: "public, max-age=31536000, immutable",
-          },
-        ],
-      }] : []),
+      // /_next/static은 Next가 content hash에 맞는 immutable 헤더를 자동 설정한다.
+      // 여기서 덮어쓰면 analyzer 경고와 dev/HMR 불일치를 만들 수 있어 맡긴다.
       // PERF: 자체 호스팅 폰트 CSS 장기 캐싱 (내용 변경 시 파일명 변경으로 캐시 버스팅)
       {
         source: "/fonts/(.*)",
