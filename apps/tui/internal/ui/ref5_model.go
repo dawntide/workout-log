@@ -115,9 +115,8 @@ func (r *ref5SessionState) active() bool {
 }
 
 // ref5PlanLocation is the calendar boundary that owns every REF5 decision.
-// The server defaults legacy plans to UTC; new TUI plans always persist an
-// explicit IANA timezone, while invalid/missing historical values fall back to
-// the terminal's local zone for a predictable display.
+// v1.2 plans persist an explicit IANA timezone; invalid or missing values fall
+// back to the terminal's local zone for a predictable display.
 func ref5PlanLocation(plan api.Plan) *time.Location {
 	if timezone, ok := plan.Params["timezone"].(string); ok {
 		if location, err := time.LoadLocation(strings.TrimSpace(timezone)); err == nil {
@@ -289,9 +288,8 @@ func ref5UnfinishedSessions(sessions []api.GeneratedSession, logs []api.LogItem)
 			continue
 		}
 		meta := session.Snapshot.Ref5
-		committedOrLegacy := meta != nil &&
-			(meta.StartCommitted || meta.ProtocolVersion == api.Ref5LegacyProtocolVersion)
-		if session.ID != "" && session.Snapshot.IsRef5() && committedOrLegacy && !logged[session.ID] {
+		committedV12 := meta != nil && meta.StartCommitted && meta.ProtocolVersion == api.Ref5ProtocolVersion
+		if session.ID != "" && session.Snapshot.IsRef5() && committedV12 && !logged[session.ID] {
 			out = append(out, session)
 		}
 	}

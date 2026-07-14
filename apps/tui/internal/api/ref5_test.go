@@ -78,7 +78,7 @@ func TestCreatePlanRequestPreservesRef5TimezoneAndParams(t *testing.T) {
 		t.Fatalf("CreatePlan: %v", err)
 	}
 
-	plan := Plan{Params: map[string]any{"ref5": map[string]any{"protocolVersion": "1.1"}}}
+	plan := Plan{Params: map[string]any{"ref5": map[string]any{"protocolVersion": Ref5ProtocolVersion}}}
 	if !plan.IsRef5() {
 		t.Error("Plan.IsRef5 = false")
 	}
@@ -503,7 +503,7 @@ func TestRef5SetMetaRoundTripPreservesCanonicalMetadata(t *testing.T) {
 		"totalLoadKg":91.25,
 		"futureTopLevel":{"owner":"engine","values":[1,2,3]},
 		"ref5":{
-			"protocolVersion":"1.1",
+			"protocolVersion":"1.2",
 			"snapshotId":"snapshot-1",
 			"sessionId":"session-1",
 			"prescriptionId":"rx-pull-1",

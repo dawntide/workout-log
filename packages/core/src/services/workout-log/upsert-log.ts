@@ -26,7 +26,6 @@ import {
   rebuildRef5ProgressionForPlan,
 } from "@workout/core/progression/ref5-auto-progression";
 import {
-  REF5_LEGACY_PROTOCOL_VERSION,
   REF5_PROTOCOL_VERSION,
   Ref5StaleVersionError,
 } from "@workout/core/program-engine/ref5";
@@ -258,8 +257,7 @@ async function upsertRef5WorkoutLog(input: {
     if (
       !sessionProtocolVersion ||
       sessionProtocolVersion !== planProtocolVersion ||
-      (planProtocolVersion !== REF5_PROTOCOL_VERSION &&
-        planProtocolVersion !== REF5_LEGACY_PROTOCOL_VERSION)
+      planProtocolVersion !== REF5_PROTOCOL_VERSION
     ) {
       throw new Ref5StaleVersionError(sessionProtocolVersion);
     }

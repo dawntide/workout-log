@@ -8,10 +8,9 @@ import (
 )
 
 const (
-	Ref5TemplateSlug          = "ref5-adaptive-strength"
-	Ref5ProgramFamily         = "ref5"
-	Ref5ProtocolVersion       = "1.2"
-	Ref5LegacyProtocolVersion = "1.1"
+	Ref5TemplateSlug    = "ref5-adaptive-strength"
+	Ref5ProgramFamily   = "ref5"
+	Ref5ProtocolVersion = "1.2"
 )
 
 // Plan is a user's training plan.
@@ -240,12 +239,11 @@ type SessionSnapshot struct {
 
 // IsRef5 recognizes both the REF5 metadata block and immutable program markers.
 func (s SessionSnapshot) IsRef5() bool {
-	if s.Ref5 != nil && (s.Ref5.ProtocolVersion != "" || s.Ref5.SnapshotID != "") {
+	if s.Ref5 != nil && strings.EqualFold(strings.TrimSpace(s.Ref5.ProtocolVersion), Ref5ProtocolVersion) {
 		return true
 	}
 	protocolVersion := strings.TrimSpace(s.ProtocolVersion)
 	return strings.EqualFold(protocolVersion, Ref5ProtocolVersion) ||
-		strings.EqualFold(protocolVersion, Ref5LegacyProtocolVersion) ||
 		strings.EqualFold(strings.TrimSpace(s.Program.Slug), Ref5TemplateSlug) ||
 		strings.EqualFold(strings.TrimSpace(s.Program.Family), Ref5ProgramFamily) ||
 		strings.EqualFold(strings.TrimSpace(s.Program.Kind), Ref5ProgramFamily)

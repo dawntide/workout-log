@@ -12,14 +12,10 @@ export const REF5_LEGACY_PROTOCOL_VERSION = "1.1" as const;
 export const REF5_RUNTIME_SCHEMA_VERSION = 2 as const;
 export const REF5_LEGACY_RUNTIME_SCHEMA_VERSION = 1 as const;
 export const REF5_SNAPSHOT_SCHEMA_VERSION = 2 as const;
-export const REF5_LEGACY_SNAPSHOT_SCHEMA_VERSION = 1 as const;
-export const REF5_LEGACY_MIGRATION_MARKER = "REF5_V1_1_SCHEMA_CONFIRMED" as const;
 export const REF5_PROGRAM_VERSION = 2 as const;
 export const REF5_LEGACY_ENGINE_VERSION = 511 as const;
 
-export type Ref5ProtocolVersion =
-  | typeof REF5_LEGACY_PROTOCOL_VERSION
-  | typeof REF5_PROTOCOL_VERSION;
+export type Ref5ProtocolVersion = typeof REF5_PROTOCOL_VERSION;
 
 export const REF5_IDENTIFIERS = Object.freeze({
   displayName: "REF5 Adaptive Strength",
@@ -423,18 +419,9 @@ export interface Ref5ProgressionChange {
   causeEventIds: string[];
 }
 
-export interface Ref5ProtocolUpgradeMetadata {
-  stableKey: string;
-  fromProtocolVersion: typeof REF5_LEGACY_PROTOCOL_VERSION;
-  toProtocolVersion: typeof REF5_PROTOCOL_VERSION;
-  transitionedAt: string;
-}
-
 export interface Ref5RuntimeState {
-  schemaVersion:
-    | typeof REF5_LEGACY_RUNTIME_SCHEMA_VERSION
-    | typeof REF5_RUNTIME_SCHEMA_VERSION;
-  protocolVersion: Ref5ProtocolVersion;
+  schemaVersion: typeof REF5_RUNTIME_SCHEMA_VERSION;
+  protocolVersion: typeof REF5_PROTOCOL_VERSION;
   revision: number;
   directStandardsKg: Ref5DirectStandardsKg;
   nextFocus: Ref5Focus;
@@ -459,7 +446,6 @@ export interface Ref5RuntimeState {
   appliedCompletionEventIds: string[];
   appliedRawLogIds: string[];
   progressionChanges: Ref5ProgressionChange[];
-  protocolUpgrade?: Ref5ProtocolUpgradeMetadata;
 }
 
 function emptyFailStreams(): Record<Ref5Stream, Ref5FailStreamState> {
@@ -521,15 +507,6 @@ export function createInitialRef5State(
   };
 }
 
-export function createInitialRef5LegacyV11State(
-  standards: Ref5DirectStandardsKg = { ...REF5_INITIAL_DIRECT_STANDARDS_KG },
-): Ref5RuntimeState {
-  const state = createInitialRef5State(standards);
-  state.schemaVersion = REF5_LEGACY_RUNTIME_SCHEMA_VERSION;
-  state.protocolVersion = REF5_LEGACY_PROTOCOL_VERSION;
-  return state;
-}
-
 const REF5_V12_REMOVED_STATE_KEYS = new Set([
   "climb",
   "climbing",
@@ -543,41 +520,6 @@ const REF5_V12_REMOVED_STATE_KEYS = new Set([
   "omitted",
   "omittedPrescriptions",
 ]);
-
-function cloneWithoutRef5V12RemovedFields(value: unknown): unknown {
-  if (Array.isArray(value)) return value.map(cloneWithoutRef5V12RemovedFields);
-  if (!value || typeof value !== "object") return value;
-  return Object.fromEntries(
-    Object.entries(value as Record<string, unknown>)
-      .filter(([key]) => !REF5_V12_REMOVED_STATE_KEYS.has(key))
-      .map(([key, child]) => [key, cloneWithoutRef5V12RemovedFields(child)]),
-  );
-}
-
-/** Pure, idempotent v1.1 -> v1.2 runtime transition used at the upgrade event boundary. */
-export function upgradeRef5RuntimeStateV11ToV12(
-  state: Ref5RuntimeState,
-  metadata: Ref5ProtocolUpgradeMetadata,
-): Ref5RuntimeState {
-  if (state.protocolVersion === REF5_PROTOCOL_VERSION) {
-    if (state.protocolUpgrade?.stableKey !== metadata.stableKey) {
-      throw new Ref5ValidationError(["REF5 runtime was upgraded by a different protocol event"]);
-    }
-    return cloneState(state);
-  }
-  if (
-    state.protocolVersion !== REF5_LEGACY_PROTOCOL_VERSION ||
-    state.schemaVersion !== REF5_LEGACY_RUNTIME_SCHEMA_VERSION
-  ) {
-    throw new Ref5ValidationError(["unsupported REF5 legacy runtime state version"]);
-  }
-  const upgraded = cloneWithoutRef5V12RemovedFields(state) as Ref5RuntimeState;
-  upgraded.schemaVersion = REF5_RUNTIME_SCHEMA_VERSION;
-  upgraded.protocolVersion = REF5_PROTOCOL_VERSION;
-  upgraded.protocolUpgrade = { ...metadata };
-  upgraded.revision += 1;
-  return upgraded;
-}
 
 function cloneState(state: Ref5RuntimeState): Ref5RuntimeState {
   return JSON.parse(JSON.stringify(state)) as Ref5RuntimeState;
@@ -715,44 +657,7 @@ export interface Ref5SessionSnapshot {
   totalWorkingSets: number;
 }
 
-/** Frozen v1.1 shape. It is accepted only by the legacy decoder/reducer boundary. */
-export interface Ref5LegacyV11SessionInput extends Ref5SessionInput {
-  climbingWithin48h: boolean;
-  omitPullVolume?: boolean;
-}
-
-export interface Ref5LegacyV11SessionDecision extends Ref5SessionDecision {
-  climbingReplacement: boolean;
-}
-
-export interface Ref5LegacyV11ExercisePrescription
-  extends Omit<Ref5ExercisePrescription, "role"> {
-  role: Ref5ExerciseRole | "CLIMBING_FOCUS_INVALID";
-  omitted: boolean;
-}
-
-export interface Ref5LegacyV11SessionSnapshot
-  extends Omit<
-    Ref5SessionSnapshot,
-    "schemaVersion" | "protocolVersion" | "startInput" | "decision" | "exercises"
-  > {
-  schemaVersion: typeof REF5_LEGACY_SNAPSHOT_SCHEMA_VERSION;
-  protocolVersion: typeof REF5_LEGACY_PROTOCOL_VERSION;
-  startInput: Ref5LegacyV11SessionInput;
-  decision: Ref5LegacyV11SessionDecision;
-  exercises: Ref5LegacyV11ExercisePrescription[];
-}
-
-export type Ref5DecodedSessionSnapshot = Ref5SessionSnapshot | Ref5LegacyV11SessionSnapshot;
-
-export function isRef5LegacyV11Snapshot(
-  snapshot: Ref5DecodedSessionSnapshot,
-): snapshot is Ref5LegacyV11SessionSnapshot {
-  return (
-    snapshot.protocolVersion === REF5_LEGACY_PROTOCOL_VERSION &&
-    snapshot.schemaVersion === REF5_LEGACY_SNAPSHOT_SCHEMA_VERSION
-  );
-}
+export type Ref5DecodedSessionSnapshot = Ref5SessionSnapshot;
 
 function recordValue(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value)
@@ -771,29 +676,12 @@ function containsRef5V12RemovedField(value: unknown): boolean {
   );
 }
 
-/** Strict version dispatcher for frozen domain snapshots. */
-export function decodeRef5SessionSnapshot(
-  value: unknown,
-  options: { legacyMigrationMarker?: unknown } = {},
-): Ref5DecodedSessionSnapshot {
+/** Strict v1.2 decoder. Historical v1.1 data was absent at the production cutover. */
+export function decodeRef5SessionSnapshot(value: unknown): Ref5SessionSnapshot {
   const candidate = recordValue(value);
-  let protocolVersion = String(candidate.protocolVersion ?? "").trim();
-  if (!protocolVersion) {
-    const knownLegacyShape =
-      Number(candidate.schemaVersion) === REF5_LEGACY_SNAPSHOT_SCHEMA_VERSION &&
-      typeof recordValue(candidate.startInput).climbingWithin48h === "boolean" &&
-      typeof recordValue(candidate.decision).climbingReplacement === "boolean" &&
-      Array.isArray(candidate.exercises);
-    if (
-      options.legacyMigrationMarker !== REF5_LEGACY_MIGRATION_MARKER ||
-      !knownLegacyShape
-    ) {
-      throw new Ref5ValidationError([
-        "REF5 snapshot without protocolVersion lacks a verified v1.1 migration marker",
-      ]);
-    }
-    protocolVersion = REF5_LEGACY_PROTOCOL_VERSION;
-    candidate.protocolVersion = protocolVersion;
+  const protocolVersion = String(candidate.protocolVersion ?? "").trim();
+  if (protocolVersion !== REF5_PROTOCOL_VERSION) {
+    throw new Ref5StaleVersionError(protocolVersion || null);
   }
   if (
     !String(candidate.snapshotId ?? "").trim() ||
@@ -802,22 +690,13 @@ export function decodeRef5SessionSnapshot(
   ) {
     throw new Ref5ValidationError(["invalid REF5 domain snapshot shape"]);
   }
-  if (protocolVersion === REF5_PROTOCOL_VERSION) {
-    if (Number(candidate.schemaVersion) !== REF5_SNAPSHOT_SCHEMA_VERSION) {
-      throw new Ref5ValidationError(["unsupported REF5 v1.2 snapshot schema"]);
-    }
-    if (containsRef5V12RemovedField(candidate)) {
-      throw new Ref5StaleVersionError(protocolVersion);
-    }
-    return candidate as unknown as Ref5SessionSnapshot;
+  if (Number(candidate.schemaVersion) !== REF5_SNAPSHOT_SCHEMA_VERSION) {
+    throw new Ref5ValidationError(["unsupported REF5 v1.2 snapshot schema"]);
   }
-  if (
-    protocolVersion === REF5_LEGACY_PROTOCOL_VERSION &&
-    Number(candidate.schemaVersion) === REF5_LEGACY_SNAPSHOT_SCHEMA_VERSION
-  ) {
-    return candidate as unknown as Ref5LegacyV11SessionSnapshot;
+  if (containsRef5V12RemovedField(candidate)) {
+    throw new Ref5StaleVersionError(REF5_LEGACY_PROTOCOL_VERSION);
   }
-  throw new Ref5StaleVersionError(protocolVersion);
+  return candidate as unknown as Ref5SessionSnapshot;
 }
 
 export function decideRef5SessionType(
@@ -1200,14 +1079,10 @@ export function applyRef5FirstSquatStart(
     ]);
   }
   const versionsMatch =
-    (snapshot.protocolVersion === REF5_PROTOCOL_VERSION &&
-      snapshot.schemaVersion === REF5_SNAPSHOT_SCHEMA_VERSION &&
-      state.protocolVersion === REF5_PROTOCOL_VERSION &&
-      state.schemaVersion === REF5_RUNTIME_SCHEMA_VERSION) ||
-    (snapshot.protocolVersion === REF5_LEGACY_PROTOCOL_VERSION &&
-      snapshot.schemaVersion === REF5_LEGACY_SNAPSHOT_SCHEMA_VERSION &&
-      state.protocolVersion === REF5_LEGACY_PROTOCOL_VERSION &&
-      state.schemaVersion === REF5_LEGACY_RUNTIME_SCHEMA_VERSION);
+    snapshot.protocolVersion === REF5_PROTOCOL_VERSION &&
+    snapshot.schemaVersion === REF5_SNAPSHOT_SCHEMA_VERSION &&
+    state.protocolVersion === REF5_PROTOCOL_VERSION &&
+    state.schemaVersion === REF5_RUNTIME_SCHEMA_VERSION;
   if (!versionsMatch) {
     throw new Ref5StaleVersionError(snapshot.protocolVersion);
   }
@@ -1627,17 +1502,9 @@ export function reduceRef5Completion(
   // Queue and H3/H2 alternation are completion semantics. A hard INVALID stays
   // in density history (recorded at START) but does not alternate.
   if (snapshot.decision.sessionType === "NORMAL") {
-    if (
-      isRef5LegacyV11Snapshot(snapshot) &&
-      snapshot.decision.climbingReplacement &&
-      snapshot.decision.focus === "PULL"
-    ) {
-      next.nextFocus = "BP";
-    } else {
-      const focusStream: Ref5Stream = snapshot.decision.focus === "PULL" ? "PULL_FOCUS" : "BP_FOCUS";
-      if (outcomes[focusStream]?.outcome !== "INVALID") {
-        next.nextFocus = snapshot.decision.focus === "PULL" ? "BP" : "PULL";
-      }
+    const focusStream: Ref5Stream = snapshot.decision.focus === "PULL" ? "PULL_FOCUS" : "BP_FOCUS";
+    if (outcomes[focusStream]?.outcome !== "INVALID") {
+      next.nextFocus = snapshot.decision.focus === "PULL" ? "BP" : "PULL";
     }
   }
   const squatStream = snapshot.exercises.find((item) => item.lift === "SQ")?.stream;
@@ -1687,8 +1554,7 @@ export function reduceRef5Completion(
       next.mainWindows.BP.exposures.push(exposure);
     } else if (
       snapshot.decision.sessionType === "NORMAL" &&
-      item.stream === "PULL_FOCUS" &&
-      (!isRef5LegacyV11Snapshot(snapshot) || item.role !== "CLIMBING_FOCUS_INVALID")
+      item.stream === "PULL_FOCUS"
     ) {
       next.mainWindows.PULL.exposures.push(exposure);
     }

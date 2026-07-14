@@ -12,34 +12,27 @@ import {
 } from "@workout/core/db/schema";
 import {
   REF5_IDENTIFIERS,
-  REF5_LEGACY_MIGRATION_MARKER,
   REF5_LEGACY_PROTOCOL_VERSION,
-  REF5_LEGACY_RUNTIME_SCHEMA_VERSION,
   REF5_PROTOCOL_VERSION,
   REF5_RUNTIME_SCHEMA_VERSION,
   Ref5StaleVersionError,
   applyRef5FirstSquatStart,
-  createInitialRef5LegacyV11State,
   createInitialRef5State,
   decodeRef5SessionSnapshot,
-  isRef5LegacyV11Snapshot,
   reduceRef5Completion,
   replayRef5RawLogs,
-  upgradeRef5RuntimeStateV11ToV12,
   validateAndClassifyRef5Outcome,
   type Ref5DecodedSessionSnapshot,
   type Ref5EndReason,
   type Ref5OutcomeRecord,
   type Ref5RawLogEvent,
   type Ref5RuntimeState,
-  type Ref5ProtocolUpgradeMetadata,
   type Ref5ProtocolVersion,
 } from "@workout/core/program-engine/ref5";
 
 /** Kept numeric-compatible with the generation adapter without importing it. */
-// Preserve the original exported identifier for v1.1 audit rows/runtime.
+// Preserve the original 511 identifier while active v1.2 writes use 512.
 export const REF5_PROGRESSION_ENGINE_VERSION = 511;
-export const REF5_LEGACY_PROGRESSION_ENGINE_VERSION = REF5_PROGRESSION_ENGINE_VERSION;
 export const REF5_PROGRESSION_ENGINE_VERSION_V12 = 512;
 
 const REF5_END_REASONS = new Set<Ref5EndReason>([
@@ -89,10 +82,7 @@ function readRef5DomainSnapshot(snapshot: unknown): Ref5DecodedSessionSnapshot |
     Object.keys(ref5).length > 0 ||
     Object.keys(candidate).length > 0;
   if (!looksRef5) return null;
-  return decodeRef5SessionSnapshot(candidate, {
-    legacyMigrationMarker:
-      ref5.legacyMigrationMarker ?? asRecord(ref5.legacyMigration).marker,
-  });
+  return decodeRef5SessionSnapshot(candidate);
 }
 
 export function isRef5PlanParameters(value: unknown): boolean {
@@ -100,7 +90,6 @@ export function isRef5PlanParameters(value: unknown): boolean {
   return (
     String(params.programFamily ?? "").trim().toLowerCase() === "ref5" ||
     String(params.protocolVersion ?? "").trim() === REF5_PROTOCOL_VERSION ||
-    String(params.protocolVersion ?? "").trim() === REF5_LEGACY_PROTOCOL_VERSION ||
     Object.keys(asRecord(params.ref5)).length > 0
   );
 }
@@ -109,19 +98,7 @@ export function readRef5PlanProtocolVersion(value: unknown): Ref5ProtocolVersion
   const params = asRecord(value);
   const nested = asRecord(params.ref5);
   const explicit = String(params.protocolVersion ?? nested.protocolVersion ?? "").trim();
-  if (explicit === REF5_PROTOCOL_VERSION || explicit === REF5_LEGACY_PROTOCOL_VERSION) {
-    return explicit;
-  }
-  if (!explicit) {
-    const marker = nested.legacyMigrationMarker ?? asRecord(nested.legacyMigration).marker;
-    const knownV11Shape =
-      Number(nested.schemaVersion) === REF5_LEGACY_RUNTIME_SCHEMA_VERSION &&
-      Object.keys(asRecord(nested.startingValuesKg)).length >= 5;
-    if (marker === REF5_LEGACY_MIGRATION_MARKER && knownV11Shape) {
-      return REF5_LEGACY_PROTOCOL_VERSION;
-    }
-  }
-  return null;
+  return explicit === REF5_PROTOCOL_VERSION ? REF5_PROTOCOL_VERSION : null;
 }
 
 function cloneJson<T>(value: T): T {
@@ -314,11 +291,7 @@ export function canonicalizeRef5WorkoutLog(input: {
   const rows = Array.isArray(input.sets)
     ? input.sets.map((value) => asRecord(value))
     : [];
-  const isOmitted = (exercise: Ref5DecodedSessionSnapshot["exercises"][number]) =>
-    isRef5LegacyV11Snapshot(domainSnapshot) &&
-    "omitted" in exercise &&
-    exercise.omitted === true;
-  const prescribed = domainSnapshot.exercises.filter((exercise) => !isOmitted(exercise));
+  const prescribed = domainSnapshot.exercises;
   const expectedSetCount = prescribed.reduce((sum, exercise) => sum + exercise.sets.length, 0);
   const errors: string[] = [];
   if (rows.length !== expectedSetCount) {
@@ -326,11 +299,6 @@ export function canonicalizeRef5WorkoutLog(input: {
   }
 
   const expectedIds = new Set(prescribed.map((exercise) => exercise.prescriptionId));
-  const omittedIds = new Set(
-    domainSnapshot.exercises
-      .filter((exercise) => isOmitted(exercise))
-      .map((exercise) => exercise.prescriptionId),
-  );
   const byPrescriptionAndSet = new Map<string, Record<string, unknown>>();
   for (let rowIndex = 0; rowIndex < rows.length; rowIndex += 1) {
     const row = rows[rowIndex]!;
@@ -338,10 +306,6 @@ export function canonicalizeRef5WorkoutLog(input: {
     const setNumber = integer(row.setNumber);
     if (!prescriptionId) {
       errors.push(`sets[${rowIndex}] is missing REF5 prescriptionId`);
-      continue;
-    }
-    if (omittedIds.has(prescriptionId)) {
-      errors.push(`sets[${rowIndex}] attempts an omitted REF5 prescription`);
       continue;
     }
     if (!expectedIds.has(prescriptionId)) {
@@ -530,24 +494,6 @@ export function canonicalizeRef5WorkoutLog(input: {
     }
   }
 
-  // Frozen v1.1 omitted prescriptions remain explicit INVALID outcomes. The
-  // v1.2 decoder cannot produce this branch.
-  for (const exercise of domainSnapshot.exercises.filter((item) => isOmitted(item))) {
-    const classified = validateAndClassifyRef5Outcome({ sets: [], endReason: "EXTERNAL" });
-    if (!classified.ok) {
-      errors.push(...classified.errors.map((error) => `${exercise.prescriptionId}: ${error}`));
-      continue;
-    }
-    exerciseOutcomes.push({
-      prescriptionId: exercise.prescriptionId,
-      lift: exercise.lift,
-      stream: exercise.stream,
-      role: exercise.role,
-      terminationReason: "EXTERNAL",
-      outcome: classified.value,
-    });
-  }
-
   if (errors.length > 0) throw new Ref5LogValidationError(errors);
   const completionEventId = readRequiredStringConsistency({
     values: completionIds,
@@ -570,7 +516,7 @@ export function canonicalizeRef5WorkoutLog(input: {
     throw new Ref5LogValidationError(["REF5 completionEventId must differ from startEventId"]);
   }
   if (exerciseOutcomes.length !== domainSnapshot.exercises.length) {
-    throw new Ref5LogValidationError(["Every non-omitted REF5 exercise needs one outcome"]);
+    throw new Ref5LogValidationError(["Every REF5 exercise needs one outcome"]);
   }
 
   const completedAtRaw = input.completedAt ?? new Date().toISOString();
@@ -656,14 +602,6 @@ function compareReplaySessions(left: Ref5ReplaySessionRow, right: Ref5ReplaySess
   return byTime || left.sessionKey.localeCompare(right.sessionKey) || left.id.localeCompare(right.id);
 }
 
-function compareRef5OrderingTuple(
-  left: { actualStartAt: string; stableKey: string },
-  right: { actualStartAt: string; stableKey: string },
-): number {
-  const byTime = Date.parse(left.actualStartAt) - Date.parse(right.actualStartAt);
-  return byTime || left.stableKey.localeCompare(right.stableKey);
-}
-
 function outcomesByStream(completion: Ref5CanonicalCompletion) {
   return Object.fromEntries(
     completion.exerciseOutcomes.map((exercise) => [exercise.stream, exercise.outcome]),
@@ -718,33 +656,18 @@ function aggregateRef5EventType(changes: Array<{ kind: string }>): string {
   return "REF5_COMPLETE";
 }
 
-/** Strict runtime dispatcher. Protocol-less JSON is legacy only with an exact marker. */
+/** Strict v1.2 runtime decoder. v1.1 and protocol-less state are stale. */
 export function decodeRef5RuntimeState(value: unknown): Ref5RuntimeState | null {
   const record = asRecord(value);
   if (!Object.keys(record).length) return null;
-  let protocolVersion = String(record.protocolVersion ?? "").trim();
-  if (!protocolVersion) {
-    const marker = record.legacyMigrationMarker ?? asRecord(record.legacyMigration).marker;
-    const knownV11Shape =
-      Number(record.schemaVersion) === REF5_LEGACY_RUNTIME_SCHEMA_VERSION &&
-      Number.isInteger(record.revision) &&
-      Object.keys(asRecord(record.directStandardsKg)).length >= 5 &&
-      Array.isArray(record.appliedStartEventIds) &&
-      Array.isArray(record.appliedCompletionEventIds);
-    if (marker !== REF5_LEGACY_MIGRATION_MARKER || !knownV11Shape) {
-      throw new Ref5LogValidationError([
-        "REF5 runtime without protocolVersion lacks a verified v1.1 migration marker",
-      ]);
-    }
-    protocolVersion = REF5_LEGACY_PROTOCOL_VERSION;
-    record.protocolVersion = protocolVersion;
+  const protocolVersion = String(record.protocolVersion ?? "").trim();
+  if (protocolVersion !== REF5_PROTOCOL_VERSION) {
+    throw new Ref5StaleVersionError(protocolVersion || null);
   }
-  const supported =
-    (protocolVersion === REF5_PROTOCOL_VERSION &&
-      Number(record.schemaVersion) === REF5_RUNTIME_SCHEMA_VERSION) ||
-    (protocolVersion === REF5_LEGACY_PROTOCOL_VERSION &&
-      Number(record.schemaVersion) === REF5_LEGACY_RUNTIME_SCHEMA_VERSION);
-  if (!supported || !Number.isInteger(record.revision)) {
+  if (
+    Number(record.schemaVersion) !== REF5_RUNTIME_SCHEMA_VERSION ||
+    !Number.isInteger(record.revision)
+  ) {
     throw new Ref5LogValidationError(["REF5 runtime protocol/schema version is unsupported"]);
   }
   return record as unknown as Ref5RuntimeState;
@@ -769,18 +692,11 @@ type Ref5ReplaySetRow = {
   meta: unknown;
 };
 
-type Ref5UpgradeBoundary = {
-  id: string;
-  metadata: Ref5ProtocolUpgradeMetadata;
-  createdAt: Date;
-};
-
 type Ref5ReplaySource = {
   sessions: Ref5ReplaySessionRow[];
   logs: Ref5ReplayLogRow[];
   logBySessionId: Map<string, Ref5ReplayLogRow>;
   setsByLogId: Map<string, Ref5ReplaySetRow[]>;
-  upgradeBoundary: Ref5UpgradeBoundary | null;
 };
 
 type Ref5ReplayFold = {
@@ -810,9 +726,10 @@ async function resolveRef5ReplayPlan(
   if (!isRef5PlanParameters(row.params)) return "skip:not-ref5" as const;
   const protocolVersion = readRef5PlanProtocolVersion(row.params);
   if (!protocolVersion) {
-    throw new Ref5LogValidationError([
-      "REF5 plan protocolVersion is missing or unsupported; explicit migration is required",
-    ]);
+    const params = asRecord(row.params);
+    throw new Ref5StaleVersionError(
+      params.protocolVersion ?? asRecord(params.ref5).protocolVersion,
+    );
   }
   return { id: row.id, userId: row.userId, protocolVersion };
 }
@@ -822,56 +739,6 @@ async function loadRef5ReplaySource(input: {
   planId: string;
   before?: { actualStartAt: string; sessionKey: string };
 }): Promise<Ref5ReplaySource> {
-  const upgradeRows = await input.tx
-    .select({
-      id: planProgressEvent.id,
-      meta: planProgressEvent.meta,
-      createdAt: planProgressEvent.createdAt,
-    })
-    .from(planProgressEvent)
-    .where(
-      and(
-        eq(planProgressEvent.planId, input.planId),
-        eq(planProgressEvent.programSlug, REF5_IDENTIFIERS.slug),
-        eq(planProgressEvent.eventType, "REF5_PROTOCOL_UPGRADE"),
-      ),
-    )
-    .orderBy(asc(planProgressEvent.createdAt), asc(planProgressEvent.id));
-  let upgradeBoundary: Ref5UpgradeBoundary | null = null;
-  for (const row of upgradeRows) {
-    const meta = asRecord(row.meta);
-    const metadata: Ref5ProtocolUpgradeMetadata = {
-      stableKey: String(meta.stableKey ?? "").trim(),
-      fromProtocolVersion: String(meta.fromProtocolVersion ?? "") as "1.1",
-      toProtocolVersion: String(meta.toProtocolVersion ?? "") as "1.2",
-      transitionedAt: String(meta.transitionedAt ?? "").trim(),
-    };
-    if (
-      !metadata.stableKey ||
-      metadata.fromProtocolVersion !== REF5_LEGACY_PROTOCOL_VERSION ||
-      metadata.toProtocolVersion !== REF5_PROTOCOL_VERSION ||
-      !Number.isFinite(Date.parse(metadata.transitionedAt))
-    ) {
-      throw new Ref5LogValidationError([`REF5 protocol upgrade event ${row.id} is invalid`]);
-    }
-    if (upgradeBoundary && upgradeBoundary.metadata.stableKey !== metadata.stableKey) {
-      throw new Ref5LogValidationError(["REF5 plan has conflicting protocol upgrade events"]);
-    }
-    upgradeBoundary ??= { id: row.id, metadata, createdAt: row.createdAt };
-  }
-  if (
-    upgradeBoundary &&
-    input.before &&
-    compareRef5OrderingTuple(
-      {
-        actualStartAt: upgradeBoundary.metadata.transitionedAt,
-        stableKey: upgradeBoundary.metadata.stableKey,
-      },
-      { actualStartAt: input.before.actualStartAt, stableKey: input.before.sessionKey },
-    ) >= 0
-  ) {
-    upgradeBoundary = null;
-  }
   const generatedRows = await input.tx
     .select({
       id: generatedSession.id,
@@ -1006,7 +873,7 @@ async function loadRef5ReplaySource(input: {
     list.push(set);
     setsByLogId.set(set.logId, list);
   }
-  return { sessions: selected, logs, logBySessionId, setsByLogId, upgradeBoundary };
+  return { sessions: selected, logs, logBySessionId, setsByLogId };
 }
 
 function foldRef5ReplaySource(input: {
@@ -1015,39 +882,10 @@ function foldRef5ReplaySource(input: {
   planProtocolVersion: Ref5ProtocolVersion;
   source: Ref5ReplaySource;
 }): Ref5ReplayFold {
-  const hasLegacyHistory = input.source.sessions.some(
-    (session) => session.domain.protocolVersion === REF5_LEGACY_PROTOCOL_VERSION,
-  );
-  let runningState =
-    hasLegacyHistory || input.source.upgradeBoundary || input.planProtocolVersion === REF5_LEGACY_PROTOCOL_VERSION
-      ? createInitialRef5LegacyV11State()
-      : createInitialRef5State();
-  let upgradeApplied = false;
-  const applyUpgradeBoundary = () => {
-    const boundary = input.source.upgradeBoundary;
-    if (!boundary || upgradeApplied) return;
-    runningState = upgradeRef5RuntimeStateV11ToV12(runningState, boundary.metadata);
-    upgradeApplied = true;
-  };
+  let runningState = createInitialRef5State();
   const auditRows: Array<typeof planProgressEvent.$inferInsert> = [];
   const completedGeneratedSessionIds: string[] = [];
   for (const session of input.source.sessions) {
-    const boundary = input.source.upgradeBoundary;
-    if (
-      boundary &&
-      !upgradeApplied &&
-      compareRef5OrderingTuple(
-        { actualStartAt: boundary.metadata.transitionedAt, stableKey: boundary.metadata.stableKey },
-        { actualStartAt: session.domain.actualStartAt, stableKey: session.sessionKey },
-      ) <= 0
-    ) {
-      applyUpgradeBoundary();
-    }
-    if (runningState.protocolVersion !== session.domain.protocolVersion) {
-      throw new Ref5LogValidationError([
-        `REF5 ${session.domain.protocolVersion} session ${session.id} crosses the protocol upgrade boundary incorrectly`,
-      ]);
-    }
     const beforeStart = runningState;
     const replaySnapshot: Ref5DecodedSessionSnapshot = {
       ...cloneJson(session.domain),
@@ -1076,10 +914,7 @@ function foldRef5ReplaySource(input: {
       afterState: cloneJson(runningState),
       meta: {
         protocolVersion: replaySnapshot.protocolVersion,
-        engineVersion:
-          replaySnapshot.protocolVersion === REF5_LEGACY_PROTOCOL_VERSION
-            ? REF5_LEGACY_PROGRESSION_ENGINE_VERSION
-            : REF5_PROGRESSION_ENGINE_VERSION_V12,
+        engineVersion: REF5_PROGRESSION_ENGINE_VERSION_V12,
         startEventId: session.startEventId,
         snapshotId: replaySnapshot.snapshotId,
         sessionId: replaySnapshot.sessionId,
@@ -1129,10 +964,7 @@ function foldRef5ReplaySource(input: {
       afterState: cloneJson(runningState),
       meta: {
         protocolVersion: replaySnapshot.protocolVersion,
-        engineVersion:
-          replaySnapshot.protocolVersion === REF5_LEGACY_PROTOCOL_VERSION
-            ? REF5_LEGACY_PROGRESSION_ENGINE_VERSION
-            : REF5_PROGRESSION_ENGINE_VERSION_V12,
+        engineVersion: REF5_PROGRESSION_ENGINE_VERSION_V12,
         startEventId: completion.startEventId,
         completionEventId: completion.completionEventId,
         completionFingerprint: completion.fingerprint,
@@ -1147,7 +979,6 @@ function foldRef5ReplaySource(input: {
       createdAt: new Date(completion.completedAt),
     });
   }
-  if (input.source.upgradeBoundary && !upgradeApplied) applyUpgradeBoundary();
   if (runningState.protocolVersion !== input.planProtocolVersion) {
     throw new Ref5LogValidationError([
       `REF5 replay ended at ${runningState.protocolVersion}, but plan expects ${input.planProtocolVersion}`,
@@ -1171,7 +1002,7 @@ function ref5AuditIdentity(input: {
   ].join("\u0000");
 }
 
-/** Append-only audit persistence. Existing v1.1 IDs/meta/createdAt are never rewritten. */
+/** Append-only audit persistence for v1.2 canonical replay. */
 async function appendMissingRef5AuditRows(input: {
   tx: any;
   planId: string;
@@ -1307,10 +1138,7 @@ export async function rebuildRef5ProgressionForPlan(input: {
       .update(planRuntimeState)
       .set({
         userId: input.userId,
-        engineVersion:
-          folded.state.protocolVersion === REF5_LEGACY_PROTOCOL_VERSION
-            ? REF5_LEGACY_PROGRESSION_ENGINE_VERSION
-            : REF5_PROGRESSION_ENGINE_VERSION_V12,
+        engineVersion: REF5_PROGRESSION_ENGINE_VERSION_V12,
         state: folded.state,
         updatedAt: new Date(),
       })
@@ -1330,10 +1158,7 @@ export async function rebuildRef5ProgressionForPlan(input: {
       .values({
         planId,
         userId: input.userId,
-        engineVersion:
-          folded.state.protocolVersion === REF5_LEGACY_PROTOCOL_VERSION
-            ? REF5_LEGACY_PROGRESSION_ENGINE_VERSION
-            : REF5_PROGRESSION_ENGINE_VERSION_V12,
+        engineVersion: REF5_PROGRESSION_ENGINE_VERSION_V12,
         state: folded.state,
       })
       .onConflictDoNothing({ target: planRuntimeState.planId })

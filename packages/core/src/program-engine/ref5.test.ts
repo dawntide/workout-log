@@ -4,16 +4,12 @@ import {
   REF5_INITIAL_CONTROL_REFS_KG,
   REF5_INITIAL_DERIVED_STANDARDS_KG,
   REF5_INITIAL_DIRECT_STANDARDS_KG,
-  REF5_LEGACY_MIGRATION_MARKER,
-  REF5_LEGACY_PROTOCOL_VERSION,
-  REF5_LEGACY_RUNTIME_SCHEMA_VERSION,
-  REF5_LEGACY_SNAPSHOT_SCHEMA_VERSION,
   REF5_PROTOCOL_VERSION,
   REF5_RUNTIME_SCHEMA_VERSION,
   REF5_SNAPSHOT_SCHEMA_VERSION,
+  Ref5StaleVersionError,
   applyRef5FirstSquatStart,
   classifyRef5Outcome,
-  createInitialRef5LegacyV11State,
   createInitialRef5State,
   decodeRef5SessionSnapshot,
   deriveRef5AuxiliaryCaps,
@@ -27,11 +23,9 @@ import {
   replayRef5RawLogs,
   selectRef5SquatPrescription,
   validateAndClassifyRef5Outcome,
-  upgradeRef5RuntimeStateV11ToV12,
   type Ref5CompletedSessionSummary,
   type Ref5ExercisePrescription,
   type Ref5MainLift,
-  type Ref5LegacyV11SessionSnapshot,
   type Ref5Outcome,
   type Ref5OutcomeInput,
   type Ref5RawLogEvent,
@@ -376,153 +370,29 @@ test("PULL focus PASS/HOLD/FAIL alternate to BP while INVALID retains PULL", () 
   }
 });
 
-test("legacy v1.1 climbing replacement golden replay is isolated and unchanged", () => {
-  const base = "2026-04-02T09:00:00.000Z";
-  const pull = generateRef5Session(createInitialRef5State(), sessionInput("legacy", base));
-  const bpState = createInitialRef5State();
-  bpState.nextFocus = "BP";
-  const bp = generateRef5Session(bpState, sessionInput("legacy-bp", base));
-  const pullVolume = structuredClone(
-    bp.exercises.find((item) => item.stream === "PULL_VOLUME")!,
-  );
-  pullVolume.prescriptionId = `${pull.snapshotId}:PULL_VOLUME`;
-
-  const legacy: Ref5LegacyV11SessionSnapshot = {
-    ...structuredClone(pull),
-    schemaVersion: REF5_LEGACY_SNAPSHOT_SCHEMA_VERSION,
-    protocolVersion: REF5_LEGACY_PROTOCOL_VERSION,
-    startInput: {
-      ...structuredClone(pull.startInput),
-      climbingWithin48h: true,
-      omitPullVolume: false,
-    },
-    decision: { ...structuredClone(pull.decision), climbingReplacement: true },
-    exercises: [
-      { ...structuredClone(pull.exercises[0]!), omitted: false },
-      {
-        ...structuredClone(pull.exercises[1]!),
-        role: "CLIMBING_FOCUS_INVALID",
-        sets: [],
-        omitted: true,
-      },
-      { ...pullVolume, omitted: false },
-      { ...structuredClone(pull.exercises[2]!), omitted: false },
-      { ...structuredClone(pull.exercises[3]!), omitted: false },
-    ],
-    totalWorkingSets: 7,
-  };
-  const decoded = decodeRef5SessionSnapshot(legacy);
-  const started = applyRef5FirstSquatStart(
-    createInitialRef5LegacyV11State(),
-    decoded,
-    "legacy-start",
-  );
-  const outcomes: Partial<Record<Ref5Stream, Ref5OutcomeInput>> = {};
-  for (const item of legacy.exercises) {
-    outcomes[item.stream] = item.omitted
-      ? { sets: [], endReason: "EXTERNAL" }
-      : outcomeFor(item, "PASS");
-  }
-  const completed = reduceRef5Completion(started.nextState, decoded, {
-    completionEventId: "legacy-complete",
-    rawLogId: "legacy-log",
-    completedAt: at(base, 2 * HOUR),
-    outcomes,
-  });
-  assert.deepEqual(
-    {
-      protocolVersion: completed.nextState.protocolVersion,
-      schemaVersion: completed.nextState.schemaVersion,
-      nextFocus: completed.nextState.nextFocus,
-      pullExposureCount: completed.nextState.mainWindows.PULL.exposures.length,
-      streams: legacy.exercises.map((item) => [item.stream, item.omitted]),
-      totalWorkingSets: legacy.totalWorkingSets,
-    },
-    {
-      protocolVersion: "1.1",
-      schemaVersion: 1,
-      nextFocus: "BP",
-      pullExposureCount: 0,
-      streams: [
-        ["SQ_H3", false],
-        ["PULL_FOCUS", true],
-        ["PULL_VOLUME", false],
-        ["BP_VOLUME", false],
-        ["DL", false],
-      ],
-      totalWorkingSets: 7,
-    },
-  );
-});
-
-test("protocol-less snapshots require an exact v1.1 shape and explicit migration marker", () => {
+test("v1.2 snapshot decoder rejects protocol-less, v1.1, and retired inputs", () => {
   const active = generateRef5Session(
     createInitialRef5State(),
     sessionInput("decode", "2026-04-03T09:00:00.000Z"),
   );
-  assert.throws(
-    () => decodeRef5SessionSnapshot({ ...active, protocolVersion: undefined }),
-    /verified v1\.1 migration marker/,
-  );
-  assert.throws(
-    () => decodeRef5SessionSnapshot({ ...active, climbingWithin48h: false }),
-    /stale REF5 protocol version/,
-  );
-  assert.throws(
-    () =>
-      decodeRef5SessionSnapshot({
-        ...active,
-        exercises: [
-          { ...active.exercises[0]!, role: "CLIMBING_FOCUS_INVALID" },
-          ...active.exercises.slice(1),
-        ],
-      }),
-    /stale REF5 protocol version/,
-  );
-  assert.throws(
-    () =>
-      decodeRef5SessionSnapshot({
-        ...active,
-        exercises: [{ ...active.exercises[0]!, omitted: false }, ...active.exercises.slice(1)],
-      }),
-    /stale REF5 protocol version/,
-  );
-
-  const legacyShape = {
-    ...structuredClone(active),
-    schemaVersion: REF5_LEGACY_SNAPSHOT_SCHEMA_VERSION,
-    protocolVersion: undefined,
-    startInput: { ...active.startInput, climbingWithin48h: false },
-    decision: { ...active.decision, climbingReplacement: false },
-    exercises: active.exercises.map((item) => ({ ...item, omitted: false })),
-  };
-  const decoded = decodeRef5SessionSnapshot(legacyShape, {
-    legacyMigrationMarker: REF5_LEGACY_MIGRATION_MARKER,
-  });
-  assert.equal(decoded.protocolVersion, REF5_LEGACY_PROTOCOL_VERSION);
-});
-
-test("v1.1 runtime upgrade clones full state, removes only retired fields, and is idempotent", () => {
-  const legacy = createInitialRef5LegacyV11State() as Ref5RuntimeState & {
-    extension: { preserved: string; climbingWithin48h: boolean };
-  };
-  legacy.revision = 7;
-  legacy.extension = { preserved: "yes", climbingWithin48h: true };
-  const metadata = {
-    stableKey: "ref5-upgrade:plan-1:1.1:1.2",
-    fromProtocolVersion: REF5_LEGACY_PROTOCOL_VERSION,
-    toProtocolVersion: REF5_PROTOCOL_VERSION,
-    transitionedAt: "2026-07-14T00:00:00.000Z",
-  } as const;
-  const upgraded = upgradeRef5RuntimeStateV11ToV12(legacy, metadata) as Ref5RuntimeState & {
-    extension: { preserved: string };
-  };
-  assert.equal(legacy.schemaVersion, REF5_LEGACY_RUNTIME_SCHEMA_VERSION, "source is untouched");
-  assert.equal(upgraded.schemaVersion, REF5_RUNTIME_SCHEMA_VERSION);
-  assert.equal(upgraded.protocolVersion, REF5_PROTOCOL_VERSION);
-  assert.equal(upgraded.revision, 8);
-  assert.deepEqual(upgraded.extension, { preserved: "yes" });
-  assert.deepEqual(upgradeRef5RuntimeStateV11ToV12(upgraded, metadata), upgraded);
+  for (const candidate of [
+    { ...active, protocolVersion: undefined },
+    { ...active, protocolVersion: "1.1", schemaVersion: 1 },
+    { ...active, climbingWithin48h: false },
+    {
+      ...active,
+      exercises: [
+        { ...active.exercises[0]!, role: "CLIMBING_FOCUS_INVALID" },
+        ...active.exercises.slice(1),
+      ],
+    },
+    {
+      ...active,
+      exercises: [{ ...active.exercises[0]!, omitted: false }, ...active.exercises.slice(1)],
+    },
+  ]) {
+    assert.throws(() => decodeRef5SessionSnapshot(candidate), Ref5StaleVersionError);
+  }
 });
 
 test("manual, calendar, forced-fail and multiple stagnation reasons merge into one four-set micro", () => {

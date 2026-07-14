@@ -2,9 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
-  REF5_LEGACY_MIGRATION_MARKER,
   Ref5StaleVersionError,
-  createInitialRef5LegacyV11State,
   applyRef5FirstSquatStart,
   createInitialRef5State,
   generateRef5Session,
@@ -22,18 +20,15 @@ import {
 
 const START = "2026-07-13T01:00:00.000Z";
 
-test("REF5 protocol-less runtime requires a known v1.1 shape and migration marker", () => {
-  const legacy = createInitialRef5LegacyV11State() as unknown as Record<string, unknown>;
-  delete legacy.protocolVersion;
-  assert.throws(() => decodeRef5RuntimeState(legacy), /verified v1\.1 migration marker/);
-  const decoded = decodeRef5RuntimeState({
-    ...legacy,
-    legacyMigrationMarker: REF5_LEGACY_MIGRATION_MARKER,
-  });
-  assert.equal(decoded?.protocolVersion, "1.1");
+test("REF5 runtime decoder rejects protocol-less and v1.1 state", () => {
+  const active = createInitialRef5State() as unknown as Record<string, unknown>;
   assert.throws(
-    () => decodeRef5RuntimeState({ ...legacy, schemaVersion: 99, legacyMigrationMarker: REF5_LEGACY_MIGRATION_MARKER }),
-    /verified v1\.1 migration marker/,
+    () => decodeRef5RuntimeState({ ...active, protocolVersion: undefined }),
+    Ref5StaleVersionError,
+  );
+  assert.throws(
+    () => decodeRef5RuntimeState({ ...active, schemaVersion: 1, protocolVersion: "1.1" }),
+    Ref5StaleVersionError,
   );
 });
 

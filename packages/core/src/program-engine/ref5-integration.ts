@@ -169,10 +169,7 @@ function readDomainSnapshot(snapshot: unknown): Ref5DecodedSessionSnapshot | nul
     Object.keys(ref5).length > 0 ||
     Object.keys(candidate).length > 0;
   if (!looksRef5) return null;
-  return decodeRef5SessionSnapshot(candidate, {
-    legacyMigrationMarker:
-      ref5.legacyMigrationMarker ?? toRecord(ref5.legacyMigration).marker,
-  });
+  return decodeRef5SessionSnapshot(candidate);
 }
 
 type RecentBodyweight = { count: number; averageKg: number | null };

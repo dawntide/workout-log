@@ -129,6 +129,8 @@ func TestRef5UnfinishedSessionFilterExcludesLoggedAndNonRef5AndSortsNewest(t *te
 	newest := uiRef5Session("newest", base.Add(2*time.Hour))
 	uncommitted := uiRef5Session("upgrade-preview", base.Add(3*time.Hour))
 	uncommitted.Snapshot.Ref5.StartCommitted = false
+	stale := uiRef5Session("stale-v1.1", base.Add(3500*time.Millisecond))
+	stale.Snapshot.Ref5.ProtocolVersion = "1.1"
 	skipped := uiRef5Session("skipped", base.Add(4*time.Hour))
 	skipped.Status = "SKIPPED"
 	ordinary := api.GeneratedSession{
@@ -137,7 +139,7 @@ func TestRef5UnfinishedSessionFilterExcludesLoggedAndNonRef5AndSortsNewest(t *te
 	emptyID := uiRef5Session("", base.Add(3*time.Hour))
 
 	got := ref5UnfinishedSessions(
-		[]api.GeneratedSession{old, logged, ordinary, newest, uncommitted, skipped, emptyID},
+		[]api.GeneratedSession{old, logged, ordinary, newest, uncommitted, stale, skipped, emptyID},
 		[]api.LogItem{{ID: "log-finished", GeneratedSessionID: stringPtr(logged.ID)}},
 	)
 	if len(got) != 2 || got[0].ID != newest.ID || got[1].ID != old.ID {
@@ -452,10 +454,10 @@ func TestHistoryRef5EditFetchesFullDetailBeforeOpeningLockedEditor(t *testing.T)
 func TestHistoryRef5EditDetectsMetadataWhenSessionKeyIsMissing(t *testing.T) {
 	history := NewHistory(nil)
 	history.rows = []sessionRow{{
-		id: "legacy-ref5-log",
+		id: "ref5-log-without-session-key",
 		sets: []api.LoggedSet{{
 			ExerciseName: "Back Squat",
-			Meta:         &api.SetMeta{Ref5: map[string]any{"protocolVersion": "1.1"}},
+			Meta:         &api.SetMeta{Ref5: map[string]any{"protocolVersion": api.Ref5ProtocolVersion}},
 		}},
 	}}
 
@@ -466,7 +468,7 @@ func TestHistoryRef5EditDetectsMetadataWhenSessionKeyIsMissing(t *testing.T) {
 }
 
 func TestHistoryIgnoresOutOfOrderRef5DetailResponse(t *testing.T) {
-	ref5Meta := &api.SetMeta{Ref5: map[string]any{"protocolVersion": "1.1"}}
+	ref5Meta := &api.SetMeta{Ref5: map[string]any{"protocolVersion": api.Ref5ProtocolVersion}}
 	history := NewHistory(nil)
 	history.rows = []sessionRow{
 		{id: "older", sets: []api.LoggedSet{{ExerciseName: "Back Squat", Meta: ref5Meta}}},
