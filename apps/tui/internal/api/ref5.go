@@ -10,12 +10,11 @@ import (
 // Callers should keep one value (especially StartEventID) and reuse it for a
 // preview, the confirming start, and any network retry.
 type Ref5GenerateInput struct {
+	ProtocolVersion   string  `json:"protocolVersion"`
 	ActualStartAt     string  `json:"actualStartAt"`
 	TodayBodyweightKg float64 `json:"todayBodyweightKg"`
 	ManualMicro       bool    `json:"manualMicro"`
-	ClimbingWithin48h bool    `json:"climbingWithin48h"`
 	StartEventID      string  `json:"startEventId"`
-	OmitPullVolume    bool    `json:"omitPullVolume,omitempty"`
 }
 
 // Ref5GenerateRequest is the POST /generate envelope. Preview is the only
@@ -79,12 +78,11 @@ type Ref5AuxiliaryCapsKg struct {
 
 // Ref5SessionDecision is frozen into both the generated and domain snapshots.
 type Ref5SessionDecision struct {
-	SessionType         string   `json:"sessionType"`
-	MicroReasons        []string `json:"microReasons"`
-	Focus               string   `json:"focus"`
-	SquatPrescription   string   `json:"squatPrescription"`
-	ClimbingReplacement bool     `json:"climbingReplacement"`
-	Hard                struct {
+	SessionType       string   `json:"sessionType"`
+	MicroReasons      []string `json:"microReasons"`
+	Focus             string   `json:"focus"`
+	SquatPrescription string   `json:"squatPrescription"`
+	Hard              struct {
 		Allowed          bool    `json:"allowed"`
 		LastStartAt      *string `json:"lastStartAt"`
 		StartsIn168Hours int     `json:"startsIn168Hours"`
@@ -114,7 +112,6 @@ type Ref5ExerciseMetadata struct {
 	Role                string                        `json:"role"`
 	Stream              string                        `json:"stream"`
 	ProgressionTargetKg Float64                       `json:"progressionTargetKg"`
-	Omitted             bool                          `json:"omitted"`
 	Pull                *Ref5PullPrescriptionMetadata `json:"pull"`
 }
 
@@ -131,7 +128,6 @@ type Ref5ExercisePrescription struct {
 	ExerciseName        string                        `json:"exerciseName"`
 	Role                string                        `json:"role"`
 	Stream              string                        `json:"stream"`
-	Omitted             bool                          `json:"omitted"`
 	Sets                []Ref5PrescriptionSet         `json:"sets"`
 	ProgressionTargetKg Float64                       `json:"progressionTargetKg"`
 	Pull                *Ref5PullPrescriptionMetadata `json:"pull,omitempty"`
@@ -146,8 +142,6 @@ type Ref5DomainStartInput struct {
 	Recent7DayMeasurementCount int      `json:"recent7DayMeasurementCount"`
 	Recent7DayAverageKg        *Float64 `json:"recent7DayAverageKg"`
 	ManualMicro                bool     `json:"manualMicro"`
-	ClimbingWithin48h          bool     `json:"climbingWithin48h"`
-	OmitPullVolume             bool     `json:"omitPullVolume,omitempty"`
 }
 
 // Ref5DomainSnapshot is the engine-native snapshot nested inside snapshot.ref5.
@@ -171,36 +165,25 @@ type Ref5DomainSnapshot struct {
 	TotalWorkingSets   int                        `json:"totalWorkingSets"`
 }
 
-type Ref5OmittedPrescription struct {
-	PrescriptionID string                        `json:"prescriptionId"`
-	ExerciseName   string                        `json:"exerciseName"`
-	Lift           string                        `json:"lift"`
-	Role           string                        `json:"role"`
-	Stream         string                        `json:"stream"`
-	Outcome        string                        `json:"outcome"`
-	Reason         string                        `json:"reason"`
-	Pull           *Ref5PullPrescriptionMetadata `json:"pull"`
-}
-
 // Ref5SessionMetadata is the REF5-specific immutable portion of a generic
 // generated-session snapshot.
 type Ref5SessionMetadata struct {
-	ProtocolVersion       string                    `json:"protocolVersion"`
-	SnapshotID            string                    `json:"snapshotId"`
-	SessionID             string                    `json:"sessionId"`
-	ActualStartAt         string                    `json:"actualStartAt"`
-	Timezone              string                    `json:"timezone"`
-	StartEventID          string                    `json:"startEventId"`
-	RuntimeRevisionBefore int                       `json:"runtimeRevisionBefore"`
-	RuntimeRevisionAfter  int                       `json:"runtimeRevisionAfter"`
-	Decision              Ref5SessionDecision       `json:"decision"`
-	DirectStandardsKg     Ref5DirectStandardsKg     `json:"directStandardsKg"`
-	DerivedStandardsKg    Ref5DerivedStandardsKg    `json:"derivedStandardsKg"`
-	ControlRefsKg         Ref5ControlRefsKg         `json:"controlRefsKg"`
-	AuxiliaryCapsKg       Ref5AuxiliaryCapsKg       `json:"auxiliaryCapsKg"`
-	PullContext           map[string]any            `json:"pullContext"`
-	OmittedPrescriptions  []Ref5OmittedPrescription `json:"omittedPrescriptions"`
-	DomainSnapshot        Ref5DomainSnapshot        `json:"domainSnapshot"`
+	ProtocolVersion       string                 `json:"protocolVersion"`
+	StartCommitted        bool                   `json:"startCommitted"`
+	SnapshotID            string                 `json:"snapshotId"`
+	SessionID             string                 `json:"sessionId"`
+	ActualStartAt         string                 `json:"actualStartAt"`
+	Timezone              string                 `json:"timezone"`
+	StartEventID          string                 `json:"startEventId"`
+	RuntimeRevisionBefore int                    `json:"runtimeRevisionBefore"`
+	RuntimeRevisionAfter  int                    `json:"runtimeRevisionAfter"`
+	Decision              Ref5SessionDecision    `json:"decision"`
+	DirectStandardsKg     Ref5DirectStandardsKg  `json:"directStandardsKg"`
+	DerivedStandardsKg    Ref5DerivedStandardsKg `json:"derivedStandardsKg"`
+	ControlRefsKg         Ref5ControlRefsKg      `json:"controlRefsKg"`
+	AuxiliaryCapsKg       Ref5AuxiliaryCapsKg    `json:"auxiliaryCapsKg"`
+	PullContext           map[string]any         `json:"pullContext"`
+	DomainSnapshot        Ref5DomainSnapshot     `json:"domainSnapshot"`
 }
 
 type Ref5ForcedMicroToken struct {

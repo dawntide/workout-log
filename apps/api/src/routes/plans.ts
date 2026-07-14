@@ -35,11 +35,13 @@ import { buildSessionKey } from "@workout/core/session-key";
 import {
   extractRef5DomainSnapshot,
   isRef5PlanParams,
+  readRef5PlanProtocolVersion,
 } from "@workout/core/program-engine/ref5-integration";
 import { buildRef5Status } from "@workout/core/program-engine/ref5-status";
 import {
   REF5_IDENTIFIERS,
   REF5_PROTOCOL_VERSION,
+  Ref5StaleVersionError,
   Ref5ValidationError,
 } from "@workout/core/program-engine/ref5";
 
@@ -323,6 +325,19 @@ plansRoutes.post("/", async (c) => {
       String(definition.family ?? "").trim().toLowerCase() === REF5_IDENTIFIERS.family;
     const submittedParams = asRecord(body.params);
     const versionDefaults = asRecord(rootVersion.defaults);
+    if (isRef5Root && String(definition.protocolVersion ?? "") !== REF5_PROTOCOL_VERSION) {
+      return c.json(
+        {
+          error:
+            locale === "ko"
+              ? "이 REF5 버전은 오래되었습니다. 최신 프로그램 버전을 다시 선택해 주세요."
+              : "This REF5 version is stale. Select the latest program version.",
+          code: "REF5_STALE_VERSION",
+          expectedProtocolVersion: REF5_PROTOCOL_VERSION,
+        },
+        409,
+      );
+    }
     const canonicalParams = isRef5Root
       ? {
           timezone: normalizeTimezone(
@@ -507,6 +522,7 @@ plansRoutes.delete("/:planId", async (c) => {
 // started, immutable REF5 session after reload or in another tab.
 plansRoutes.get("/:planId/generated-sessions/:sessionId", async (c) => {
   const locale = resolveLocale(c);
+  c.header("Cache-Control", "private, no-store");
   try {
     const userId = c.get("userId");
     const planId = c.req.param("planId");
@@ -531,20 +547,52 @@ plansRoutes.get("/:planId/generated-sessions/:sessionId", async (c) => {
     ]);
     const planRow = planRows[0];
     const session = sessionRows[0];
+    const domain = session ? extractRef5DomainSnapshot(session.snapshot) : null;
     if (
       !planRow ||
       planRow.userId !== userId ||
       !isRef5PlanParams(planRow.params) ||
       !session ||
-      !extractRef5DomainSnapshot(session.snapshot)
+      !domain
     ) {
       return c.json(
         { error: locale === "ko" ? "시작된 REF5 세션을 찾을 수 없습니다." : "Started REF5 session not found." },
         404,
       );
     }
+    const planProtocolVersion = readRef5PlanProtocolVersion(planRow.params);
+    if (domain.protocolVersion !== planProtocolVersion) {
+      return c.json(
+        {
+          error:
+            locale === "ko"
+              ? "오래된 REF5 세션입니다. 화면을 새로고침한 뒤 다시 시작해 주세요."
+              : "This REF5 session belongs to a stale protocol. Refresh and start again.",
+          code: "REF5_STALE_VERSION",
+          expectedProtocolVersion: REF5_PROTOCOL_VERSION,
+        },
+        409,
+      );
+    }
+    const ref5Meta = toRecord(toRecord(session.snapshot).ref5);
+    if (domain.protocolVersion === REF5_PROTOCOL_VERSION && ref5Meta.startCommitted !== true) {
+      return c.json(
+        { error: locale === "ko" ? "아직 시작되지 않은 REF5 세션입니다." : "REF5 session has not started." },
+        404,
+      );
+    }
     return c.json({ session }, 200);
   } catch (e) {
+    if (e instanceof Ref5StaleVersionError) {
+      return c.json(
+        {
+          error: e.message,
+          code: "REF5_STALE_VERSION",
+          expectedProtocolVersion: REF5_PROTOCOL_VERSION,
+        },
+        409,
+      );
+    }
     return apiError(c, e, locale);
   }
 });
@@ -570,17 +618,55 @@ plansRoutes.post("/:planId/generate", async (c) => {
       typeof body.timezone === "string" && body.timezone.trim() ? body.timezone.trim() : undefined;
     const ref5Raw = asRecord(body.ref5);
     const hasRef5Input = Object.keys(ref5Raw).length > 0;
+    const hasRemovedRef5Input = [
+      "climb",
+      "climbing",
+      "climbingWithin48h",
+      "strongClimbing",
+      "pullFallback",
+      "substitute",
+      "substitution",
+      "omitPullVolume",
+      "omitted",
+      "omittedPrescriptions",
+    ].some((key) => Object.hasOwn(ref5Raw, key));
+    if (hasRemovedRef5Input) {
+      return c.json(
+        {
+          error:
+            locale === "ko"
+              ? "오래된 REF5 입력이 감지되었습니다. 화면을 새로고침한 뒤 다시 시작해 주세요."
+              : "Stale REF5 input was detected. Refresh and start again.",
+          code: "REF5_STALE_VERSION",
+          expectedProtocolVersion: REF5_PROTOCOL_VERSION,
+        },
+        409,
+      );
+    }
     const ref5Bodyweight = Number(ref5Raw.bodyweightKg ?? ref5Raw.todayBodyweightKg);
     const ref5 = hasRef5Input
       ? {
+          protocolVersion: String(ref5Raw.protocolVersion ?? "") as "1.2",
           actualStartAt: String(ref5Raw.actualStartAt ?? "").trim(),
           todayBodyweightKg: ref5Bodyweight,
           manualMicro: ref5Raw.manualMicro === true,
-          climbingWithin48h: ref5Raw.climbingWithin48h === true,
           startEventId: String(ref5Raw.startEventId ?? "").trim(),
-          omitPullVolume: ref5Raw.omitPullVolume === true,
         }
       : undefined;
+
+    if (ref5 && ref5.protocolVersion !== REF5_PROTOCOL_VERSION) {
+      return c.json(
+        {
+          error:
+            locale === "ko"
+              ? "오래된 REF5 버전입니다. 화면을 새로고침한 뒤 다시 시작해 주세요."
+              : "This REF5 protocol version is stale. Refresh and start again.",
+          code: "REF5_STALE_VERSION",
+          expectedProtocolVersion: REF5_PROTOCOL_VERSION,
+        },
+        409,
+      );
+    }
 
     if (
       (week !== undefined && !Number.isFinite(week)) ||
@@ -652,6 +738,16 @@ plansRoutes.post("/:planId/generate", async (c) => {
 
     return c.json({ session }, 201);
   } catch (e) {
+    if (e instanceof Ref5StaleVersionError) {
+      return c.json(
+        {
+          error: e.message,
+          code: "REF5_STALE_VERSION",
+          expectedProtocolVersion: REF5_PROTOCOL_VERSION,
+        },
+        409,
+      );
+    }
     if (e instanceof Ref5ValidationError) return c.json({ error: e.message }, 400);
     return apiError(c, e, locale);
   }

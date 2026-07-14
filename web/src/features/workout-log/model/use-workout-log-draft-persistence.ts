@@ -3,6 +3,7 @@
 import { startTransition, useCallback, useEffect, useRef, useState } from "react";
 import { clearWorkoutDraft, type WorkoutDraftData } from "@/lib/storage/workoutDraftStore";
 import { useWorkoutRecordPersistence } from "@/lib/workout-record/useWorkoutRecordPersistence";
+import { isWorkoutDraftProtocolCompatible } from "@/lib/workout-record/model";
 import type {
   PendingRestorePrompt,
 } from "@/features/workout-log/model/editor-actions";
@@ -25,11 +26,13 @@ export function useWorkoutLogDraftPersistence({
   const workflowState = useAtomValue(workflowStateAtom);
   const isUserEditing = workflowState === "editing";
   const isRestoredRef = useRef(false);
+  const currentDraftRef = useRef(draft);
   const isRestoringRef = useRef(false);
   const persistenceKeyRef = useRef<string | null>(null);
   const reloadDraftContextRef = useRef<(() => Promise<void>) | null>(null);
   const [pendingRestorePrompt, setPendingRestorePrompt] = useState<PendingRestorePrompt | null>(null);
   const restorePromptResolveRef = useRef<((keep: boolean) => void) | null>(null);
+  currentDraftRef.current = draft;
 
   useEffect(() => {
     persistenceKeyRef.current = persistenceKey;
@@ -48,6 +51,12 @@ export function useWorkoutLogDraftPersistence({
 
       try {
         await new Promise((resolve) => setTimeout(resolve, 150));
+        if (!isWorkoutDraftProtocolCompatible(currentDraftRef.current, data.draft)) {
+          isRestoredRef.current = false;
+          if (capturedKey) await clearWorkoutDraft(capturedKey);
+          await reloadDraftContextRef.current?.();
+          return false;
+        }
         const shouldKeep = await new Promise<boolean>((resolve) => {
           restorePromptResolveRef.current = resolve;
           setPendingRestorePrompt({

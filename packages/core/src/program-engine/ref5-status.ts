@@ -1,5 +1,8 @@
 import {
+  REF5_LEGACY_PROTOCOL_VERSION,
+  REF5_LEGACY_RUNTIME_SCHEMA_VERSION,
   REF5_PROTOCOL_VERSION,
+  REF5_RUNTIME_SCHEMA_VERSION,
   createInitialRef5State,
   deriveRef5AuxiliaryCaps,
   deriveRef5ControlRefs,
@@ -11,8 +14,10 @@ function isRef5State(value: unknown): value is Ref5RuntimeState {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const state = value as Partial<Ref5RuntimeState>;
   return (
-    state.schemaVersion === 1 &&
-    state.protocolVersion === REF5_PROTOCOL_VERSION &&
+    ((state.schemaVersion === REF5_RUNTIME_SCHEMA_VERSION &&
+      state.protocolVersion === REF5_PROTOCOL_VERSION) ||
+      (state.schemaVersion === REF5_LEGACY_RUNTIME_SCHEMA_VERSION &&
+        state.protocolVersion === REF5_LEGACY_PROTOCOL_VERSION)) &&
     typeof state.revision === "number" &&
     Boolean(state.directStandardsKg)
   );

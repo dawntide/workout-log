@@ -149,6 +149,10 @@ export async function loadWorkoutContextData(
     const [sessionRes, logsRes] = await Promise.all([
       apiGet<WorkoutLogGeneratedSessionResponse>(
         `/api/plans/${encodeURIComponent(input.planId)}/generated-sessions/${encodeURIComponent(input.generatedSessionId)}`,
+        // A persisted REF5 session must be checked against the plan's current
+        // protocol on every resume. SWR/IDB data can predate an upgrade or come
+        // from another tab, so it must not bypass the server's stale guard.
+        { cachePolicy: "network-only" },
       ),
       apiGet<WorkoutLogLogsResponse>(recentLogsPath),
     ]);

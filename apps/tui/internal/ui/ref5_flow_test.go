@@ -82,16 +82,12 @@ func ref5SessionFixture() *api.GeneratedSession {
 			{SetNumber: 1, PlannedReps: 5, ExternalLoadKg: 20, TotalLoadKg: 100},
 		},
 	}
-	omittedPrescription := api.Ref5ExercisePrescription{
-		PrescriptionID: "rx-pull-volume-omitted", Lift: "PULL", ExerciseName: "Pull-Up Volume",
-		Role: "VOLUME", Stream: "HARD", Omitted: true, Pull: pull,
-	}
 	decision := api.Ref5SessionDecision{
 		SessionType: "HARD", Focus: "PULL", SquatPrescription: "H3",
 		MicroReasons: []string{"MANUAL_MICRO"},
 	}
 	domain := api.Ref5DomainSnapshot{
-		SchemaVersion: 1, ProtocolVersion: api.Ref5ProtocolVersion,
+		SchemaVersion: 2, ProtocolVersion: api.Ref5ProtocolVersion,
 		SnapshotID: "snapshot-1", SessionID: "REF5:session-1", RuntimeRevision: 8,
 		ActualStartAt: ref5FixtureStart, TimeZone: "Asia/Seoul", CalendarDate: "2026-07-14",
 		StartInput: api.Ref5DomainStartInput{
@@ -100,7 +96,7 @@ func ref5SessionFixture() *api.GeneratedSession {
 			TodayBodyweightKg: 80, ManualMicro: true,
 		},
 		Decision:         decision,
-		Exercises:        []api.Ref5ExercisePrescription{squatPrescription, pullPrescription, omittedPrescription},
+		Exercises:        []api.Ref5ExercisePrescription{squatPrescription, pullPrescription},
 		TotalWorkingSets: 3,
 	}
 	return &api.GeneratedSession{
@@ -119,6 +115,7 @@ func ref5SessionFixture() *api.GeneratedSession {
 			},
 			Ref5: &api.Ref5SessionMetadata{
 				ProtocolVersion: api.Ref5ProtocolVersion,
+				StartCommitted:  true,
 				SnapshotID:      "snapshot-1", SessionID: "REF5:session-1",
 				ActualStartAt: ref5FixtureStart, Timezone: "Asia/Seoul",
 				StartEventID:          ref5FixtureStartEvent,
@@ -196,7 +193,7 @@ func TestLoadRef5SessionFreezesPrescriptionAndPullLoad(t *testing.T) {
 		t.Fatalf("loadRef5Session: %v", err)
 	}
 	if len(l.groups) != 2 {
-		t.Fatalf("groups = %d, want 2 non-omitted prescriptions", len(l.groups))
+		t.Fatalf("groups = %d, want 2 prescriptions", len(l.groups))
 	}
 	if l.generatedSessionID != "generated-ref5-1" || l.planID != "plan-ref5" {
 		t.Fatalf("session identity = plan %q / generated %q", l.planID, l.generatedSessionID)
@@ -252,7 +249,7 @@ func TestRef5PreviewAndStartReuseExactStartEnvelope(t *testing.T) {
 
 	start := ref5StartValues{
 		ActualStartAt: ref5FixtureStart, BodyweightKg: 80,
-		ManualMicro: true, ClimbingWithin48h: false,
+		ManualMicro:  true,
 		StartEventID: ref5FixtureStartEvent,
 	}
 	l := NewLog(client)

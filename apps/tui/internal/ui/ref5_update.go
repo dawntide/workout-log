@@ -75,10 +75,6 @@ func (l Log) requestRef5Preview() (Log, tea.Cmd) {
 		l.status, l.statusErr = "정확한 시작 시각과 0보다 큰 체중이 필요합니다", true
 		return l, nil
 	}
-	if l.ref5.Start.OmitPullVolume && !l.ref5.Start.ClimbingWithin48h {
-		l.status, l.statusErr = "PULL 생략은 48시간 내 클라이밍일 때만 가능합니다", true
-		return l, nil
-	}
 	l.ref5.Preview, l.ref5.PreviewSignature = nil, ""
 	l.ref5.Phase = ref5Previewing
 	l.status, l.statusErr = "REF5 처방 계산 중…", false
@@ -189,17 +185,6 @@ func (l Log) handleRef5Picked(m pickedMsg) (Log, tea.Cmd, bool) {
 		return l, boolPicker("수동 MICRO ", "ref5-manual-micro"), true
 	case "ref5-manual-micro":
 		l.ref5.Start.ManualMicro = m.value == "true"
-		return l, boolPicker("48h 내 클라이밍 ", "ref5-climbing"), true
-	case "ref5-climbing":
-		l.ref5.Start.ClimbingWithin48h = m.value == "true"
-		if !l.ref5.Start.ClimbingWithin48h {
-			l.ref5.Start.OmitPullVolume = false
-			updated, cmd := l.requestRef5Preview()
-			return updated, cmd, true
-		}
-		return l, boolPicker("PULL 볼륨 생략 ", "ref5-omit-pull"), true
-	case "ref5-omit-pull":
-		l.ref5.Start.OmitPullVolume = m.value == "true"
 		updated, cmd := l.requestRef5Preview()
 		return updated, cmd, true
 	case "ref5-reason":
@@ -241,7 +226,7 @@ func (l *Log) loadRef5Session(session *api.GeneratedSession) error {
 	meta := session.Snapshot.Ref5
 	groups := make([]exGroup, 0, len(session.Snapshot.Exercises))
 	for _, ex := range session.Snapshot.Exercises {
-		if ex.Ref5 == nil || ex.Ref5.Omitted {
+		if ex.Ref5 == nil {
 			continue
 		}
 		entry := &ref5ExerciseEntry{
@@ -296,12 +281,10 @@ func (l *Log) loadRef5Session(session *api.GeneratedSession) error {
 		plan.ID = session.Snapshot.Plan.ID
 	}
 	start := ref5StartValues{
-		ActualStartAt:     meta.ActualStartAt,
-		BodyweightKg:      float64(meta.DomainSnapshot.StartInput.TodayBodyweightKg),
-		ManualMicro:       meta.DomainSnapshot.StartInput.ManualMicro,
-		ClimbingWithin48h: meta.DomainSnapshot.StartInput.ClimbingWithin48h,
-		OmitPullVolume:    meta.DomainSnapshot.StartInput.OmitPullVolume,
-		StartEventID:      meta.StartEventID,
+		ActualStartAt: meta.ActualStartAt,
+		BodyweightKg:  float64(meta.DomainSnapshot.StartInput.TodayBodyweightKg),
+		ManualMicro:   meta.DomainSnapshot.StartInput.ManualMicro,
+		StartEventID:  meta.StartEventID,
 	}
 	if start.ActualStartAt == "" {
 		start.ActualStartAt = session.Snapshot.ActualStartAt

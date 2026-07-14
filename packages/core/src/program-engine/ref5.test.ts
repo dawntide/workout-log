@@ -4,9 +4,18 @@ import {
   REF5_INITIAL_CONTROL_REFS_KG,
   REF5_INITIAL_DERIVED_STANDARDS_KG,
   REF5_INITIAL_DIRECT_STANDARDS_KG,
+  REF5_LEGACY_MIGRATION_MARKER,
+  REF5_LEGACY_PROTOCOL_VERSION,
+  REF5_LEGACY_RUNTIME_SCHEMA_VERSION,
+  REF5_LEGACY_SNAPSHOT_SCHEMA_VERSION,
+  REF5_PROTOCOL_VERSION,
+  REF5_RUNTIME_SCHEMA_VERSION,
+  REF5_SNAPSHOT_SCHEMA_VERSION,
   applyRef5FirstSquatStart,
   classifyRef5Outcome,
+  createInitialRef5LegacyV11State,
   createInitialRef5State,
+  decodeRef5SessionSnapshot,
   deriveRef5AuxiliaryCaps,
   deriveRef5ControlRefs,
   deriveRef5Standards,
@@ -18,9 +27,11 @@ import {
   replayRef5RawLogs,
   selectRef5SquatPrescription,
   validateAndClassifyRef5Outcome,
+  upgradeRef5RuntimeStateV11ToV12,
   type Ref5CompletedSessionSummary,
   type Ref5ExercisePrescription,
   type Ref5MainLift,
+  type Ref5LegacyV11SessionSnapshot,
   type Ref5Outcome,
   type Ref5OutcomeInput,
   type Ref5RawLogEvent,
@@ -53,12 +64,14 @@ function sessionInput(
     recent7DayMeasurementCount: 0,
     recent7DayAverageKg: null,
     manualMicro: false,
-    climbingWithin48h: false,
     ...overrides,
   };
 }
 
-function outcomeFor(item: Ref5ExercisePrescription, outcome: Ref5Outcome): Ref5OutcomeInput {
+function outcomeFor(
+  item: Pick<Ref5ExercisePrescription, "sets" | "stream">,
+  outcome: Ref5Outcome,
+): Ref5OutcomeInput {
   const full = item.sets.map((set) => ({ plannedReps: set.plannedReps, effectiveReps: set.plannedReps }));
   if (outcome === "PASS") return { sets: full, endReason: "NORMAL" };
   if (outcome === "INVALID") {
@@ -68,7 +81,7 @@ function outcomeFor(item: Ref5ExercisePrescription, outcome: Ref5Outcome): Ref5O
     };
   }
   const reduced = full.map((set) => ({ ...set }));
-  if (reduced.length === 0) throw new Error(`cannot make ${outcome} for omitted ${item.stream}`);
+  if (reduced.length === 0) throw new Error(`cannot make ${outcome} for ${item.stream}`);
   const last = reduced.at(-1)!;
   last.effectiveReps = Math.max(0, last.plannedReps - (outcome === "HOLD" ? 1 : 2));
   return { sets: reduced, endReason: "FORCE_OR_TECHNIQUE" };
@@ -84,7 +97,7 @@ function completionOutcomes(
     result[item.stream] =
       typeof override === "object"
         ? override
-        : outcomeFor(item, override ?? (item.omitted ? "INVALID" : "PASS"));
+        : outcomeFor(item, override ?? "PASS");
   }
   return result;
 }
@@ -131,7 +144,10 @@ function fakeStarted(
   };
 }
 
-test("v1.1 constants, direct-derived formulas, refs, caps and 2.5 kg rounding are canonical", () => {
+test("v1.2 constants, direct-derived formulas, refs, caps and 2.5 kg rounding are canonical", () => {
+  assert.equal(REF5_PROTOCOL_VERSION, "1.2");
+  assert.equal(REF5_RUNTIME_SCHEMA_VERSION, 2);
+  assert.equal(REF5_SNAPSHOT_SCHEMA_VERSION, 2);
   assert.deepEqual(REF5_INITIAL_DIRECT_STANDARDS_KG, {
     sqH3Kg: 82.5,
     bpFocusKg: 82.5,
@@ -170,6 +186,39 @@ test("first normal session is PULL focus + H3 with nine working sets and lossles
   assert.equal(snapshot.pullContext.focus.calculationBodyweightKg, 75);
   assert.equal(state.revision, 0, "preview is pure");
   assert.equal(state.pull.lock, null, "preview does not commit the proposed PULL lock");
+  const serialized = JSON.stringify(snapshot);
+  for (const removed of [
+    "climb",
+    "climbing",
+    "climbingWithin48h",
+    "strongClimbing",
+    "pullFallback",
+    "substitute",
+    "substitution",
+    "omitPullVolume",
+    "climbingReplacement",
+    "omitted",
+    "omittedPrescriptions",
+  ]) {
+    assert.equal(serialized.includes(removed), false, `${removed} must not be written by v1.2`);
+  }
+});
+
+test("normal BP focus always includes PULL volume and has nine working sets", () => {
+  const state = createInitialRef5State();
+  state.nextFocus = "BP";
+  const snapshot = generateRef5Session(
+    state,
+    sessionInput("bp-nine", "2026-01-02T09:00:00.000Z"),
+  );
+  assert.equal(snapshot.totalWorkingSets, 9);
+  assert.deepEqual(snapshot.exercises.map((item) => item.stream), [
+    "SQ_H3",
+    "BP_FOCUS",
+    "PULL_VOLUME",
+    "OHP",
+  ]);
+  assert.deepEqual(snapshot.exercises.find((item) => item.stream === "PULL_VOLUME")?.sets.map((set) => set.plannedReps), [6]);
 });
 
 test("valid completion alternates focus, and exact 48h allows H2 while 1ms early selects V", () => {
@@ -309,7 +358,7 @@ test("outcome table distinguishes PASS/HOLD/FAIL/INVALID and rejects contradicto
   );
 });
 
-test("ordinary focus INVALID retains queue; valid FAIL alternates; climbing replacement is the sole INVALID exception", () => {
+test("PULL focus PASS/HOLD/FAIL alternate to BP while INVALID retains PULL", () => {
   const base = "2026-04-01T09:00:00.000Z";
   const invalid = runSession(createInitialRef5State(), sessionInput("invalid", base), { PULL_FOCUS: "INVALID" });
   assert.equal(invalid.state.nextFocus, "PULL");
@@ -319,14 +368,161 @@ test("ordinary focus INVALID retains queue; valid FAIL alternates; climbing repl
   const failed = runSession(createInitialRef5State(), sessionInput("failed", base), { PULL_FOCUS: "FAIL" });
   assert.equal(failed.state.nextFocus, "BP", "a comparable failed focus does not repeat immediately");
   assert.equal(failed.state.mainWindows.PULL.exposures.length, 1);
+  for (const outcome of ["PASS", "HOLD"] as const) {
+    const result = runSession(createInitialRef5State(), sessionInput(outcome, base), {
+      PULL_FOCUS: outcome,
+    });
+    assert.equal(result.state.nextFocus, "BP");
+  }
+});
 
-  const climbingInput = sessionInput("climb", base, { climbingWithin48h: true });
-  const climbing = runSession(createInitialRef5State(), climbingInput);
-  assert.equal(climbing.snapshot.decision.climbingReplacement, true);
-  assert.equal(climbing.snapshot.totalWorkingSets, 7);
-  assert.equal(climbing.snapshot.exercises.find((item) => item.role === "CLIMBING_FOCUS_INVALID")?.omitted, true);
-  assert.equal(climbing.state.nextFocus, "BP");
-  assert.equal(climbing.state.mainWindows.PULL.exposures.length, 0);
+test("legacy v1.1 climbing replacement golden replay is isolated and unchanged", () => {
+  const base = "2026-04-02T09:00:00.000Z";
+  const pull = generateRef5Session(createInitialRef5State(), sessionInput("legacy", base));
+  const bpState = createInitialRef5State();
+  bpState.nextFocus = "BP";
+  const bp = generateRef5Session(bpState, sessionInput("legacy-bp", base));
+  const pullVolume = structuredClone(
+    bp.exercises.find((item) => item.stream === "PULL_VOLUME")!,
+  );
+  pullVolume.prescriptionId = `${pull.snapshotId}:PULL_VOLUME`;
+
+  const legacy: Ref5LegacyV11SessionSnapshot = {
+    ...structuredClone(pull),
+    schemaVersion: REF5_LEGACY_SNAPSHOT_SCHEMA_VERSION,
+    protocolVersion: REF5_LEGACY_PROTOCOL_VERSION,
+    startInput: {
+      ...structuredClone(pull.startInput),
+      climbingWithin48h: true,
+      omitPullVolume: false,
+    },
+    decision: { ...structuredClone(pull.decision), climbingReplacement: true },
+    exercises: [
+      { ...structuredClone(pull.exercises[0]!), omitted: false },
+      {
+        ...structuredClone(pull.exercises[1]!),
+        role: "CLIMBING_FOCUS_INVALID",
+        sets: [],
+        omitted: true,
+      },
+      { ...pullVolume, omitted: false },
+      { ...structuredClone(pull.exercises[2]!), omitted: false },
+      { ...structuredClone(pull.exercises[3]!), omitted: false },
+    ],
+    totalWorkingSets: 7,
+  };
+  const decoded = decodeRef5SessionSnapshot(legacy);
+  const started = applyRef5FirstSquatStart(
+    createInitialRef5LegacyV11State(),
+    decoded,
+    "legacy-start",
+  );
+  const outcomes: Partial<Record<Ref5Stream, Ref5OutcomeInput>> = {};
+  for (const item of legacy.exercises) {
+    outcomes[item.stream] = item.omitted
+      ? { sets: [], endReason: "EXTERNAL" }
+      : outcomeFor(item, "PASS");
+  }
+  const completed = reduceRef5Completion(started.nextState, decoded, {
+    completionEventId: "legacy-complete",
+    rawLogId: "legacy-log",
+    completedAt: at(base, 2 * HOUR),
+    outcomes,
+  });
+  assert.deepEqual(
+    {
+      protocolVersion: completed.nextState.protocolVersion,
+      schemaVersion: completed.nextState.schemaVersion,
+      nextFocus: completed.nextState.nextFocus,
+      pullExposureCount: completed.nextState.mainWindows.PULL.exposures.length,
+      streams: legacy.exercises.map((item) => [item.stream, item.omitted]),
+      totalWorkingSets: legacy.totalWorkingSets,
+    },
+    {
+      protocolVersion: "1.1",
+      schemaVersion: 1,
+      nextFocus: "BP",
+      pullExposureCount: 0,
+      streams: [
+        ["SQ_H3", false],
+        ["PULL_FOCUS", true],
+        ["PULL_VOLUME", false],
+        ["BP_VOLUME", false],
+        ["DL", false],
+      ],
+      totalWorkingSets: 7,
+    },
+  );
+});
+
+test("protocol-less snapshots require an exact v1.1 shape and explicit migration marker", () => {
+  const active = generateRef5Session(
+    createInitialRef5State(),
+    sessionInput("decode", "2026-04-03T09:00:00.000Z"),
+  );
+  assert.throws(
+    () => decodeRef5SessionSnapshot({ ...active, protocolVersion: undefined }),
+    /verified v1\.1 migration marker/,
+  );
+  assert.throws(
+    () => decodeRef5SessionSnapshot({ ...active, climbingWithin48h: false }),
+    /stale REF5 protocol version/,
+  );
+  assert.throws(
+    () =>
+      decodeRef5SessionSnapshot({
+        ...active,
+        exercises: [
+          { ...active.exercises[0]!, role: "CLIMBING_FOCUS_INVALID" },
+          ...active.exercises.slice(1),
+        ],
+      }),
+    /stale REF5 protocol version/,
+  );
+  assert.throws(
+    () =>
+      decodeRef5SessionSnapshot({
+        ...active,
+        exercises: [{ ...active.exercises[0]!, omitted: false }, ...active.exercises.slice(1)],
+      }),
+    /stale REF5 protocol version/,
+  );
+
+  const legacyShape = {
+    ...structuredClone(active),
+    schemaVersion: REF5_LEGACY_SNAPSHOT_SCHEMA_VERSION,
+    protocolVersion: undefined,
+    startInput: { ...active.startInput, climbingWithin48h: false },
+    decision: { ...active.decision, climbingReplacement: false },
+    exercises: active.exercises.map((item) => ({ ...item, omitted: false })),
+  };
+  const decoded = decodeRef5SessionSnapshot(legacyShape, {
+    legacyMigrationMarker: REF5_LEGACY_MIGRATION_MARKER,
+  });
+  assert.equal(decoded.protocolVersion, REF5_LEGACY_PROTOCOL_VERSION);
+});
+
+test("v1.1 runtime upgrade clones full state, removes only retired fields, and is idempotent", () => {
+  const legacy = createInitialRef5LegacyV11State() as Ref5RuntimeState & {
+    extension: { preserved: string; climbingWithin48h: boolean };
+  };
+  legacy.revision = 7;
+  legacy.extension = { preserved: "yes", climbingWithin48h: true };
+  const metadata = {
+    stableKey: "ref5-upgrade:plan-1:1.1:1.2",
+    fromProtocolVersion: REF5_LEGACY_PROTOCOL_VERSION,
+    toProtocolVersion: REF5_PROTOCOL_VERSION,
+    transitionedAt: "2026-07-14T00:00:00.000Z",
+  } as const;
+  const upgraded = upgradeRef5RuntimeStateV11ToV12(legacy, metadata) as Ref5RuntimeState & {
+    extension: { preserved: string };
+  };
+  assert.equal(legacy.schemaVersion, REF5_LEGACY_RUNTIME_SCHEMA_VERSION, "source is untouched");
+  assert.equal(upgraded.schemaVersion, REF5_RUNTIME_SCHEMA_VERSION);
+  assert.equal(upgraded.protocolVersion, REF5_PROTOCOL_VERSION);
+  assert.equal(upgraded.revision, 8);
+  assert.deepEqual(upgraded.extension, { preserved: "yes" });
+  assert.deepEqual(upgradeRef5RuntimeStateV11ToV12(upgraded, metadata), upgraded);
 });
 
 test("manual, calendar, forced-fail and multiple stagnation reasons merge into one four-set micro", () => {
@@ -357,10 +553,10 @@ test("manual, calendar, forced-fail and multiple stagnation reasons merge into o
     "STAGNATION_BP",
     "STAGNATION_PULL",
   ]));
-  assert.deepEqual(snapshot.exercises.map((item) => item.stream), ["SQ_V_MICRO", "PULL_VOLUME", "BP_VOLUME"]);
+  assert.deepEqual(snapshot.exercises.map((item) => item.stream), ["SQ_V_MICRO", "BP_VOLUME", "PULL_VOLUME"]);
 });
 
-test("closing omitted/unperformed prescriptions INVALID does not enter windows or fail streams", () => {
+test("closing unperformed prescriptions INVALID does not enter windows or fail streams", () => {
   const result = runSession(
     createInitialRef5State(),
     sessionInput("all-invalid", "2026-06-20T09:00:00.000Z"),
@@ -642,7 +838,6 @@ function rawPassEvent(
     recent7DayMeasurementCount: 0,
     recent7DayAverageKg: null,
     manualMicro: false,
-    climbingWithin48h: false,
     outcomes,
   };
 }

@@ -34,13 +34,11 @@ func (l Log) renderRef5Start(w int) string {
 		start = at.In(ref5PlanLocation(l.ref5.Plan)).Format("2006-01-02 15:04:05 MST")
 	}
 	lines := []string{
-		amber.Render("REF5 v1.1 · FIRST SQUAT START"),
+		amber.Render("REF5 v1.2 · FIRST SQUAT START"),
 		"",
 		ref5Justify(dim.Render("실제 시작"), cyan.Render(start), w),
 		ref5Justify(dim.Render("오늘 체중"), cyan.Render(trimNum(l.ref5.Start.BodyweightKg)+" kg"), w),
 		ref5Justify(dim.Render("수동 MICRO"), cyan.Render(onOff(l.ref5.Start.ManualMicro)), w),
-		ref5Justify(dim.Render("48h 클라이밍"), cyan.Render(onOff(l.ref5.Start.ClimbingWithin48h)), w),
-		ref5Justify(dim.Render("PULL 생략"), cyan.Render(onOff(l.ref5.Start.OmitPullVolume)), w),
 		"",
 		dim.Render("미리보기는 상태를 바꾸지 않습니다."),
 	}
@@ -92,12 +90,6 @@ func (l Log) renderRef5Preview(w int) string {
 		left := lipgloss.NewStyle().Foreground(theme.Fg).Bold(true).Render(truncate(ex.ExerciseName, 20))
 		right := cyan.Render(summarizeRef5PlannedExercise(ex))
 		lines = append(lines, ref5Justify(left, right, w))
-	}
-	if preview.Snapshot.Ref5 != nil {
-		for _, omitted := range preview.Snapshot.Ref5.OmittedPrescriptions {
-			left := lipgloss.NewStyle().Foreground(theme.Dim).Render(truncate(omitted.ExerciseName, 20))
-			lines = append(lines, ref5Justify(left, dim.Render(omitted.Stream+" · OMITTED · INVALID"), w))
-		}
 	}
 	lines = append(lines, "")
 	if len(reasons) == 0 {

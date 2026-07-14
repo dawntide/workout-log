@@ -11,25 +11,32 @@ import {
 } from "@workout/core/progression/ref5-auto-progression";
 import {
   REF5_IDENTIFIERS,
+  REF5_LEGACY_ENGINE_VERSION,
+  REF5_PROGRAM_VERSION,
   REF5_PROTOCOL_VERSION,
+  Ref5StaleVersionError,
   Ref5ValidationError,
   applyRef5FirstSquatStart,
   generateRef5Session,
   type Ref5RuntimeState,
   type Ref5SessionInput,
+  decodeRef5SessionSnapshot,
+  type Ref5DecodedSessionSnapshot,
   type Ref5SessionSnapshot,
 } from "./ref5";
 import { acquireActiveAccountMutationLock } from "@workout/core/auth/account-lifecycle";
 
-export const REF5_ENGINE_VERSION = 511;
+// 511 is the immutable v1.1 identifier. Active v1.2 writes use the new
+// constant so historical snapshots are never relabelled in place.
+export const REF5_ENGINE_VERSION = REF5_LEGACY_ENGINE_VERSION;
+export const REF5_ENGINE_VERSION_V12 = 512;
 
 export type Ref5GenerateRequest = {
+  protocolVersion: typeof REF5_PROTOCOL_VERSION;
   actualStartAt: string;
   todayBodyweightKg: number;
   manualMicro: boolean;
-  climbingWithin48h: boolean;
   startEventId: string;
-  omitPullVolume?: boolean;
 };
 
 export type Ref5PlanGenerationInput = {
@@ -52,6 +59,13 @@ export function isRef5PlanParams(value: unknown): boolean {
   );
 }
 
+export function readRef5PlanProtocolVersion(value: unknown): string | null {
+  const params = toRecord(value);
+  const nested = toRecord(params.ref5);
+  const version = String(params.protocolVersion ?? nested.protocolVersion ?? "").trim();
+  return version || null;
+}
+
 function assertTimezone(value: string): string {
   const timezone = value.trim();
   try {
@@ -67,6 +81,28 @@ export function normalizeRef5GenerationRequest(
   planParams: unknown,
 ): Ref5GenerateRequest & { actualStartAt: string; timezone: string } {
   if (!input.ref5) throw new Ref5ValidationError(["REF5 session input is required"]);
+  const rawRequest = toRecord(input.ref5);
+  for (const removed of [
+    "climb",
+    "climbing",
+    "climbingWithin48h",
+    "strongClimbing",
+    "pullFallback",
+    "substitute",
+    "substitution",
+    "omitPullVolume",
+    "omitted",
+    "omittedPrescriptions",
+  ]) {
+    if (Object.hasOwn(rawRequest, removed)) throw new Ref5StaleVersionError(rawRequest.protocolVersion);
+  }
+  if (input.ref5.protocolVersion !== REF5_PROTOCOL_VERSION) {
+    throw new Ref5StaleVersionError(input.ref5.protocolVersion);
+  }
+  const planProtocolVersion = readRef5PlanProtocolVersion(planParams);
+  if (planProtocolVersion !== REF5_PROTOCOL_VERSION) {
+    throw new Ref5StaleVersionError(planProtocolVersion);
+  }
   const parsedStart = new Date(input.ref5.actualStartAt);
   if (Number.isNaN(parsedStart.getTime())) {
     throw new Ref5ValidationError(["Invalid REF5 actual start time"]);
@@ -86,17 +122,16 @@ export function normalizeRef5GenerationRequest(
     String(params.timezone ?? "UTC").trim() || "UTC",
   );
   return {
+    protocolVersion: REF5_PROTOCOL_VERSION,
     actualStartAt: parsedStart.toISOString(),
     todayBodyweightKg: Math.round(bodyweightKg * 100) / 100,
     manualMicro: input.ref5.manualMicro === true,
-    climbingWithin48h: input.ref5.climbingWithin48h === true,
     startEventId,
-    omitPullVolume: input.ref5.omitPullVolume === true,
     timezone,
   };
 }
 
-function ref5SessionKey(actualStartAt: string, startEventId: string): string {
+export function ref5SessionKey(actualStartAt: string, startEventId: string): string {
   return `REF5:${actualStartAt}:${startEventId}`;
 }
 
@@ -125,17 +160,19 @@ async function assertRef5StableTieAppend(input: {
   }
 }
 
-function readDomainSnapshot(snapshot: unknown): Ref5SessionSnapshot | null {
+function readDomainSnapshot(snapshot: unknown): Ref5DecodedSessionSnapshot | null {
   const root = toRecord(snapshot);
   const ref5 = toRecord(root.ref5);
   const candidate = toRecord(ref5.domainSnapshot ?? ref5.snapshot ?? root.ref5Snapshot);
-  if (
-    String(candidate.protocolVersion ?? "") !== REF5_PROTOCOL_VERSION ||
-    !String(candidate.snapshotId ?? "").trim()
-  ) {
-    return null;
-  }
-  return candidate as unknown as Ref5SessionSnapshot;
+  const looksRef5 =
+    String(toRecord(root.program).slug ?? "") === REF5_IDENTIFIERS.slug ||
+    Object.keys(ref5).length > 0 ||
+    Object.keys(candidate).length > 0;
+  if (!looksRef5) return null;
+  return decodeRef5SessionSnapshot(candidate, {
+    legacyMigrationMarker:
+      ref5.legacyMigrationMarker ?? toRecord(ref5.legacyMigration).marker,
+  });
 }
 
 type RecentBodyweight = { count: number; averageKg: number | null };
@@ -182,13 +219,14 @@ function targetForLift(lift: string): "SQUAT" | "BENCH" | "PULL" | "DEADLIFT" | 
   return lift === "PULL" ? "PULL" : "OHP";
 }
 
-function toGeneratedSnapshot(input: {
+export function toRef5GeneratedSnapshot(input: {
   planId: string;
   planName: string;
   sessionKey: string;
   domain: Ref5SessionSnapshot;
   startEventId: string;
   runtimeRevisionAfter: number;
+  startCommitted: boolean;
 }) {
   const domain = input.domain;
   return {
@@ -205,7 +243,7 @@ function toGeneratedSnapshot(input: {
       slug: REF5_IDENTIFIERS.slug,
       name: REF5_IDENTIFIERS.displayName,
       type: "LOGIC",
-      version: 1,
+      version: REF5_PROGRAM_VERSION,
       kind: REF5_IDENTIFIERS.kind,
       family: REF5_IDENTIFIERS.family,
       protocolVersion: REF5_PROTOCOL_VERSION,
@@ -219,28 +257,16 @@ function toGeneratedSnapshot(input: {
       startEventId: input.startEventId,
       runtimeRevisionBefore: domain.runtimeRevision,
       runtimeRevisionAfter: input.runtimeRevisionAfter,
+      startCommitted: input.startCommitted,
       decision: domain.decision,
       directStandardsKg: domain.directStandardsKg,
       derivedStandardsKg: domain.derivedStandardsKg,
       controlRefsKg: domain.controlRefsKg,
       auxiliaryCapsKg: domain.auxiliaryCapsKg,
       pullContext: domain.pullContext,
-      omittedPrescriptions: domain.exercises
-        .filter((exercise) => exercise.omitted)
-        .map((exercise) => ({
-          prescriptionId: exercise.prescriptionId,
-          exerciseName: exercise.exerciseName,
-          lift: exercise.lift,
-          role: exercise.role,
-          stream: exercise.stream,
-          outcome: "INVALID" as const,
-          reason: "EXTERNAL" as const,
-          pull: exercise.pull ?? null,
-        })),
       domainSnapshot: domain,
     },
     exercises: domain.exercises
-      .filter((exercise) => !exercise.omitted)
       .map((exercise, exerciseIndex) => ({
         exerciseName: exercise.exerciseName,
         role: "MAIN" as const,
@@ -256,7 +282,6 @@ function toGeneratedSnapshot(input: {
           role: exercise.role,
           stream: exercise.stream,
           progressionTargetKg: exercise.progressionTargetKg,
-          omitted: false,
           pull: exercise.pull ?? null,
         },
         sets: exercise.sets.map((set) => ({
@@ -313,8 +338,6 @@ async function calculateSnapshot(input: {
     recent7DayMeasurementCount: recent.count,
     recent7DayAverageKg: recent.averageKg,
     manualMicro: input.request.manualMicro,
-    climbingWithin48h: input.request.climbingWithin48h,
-    omitPullVolume: input.request.omitPullVolume,
   };
   const domain = generateRef5Session(input.runtimeState, domainInput);
   const start = applyRef5FirstSquatStart(
@@ -360,13 +383,14 @@ export async function buildRef5PlanSession(
       request,
     });
     return {
-      snapshot: toGeneratedSnapshot({
+      snapshot: toRef5GeneratedSnapshot({
         planId: planRow.id,
         planName: planRow.name,
         sessionKey: calculated.sessionKey,
         domain: calculated.domain,
         startEventId: request.startEventId,
         runtimeRevisionAfter: calculated.start.nextState.revision,
+        startCommitted: false,
       }),
     };
   }
@@ -401,8 +425,7 @@ export async function buildRef5PlanSession(
         existingDomain?.timeZone !== request.timezone ||
         Number(existingDomain?.startInput?.todayBodyweightKg) !== request.todayBodyweightKg ||
         existingDomain?.startInput?.manualMicro !== request.manualMicro ||
-        existingDomain?.startInput?.climbingWithin48h !== request.climbingWithin48h ||
-        (existingDomain?.startInput?.omitPullVolume === true) !== (request.omitPullVolume === true)
+        existingDomain?.protocolVersion !== request.protocolVersion
       ) {
         throw new Ref5ValidationError(["REF5 start retry contradicts the immutable snapshot"]);
       }
@@ -449,13 +472,14 @@ export async function buildRef5PlanSession(
     if (!calculated.start.applied) {
       throw new Ref5ValidationError(["REF5 first-squat start event could not be applied"]);
     }
-    const snapshot = toGeneratedSnapshot({
+    const snapshot = toRef5GeneratedSnapshot({
       planId: planRow.id,
       planName: planRow.name,
       sessionKey: calculated.sessionKey,
       domain: calculated.domain,
       startEventId: request.startEventId,
       runtimeRevisionAfter: calculated.start.nextState.revision,
+      startCommitted: true,
     });
     const [saved] = await tx
       .insert(generatedSession)

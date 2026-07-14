@@ -30,17 +30,17 @@ const ref5Template: ProgramTemplate = {
   tags: ["strength", "barbell", "ref5", "intermediate", "session-based"],
   latestVersion: {
     id: "version-ref5",
-    version: 1,
+    version: 2,
     definition: {
       dslVersion: 1,
       kind: "ref5",
       family: "ref5",
-      protocolVersion: "1.1",
+      protocolVersion: "1.2",
       modules: ["SQUAT", "PULL", "BENCH", "DEADLIFT", "OHP"],
     },
     defaults: {
-      schemaVersion: 1,
-      protocolVersion: "1.1",
+      schemaVersion: 2,
+      protocolVersion: "1.2",
     },
   },
 };

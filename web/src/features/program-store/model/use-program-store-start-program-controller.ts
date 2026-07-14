@@ -110,8 +110,8 @@ export function readRef5StartConfigFromTemplate(
   const starts = raw?.startingValuesKg;
   const refs = raw?.controlRefsKg;
   if (
-    raw?.schemaVersion !== 1 ||
-    raw?.protocolVersion !== "1.1" ||
+    raw?.schemaVersion !== 2 ||
+    raw?.protocolVersion !== "1.2" ||
     !starts ||
     !refs ||
     ![
@@ -131,8 +131,8 @@ export function readRef5StartConfigFromTemplate(
   }
 
   return {
-    schemaVersion: 1,
-    protocolVersion: "1.1",
+    schemaVersion: 2,
+    protocolVersion: "1.2",
     startingValuesKg: { ...starts } as Ref5StartConfig["startingValuesKg"],
     controlRefsKg: { ...refs } as Ref5StartConfig["controlRefsKg"],
   };

@@ -121,7 +121,7 @@ export const StartProgramSheet = memo(function StartProgramSheet({
               </strong>
               <V2Chip tone="weight">
                 {isRef5
-                  ? `REF5 v${draft.ref5Config?.protocolVersion ?? "1.1"}`
+                  ? `REF5 v${draft.ref5Config?.protocolVersion ?? "1.2"}`
                   : `TM ${Math.round(draft.tmPercent * 100)}%`}
               </V2Chip>
             </div>
