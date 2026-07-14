@@ -188,6 +188,16 @@ jobs:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/workout_log_ci
         run: pnpm db:migrate
 
+      - name: Verify workout log idempotency
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/workout_log_ci
+        run: pnpm db:verify:workout-log-idempotency
+
+      - name: Verify account lifecycle barrier
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/workout_log_ci
+        run: pnpm db:verify:account-lifecycle
+
       - name: Seed DB
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/workout_log_ci

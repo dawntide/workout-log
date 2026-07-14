@@ -5,6 +5,7 @@ package ui
 
 import (
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 	"time"
@@ -39,21 +40,39 @@ const (
 )
 
 type setEntry struct {
-	weight  string
-	reps    string
-	rpe     string // optional RPE 1–10
-	done    bool
-	tgtReps int     // planned reps, shown dimmed as a placeholder while reps is empty
-	total   float64 // bodyweight-inclusive total load (>0 only for bodyweight sets)
+	weight       string
+	reps         string
+	rpe          string // optional RPE 1–10
+	done         bool
+	tgtReps      int          // planned reps, shown dimmed as a placeholder while reps is empty
+	total        float64      // bodyweight-inclusive total load (>0 only for bodyweight sets)
+	amrap        bool         // generated AMRAP marker; serialized into engine meta
+	prescribed   bool         // belongs to the generated session and must be accounted for
+	isExtra      bool         // excluded from automatic progression
+	setNumber    int          // generated prescription set number (REF5 immutable)
+	originalMeta *api.SetMeta // generated/logged engine metadata, losslessly cloned on save
 }
 
 type exGroup struct {
-	name        string
-	prev        string // "100×5" previous performance (filled when a plan/session loads)
-	tgt         string // target weight
-	blockTarget string // snapshot sourceBlockTarget (e.g. "SQUAT"); enables REPLACE_EXERCISE override
-	role        string // MAIN | ASSIST | … (from the snapshot)
-	sets        []setEntry
+	name               string
+	prev               string // "100×5" previous performance (filled when a plan/session loads)
+	tgt                string // target weight
+	blockTarget        string // snapshot sourceBlockTarget (e.g. "SQUAT"); enables REPLACE_EXERCISE override
+	role               string // MAIN | ASSIST | … (from the snapshot)
+	progressionKey     string
+	progressionTarget  string
+	enforcePlannedReps bool
+	sets               []setEntry
+	ref5               *ref5ExerciseEntry // non-nil means name/load/set shape are immutable
+}
+
+func isSlottedProgressionKey(key string) bool {
+	index := strings.LastIndex(strings.TrimSpace(key), "_s")
+	if index < 0 || index+2 >= len(key) {
+		return false
+	}
+	_, err := strconv.Atoi(key[index+2:])
+	return err == nil
 }
 
 // undoSnapshot is the pre-delete buffer state restored by `u`. Today logging is
@@ -204,12 +223,12 @@ func setE1rm(s setEntry) float64 {
 
 func validNum(s string) bool {
 	v, err := strconv.ParseFloat(strings.TrimSpace(s), 64)
-	return err == nil && v >= 0
+	return err == nil && v >= 0 && !math.IsNaN(v) && !math.IsInf(v, 0)
 }
 
 func validInt(s string) bool {
 	v, err := strconv.Atoi(strings.TrimSpace(s))
-	return err == nil && v > 0
+	return err == nil && v >= 0
 }
 
 func truncate(s string, n int) string {

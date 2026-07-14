@@ -2,9 +2,9 @@
 
 `workout-log` 웹앱의 **rich 터미널 클라이언트**. Go + [Bubble Tea v2](https://github.com/charmbracelet/bubbletea) (`charm.land/*/v2`) + Lip Gloss + Bubbles + [ntcharts](https://github.com/NimbleMarkets/ntcharts). 단일 바이너리.
 
-**TUI-first**: 기존 Next.js HTTP API에 **백엔드 수정 0**으로 붙습니다. 세션은 `wl_session` httpOnly 쿠키를 캡처/replay해서 인증합니다(서버의 `assertSameOrigin`이 Origin 없는 CLI 요청을 통과시키므로 가능). 디자인 언어는 웹의 `terminal`(ironlog) 스킨을 그대로 옮겼습니다 — [redesign-target.md](../../web/docs/redesign-target.md) §5.
+**TUI-first**: 웹과 같은 core 계약을 쓰는 독립 `apps/api` 백엔드에 붙습니다. 인증은 하나의 opaque `auth_session`을 Bearer 토큰(TUI 기본)과 `wl_session` 쿠키(Next 호환)로 함께 지원합니다. REF5·정확히 한 번 저장 계약은 API와 DB 마이그레이션을 포함하므로 새 TUI 릴리스 전에 해당 서버 버전이 먼저 배포되어야 합니다. 디자인 언어는 웹의 `terminal`(ironlog) 스킨을 그대로 옮겼습니다 — [redesign-target.md](../../web/docs/redesign-target.md) §5.
 
-> **상태**: 가입 → 로깅(RPE) → 통계(e1RM·주간 볼륨) → 기록(편집) → 플랜 → 운동 CRUD → 설정·계정 → 백업/복원까지 **전 워크플로가 TUI만으로 동작**. helix식 모달 앱(6버퍼).
+> **상태**: 가입 → 로깅(RPE) → 통계(e1RM·주간 볼륨) → 기록(편집) → 플랜 → 운동 CRUD → 설정·계정 → 백업/복원까지 **전 워크플로가 TUI만으로 동작**. REF5 v1.1의 미리보기·시작·재개·기록·상태 확인도 지원합니다. helix식 모달 앱(6버퍼).
 
 ## 요구사항
 
@@ -93,8 +93,10 @@ go build -o ironlog .     # 빌드
 - **프레임(전역)** — `space` 버퍼 이동(goto) · `:` 명령 팔레트 · `?` 도움 · `1`–`6` 버퍼 가속 · `q` 종료.
 - **6버퍼** — `today`(로깅) · `stats` · `history` · `programs` · `exercises` · `settings`.
 - **today** — `i` 편집 · `e` 운동 추가 · `x` 완료 · `o` 세트 추가 · `d` 삭제 · `s` 저장 · `h`/`l` 셀 이동(무게/reps/`@`rpe). 휴식 게이지 · 서버 e1RM/PR 표시 · 플랜 세션 로딩.
+- **today / REF5** — 플랜 시간대 기준 실제 첫 SQ 시작 시각과 체중·MICRO·클라이밍 조건 입력 → 쓰기 없는 미리보기 → 시작 확정. 시작 후 처방은 잠기며 `i`/`⏎` reps · `x` 계획 reps · `t` 종료 사유 · `s` 판정 검토/저장. 미완료 생성 세션은 다시 접속해 이어갈 수 있습니다.
 - **stats** — `v`로 e1RM 추이 ↔ 주간 볼륨 토글 · `jk` 운동 · `[ ]` 범위 · `b` 차트 스타일.
 - **history** — 히트맵 + 세션 리스트 · `⏎` 상세 · `e` 편집(today 재사용) · `d` 삭제.
+- **programs / REF5** — 템플릿 생성 시 IANA 시간대 선택 · REF5 플랜에서 `v` 상태(NEXT/표준/윈도/LOCK/MICRO), `R` 새로고침.
 - **데이터** — `:export`(JSON 백업) · `:import <경로>`(미리보기 → 확인 → 교체).
 
 ## 개발

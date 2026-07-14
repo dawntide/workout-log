@@ -2,14 +2,17 @@ package api
 
 import (
 	"context"
+	"fmt"
 	"net/url"
 	"strconv"
+	"strings"
 )
 
 // ListLogsParams are the query filters for GET /api/logs.
 type ListLogsParams struct {
 	Date     string // YYYY-MM-DD (optional)
 	Timezone string // IANA zone (optional)
+	PlanID   string // owning plan id (optional)
 	Limit    int    // 1..100 (optional)
 }
 
@@ -21,6 +24,9 @@ func (c *Client) ListLogs(ctx context.Context, p ListLogsParams) ([]LogItem, err
 	}
 	if p.Timezone != "" {
 		q.Set("timezone", p.Timezone)
+	}
+	if p.PlanID != "" {
+		q.Set("planId", p.PlanID)
 	}
 	if p.Limit > 0 {
 		q.Set("limit", strconv.Itoa(p.Limit))
@@ -85,6 +91,9 @@ func (c *Client) CreateLog(ctx context.Context, req CreateLogRequest) (string, *
 	if err := c.do(ctx, "POST", "/api/logs", req, &out); err != nil {
 		return "", nil, err
 	}
+	if strings.TrimSpace(out.Log.ID) == "" {
+		return "", nil, fmt.Errorf("decode /api/logs: response missing log.id")
+	}
 	return out.Log.ID, out.Progression.Feedback, nil
 }
 
@@ -96,6 +105,9 @@ func (c *Client) UpdateLog(ctx context.Context, id string, req CreateLogRequest)
 	var out saveResponse
 	if err := c.do(ctx, "PATCH", "/api/logs/"+id, req, &out); err != nil {
 		return nil, err
+	}
+	if strings.TrimSpace(out.Log.ID) == "" || out.Log.ID != id {
+		return nil, fmt.Errorf("decode /api/logs/%s: response log.id mismatch", id)
 	}
 	return out.Progression.Feedback, nil
 }

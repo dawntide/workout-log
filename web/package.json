@@ -37,6 +37,8 @@
     "db:seed:demo-plans": "WORKOUT_SEED_INCLUDE_DEMO_PLANS=1 tsx src/server/db/seed-runner.ts",
     "db:seed:sync": "node scripts/seed-if-needed.mjs",
     "db:verify:programs": "tsx src/server/db/verifyProgramWorkflows.ts",
+    "db:verify:workout-log-idempotency": "tsx src/server/db/verifyWorkoutLogIdempotency.ts",
+    "db:verify:account-lifecycle": "tsx src/server/db/verifyAccountLifecycle.ts",
     "db:backfill:exercise": "tsx src/server/db/backfillExerciseIds.ts",
     "db:cleanup:ux-events": "tsx src/server/db/cleanupUxEventLog.ts",
     "gen:icons": "node scripts/gen-icons.mjs",

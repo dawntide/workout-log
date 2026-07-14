@@ -74,9 +74,11 @@ type settingSavedMsg struct{ err error }
 // (e.g. session count after a revoke). Account deletion success returns
 // loggedOutMsg instead, routed to the root App.
 type accountActionMsg struct {
-	ok     string
-	err    error
-	reload bool
+	ok            string
+	err           error
+	reload        bool
+	tokenRotated  bool
+	accountDelete bool
 }
 
 // accountInfoMsg carries the read-only account state (email verification +
@@ -109,16 +111,16 @@ func changePasswordCmd(c *api.Client, cur, next string) tea.Cmd {
 		if err := c.ChangePassword(context.Background(), cur, next); err != nil {
 			return accountActionMsg{err: err}
 		}
-		return accountActionMsg{ok: "비밀번호를 변경했습니다"}
+		return accountActionMsg{ok: "비밀번호를 변경했습니다", tokenRotated: true}
 	}
 }
 
 func deleteAccountCmd(c *api.Client, pw string) tea.Cmd {
 	return func() tea.Msg {
 		if err := c.DeleteAccount(context.Background(), pw); err != nil {
-			return accountActionMsg{err: err}
+			return accountActionMsg{err: err, accountDelete: true}
 		}
-		return loggedOutMsg{}
+		return loggedOutMsg{accountDeleted: true}
 	}
 }
 
@@ -417,6 +419,9 @@ func (s Settings) beginDeleteForm() (Screen, tea.Cmd) {
 }
 
 func (s Settings) updateForm(m tea.KeyPressMsg) (Screen, tea.Cmd) {
+	if s.pending {
+		return s, nil
+	}
 	switch m.String() {
 	case "esc":
 		s.form, s.pending, s.flash = formNone, false, ""
@@ -428,9 +433,6 @@ func (s Settings) updateForm(m tea.KeyPressMsg) (Screen, tea.Cmd) {
 		}
 		return s, nil
 	case "enter":
-		if s.pending {
-			return s, nil
-		}
 		if s.form == formPassword {
 			return s.submitPassword()
 		}
@@ -481,8 +483,9 @@ func (s Settings) submitDelete() (Screen, tea.Cmd) {
 	client := s.client
 	return s, func() tea.Msg {
 		return confirmMsg{
-			prompt: "계정과 모든 기록을 영구 삭제합니다",
-			onYes:  deleteAccountCmd(client, pw),
+			prompt:        "계정과 모든 기록을 영구 삭제합니다",
+			onYes:         deleteAccountCmd(client, pw),
+			accountDelete: true,
 		}
 	}
 }

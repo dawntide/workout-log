@@ -19,7 +19,7 @@ type userEnvelope struct {
 	// Token is present from the apps/api backend (Bearer model); the Next.js API
 	// sets a cookie instead and omits it.
 	Token string `json:"token"`
-	User  *User   `json:"user"`
+	User  *User  `json:"user"`
 }
 
 // Login authenticates with email/password. The session is captured from either
@@ -60,7 +60,11 @@ func (c *Client) Me(ctx context.Context) (*User, error) {
 
 // Logout invalidates the server session and clears the cookie.
 func (c *Client) Logout(ctx context.Context) error {
-	return c.do(ctx, "POST", "/api/auth/logout", nil, nil)
+	if err := c.do(ctx, "POST", "/api/auth/logout", nil, nil); err != nil {
+		return err
+	}
+	c.ClearSessionToken()
+	return nil
 }
 
 // RequestPasswordReset sends a reset email if the address has an account. The

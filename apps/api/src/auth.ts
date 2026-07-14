@@ -2,6 +2,8 @@ import type { Context, Next } from "hono";
 import { findActiveSession, SESSION_COOKIE_NAME } from "@workout/core/auth/session";
 import { logError } from "@workout/core/observability/logger";
 
+import { acquireAccountRequestLock } from "./lib/account-lifecycle";
+
 // Variables set on the Hono context by requireAuth.
 export type AppEnv = { Variables: { userId: string } };
 
@@ -44,8 +46,15 @@ export async function requireAuth(c: Context<AppEnv>, next: Next) {
   if (!token) {
     const userId = localDevUserId();
     if (userId) {
-      c.set("userId", userId);
-      await next();
+      const exclusive =
+        c.req.method === "DELETE" && new URL(c.req.url).pathname === "/api/auth/account";
+      const release = await acquireAccountRequestLock(userId, exclusive);
+      try {
+        c.set("userId", userId);
+        await next();
+      } finally {
+        release();
+      }
       return;
     }
     return c.json({ error: "Unauthorized" }, 401);
@@ -63,6 +72,26 @@ export async function requireAuth(c: Context<AppEnv>, next: Next) {
   if (!session) {
     return c.json({ error: "Unauthorized" }, 401);
   }
-  c.set("userId", session.userId);
-  await next();
+  const exclusive =
+    c.req.method === "DELETE" && new URL(c.req.url).pathname === "/api/auth/account";
+  const release = await acquireAccountRequestLock(session.userId, exclusive);
+  try {
+    // The request may have waited behind an account deletion. Revalidate under
+    // the lifecycle lock so a session observed just before deletion cannot run
+    // a late handler after the cleanup committed.
+    let current: Awaited<ReturnType<typeof findActiveSession>>;
+    try {
+      current = await findActiveSession(token);
+    } catch (e) {
+      logError("api.session_recheck_failed", { error: e });
+      return c.json({ error: "Service temporarily unavailable" }, 503);
+    }
+    if (!current || current.userId !== session.userId) {
+      return c.json({ error: "Unauthorized" }, 401);
+    }
+    c.set("userId", current.userId);
+    await next();
+  } finally {
+    release();
+  }
 }

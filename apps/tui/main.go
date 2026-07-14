@@ -1,11 +1,12 @@
-// Command ironlog is a rich terminal client for the workout-log app. It speaks
-// to the existing HTTP API (TUI-first: no backend changes required).
+// Command ironlog is the terminal-native client for workout-log. It uses the
+// same versioned API and core workout contracts as the web application.
 package main
 
 import (
 	"fmt"
 	"os"
 	"strings"
+	_ "time/tzdata" // standalone release binaries need the IANA database on Windows
 
 	tea "charm.land/bubbletea/v2"
 

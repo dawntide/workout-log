@@ -160,7 +160,7 @@ func (s Stats) handleKey(m tea.KeyPressMsg) (Screen, tea.Cmd) {
 		return s.reload()
 	case "/":
 		if s.view == vwE1rm {
-			return s, openExercisePickerCmd(s.client)
+			return s, openStatsExercisePickerCmd(s.client)
 		}
 	case "j", "down", "n":
 		if s.view == vwE1rm && n > 0 {

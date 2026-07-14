@@ -17,8 +17,7 @@ import (
 
 func logoutCmd(c *api.Client) tea.Cmd {
 	return func() tea.Msg {
-		_ = c.Logout(context.Background())
-		return loggedOutMsg{}
+		return loggedOutMsg{err: c.Logout(context.Background())}
 	}
 }
 
@@ -104,15 +103,27 @@ const (
 
 // confirmMsg asks the frame to show a y/n prompt; onYes runs when confirmed.
 type confirmMsg struct {
-	prompt string
-	onYes  tea.Cmd
+	prompt        string
+	onYes         tea.Cmd
+	onNo          tea.Cmd
+	onCancel      tea.Cmd
+	yesLabel      string
+	noLabel       string
+	cancelLabel   string
+	planID        string // destructive action target; protects the plan owning Today work
+	logID         string // destructive action target; protects the log being edited
+	replacesData  bool   // confirmed command atomically replaces the account dataset
+	accountDelete bool   // confirmed command irreversibly deletes the authenticated account
 }
 
 // openPickerMsg lets a view request a tagged fuzzy picker (e.g. exercise select).
 type openPickerMsg struct {
-	prompt string
-	tag    string
-	items  []pickerItem
+	prompt  string
+	tag     string
+	initial string // optional pre-filled free-text value (e.g. today's bodyweight)
+	items   []pickerItem
+	owner   ViewKind
+	owned   bool // asynchronous pickers must name the view that receives pickedMsg
 }
 
 // pickedMsg carries a tagged picker selection back to the active view.
@@ -126,55 +137,84 @@ type pickedMsg struct {
 type planActivatedMsg struct {
 	id   string
 	name string
+	plan api.Plan // complete params let Today select the REF5 start gate
 }
 
 // editLogMsg asks the frame to load a past session into the today buffer for
 // editing (emitted by the history buffer). The today logger saves it via PATCH.
 type editLogMsg struct {
-	id          string
-	performedAt time.Time
-	sets        []api.LoggedSet
-	planName    string  // plan/program name for the today header (may be empty)
-	sessionKey  string  // generated-session key for the header label (may be empty)
-	planID      string  // active plan id for overrides (may be empty)
-	bodyweight  float64 // user bodyweight; only set (>0) by the boot auto-load restore path
+	id                 string
+	performedAt        time.Time
+	sets               []api.LoggedSet
+	planName           string // plan/program name for the today header (may be empty)
+	plan               api.Plan
+	sessionKey         string // generated-session key for the header label (may be empty)
+	planID             string // active plan id for overrides (may be empty)
+	generatedSessionID string
+	generatedSession   *api.GeneratedSession // full immutable snapshot for REF5 edit
+	bodyweight         float64               // user bodyweight; only set (>0) by the boot auto-load restore path
 }
 
 // Frame is the root chrome: a pure buffer area, a bottom region (hint line, goto
 // menu, or command palette), and a statusline. No tab bar, no top chrome.
 type Frame struct {
-	client         *api.Client
-	views          map[ViewKind]Screen
-	active         ViewKind
-	seen           map[ViewKind]bool
-	w, h           int
-	now            time.Time
-	overlay        overlayKind
-	gotoSel        int
-	picker         picker
-	flash          string
-	confirmPrompt  string
-	confirmCmd     tea.Cmd
-	activePlanID   string
-	activePlanName string
+	client               *api.Client
+	views                map[ViewKind]Screen
+	active               ViewKind
+	seen                 map[ViewKind]bool
+	w, h                 int
+	now                  time.Time
+	overlay              overlayKind
+	gotoSel              int
+	picker               picker
+	pickerOwner          ViewKind
+	flash                string
+	confirmPrompt        string
+	confirmCmd           tea.Cmd
+	confirmNoCmd         tea.Cmd
+	confirmCancelCmd     tea.Cmd
+	confirmYesLabel      string
+	confirmNoLabel       string
+	confirmCancelLabel   string
+	confirmReplacesData  bool
+	confirmAccountDelete bool
+	confirmLogout        bool
+	confirmPlanID        string
+	confirmLogID         string
+	pendingDeletePlanID  string
+	pendingDeleteLogID   string
+	deletedLogIDs        map[string]struct{}
+	activePlanID         string
+	activePlanName       string
+	importing            bool
+	importSeq            uint64
+	pendingImportID      uint64
+	deletingAccount      bool
+	loggingOut           bool
 }
 
 // NewFrame builds the frame booted into the today (workout) buffer. drafts
 // enables the today buffer's crash-recovery persistence (nil = disabled).
-func NewFrame(client *api.Client, drafts draftStore) Frame {
+
+func NewFrame(client *api.Client, drafts draftStore, ownerIDs ...string) Frame {
+	ownerID := ""
+	if len(ownerIDs) > 0 {
+		ownerID = ownerIDs[0]
+	}
 	return Frame{
 		client: client,
 		now:    time.Now(),
 		active: vToday,
 		views: map[ViewKind]Screen{
-			vToday:     NewLog(client).withDrafts(drafts),
+			vToday:     NewLog(client).withDrafts(drafts).withOwner(ownerID),
 			vStats:     NewStats(client),
 			vHistory:   NewHistory(client),
 			vPrograms:  NewPrograms(client),
 			vSettings:  NewSettings(client),
 			vExercises: NewExercises(client),
 		},
-		seen: map[ViewKind]bool{vToday: true},
+		seen:          map[ViewKind]bool{vToday: true},
+		deletedLogIDs: make(map[string]struct{}),
 	}
 }
 
@@ -197,10 +237,36 @@ func (f Frame) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		f.views[f.active] = nv
 		return f, tea.Batch(tick(), cmd)
 	case confirmMsg:
-		f.confirmPrompt, f.confirmCmd, f.overlay = msg.prompt, msg.onYes, overlayConfirm
+		if msg.accountDelete {
+			if today, ok := f.views[vToday].(Log); ok && today.hasUnsettledServerMutation() {
+				today.status, today.statusErr = "저장 또는 시작 결과를 먼저 확인한 뒤 계정을 삭제하세요", true
+				f.views[vToday], f.active = today, vToday
+				return f, nil
+			}
+		}
+		if today, ok := f.views[vToday].(Log); ok && today.hasBlockingReplacement() &&
+			((msg.planID != "" && msg.planID == today.planID) ||
+				(msg.logID != "" && msg.logID == today.editID)) {
+			today.status, today.statusErr = "저장하지 않은 Today 입력이 있어 삭제할 수 없습니다", true
+			f.views[vToday], f.active = today, vToday
+			return f, nil
+		}
+		f.confirmPrompt, f.confirmCmd, f.confirmNoCmd = msg.prompt, msg.onYes, msg.onNo
+		f.confirmCancelCmd = msg.onCancel
+		f.confirmYesLabel, f.confirmNoLabel, f.confirmCancelLabel = msg.yesLabel, msg.noLabel, msg.cancelLabel
+		f.confirmReplacesData, f.confirmAccountDelete = msg.replacesData, msg.accountDelete
+		f.confirmPlanID, f.confirmLogID, f.overlay = msg.planID, msg.logID, overlayConfirm
 		return f, nil
 	case openPickerMsg:
+		owner := f.active
+		if msg.owned {
+			owner, f.active = msg.owner, msg.owner
+		}
 		f.picker = newPicker(msg.prompt, msg.tag, msg.items)
+		f.pickerOwner = owner
+		if msg.initial != "" {
+			f.picker.input.SetValue(msg.initial)
+		}
 		f.overlay = overlayPicker
 		return f, f.picker.input.Focus()
 	case exportDoneMsg:
@@ -211,31 +277,160 @@ func (f Frame) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return f, nil
 	case importDryRunMsg:
+		if msg.requestID != f.pendingImportID {
+			return f, nil
+		}
 		if msg.err != nil {
+			f.pendingImportID = 0
 			f.flash = "가져오기 실패: " + humanizeImportErr(msg.err)
 			return f, nil
 		}
+		if today, ok := f.views[vToday].(Log); ok && today.hasBlockingReplacement() {
+			f.pendingImportID = 0
+			f.flash = "가져오기 전에 Today 입력을 저장하거나 D로 폐기하세요"
+			f.active = vToday
+			return f, nil
+		}
 		f.confirmPrompt = "기존 데이터 삭제 후 가져옴 (" + summarizeImport(msg.summary) + ")"
-		f.confirmCmd = importReplaceCmd(f.client, msg.path)
+		f.confirmCmd = importReplaceCmd(f.client, msg.data, msg.requestID)
+		f.confirmReplacesData, f.importing = true, false
 		f.overlay = overlayConfirm
 		return f, nil
 	case importDoneMsg:
+		if msg.requestID != f.pendingImportID {
+			return f, nil
+		}
+		f.pendingImportID = 0
+		f.importing = false
 		if msg.err != nil {
 			f.flash = "가져오기 실패: " + humanizeImportErr(msg.err)
 		} else {
-			f.flash = "가져옴: " + summarizeImport(msg.summary)
+			today, _ := f.views[vToday].(Log)
+			today.clearDraft()
+			next := NewFrame(f.client, today.drafts, today.ownerID)
+			next.w, next.h, next.now = f.w, f.h, f.now
+			if next.w > 0 && next.h > 0 {
+				fm, _ := next.Update(tea.WindowSizeMsg{Width: next.w, Height: next.h})
+				next = fm.(Frame)
+			}
+			next.flash = "가져옴: " + summarizeImport(msg.summary)
+			return next, next.views[vToday].Init()
 		}
 		return f, nil
 	case planActivatedMsg:
+		if today, ok := f.views[vToday].(Log); ok && today.hasBlockingReplacement() {
+			// Programs optimistically moves its marker on Enter. Restore the
+			// session-owning plan when Today rejects the replacement, otherwise
+			// the UI would claim a different plan is active while preserving an
+			// in-flight save or immutable in-progress REF5 buffer.
+			if programs, ok := f.views[vPrograms].(Programs); ok {
+				programs.activeID = today.planID
+				f.views[vPrograms] = programs
+			}
+			f.active = vToday
+			nv, cmd := f.views[vToday].Update(msg)
+			f.views[vToday] = nv
+			return f, cmd
+		}
 		f.activePlanID, f.activePlanName = msg.id, msg.name
 		f.active = vToday
 		nv, cmd := f.views[vToday].Update(msg)
 		f.views[vToday] = nv
 		return f, cmd
 	case editLogMsg:
+		if msg.id != "" {
+			if msg.id == f.pendingDeleteLogID {
+				return f, nil
+			}
+			if _, deleted := f.deletedLogIDs[msg.id]; deleted {
+				return f, nil
+			}
+		}
 		f.active = vToday
 		nv, cmd := f.views[vToday].Update(msg)
 		f.views[vToday] = nv
+		return f, cmd
+	case ref5PlanPreparedMsg:
+		// This response can open the resume/start picker. Bring its owning
+		// buffer forward so the eventual pickedMsg cannot land in another view.
+		f.active = vToday
+		nv, cmd := f.views[vToday].Update(msg)
+		f.views[vToday] = nv
+		return f, cmd
+	case saveResultMsg, draftRestoredMsg, overrideDoneMsg, sessionLoadedMsg,
+		ref5PreviewResultMsg, ref5StartConfirmedMsg, ref5StartResultMsg,
+		ref5ResumeResultMsg, ref5CloseExerciseMsg, ref5SaveConfirmedMsg,
+		genericDiscardConfirmedMsg:
+		// Today owns these asynchronous results even when the user navigated to
+		// another buffer while the request was in flight.
+		nv, cmd := f.views[vToday].Update(msg)
+		f.views[vToday] = nv
+		return f, cmd
+	case historyLoadedMsg, historyEditLoadedMsg:
+		nv, cmd := f.views[vHistory].Update(msg)
+		f.views[vHistory] = nv
+		return f, cmd
+	case logDeletedMsg:
+		if f.pendingDeleteLogID != "" && msg.id != f.pendingDeleteLogID {
+			return f, nil
+		}
+		f.pendingDeleteLogID, f.flash = "", ""
+		nv, cmd := f.views[vHistory].Update(msg)
+		f.views[vHistory] = nv
+		if msg.err == nil {
+			if msg.id != "" {
+				f.deletedLogIDs[msg.id] = struct{}{}
+			}
+			if today, ok := f.views[vToday].(Log); ok && msg.id != "" && msg.id == today.editID {
+				today.resetForSessionLoad()
+				today.load = loadNoPlan
+				today.status, today.statusErr = "현재 기록이 삭제됨 · 프로그램에서 세션을 다시 여세요", false
+				f.views[vToday] = today
+			}
+		}
+		return f, cmd
+	case plansLoadedMsg, templatesLoadedMsg, planCreatedMsg,
+		planRenamedMsg, ref5StatusLoadedMsg:
+		nv, cmd := f.views[vPrograms].Update(msg)
+		f.views[vPrograms] = nv
+		return f, cmd
+	case planDeletedMsg:
+		if f.pendingDeletePlanID != "" && msg.id != f.pendingDeletePlanID {
+			return f, nil
+		}
+		f.pendingDeletePlanID, f.flash = "", ""
+		nv, cmd := f.views[vPrograms].Update(msg)
+		f.views[vPrograms] = nv
+		if msg.err == nil {
+			if msg.id == f.activePlanID {
+				f.activePlanID, f.activePlanName = "", ""
+			}
+			if today, ok := f.views[vToday].(Log); ok && msg.id != "" && msg.id == today.planID {
+				today.resetForSessionLoad()
+				today.load = loadNoPlan
+				today.status, today.statusErr = "현재 플랜이 삭제됨 · 다른 프로그램을 선택하세요", false
+				f.views[vToday] = today
+			}
+		}
+		return f, cmd
+	case statsBundleMsg, statsE1rmMsg, statsVolumeMsg:
+		nv, cmd := f.views[vStats].Update(msg)
+		f.views[vStats] = nv
+		return f, cmd
+	case settingsLoadedMsg, settingSavedMsg, accountInfoMsg:
+		nv, cmd := f.views[vSettings].Update(msg)
+		f.views[vSettings] = nv
+		return f, cmd
+	case accountActionMsg:
+		if msg.accountDelete {
+			f.deletingAccount = false
+		}
+		nv, cmd := f.views[vSettings].Update(msg)
+		f.views[vSettings] = nv
+		return f, cmd
+	case exercisesLoadedMsg, exActionMsg:
+		nv, cmd := f.views[vExercises].Update(msg)
+		f.views[vExercises] = nv
 		return f, cmd
 	case tea.KeyPressMsg:
 		return f.handleKey(msg)
@@ -246,8 +441,17 @@ func (f Frame) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (f Frame) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	if f.deletingAccount || f.loggingOut {
+		return f, nil
+	}
 	if msg.String() == "ctrl+c" {
 		return f, tea.Quit
+	}
+	if f.importing {
+		return f, nil
+	}
+	if f.pendingDeletePlanID != "" || f.pendingDeleteLogID != "" {
+		return f, nil
 	}
 	switch f.overlay {
 	case overlayPicker:
@@ -320,13 +524,60 @@ func (f Frame) handleGotoKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 }
 
 func (f Frame) handleConfirmKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
-	cmd := f.confirmCmd
-	f.overlay, f.confirmCmd, f.confirmPrompt = overlayNone, nil, ""
-	switch msg.String() {
-	case "y", "Y", "enter":
-		return f, cmd
-	default:
+	key := msg.String()
+	if key != "y" && key != "Y" && key != "enter" && key != "n" && key != "N" && key != "esc" {
 		return f, nil
+	}
+	if (key == "y" || key == "Y" || key == "enter") && f.confirmAccountDelete {
+		if today, ok := f.views[vToday].(Log); ok && today.hasUnsettledServerMutation() {
+			today.status, today.statusErr = "저장 또는 시작 결과를 먼저 확인한 뒤 계정을 삭제하세요", true
+			f.views[vToday], f.active = today, vToday
+			f.overlay, f.confirmCmd, f.confirmNoCmd, f.confirmCancelCmd, f.confirmPrompt = overlayNone, nil, nil, nil, ""
+			f.confirmReplacesData, f.confirmAccountDelete, f.confirmLogout = false, false, false
+			f.confirmYesLabel, f.confirmNoLabel, f.confirmCancelLabel = "", "", ""
+			f.confirmPlanID, f.confirmLogID = "", ""
+			return f, nil
+		}
+	}
+	cmd := f.confirmCmd
+	noCmd := f.confirmNoCmd
+	cancelCmd := f.confirmCancelCmd
+	replacesData := f.confirmReplacesData
+	accountDelete := f.confirmAccountDelete
+	logout := f.confirmLogout
+	planID, logID := f.confirmPlanID, f.confirmLogID
+	f.overlay, f.confirmCmd, f.confirmNoCmd, f.confirmCancelCmd, f.confirmPrompt = overlayNone, nil, nil, nil, ""
+	f.confirmReplacesData, f.confirmAccountDelete, f.confirmLogout = false, false, false
+	f.confirmYesLabel, f.confirmNoLabel, f.confirmCancelLabel = "", "", ""
+	f.confirmPlanID, f.confirmLogID = "", ""
+	switch key {
+	case "y", "Y", "enter":
+		if replacesData {
+			f.importing, f.flash = true, "가져오는 중…"
+		}
+		if planID != "" {
+			f.pendingDeletePlanID, f.flash = planID, "플랜 삭제 중…"
+		}
+		if logID != "" {
+			f.pendingDeleteLogID, f.flash = logID, "기록 삭제 중…"
+		}
+		if accountDelete {
+			f.deletingAccount, f.flash = true, "계정 삭제 중…"
+		}
+		if logout {
+			f.loggingOut, f.flash = true, "로그아웃 중…"
+		}
+		return f, cmd
+	case "n", "N":
+		if replacesData {
+			f.pendingImportID = 0
+		}
+		return f, noCmd
+	default: // esc closes without treating the prompt as an explicit "no"
+		if replacesData {
+			f.pendingImportID = 0
+		}
+		return f, cancelCmd
 	}
 }
 
@@ -356,8 +607,9 @@ func (f Frame) handlePickerKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		if tag == "" {
 			return f.runCommand(val)
 		}
-		nv, cmd := f.views[f.active].Update(pickedMsg{tag: tag, value: val})
-		f.views[f.active] = nv
+		owner := f.pickerOwner
+		nv, cmd := f.views[owner].Update(pickedMsg{tag: tag, value: val})
+		f.views[owner] = nv
 		return f, cmd
 	}
 	var cmd tea.Cmd
@@ -379,6 +631,19 @@ func (f Frame) runCommand(cmd string) (tea.Model, tea.Cmd) {
 	case "q", "quit":
 		return f, tea.Quit
 	case "logout", "signout":
+		if today, ok := f.views[vToday].(Log); ok {
+			if today.saving || today.pendingOverride ||
+				(today.ref5 != nil && today.ref5.Phase == ref5Starting) {
+				f.flash = "진행 중인 요청이 끝난 뒤 로그아웃하세요"
+				return f, nil
+			}
+			if today.hasBlockingReplacement() {
+				f.confirmPrompt = "미저장 초안은 이 계정에 보관됩니다 · 로그아웃할까요?"
+				f.confirmCmd, f.confirmLogout, f.overlay = logoutCmd(f.client), true, overlayConfirm
+				return f, nil
+			}
+		}
+		f.loggingOut, f.flash = true, "로그아웃 중…"
 		return f, logoutCmd(f.client)
 	case "t", "today":
 		return f.switchTo(vToday)
@@ -396,13 +661,24 @@ func (f Frame) runCommand(cmd string) (tea.Model, tea.Cmd) {
 		f.flash = "내보내는 중…"
 		return f, exportCmd(f.client)
 	case "import":
+		if f.pendingImportID != 0 || f.importing {
+			f.flash = "이미 가져오기를 처리 중입니다"
+			return f, nil
+		}
+		if today, ok := f.views[vToday].(Log); ok && today.hasBlockingReplacement() {
+			f.flash = "가져오기 전에 Today 입력을 저장하거나 D로 폐기하세요"
+			f.active = vToday
+			return f, nil
+		}
 		path := strings.TrimSpace(strings.TrimPrefix(cmd, word))
 		if path == "" {
 			f.flash = "사용법: import <파일경로>"
 			return f, nil
 		}
+		f.importSeq++
+		f.pendingImportID = f.importSeq
 		f.flash = "검증 중…"
-		return f, importDryRunCmd(f.client, path)
+		return f, importDryRunCmd(f.client, path, f.pendingImportID)
 	}
 	f.flash = "알 수 없는 명령: " + word
 	return f, nil
@@ -500,8 +776,18 @@ func (f Frame) region(w, h int, s Screen) (string, int) {
 	case overlayGoto:
 		return f.gotoMenu(), len(gotoOrder) + 1
 	case overlayConfirm:
+		yesLabel, noLabel := f.confirmYesLabel, f.confirmNoLabel
+		if yesLabel == "" {
+			yesLabel = "예"
+		}
+		if noLabel == "" {
+			noLabel = "아니오"
+		}
 		line := lipgloss.NewStyle().Foreground(theme.Red).Bold(true).Render(f.confirmPrompt) + "  " +
-			hint("y", "예") + "  " + hint("n", "아니오")
+			hint("y", yesLabel) + "  " + hint("n", noLabel)
+		if f.confirmCancelLabel != "" {
+			line += "  " + hint("esc", f.confirmCancelLabel)
+		}
 		return fitLine(line, w), 1
 	default:
 		items := s.Hints()
@@ -558,10 +844,10 @@ type keymapSection struct {
 // common keys, then the rest — so "what can I do here" and "what works
 // everywhere" are answerable at a glance (lazygit-style).
 var bufferKeymaps = []keymapSection{
-	{vToday, "TODAY", [][2]string{{"i", "편집"}, {"e/n", "운동"}, {"o", "세트"}, {"x", "완료"}, {"d", "삭제"}, {"u", "되돌리기"}, {"s", "저장"}, {"a", "보강"}, {"c", "교체"}, {"hl", "셀"}}},
+	{vToday, "TODAY", [][2]string{{"i", "편집/reps"}, {"e/n", "운동/새세션"}, {"o", "세트"}, {"x", "완료/계획reps"}, {"t", "REF5 종료"}, {"d", "삭제"}, {"D", "입력폐기"}, {"u", "되돌리기"}, {"s", "저장/시작"}, {"a", "보강"}, {"c", "교체"}, {"hl", "셀"}}},
 	{vStats, "STATS", [][2]string{{"v", "뷰"}, {"[ ]", "범위"}, {"b", "차트"}, {"/", "검색"}, {"R", "새로고침"}}},
 	{vHistory, "HISTORY", [][2]string{{"⏎", "상세"}, {"e", "편집"}, {"d", "삭제"}, {"R", "새로고침"}}},
-	{vPrograms, "PROGRAMS", [][2]string{{"⏎", "활성"}, {"n", "새플랜"}, {"r", "이름"}, {"d", "삭제"}}},
+	{vPrograms, "PROGRAMS", [][2]string{{"⏎", "활성"}, {"v", "REF5 상태"}, {"R", "새로고침"}, {"n", "새플랜"}, {"r", "이름"}, {"d", "삭제"}}},
 	{vExercises, "EXERCISES", [][2]string{{"/", "검색"}, {"r", "이름"}, {"a", "별칭"}, {"n", "추가"}, {"d", "삭제"}}},
 	{vSettings, "SETTINGS", [][2]string{{"⏎", "토글"}, {"i", "숫자편집"}}},
 }

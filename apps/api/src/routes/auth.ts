@@ -34,6 +34,10 @@ import { logAuthEvent } from "@workout/core/auth/security-events";
 import { getRequestOrigin } from "@workout/core/email/sender";
 import { deleteUserDomainData } from "@workout/core/data/deleteUserData";
 import { invalidateStatsCacheForUser } from "@workout/core/stats/cache";
+import {
+  acquireAccountDeletionLock,
+  recordAccountDeletionTombstone,
+} from "@workout/core/auth/account-lifecycle";
 
 import { requireAuth, sessionToken, type AppEnv } from "../auth";
 import { apiError } from "../lib/http";
@@ -351,6 +355,8 @@ authRoutes.delete("/account", requireAuth, async (c) => {
     }
 
     await db.transaction(async (tx) => {
+      await acquireAccountDeletionLock(tx, userId);
+      await recordAccountDeletionTombstone(tx, userId);
       await deleteUserDomainData(tx, userId);
       await tx.delete(passwordResetToken).where(eq(passwordResetToken.userId, userId));
       await tx

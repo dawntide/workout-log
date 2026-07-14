@@ -27,6 +27,22 @@ func (m *memDraftStore) ClearDraft() error {
 	return nil
 }
 
+type failingDraftStore struct {
+	err    error
+	saves  int
+	clears int
+}
+
+func (f *failingDraftStore) LoadDraft() ([]byte, error) { return nil, nil }
+func (f *failingDraftStore) SaveDraft([]byte) error {
+	f.saves++
+	return f.err
+}
+func (f *failingDraftStore) ClearDraft() error {
+	f.clears++
+	return f.err
+}
+
 func draftedLog(store draftStore) Log {
 	l := NewLog(nil).withDrafts(store)
 	l.groups = []exGroup{{
@@ -85,11 +101,35 @@ func TestDraftRoundTrip(t *testing.T) {
 func TestDraftStaleDateIgnored(t *testing.T) {
 	store := &memDraftStore{}
 	l := draftedLog(store)
+	l.editID = ""
 	l.persistDraft()
 
 	tomorrow := time.Now().Add(24 * time.Hour)
 	if _, ok := loadTodayDraft(store, tomorrow); ok {
 		t.Error("a draft from yesterday must not restore into a new day")
+	}
+}
+
+func TestServerBoundDraftsSurviveMidnight(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		editID    string
+		uncertain bool
+	}{
+		{name: "history edit", editID: "log-1"},
+		{name: "unknown post outcome", uncertain: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			before := time.Date(2026, 7, 14, 23, 59, 0, 0, time.Local)
+			store := &memDraftStore{}
+			l := draftedLog(store)
+			l.editID, l.saveUncertain = tc.editID, tc.uncertain
+			draft := draftFromLog(&l, before)
+			storeDraftForTest(t, store, draft)
+			if _, ok := loadTodayDraft(store, before.Add(2*time.Minute)); !ok {
+				t.Fatal("server-bound draft was dropped across midnight")
+			}
+		})
 	}
 }
 

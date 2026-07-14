@@ -33,6 +33,10 @@ func (c *Client) ChangePassword(ctx context.Context, current, next string) error
 	// it so this client stays authenticated (the Next.js API rotates via cookie).
 	if out.Token != "" {
 		c.SetSessionToken(out.Token)
+	} else if rotated := c.SessionToken(); rotated != "" {
+		// Cookie-only backend: the jar has already absorbed Set-Cookie. Mirror
+		// that rotated value into the Bearer field and persisted-token surface.
+		c.SetSessionToken(rotated)
 	}
 	return nil
 }
@@ -41,10 +45,16 @@ func (c *Client) ChangePassword(ctx context.Context, current, next string) error
 // re-confirming the password. The session cookie is cleared on success; callers
 // should return to the login gate.
 func (c *Client) DeleteAccount(ctx context.Context, password string) error {
-	return c.do(ctx, "DELETE", "/api/auth/account", map[string]string{
+	c.requestMu.Lock()
+	defer c.requestMu.Unlock()
+	if err := c.doUnlocked(ctx, "DELETE", "/api/auth/account", map[string]string{
 		"confirmToken": "DELETE_MY_ACCOUNT",
 		"password":     password,
-	}, nil)
+	}, nil); err != nil {
+		return err
+	}
+	c.ClearSessionToken()
+	return nil
 }
 
 // Sessions lists the account's active sign-ins (most recent first).

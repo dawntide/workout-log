@@ -19,6 +19,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -30,10 +31,12 @@ const SessionCookieName = "wl_session"
 // wl_session cookie — both back the same opaque auth_session, so either
 // authenticates.
 type Client struct {
-	baseURL *url.URL
-	http    *http.Client
-	jar     *cookiejar.Jar
-	token   string // opaque session token; sent as Authorization: Bearer when set
+	baseURL   *url.URL
+	http      *http.Client
+	jar       *cookiejar.Jar
+	tokenMu   sync.RWMutex
+	token     string       // opaque session token; sent as Authorization: Bearer when set
+	requestMu sync.RWMutex // account deletion is exclusive against every in-flight request
 }
 
 // New constructs a client for the given base URL (e.g. http://localhost:3000).
@@ -57,11 +60,25 @@ func New(baseURL string) (*Client, error) {
 // persisted token, so a fresh process is authenticated without re-login against
 // either backend (Bearer for apps/api, cookie for the Next.js API).
 func (c *Client) SetSessionToken(tok string) {
+	c.tokenMu.Lock()
 	c.token = tok
+	c.tokenMu.Unlock()
 	c.jar.SetCookies(c.baseURL, []*http.Cookie{{
 		Name:  SessionCookieName,
 		Value: tok,
 		Path:  "/",
+	}})
+}
+
+// ClearSessionToken removes both authentication transports after a confirmed
+// logout/account deletion. It is intentionally separate from SetSessionToken
+// so callers cannot leave an empty but persistent cookie behind.
+func (c *Client) ClearSessionToken() {
+	c.tokenMu.Lock()
+	c.token = ""
+	c.tokenMu.Unlock()
+	c.jar.SetCookies(c.baseURL, []*http.Cookie{{
+		Name: SessionCookieName, Value: "", Path: "/", MaxAge: -1,
 	}})
 }
 
@@ -73,19 +90,19 @@ func (c *Client) BaseURL() string {
 	return c.baseURL.String()
 }
 
-// SessionToken returns the current session token: the Bearer token if set
-// (apps/api), otherwise the wl_session cookie value from the jar (Next.js API),
-// or "".
+// SessionToken returns the current session token. Prefer the cookie jar because
+// cookie-only backends can rotate wl_session while an older persisted bearer is
+// still present; SetSessionToken keeps both transports equal for Bearer APIs.
 func (c *Client) SessionToken() string {
-	if c.token != "" {
-		return c.token
-	}
 	for _, ck := range c.jar.Cookies(c.baseURL) {
-		if ck.Name == SessionCookieName {
+		if ck.Name == SessionCookieName && ck.Value != "" {
 			return ck.Value
 		}
 	}
-	return ""
+	c.tokenMu.RLock()
+	token := c.token
+	c.tokenMu.RUnlock()
+	return token
 }
 
 // APIError is a non-2xx HTTP response from the backend.
@@ -118,6 +135,15 @@ func IsConflict(err error) bool {
 }
 
 func (c *Client) do(ctx context.Context, method, path string, body, out any) error {
+	c.requestMu.RLock()
+	defer c.requestMu.RUnlock()
+	return c.doUnlocked(ctx, method, path, body, out)
+}
+
+// doUnlocked performs one request while the caller owns requestMu. Ordinary
+// requests use a shared lock through do; account deletion takes the exclusive
+// lock so no earlier write can commit after the server-side cleanup.
+func (c *Client) doUnlocked(ctx context.Context, method, path string, body, out any) error {
 	var reqBody io.Reader
 	if body != nil {
 		b, err := json.Marshal(body)
@@ -134,8 +160,11 @@ func (c *Client) do(ctx context.Context, method, path string, body, out any) err
 		req.Header.Set("Content-Type", "application/json")
 	}
 	req.Header.Set("Accept", "application/json")
-	if c.token != "" {
-		req.Header.Set("Authorization", "Bearer "+c.token)
+	c.tokenMu.RLock()
+	token := c.token
+	c.tokenMu.RUnlock()
+	if token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
 	}
 
 	resp, err := c.http.Do(req)

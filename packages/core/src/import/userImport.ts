@@ -15,6 +15,7 @@ import {
 import type { UserDataExport } from "../export/userExport";
 import { validateExportShape } from "./validateExportShape";
 import { deleteUserDomainData } from "../data/deleteUserData";
+import { acquireActiveAccountMutationLock } from "../auth/account-lifecycle";
 import { invalidatePersonalRecordsFrom } from "../services/workout-log/personal-records";
 
 export { validateExportShape };
@@ -240,6 +241,7 @@ export async function importUserData(
   let summary: ImportTableSummary[] = [];
 
   await db.transaction(async (tx) => {
+    await acquireActiveAccountMutationLock(tx, userId);
     const existing = await loadExistingCounts(tx, userId);
     summary = buildSummary(existing, insertCounts);
 

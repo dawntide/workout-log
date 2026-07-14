@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 import { db } from "@workout/core/db/client";
 import { plan, generatedSession, workoutLog, workoutSet } from "@workout/core/db/schema";
 import { and, asc, eq, gt, lt, ne } from "drizzle-orm";
@@ -8,6 +10,7 @@ import { buildProgressionSummary, readProgressEventByLog } from "@workout/core/p
 import { buildProgressionFeedbackFromEvent } from "@workout/core/progression/feedback-catalog";
 import { invalidateStatsCacheForUser } from "../../stats/cache";
 import { invalidatePersonalRecordsFrom } from "./personal-records";
+import { acquireActiveAccountMutationLock } from "@workout/core/auth/account-lifecycle";
 import {
   Ref5LogValidationError,
   acquireRef5PlanLock,
@@ -33,10 +36,103 @@ export type UpsertWorkoutLogInput = {
   tags?: string[] | null;
   planId?: string | null;
   generatedSessionId?: string | null;
+  clientMutationId?: string | null;
   sets: any[];
   progressionTargetDecisions?: Record<string, ProgressionTargetDecision> | null;
   locale: "ko" | "en";
 };
+
+export class WorkoutLogIdempotencyConflictError extends Error {
+  constructor() {
+    super("clientMutationId was already used for a different workout log payload");
+    this.name = "WorkoutLogIdempotencyConflictError";
+  }
+}
+
+export class WorkoutLogClientMutationValidationError extends Error {
+  constructor(message = "clientMutationId has an invalid format") {
+    super(message);
+    this.name = "WorkoutLogClientMutationValidationError";
+  }
+}
+
+const CLIENT_MUTATION_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$/;
+
+function stableJSONValue(value: unknown): unknown {
+  if (value instanceof Date) return value.toISOString();
+  if (Array.isArray(value)) return value.map(stableJSONValue);
+  if (value && typeof value === "object") {
+    const out: Record<string, unknown> = {};
+    for (const key of Object.keys(value as Record<string, unknown>).sort()) {
+      const child = (value as Record<string, unknown>)[key];
+      if (child !== undefined) out[key] = stableJSONValue(child);
+    }
+    return out;
+  }
+  if (typeof value === "number" && !Number.isFinite(value)) return null;
+  return value;
+}
+
+export function hashWorkoutLogMutationPayload(input: {
+  performedAt?: Date;
+  durationMinutes?: number | null;
+  notes?: string | null;
+  tags?: string[] | null;
+  planId?: string | null;
+  generatedSessionId?: string | null;
+  sets: unknown[];
+  progressionTargetDecisions?: Record<string, ProgressionTargetDecision> | null;
+}) {
+  const canonical = stableJSONValue({
+    performedAt: input.performedAt?.toISOString() ?? null,
+    durationMinutes: input.durationMinutes ?? null,
+    notes: input.notes ?? null,
+    tags: input.tags ?? null,
+    planId: input.planId ?? null,
+    generatedSessionId: input.generatedSessionId ?? null,
+    sets: input.sets,
+    progressionTargetDecisions: input.progressionTargetDecisions ?? null,
+  });
+  return createHash("sha256").update(JSON.stringify(canonical)).digest("hex");
+}
+
+export function normalizeWorkoutLogClientMutationId(value: unknown) {
+  if (value == null) return null;
+  if (typeof value !== "string") {
+    throw new WorkoutLogClientMutationValidationError();
+  }
+  const normalized = value.trim();
+  if (!normalized) {
+    throw new WorkoutLogClientMutationValidationError();
+  }
+  if (!CLIENT_MUTATION_ID_PATTERN.test(normalized)) {
+    throw new WorkoutLogClientMutationValidationError();
+  }
+  return normalized;
+}
+
+async function buildGenericIdempotentResponse(input: {
+  tx: any;
+  log: { id: string; planId: string | null };
+  locale: "ko" | "en";
+}) {
+  const progressionEvent = await readProgressEventByLog({
+    tx: input.tx,
+    planId: input.log.planId,
+    logId: input.log.id,
+  });
+  return {
+    log: { id: input.log.id },
+    idempotent: true,
+    progression: {
+      ...buildProgressionSummary({ mode: "upsert", eventRow: progressionEvent }),
+      feedback: buildProgressionFeedbackFromEvent(
+        { eventRow: progressionEvent },
+        input.locale,
+      ),
+    },
+  };
+}
 
 type ExistingLogForUpsert = {
   id: string;
@@ -110,6 +206,7 @@ async function upsertRef5WorkoutLog(input: {
   locale: "ko" | "en";
 }) {
   return db.transaction(async (tx) => {
+    await acquireActiveAccountMutationLock(tx, input.userId);
     await acquireRef5PlanLock(tx, input.planId);
 
     const [planRows, sessionRows] = await Promise.all([
@@ -319,6 +416,7 @@ export async function upsertWorkoutLogService({
   tags,
   planId: submittedPlanId,
   generatedSessionId: submittedGeneratedSessionId,
+  clientMutationId: submittedClientMutationId,
   sets,
   progressionTargetDecisions,
   locale,
@@ -329,6 +427,54 @@ export async function upsertWorkoutLogService({
 
   let effectivePlanId = submittedPlanId;
   let effectiveSessionId = submittedGeneratedSessionId;
+  const clientMutationId = normalizeWorkoutLogClientMutationId(
+    submittedClientMutationId,
+  );
+  if (!logId && clientMutationId && !performedAt) {
+    throw new WorkoutLogClientMutationValidationError(
+      "performedAt is required when clientMutationId is provided",
+    );
+  }
+  const clientMutationHash =
+    !logId && clientMutationId
+      ? hashWorkoutLogMutationPayload({
+          performedAt,
+          durationMinutes,
+          notes,
+          tags,
+          planId: effectivePlanId,
+          generatedSessionId: effectiveSessionId,
+          sets,
+          progressionTargetDecisions,
+        })
+      : null;
+
+  // A completed prior request wins before validating mutable plan/session
+  // references. Retries remain replayable even if those references changed or
+  // were removed after the original transaction committed.
+  if (!logId && clientMutationId && clientMutationHash) {
+    const priorRows = await db
+      .select({
+        id: workoutLog.id,
+        planId: workoutLog.planId,
+        clientMutationHash: workoutLog.clientMutationHash,
+      })
+      .from(workoutLog)
+      .where(
+        and(
+          eq(workoutLog.userId, userId),
+          eq(workoutLog.clientMutationId, clientMutationId),
+        ),
+      )
+      .limit(1);
+    const prior = priorRows[0];
+    if (prior) {
+      if (prior.clientMutationHash !== clientMutationHash) {
+        throw new WorkoutLogIdempotencyConflictError();
+      }
+      return buildGenericIdempotentResponse({ tx: db, log: prior, locale });
+    }
+  }
 
   // Validation if updating existing log
   let existingLog = null;
@@ -501,6 +647,7 @@ export async function upsertWorkoutLogService({
   ]);
 
   const result = await db.transaction(async (tx) => {
+    await acquireActiveAccountMutationLock(tx, userId);
     let log;
     if (logId) {
       [log] = await tx
@@ -516,18 +663,49 @@ export async function upsertWorkoutLogService({
       
       await tx.delete(workoutSet).where(eq(workoutSet.logId, logId));
     } else {
-      [log] = await tx
-        .insert(workoutLog)
-        .values({
-          userId,
-          planId: effectivePlanId,
-          generatedSessionId: effectiveSessionId,
-          performedAt: performedAt!,
-          durationMinutes: durationMinutes ?? null,
-          notes: notes ?? null,
-          tags: tags ?? null,
-        })
-        .returning();
+      const values = {
+        userId,
+        planId: effectivePlanId,
+        generatedSessionId: effectiveSessionId,
+        clientMutationId,
+        clientMutationHash,
+        performedAt: performedAt!,
+        durationMinutes: durationMinutes ?? null,
+        notes: notes ?? null,
+        tags: tags ?? null,
+      };
+      if (clientMutationId) {
+        [log] = await tx
+          .insert(workoutLog)
+          .values(values)
+          .onConflictDoNothing({
+            target: [workoutLog.userId, workoutLog.clientMutationId],
+          })
+          .returning();
+        if (!log) {
+          const priorRows = await tx
+            .select({
+              id: workoutLog.id,
+              planId: workoutLog.planId,
+              clientMutationHash: workoutLog.clientMutationHash,
+            })
+            .from(workoutLog)
+            .where(
+              and(
+                eq(workoutLog.userId, userId),
+                eq(workoutLog.clientMutationId, clientMutationId),
+              ),
+            )
+            .limit(1);
+          const prior = priorRows[0];
+          if (!prior || prior.clientMutationHash !== clientMutationHash) {
+            throw new WorkoutLogIdempotencyConflictError();
+          }
+          return buildGenericIdempotentResponse({ tx, log: prior, locale });
+        }
+      } else {
+        [log] = await tx.insert(workoutLog).values(values).returning();
+      }
     }
 
     // D1(frozen PR): 저장/편집은 영향권(performed_at >= 시점)의 동결 PR 판정을

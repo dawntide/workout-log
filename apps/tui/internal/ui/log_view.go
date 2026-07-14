@@ -49,7 +49,12 @@ func (l Log) Body(w, h int) string {
 
 	all := append([]string{}, head...)
 	if len(l.groups) == 0 {
-		all = append(all, l.renderEmpty())
+		emptyLines := strings.Split(l.renderEmpty(w-2), "\n")
+		avail := inner - len(head) - len(foot)
+		if avail < 1 {
+			avail = 1
+		}
+		all = append(all, windowLines(emptyLines, 0, avail)...)
 	} else {
 		// Flatten groups to lines and window them around the active set so the
 		// cursor stays on screen and, crucially, the frame's hint bar + mode
@@ -93,8 +98,32 @@ func (l Log) sessionHeader() string {
 	if name := strings.TrimSpace(l.planName); name != "" {
 		parts = append(parts, lipgloss.NewStyle().Foreground(theme.Fg).Bold(true).Render(name))
 	}
-	if lab := sessionLabel(l.sessionKey); lab != "" {
+	label := sessionLabel(l.sessionKey)
+	if l.ref5 != nil {
+		location := ref5PlanLocation(l.ref5.Plan)
+		if l.ref5.Session != nil {
+			location = ref5SessionLocation(l.ref5.Session)
+		}
+		label = sessionLabelIn(l.sessionKey, location)
+	}
+	if lab := label; lab != "" {
 		parts = append(parts, lipgloss.NewStyle().Foreground(theme.Cyan).Bold(true).Render(lab))
+	}
+	if l.ref5 != nil && l.ref5.active() {
+		mode, squat, focus, _ := ref5PreviewDecision(l.ref5.Session)
+		var ref5Tags []string
+		if mode != "" {
+			ref5Tags = append(ref5Tags, mode)
+		}
+		if squat != "" {
+			ref5Tags = append(ref5Tags, "SQ "+squat)
+		}
+		if focus != "" {
+			ref5Tags = append(ref5Tags, focus)
+		}
+		if len(ref5Tags) > 0 {
+			parts = append(parts, lipgloss.NewStyle().Foreground(theme.Amber).Render("["+strings.Join(ref5Tags, " · ")+"]"))
+		}
 	}
 	// v0.5.1 세션 태그(F3·F4) — 스냅샷 승격 메타를 한 줄 태그로. 웹 배너의 TUI-최적 축약.
 	if l.amrapDeferred {
@@ -109,9 +138,15 @@ func (l Log) sessionHeader() string {
 // renderEmpty draws the empty-buffer state: a loading line while today's
 // session auto-loads, a program prompt when no active plan exists, or the
 // manual-entry hint otherwise.
-func (l Log) renderEmpty() string {
+func (l Log) renderEmpty(w int) string {
 	dim := lipgloss.NewStyle().Foreground(theme.Dim)
 	ghost := lipgloss.NewStyle().Foreground(theme.Ghost)
+	if l.ref5 != nil {
+		if l.ref5.Phase == ref5PreviewReady {
+			return l.renderRef5Preview(w)
+		}
+		return l.renderRef5Start(w)
+	}
 	switch l.load {
 	case loadPending:
 		return dim.Render("오늘 세션 불러오는 중…")
@@ -146,8 +181,27 @@ func (l Log) groupHeader(gi int, g exGroup, w int) string {
 		}
 		ctx += "tgt " + g.tgt
 	}
+	if g.ref5 != nil {
+		if g.ref5.Stream != "" {
+			if ctx != "" {
+				ctx += "  "
+			}
+			ctx += g.ref5.Stream
+		}
+		if g.ref5.TerminationReason != "" {
+			outcome, err := ref5Outcome(g)
+			label := "CHECK"
+			if err == nil {
+				label = outcome
+			}
+			if ctx != "" {
+				ctx += "  "
+			}
+			ctx += label + "/" + g.ref5.TerminationReason
+		}
+	}
 	if ctx != "" {
-		header = justify(header, lipgloss.NewStyle().Foreground(theme.Dim).Render(ctx), w-2)
+		header = fitLine(justify(header, lipgloss.NewStyle().Foreground(theme.Dim).Render(ctx), w-2), w-2)
 	}
 	return header
 }
@@ -163,7 +217,8 @@ func (l Log) renderSet(gi, si int, s setEntry) string {
 	// end (mirrors the web). While editing the weight, the cell shows the raw
 	// external input instead and the suffix is hidden.
 	wText, suffix := orDot(s.weight), ""
-	if isBodyweightExercise(l.groups[gi].name) && s.total > 0 {
+	isPull := l.groups[gi].ref5 != nil && l.groups[gi].ref5.Lift == "PULL"
+	if (isPull || isBodyweightExercise(l.groups[gi].name)) && s.total > 0 {
 		wText = trimNum(s.total)
 		if !(active && l.editing && l.col == colWeight) {
 			added, _ := strconv.ParseFloat(strings.TrimSpace(s.weight), 64)
@@ -177,7 +232,9 @@ func (l Log) renderSet(gi, si int, s setEntry) string {
 	// RPE: an editable cell when the RPE column is active here, otherwise shown
 	// only when a value exists (optional metric, never forced).
 	rpe := "    " // reserved 4-col slot so done/e1rm stay aligned across sets
-	if active && l.col == colRPE {
+	if l.groups[gi].ref5 != nil {
+		rpe = "    " // immutable REF5 rows never expose an RPE editor
+	} else if active && l.col == colRPE {
 		rpe = lipgloss.NewStyle().Foreground(theme.Dim).Render(" @") + l.setCell(active, colRPE, orDot(s.rpe), 2)
 	} else if s.rpe != "" {
 		rpe = lipgloss.NewStyle().Foreground(theme.Dim).Render(fmt.Sprintf(" @%-2s", s.rpe))

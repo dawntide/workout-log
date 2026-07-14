@@ -36,7 +36,11 @@ import {
   rebuildRef5ProgressionForPlan,
 } from "@workout/core/progression/ref5-auto-progression";
 import { invalidateStatsCacheForUser } from "@workout/core/stats/cache";
-import { upsertWorkoutLogService } from "@workout/core/services/workout-log/upsert-log";
+import {
+  upsertWorkoutLogService,
+  WorkoutLogClientMutationValidationError,
+  WorkoutLogIdempotencyConflictError,
+} from "@workout/core/services/workout-log/upsert-log";
 import {
   getOrFreezePersonalRecords,
   invalidatePersonalRecordsFrom,
@@ -307,6 +311,21 @@ logsRoutes.post("/", async (c) => {
     const timezone = normalizeTimezone(
       typeof body.timezone === "string" ? body.timezone : null,
     );
+    if (
+      body.clientMutationId !== undefined &&
+      body.clientMutationId !== null &&
+      (typeof body.performedAt !== "string" || !body.performedAt.trim())
+    ) {
+      return c.json(
+        {
+          error:
+            locale === "ko"
+              ? "clientMutationId를 사용할 때 performedAt이 필요합니다."
+              : "performedAt is required when clientMutationId is provided.",
+        },
+        400,
+      );
+    }
     const performedAt = resolvePerformedAt(body.performedAt);
 
     const sets = Array.isArray(body.sets) ? body.sets : [];
@@ -342,6 +361,7 @@ logsRoutes.post("/", async (c) => {
         typeof body.generatedSessionId === "string" && body.generatedSessionId.trim()
           ? body.generatedSessionId.trim()
           : null,
+      clientMutationId: body.clientMutationId,
       sets,
       progressionTargetDecisions: parseProgressionTargetDecisions(
         body.progressionTargetDecisions,
@@ -351,6 +371,12 @@ logsRoutes.post("/", async (c) => {
     return c.json(created, (created as { idempotent?: boolean }).idempotent ? 200 : 201);
   } catch (e) {
     if (e instanceof Ref5LogValidationError) return c.json({ error: e.message }, 400);
+    if (e instanceof WorkoutLogClientMutationValidationError) {
+      return c.json({ error: e.message }, 400);
+    }
+    if (e instanceof WorkoutLogIdempotencyConflictError) {
+      return c.json({ error: e.message }, 409);
+    }
     return apiError(c, e, locale);
   }
 });

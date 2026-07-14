@@ -69,3 +69,30 @@ func TestHistoryLoadingMode(t *testing.T) {
 		t.Error("expected LOADING before data is loaded")
 	}
 }
+
+func TestHistoryUsesPlanTimezoneAcrossUTCDayBoundary(t *testing.T) {
+	performedAt := time.Date(2026, 7, 14, 16, 30, 0, 0, time.UTC) // 07-15 01:30 Asia/Seoul
+	planID := "plan-ref5-seoul"
+	sessionKey := "REF5:2026-07-14T16:30:00.000Z:start:event:history"
+	screen, _ := NewHistory(nil).Update(historyLoadedMsg{
+		plans: []api.Plan{{
+			ID: planID, Name: "REF5", Params: map[string]any{"timezone": "Asia/Seoul"},
+		}},
+		logs: []api.LogItem{{
+			ID: "log-ref5-seoul", PlanID: &planID, PerformedAt: performedAt,
+			GeneratedSession: &api.GeneratedSessionRef{SessionKey: sessionKey},
+			Sets:             []api.LoggedSet{{ExerciseName: "Back Squat", WeightKg: 100, Reps: 5}},
+		}},
+	})
+	history := screen.(History)
+	if len(history.rows) != 1 || history.rows[0].date != "07-15" {
+		t.Fatalf("history row date = %#v, want Asia/Seoul 07-15", history.rows)
+	}
+	if history.dayVol["2026-07-15"] != 500 || history.dayVol["2026-07-14"] != 0 {
+		t.Fatalf("day volume used UTC boundary: %#v", history.dayVol)
+	}
+	out := ansi.Strip(history.Body(60, 14))
+	if !strings.Contains(out, "REF5 07-15 01:30") {
+		t.Fatalf("history session label did not use plan timezone:\n%s", out)
+	}
+}

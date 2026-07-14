@@ -21,7 +21,22 @@ type historyLoadedMsg struct {
 }
 
 type logDeletedMsg struct {
+	id  string
 	err error
+}
+
+type historyEditLoadedMsg struct {
+	id     string
+	detail *api.LogDetail
+	plan   api.Plan
+	err    error
+}
+
+func historyEditLoadCmd(c *api.Client, id string, plan api.Plan) tea.Cmd {
+	return func() tea.Msg {
+		detail, err := c.GetLog(context.Background(), id)
+		return historyEditLoadedMsg{id: id, detail: detail, plan: plan, err: err}
+	}
 }
 
 func historyLoadCmd(c *api.Client) tea.Cmd {
@@ -34,33 +49,39 @@ func historyLoadCmd(c *api.Client) tea.Cmd {
 
 func deleteLogCmd(c *api.Client, id string) tea.Cmd {
 	return func() tea.Msg {
-		return logDeletedMsg{err: c.DeleteLog(context.Background(), id)}
+		return logDeletedMsg{id: id, err: c.DeleteLog(context.Background(), id)}
 	}
 }
 
 type sessionRow struct {
-	id          string
-	date        string
-	performedAt time.Time
-	summary     string
-	volume      float64
-	planName    string // owning plan's name; "" for ad-hoc logs
-	sessionKey  string // generated-session key (e.g. "C2W6D1"); "" for ad-hoc logs
-	sets        []api.LoggedSet
+	id                 string
+	date               string
+	performedAt        time.Time
+	location           *time.Location // owning plan timezone; local fallback for ad-hoc logs
+	summary            string
+	volume             float64
+	planName           string // owning plan's name; "" for ad-hoc logs
+	sessionKey         string // generated-session key (e.g. "C2W6D1"); "" for ad-hoc logs
+	planID             string
+	generatedSessionID string
+	sets               []api.LoggedSet
 }
 
 // History is the history buffer: a recent-days heatmap strip + a navigable
 // session list (j/k · enter detail · d delete). List-driven, terminal-native.
 type History struct {
-	client    *api.Client
-	rows      []sessionRow
-	dayVol    map[string]float64
-	sel       int
-	expanded  bool
-	err       string
-	loaded    bool
-	planNames map[string]string // planId → name, for the row's plan label
-	w, h      int
+	client        *api.Client
+	rows          []sessionRow
+	dayVol        map[string]float64
+	sel           int
+	expanded      bool
+	err           string
+	loaded        bool
+	planNames     map[string]string // planId → name, for the row's plan label
+	planZones     map[string]*time.Location
+	plansByID     map[string]api.Plan
+	pendingEditID string
+	w, h          int
 }
 
 // planNameMap indexes plans by id for O(1) row labeling.
@@ -68,6 +89,30 @@ func planNameMap(plans []api.Plan) map[string]string {
 	m := make(map[string]string, len(plans))
 	for _, p := range plans {
 		m[p.ID] = p.Name
+	}
+	return m
+}
+
+func plansByID(plans []api.Plan) map[string]api.Plan {
+	result := make(map[string]api.Plan, len(plans))
+	for _, plan := range plans {
+		result[plan.ID] = plan
+	}
+	return result
+}
+
+// planZoneMap resolves each plan's calendar timezone once per history load.
+// Invalid/missing legacy params intentionally fall back to time.Local.
+func planZoneMap(plans []api.Plan) map[string]*time.Location {
+	m := make(map[string]*time.Location, len(plans))
+	for _, plan := range plans {
+		location := time.Local
+		if timezone, ok := plan.Params["timezone"].(string); ok {
+			if parsed, err := time.LoadLocation(strings.TrimSpace(timezone)); err == nil {
+				location = parsed
+			}
+		}
+		m[plan.ID] = location
 	}
 	return m
 }
@@ -89,6 +134,8 @@ func (s History) Update(msg tea.Msg) (Screen, tea.Cmd) {
 		}
 		s.err = ""
 		s.planNames = planNameMap(m.plans)
+		s.planZones = planZoneMap(m.plans)
+		s.plansByID = plansByID(m.plans)
 		s.build(m.logs)
 		if s.sel >= len(s.rows) {
 			s.sel = 0
@@ -100,6 +147,34 @@ func (s History) Update(msg tea.Msg) (Screen, tea.Cmd) {
 			return s, nil
 		}
 		return s, historyLoadCmd(s.client) // refetch (progression may have rebuilt)
+	case historyEditLoadedMsg:
+		if m.id == "" || m.id != s.pendingEditID {
+			return s, nil
+		}
+		s.pendingEditID = ""
+		if m.err != nil {
+			s.err = humanizeAuthErr(m.err)
+			return s, nil
+		}
+		if m.detail == nil {
+			s.err = "기록 상세를 불러오지 못했습니다"
+			return s, nil
+		}
+		detail := m.detail
+		planID, sessionID, sessionKey := strOr(detail.PlanID), strOr(detail.GeneratedSessionID), ""
+		if detail.GeneratedSession != nil {
+			sessionKey = detail.GeneratedSession.SessionKey
+			if detail.GeneratedSession.PlanID == "" {
+				detail.GeneratedSession.PlanID = planID
+			}
+		}
+		return s, func() tea.Msg {
+			return editLogMsg{
+				id: detail.ID, performedAt: detail.PerformedAt, sets: detail.Sets,
+				planName: m.plan.Name, plan: m.plan, planID: planID, sessionKey: sessionKey,
+				generatedSessionID: sessionID, generatedSession: detail.GeneratedSession,
+			}
+		}
 	case tea.KeyPressMsg:
 		return s.handleKey(m)
 	}
@@ -125,21 +200,51 @@ func (s History) handleKey(m tea.KeyPressMsg) (Screen, tea.Cmd) {
 			return s, nil
 		}
 		r := s.rows[s.sel]
+		plan := s.plansByID[r.planID]
+		if plan.ID == "" {
+			plan = api.Plan{ID: r.planID, Name: r.planName}
+		}
+		if isRef5HistoryRow(r) {
+			s.pendingEditID = r.id
+			return s, historyEditLoadCmd(s.client, r.id, plan)
+		}
+		s.pendingEditID = ""
 		return s, func() tea.Msg {
-			return editLogMsg{id: r.id, performedAt: r.performedAt, sets: r.sets, planName: r.planName, sessionKey: r.sessionKey}
+			return editLogMsg{
+				id: r.id, performedAt: r.performedAt, sets: r.sets,
+				planName: r.planName, plan: plan, sessionKey: r.sessionKey, planID: r.planID,
+				generatedSessionID: r.generatedSessionID,
+			}
 		}
 	case "d":
 		if len(s.rows) == 0 {
 			return s, nil
 		}
 		r := s.rows[s.sel]
+		if s.pendingEditID == r.id {
+			s.pendingEditID = ""
+		}
 		return s, func() tea.Msg {
-			return confirmMsg{prompt: r.date + " 세션 삭제?", onYes: deleteLogCmd(s.client, r.id)}
+			return confirmMsg{
+				prompt: r.date + " 세션 삭제?", onYes: deleteLogCmd(s.client, r.id), logID: r.id,
+			}
 		}
 	case "R":
 		return s, historyLoadCmd(s.client)
 	}
 	return s, nil
+}
+
+func isRef5HistoryRow(row sessionRow) bool {
+	if strings.HasPrefix(strings.ToUpper(strings.TrimSpace(row.sessionKey)), "REF5:") {
+		return true
+	}
+	for _, set := range row.sets {
+		if set.Meta != nil && set.Meta.Ref5 != nil {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *History) build(logs []api.LogItem) {
@@ -148,20 +253,28 @@ func (s *History) build(logs []api.LogItem) {
 	for _, lg := range logs {
 		summary, vol := summarizeSets(lg.Sets)
 		planName := ""
+		location := time.Local
 		if lg.PlanID != nil {
 			planName = s.planNames[*lg.PlanID]
+			if zone := s.planZones[*lg.PlanID]; zone != nil {
+				location = zone
+			}
 		}
+		calendarTime := lg.PerformedAt.In(location)
 		s.rows = append(s.rows, sessionRow{
-			id:          lg.ID,
-			date:        lg.PerformedAt.Format("01-02"),
-			performedAt: lg.PerformedAt,
-			summary:     summary,
-			volume:      vol,
-			planName:    planName,
-			sessionKey:  sessionKeyOf(lg),
-			sets:        lg.Sets,
+			id:                 lg.ID,
+			date:               calendarTime.Format("01-02"),
+			performedAt:        lg.PerformedAt,
+			location:           location,
+			summary:            summary,
+			volume:             vol,
+			planName:           planName,
+			sessionKey:         sessionKeyOf(lg),
+			planID:             strOr(lg.PlanID),
+			generatedSessionID: strOr(lg.GeneratedSessionID),
+			sets:               lg.Sets,
 		})
-		s.dayVol[lg.PerformedAt.Format("2006-01-02")] += vol
+		s.dayVol[calendarTime.Format("2006-01-02")] += vol
 	}
 }
 
@@ -240,7 +353,11 @@ func (s History) heatStrip(w int) string {
 	if n > 56 {
 		n = 56
 	}
-	today := time.Now()
+	location := time.Local
+	if len(s.rows) > 0 && s.sel >= 0 && s.sel < len(s.rows) && s.rows[s.sel].location != nil {
+		location = s.rows[s.sel].location
+	}
+	today := time.Now().In(location)
 	vals := make([]float64, n)
 	maxV := 0.0
 	for i := 0; i < n; i++ {
@@ -297,7 +414,7 @@ func (s History) list(w, h int) string {
 			dateStyle = lipgloss.NewStyle().Foreground(theme.Amber)
 		}
 		date := dateStyle.Render(r.date)
-		label := sessionLabel(r.sessionKey)
+		label := sessionLabelIn(r.sessionKey, r.location)
 		vol := lipgloss.NewStyle().Foreground(theme.Dim).Render(fmt.Sprintf("%.1ft", r.volume/1000))
 
 		// Prefer plan + cycle label (the meaningful "which session" info); fall

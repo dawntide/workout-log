@@ -224,7 +224,9 @@ func TestBuildPrevMap(t *testing.T) {
 }
 
 func TestLogExercisePicked(t *testing.T) {
-	next, cmd := NewLog(nil).Update(pickedMsg{tag: "exercise", value: "Squat"})
+	start := NewLog(nil)
+	start.load = loadIdle
+	next, cmd := start.Update(pickedMsg{tag: "exercise", value: "Squat"})
 	l := next.(Log)
 	if len(l.groups) != 1 || l.groups[0].name != "Squat" {
 		t.Fatalf("expected a Squat group, got %+v", l.groups)

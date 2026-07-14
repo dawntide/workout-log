@@ -324,6 +324,12 @@ export const workoutLog = table(
       onDelete: "set null",
     }),
 
+    // Optional client-owned identity for exactly-once POST semantics. The TUI
+    // persists this before sending, so a timeout/crash retry resolves to the
+    // original log instead of inserting a second progression event.
+    clientMutationId: text("client_mutation_id"),
+    clientMutationHash: text("client_mutation_hash"),
+
     performedAt: timestamp("performed_at", { withTimezone: true }).defaultNow().notNull(),
     durationMinutes: integer("duration_minutes"),
     notes: text("notes"),
@@ -354,6 +360,10 @@ export const workoutLog = table(
     index("workout_log_generated_session_idx").on(t.generatedSessionId),
     // PERF: compliance 쿼리의 (userId, generatedSessionId) 복합 필터를 가속
     index("workout_log_user_session_idx").on(t.userId, t.generatedSessionId),
+    uniqueIndex("workout_log_user_client_mutation_uq").on(
+      t.userId,
+      t.clientMutationId,
+    ),
     // PERF: 플랜 스코프 날짜 조회(findLogIdForDate/fetchRecentLogsServer/rebuild)를 가속.
     // (user_id, performed_at)만으로는 plan_id를 후처리 필터해야 해 스캔 폭이 넓다.
     index("workout_log_user_plan_performed_idx").on(t.userId, t.planId, t.performedAt),
@@ -550,6 +560,18 @@ export const appUser = table(
   },
   (t) => [uniqueIndex("app_user_email_uq").on(t.email)],
 );
+
+/**
+ * Irreversible, pseudonymous account-deletion barrier.
+ *
+ * A database trigger hashes each user-owned INSERT/UPDATE and rejects it when
+ * this tombstone exists. This prevents a request authenticated just before
+ * deletion from recreating orphan data after the cleanup transaction commits.
+ */
+export const accountDeletionTombstone = table("account_deletion_tombstone", {
+  userHash: text("user_hash").primaryKey(),
+  deletedAt: timestamp("deleted_at", { withTimezone: true }).defaultNow().notNull(),
+});
 
 /**
  * auth_session: 쿠키 기반 세션 토큰.

@@ -19,6 +19,10 @@ import { getClientIp, rateLimit } from "@workout/core/auth/rate-limit";
 import { logAuthEvent } from "@workout/core/auth/security-events";
 import { deleteUserDomainData } from "@workout/core/data/deleteUserData";
 import { invalidateStatsCacheForUser } from "@workout/core/stats/cache";
+import {
+  acquireAccountDeletionLock,
+  recordAccountDeletionTombstone,
+} from "@workout/core/auth/account-lifecycle";
 import { withApiLogging } from "@/server/observability/apiRoute";
 import { logError } from "@workout/core/observability/logger";
 import { apiErrorResponse } from "@/app/api/_utils/error-response";
@@ -108,6 +112,8 @@ async function DELETEImpl(req: Request) {
     }
 
     await db.transaction(async (tx) => {
+      await acquireAccountDeletionLock(tx, userId);
+      await recordAccountDeletionTombstone(tx, userId);
       await deleteUserDomainData(tx, userId);
       await tx
         .delete(passwordResetToken)

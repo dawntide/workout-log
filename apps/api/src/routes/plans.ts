@@ -319,7 +319,8 @@ plansRoutes.post("/", async (c) => {
     const definition = asRecord(rootVersion.definition);
     const isRef5Root =
       templateRows[0]?.slug === REF5_IDENTIFIERS.slug ||
-      String(definition.kind ?? "").trim().toLowerCase() === REF5_IDENTIFIERS.kind;
+      String(definition.kind ?? "").trim().toLowerCase() === REF5_IDENTIFIERS.kind ||
+      String(definition.family ?? "").trim().toLowerCase() === REF5_IDENTIFIERS.family;
     const submittedParams = asRecord(body.params);
     const versionDefaults = asRecord(rootVersion.defaults);
     const canonicalParams = isRef5Root

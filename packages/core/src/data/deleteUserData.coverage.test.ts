@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { readdirSync, readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import test from "node:test";
 import { getTableColumns, getTableName, is, Table } from "drizzle-orm";
 import * as schema from "@workout/core/db/schema";
@@ -30,6 +32,9 @@ const CLEANUP_POLICY: Record<string, CleanupKind> = {
   auth_event_log: "retained-by-design", // 보안 감사 로그(ACCOUNT_DELETE 이벤트 포함) 보존
 };
 
+const ACCOUNT_WRITE_GUARD_TRIGGER =
+  /CREATE TRIGGER "account_lifecycle_write_guard" BEFORE INSERT OR UPDATE ON (?:(?:"[^"]+"\.)?)"([^"]+)"/g;
+
 function userScopedTableNames(): string[] {
   const names: string[] = [];
   for (const value of Object.values(schema)) {
@@ -40,6 +45,28 @@ function userScopedTableNames(): string[] {
     }
   }
   return names;
+}
+
+function accountOwnedTableNames(): string[] {
+  const guarded = userScopedTableNames().filter(
+    (name) => CLEANUP_POLICY[name] !== "retained-by-design",
+  );
+  guarded.push(getTableName(schema.programTemplate));
+  return [...new Set(guarded)].sort();
+}
+
+function migrationGuardTargets(relativeDirectory: string): string[] {
+  const directory = fileURLToPath(new URL(relativeDirectory, import.meta.url));
+  const targets = new Set<string>();
+
+  for (const name of readdirSync(directory).filter((entry) => entry.endsWith(".sql")).sort()) {
+    const sql = readFileSync(new URL(`${relativeDirectory}/${name}`, import.meta.url), "utf8");
+    for (const match of sql.matchAll(ACCOUNT_WRITE_GUARD_TRIGGER)) {
+      targets.add(match[1]);
+    }
+  }
+
+  return [...targets].sort();
 }
 
 test("user_id를 가진 모든 테이블은 계정 삭제 정리 정책에 분류되어야 한다", () => {
@@ -62,4 +89,21 @@ test("CLEANUP_POLICY에 스키마에 없는 stale 항목이 없어야 한다", (
   const userScoped = new Set(userScopedTableNames());
   const stale = Object.keys(CLEANUP_POLICY).filter((t) => !userScoped.has(t));
   assert.deepEqual(stale, [], `CLEANUP_POLICY의 stale 항목(스키마에 없음): ${stale.join(", ")}`);
+});
+
+test("계정 소유 테이블은 운영·개발 migration write guard로 모두 보호되어야 한다", () => {
+  const expected = accountOwnedTableNames();
+  const production = migrationGuardTargets("../../../../web/src/server/db/migrations");
+  const development = migrationGuardTargets("../../../../web/src/server/db/migrations-dev");
+
+  assert.deepEqual(
+    production,
+    expected,
+    "운영 migration의 account lifecycle write guard가 스키마와 일치해야 한다",
+  );
+  assert.deepEqual(
+    development,
+    expected,
+    "개발 migration의 account lifecycle write guard가 스키마와 일치해야 한다",
+  );
 });

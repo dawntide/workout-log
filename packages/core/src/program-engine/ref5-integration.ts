@@ -19,6 +19,7 @@ import {
   type Ref5SessionInput,
   type Ref5SessionSnapshot,
 } from "./ref5";
+import { acquireActiveAccountMutationLock } from "@workout/core/auth/account-lifecycle";
 
 export const REF5_ENGINE_VERSION = 511;
 
@@ -371,6 +372,7 @@ export async function buildRef5PlanSession(
   }
 
   return db.transaction(async (tx) => {
+    await acquireActiveAccountMutationLock(tx, input.userId);
     await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${input.planId}))`);
     const planRows = await tx.select().from(plan).where(eq(plan.id, input.planId)).limit(1);
     const planRow = planRows[0];

@@ -1,6 +1,7 @@
 import { and, eq, gt } from "drizzle-orm";
 import { db } from "@workout/core/db/client";
 import { authSession, appUser } from "@workout/core/db/schema";
+import { acquireActiveAccountMutationLock } from "./account-lifecycle";
 import {
   SESSION_IDLE_TTL_MS,
   SESSION_ABSOLUTE_MAX_MS,
@@ -35,10 +36,13 @@ export async function createSession(userId: string): Promise<SessionRecord> {
   const now = Date.now();
   const expiresAt = new Date(now + SESSION_IDLE_TTL_MS);
   const cookieExpiresAt = new Date(now + SESSION_ABSOLUTE_MAX_MS);
-  await db.insert(authSession).values({
-    token,
-    userId,
-    expiresAt,
+  await db.transaction(async (tx) => {
+    await acquireActiveAccountMutationLock(tx, userId);
+    await tx.insert(authSession).values({
+      token,
+      userId,
+      expiresAt,
+    });
   });
   return { token, userId, expiresAt, cookieExpiresAt };
 }
@@ -55,6 +59,7 @@ export async function findActiveSession(
       createdAt: authSession.createdAt,
     })
     .from(authSession)
+    .innerJoin(appUser, eq(authSession.userId, appUser.id))
     .where(and(eq(authSession.token, token), gt(authSession.expiresAt, now)))
     .limit(1);
   const r = rows[0];

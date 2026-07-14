@@ -23,14 +23,16 @@ type exportDoneMsg struct {
 }
 
 type importDryRunMsg struct {
-	path    string
-	summary []api.ImportSummaryRow
-	err     error
+	requestID uint64
+	data      json.RawMessage
+	summary   []api.ImportSummaryRow
+	err       error
 }
 
 type importDoneMsg struct {
-	summary []api.ImportSummaryRow
-	err     error
+	requestID uint64
+	summary   []api.ImportSummaryRow
+	err       error
 }
 
 // exportCmd downloads the JSON export and writes it to ~/ironlog-export-<ts>.json.
@@ -45,7 +47,7 @@ func exportCmd(c *api.Client) tea.Cmd {
 			return exportDoneMsg{err: err}
 		}
 		path := filepath.Join(home, fmt.Sprintf("ironlog-export-%s.json", time.Now().Format("20060102-150405")))
-		if err := os.WriteFile(path, data, 0o644); err != nil {
+		if err := os.WriteFile(path, data, 0o600); err != nil {
 			return exportDoneMsg{err: err}
 		}
 		return exportDoneMsg{path: path}
@@ -53,32 +55,31 @@ func exportCmd(c *api.Client) tea.Cmd {
 }
 
 // importDryRunCmd reads the file and validates it server-side without applying.
-func importDryRunCmd(c *api.Client, path string) tea.Cmd {
+func importDryRunCmd(c *api.Client, path string, requestID uint64) tea.Cmd {
 	return func() tea.Msg {
 		data, err := os.ReadFile(expandPath(path))
 		if err != nil {
-			return importDryRunMsg{err: err}
+			return importDryRunMsg{requestID: requestID, err: err}
 		}
 		res, err := c.ImportData(context.Background(), json.RawMessage(data), false)
 		if err != nil {
-			return importDryRunMsg{err: err}
+			return importDryRunMsg{requestID: requestID, err: err}
 		}
-		return importDryRunMsg{path: path, summary: res.Summary}
+		return importDryRunMsg{
+			requestID: requestID, data: append(json.RawMessage(nil), data...), summary: res.Summary,
+		}
 	}
 }
 
-// importReplaceCmd re-reads the file and applies it, wiping existing user data.
-func importReplaceCmd(c *api.Client, path string) tea.Cmd {
+// importReplaceCmd applies the exact bytes that passed dry-run validation. It
+// never re-reads the path after the user confirms the displayed summary.
+func importReplaceCmd(c *api.Client, data json.RawMessage, requestID uint64) tea.Cmd {
 	return func() tea.Msg {
-		data, err := os.ReadFile(expandPath(path))
+		res, err := c.ImportData(context.Background(), data, true)
 		if err != nil {
-			return importDoneMsg{err: err}
+			return importDoneMsg{requestID: requestID, err: err}
 		}
-		res, err := c.ImportData(context.Background(), json.RawMessage(data), true)
-		if err != nil {
-			return importDoneMsg{err: err}
-		}
-		return importDoneMsg{summary: res.Summary}
+		return importDoneMsg{requestID: requestID, summary: res.Summary}
 	}
 }
 
