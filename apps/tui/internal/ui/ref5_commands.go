@@ -41,9 +41,9 @@ type ref5PreviewResultMsg struct {
 
 func ref5GenerateInput(values ref5StartValues) api.Ref5GenerateInput {
 	return api.Ref5GenerateInput{
+		ProtocolVersion: api.Ref5ProtocolVersion,
 		ActualStartAt: values.ActualStartAt, TodayBodyweightKg: values.BodyweightKg,
-		ManualMicro: values.ManualMicro, ClimbingWithin48h: values.ClimbingWithin48h,
-		StartEventID: values.StartEventID, OmitPullVolume: values.OmitPullVolume,
+		ManualMicro: values.ManualMicro, StartEventID: values.StartEventID,
 	}
 }
 

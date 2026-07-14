@@ -18,11 +18,28 @@ import {
   generateAndSaveSession,
   generateSessionSnapshot,
 } from "@workout/core/program-engine/generateSession";
-import { REF5_IDENTIFIERS } from "@workout/core/program-engine/ref5";
 import {
+  REF5_IDENTIFIERS,
+  REF5_LEGACY_PROTOCOL_VERSION,
+  REF5_LEGACY_SNAPSHOT_SCHEMA_VERSION,
+  REF5_PROTOCOL_VERSION,
+  applyRef5FirstSquatStart,
+  createInitialRef5LegacyV11State,
+  createInitialRef5State,
+  generateRef5Session,
+  type Ref5LegacyV11SessionSnapshot,
+} from "@workout/core/program-engine/ref5";
+import { toRef5GeneratedSnapshot } from "@workout/core/program-engine/ref5-integration";
+import {
+  REF5_LEGACY_PROGRESSION_ENGINE_VERSION,
+  REF5_PROGRESSION_ENGINE_VERSION_V12,
   acquireRef5PlanLock,
   rebuildRef5ProgressionForPlan,
 } from "@workout/core/progression/ref5-auto-progression";
+import {
+  inspectRef5ProtocolUpgrade,
+  upgradeRef5PlansToV12,
+} from "@workout/core/progression/ref5-protocol-upgrade";
 import { upsertWorkoutLogService } from "@workout/core/services/workout-log/upsert-log";
 
 type PlannedSet = {
@@ -52,6 +69,8 @@ type GeneratedSessionPayload = {
 type VerifiablePlan = {
   name: string;
   date: string;
+  week: number;
+  day: number;
   checks: (session: GeneratedSessionPayload) => void;
 };
 
@@ -182,13 +201,9 @@ async function verifyRef5SeedIdempotency(userId: string) {
     const versionsAfterFirst = await db
       .select()
       .from(programVersion)
-      .where(
-        and(
-          eq(programVersion.templateId, ref5AfterFirst[0]!.id),
-          eq(programVersion.version, 1),
-        ),
-      );
-    assert.equal(versionsAfterFirst.length, 1);
+      .where(eq(programVersion.templateId, ref5AfterFirst[0]!.id))
+      .orderBy(asc(programVersion.version));
+    assert.deepEqual(versionsAfterFirst.map((row) => row.version), [1, 2]);
     const ref5PlanAfterFirst = await db
       .select()
       .from(planTable)
@@ -221,12 +236,8 @@ async function verifyRef5SeedIdempotency(userId: string) {
     const versionsAfterSecond = await db
       .select()
       .from(programVersion)
-      .where(
-        and(
-          eq(programVersion.templateId, ref5AfterSecond[0]!.id),
-          eq(programVersion.version, 1),
-        ),
-      );
+      .where(eq(programVersion.templateId, ref5AfterSecond[0]!.id))
+      .orderBy(asc(programVersion.version));
     const ref5PlanAfterSecond = await db
       .select()
       .from(planTable)
@@ -249,10 +260,11 @@ async function verifyRef5SeedIdempotency(userId: string) {
 
 function buildRef5LogSets(
   session: GeneratedSessionPayload,
-  options: { failFirstExercise?: boolean } = {},
+  options: { failFirstExercise?: boolean; completedAt?: string } = {},
 ) {
   const snapshot = asRecord(session.snapshot);
   const ref5 = asRecord(snapshot.ref5);
+  const protocolVersion = String(ref5.protocolVersion ?? snapshot.protocolVersion ?? "");
   const exercises = asRecords(snapshot.exercises);
   return exercises.flatMap((exercise, exerciseIndex) => {
     const prescription = asRecord(exercise.ref5);
@@ -278,7 +290,7 @@ function buildRef5LogSets(
           ref5: {
             prescription,
             terminationReason,
-            protocolVersion: "1.1",
+            protocolVersion,
             actualStartAt: ref5.actualStartAt,
             startEventId: ref5.startEventId,
             completionEventId: `${ref5.startEventId}:completion`,
@@ -287,11 +299,72 @@ function buildRef5LogSets(
             plannedReps,
             actualReps,
             setIndex,
+            ...(options.completedAt ? { completedAt: options.completedAt } : {}),
           },
         },
       };
     });
   });
+}
+
+function buildLegacyRef5Fixture(input: {
+  planId: string;
+  planName: string;
+  actualStartAt: string;
+  startEventId: string;
+}) {
+  const sessionKey = `REF5:${input.actualStartAt}:${input.startEventId}`;
+  const activeDomain = generateRef5Session(createInitialRef5State(), {
+    sessionId: sessionKey,
+    snapshotId: `${input.startEventId}:snapshot`,
+    actualStartAt: input.actualStartAt,
+    timeZone: "Asia/Seoul",
+    todayBodyweightKg: 75,
+    recent7DayMeasurementCount: 0,
+    recent7DayAverageKg: null,
+    manualMicro: false,
+  });
+  const domain: Ref5LegacyV11SessionSnapshot = {
+    ...structuredClone(activeDomain),
+    schemaVersion: REF5_LEGACY_SNAPSHOT_SCHEMA_VERSION,
+    protocolVersion: REF5_LEGACY_PROTOCOL_VERSION,
+    startInput: {
+      ...structuredClone(activeDomain.startInput),
+      climbingWithin48h: false,
+      omitPullVolume: false,
+    },
+    decision: { ...structuredClone(activeDomain.decision), climbingReplacement: false },
+    exercises: activeDomain.exercises.map((exercise) => ({
+      ...structuredClone(exercise),
+      omitted: false,
+    })),
+  };
+  const snapshot = structuredClone(
+    toRef5GeneratedSnapshot({
+      planId: input.planId,
+      planName: input.planName,
+      sessionKey,
+      domain: activeDomain,
+      startEventId: input.startEventId,
+      runtimeRevisionAfter: 1,
+      startCommitted: true,
+    }),
+  ) as unknown as Record<string, unknown>;
+  snapshot.protocolVersion = REF5_LEGACY_PROTOCOL_VERSION;
+  const program = asRecord(snapshot.program);
+  program.version = 1;
+  program.protocolVersion = REF5_LEGACY_PROTOCOL_VERSION;
+  const ref5 = asRecord(snapshot.ref5);
+  ref5.protocolVersion = REF5_LEGACY_PROTOCOL_VERSION;
+  ref5.domainSnapshot = domain;
+  delete ref5.startCommitted;
+  for (const exercise of asRecords(snapshot.exercises)) {
+    asRecord(exercise.ref5).protocolVersion = REF5_LEGACY_PROTOCOL_VERSION;
+    for (const set of asRecords(exercise.sets)) {
+      asRecord(asRecord(set.meta).ref5).protocolVersion = REF5_LEGACY_PROTOCOL_VERSION;
+    }
+  }
+  return { domain, sessionKey, snapshot, startEventId: input.startEventId };
 }
 
 async function verifyRef5Workflow(input: {
@@ -307,11 +380,10 @@ async function verifyRef5Workflow(input: {
     planId: input.planId,
     timezone: input.timezone,
     ref5: {
+      protocolVersion: "1.2" as const,
       actualStartAt,
       todayBodyweightKg: 75,
       manualMicro: false,
-      climbingWithin48h: false,
-      omitPullVolume: false,
       startEventId,
     },
   });
@@ -354,7 +426,7 @@ async function verifyRef5Workflow(input: {
     assert.equal(currentA.id, currentB.id, "concurrent REF5 start was not idempotent");
     generatedIds.add(currentA.id);
     const currentSnapshot = asRecord(currentA.snapshot);
-    assert.equal(currentSnapshot.protocolVersion, "1.1");
+    assert.equal(currentSnapshot.protocolVersion, "1.2");
     assert.equal(asRecord(currentSnapshot.ref5).actualStartAt, currentRequest.ref5.actualStartAt);
     assert.equal(
       asRecords(currentSnapshot.exercises).reduce(
@@ -390,7 +462,7 @@ async function verifyRef5Workflow(input: {
 
     // Add a genuinely backdated start/log after the later session already exists.
     const pastRequest = requestFor(
-      new Date(now - 86_400_000).toISOString(),
+      new Date(now - 10_000).toISOString(),
       `verify-past-${randomUUID()}`,
     );
     const pastSession = (await generateAndSaveSession(pastRequest)) as GeneratedSessionPayload;
@@ -401,7 +473,7 @@ async function verifyRef5Workflow(input: {
       .where(eq(planRuntimeState.planId, input.planId))
       .limit(1);
     const futurePreviewRequest = requestFor(
-      new Date(now + 86_400_000).toISOString(),
+      new Date(now + 10_000).toISOString(),
       `verify-future-${randomUUID()}`,
     );
     const futurePreviewAfterPastStart = await generateSessionSnapshot(futurePreviewRequest);
@@ -492,12 +564,352 @@ async function verifyRef5Workflow(input: {
   }
 }
 
+async function verifyRef5ProtocolUpgradeWorkflow(userId: string) {
+  const marker = randomUUID();
+  const templateRows = await db
+    .select({ id: programTemplate.id })
+    .from(programTemplate)
+    .where(eq(programTemplate.slug, REF5_IDENTIFIERS.slug));
+  assert.equal(templateRows.length, 1);
+  const versionRows = await db
+    .select({ id: programVersion.id, version: programVersion.version })
+    .from(programVersion)
+    .where(eq(programVersion.templateId, templateRows[0]!.id))
+    .orderBy(asc(programVersion.version));
+  const v11 = versionRows.find((row) => row.version === 1);
+  const v12 = versionRows.find((row) => row.version === 2);
+  assert.ok(v11 && v12, "REF5 v1.1/v1.2 seed versions are required");
+
+  const createdPlanIds: string[] = [];
+  try {
+    const [upgradePlan] = await db
+      .insert(planTable)
+      .values({
+        userId,
+        name: `REF5 upgrade verify ${marker}`,
+        type: "SINGLE",
+        rootProgramVersionId: v11.id,
+        params: {
+          programFamily: "ref5",
+          protocolVersion: REF5_LEGACY_PROTOCOL_VERSION,
+          timezone: "Asia/Seoul",
+          ref5: {
+            schemaVersion: 1,
+            protocolVersion: REF5_LEGACY_PROTOCOL_VERSION,
+          },
+        },
+      })
+      .returning();
+    assert.ok(upgradePlan);
+    createdPlanIds.push(upgradePlan.id);
+
+    const completedFixture = buildLegacyRef5Fixture({
+      planId: upgradePlan.id,
+      planName: upgradePlan.name,
+      actualStartAt: "2026-07-10T01:00:00.000Z",
+      startEventId: `verify-completed-${marker}`,
+    });
+    const [completedSession] = await db
+      .insert(generatedSession)
+      .values({
+        planId: upgradePlan.id,
+        userId,
+        sessionKey: completedFixture.sessionKey,
+        scheduledAt: new Date(completedFixture.domain.actualStartAt),
+        snapshot: completedFixture.snapshot,
+      })
+      .returning();
+    assert.ok(completedSession);
+    const completedAt = "2026-07-10T03:00:00.000Z";
+    const [completedLog] = await db
+      .insert(workoutLog)
+      .values({
+        userId,
+        planId: upgradePlan.id,
+        generatedSessionId: completedSession.id,
+        performedAt: new Date(completedFixture.domain.actualStartAt),
+        notes: `REF5 immutable v1.1 ${marker}`,
+      })
+      .returning();
+    assert.ok(completedLog);
+    const completedPayload: GeneratedSessionPayload = {
+      id: completedSession.id,
+      planId: upgradePlan.id,
+      sessionKey: completedFixture.sessionKey,
+      snapshot: completedFixture.snapshot,
+    };
+    await db.insert(workoutSet).values(
+      buildRef5LogSets(completedPayload, { completedAt }).map((set) => ({
+        ...set,
+        logId: completedLog.id,
+      })),
+    );
+    await db.transaction(async (tx) => {
+      await acquireRef5PlanLock(tx, upgradePlan.id);
+      await rebuildRef5ProgressionForPlan({
+        tx,
+        userId,
+        planId: upgradePlan.id,
+        lockAlreadyHeld: true,
+      });
+    });
+
+    const unstartedFixture = buildLegacyRef5Fixture({
+      planId: upgradePlan.id,
+      planName: upgradePlan.name,
+      actualStartAt: "2026-07-12T01:00:00.000Z",
+      startEventId: `verify-unstarted-${marker}`,
+    });
+    const [unstartedSession] = await db
+      .insert(generatedSession)
+      .values({
+        planId: upgradePlan.id,
+        userId,
+        sessionKey: unstartedFixture.sessionKey,
+        scheduledAt: new Date(unstartedFixture.domain.actualStartAt),
+        snapshot: unstartedFixture.snapshot,
+      })
+      .returning();
+    assert.ok(unstartedSession);
+
+    const dryRun = await inspectRef5ProtocolUpgrade(db, { planIds: [upgradePlan.id] });
+    assert.equal(dryRun.totals.targetPlans, 1);
+    assert.equal(dryRun.totals.generatedV11, 2);
+    assert.equal(dryRun.totals.startEffectsV11, 1);
+    assert.equal(dryRun.totals.noStartEffectsV11, 1);
+    assert.equal(dryRun.totals.completedV11, 1);
+    assert.equal(dryRun.totals.startedIncompleteV11, 0);
+    assert.equal(dryRun.totals.progressEventsV11, 2);
+
+    const immutableBefore = {
+      session: await db
+        .select({ id: generatedSession.id, snapshot: generatedSession.snapshot, createdAt: generatedSession.createdAt })
+        .from(generatedSession)
+        .where(eq(generatedSession.id, completedSession.id)),
+      log: await db
+        .select({ id: workoutLog.id, performedAt: workoutLog.performedAt, notes: workoutLog.notes, createdAt: workoutLog.createdAt })
+        .from(workoutLog)
+        .where(eq(workoutLog.id, completedLog.id)),
+      events: await db
+        .select({ id: planProgressEvent.id, meta: planProgressEvent.meta, createdAt: planProgressEvent.createdAt })
+        .from(planProgressEvent)
+        .where(
+          and(
+            eq(planProgressEvent.planId, upgradePlan.id),
+            eq(planProgressEvent.programSlug, REF5_IDENTIFIERS.slug),
+          ),
+        )
+        .orderBy(asc(planProgressEvent.createdAt), asc(planProgressEvent.id)),
+    };
+
+    const transitionedAt = "2026-07-14T00:00:00.000Z";
+    const applied = await upgradeRef5PlansToV12({
+      dryRun: false,
+      transitionedAt,
+      planIds: [upgradePlan.id],
+    });
+    assert.equal(applied.totals.upgradedPlans, 1);
+    assert.equal(applied.totals.replacementSessions, 1);
+
+    const [upgradedPlanRows, upgradedRuntimeRows, upgradedSessions, upgradeEvents] = await Promise.all([
+      db.select().from(planTable).where(eq(planTable.id, upgradePlan.id)),
+      db.select().from(planRuntimeState).where(eq(planRuntimeState.planId, upgradePlan.id)),
+      db.select().from(generatedSession).where(eq(generatedSession.planId, upgradePlan.id)),
+      db
+        .select()
+        .from(planProgressEvent)
+        .where(
+          and(
+            eq(planProgressEvent.planId, upgradePlan.id),
+            eq(planProgressEvent.eventType, "REF5_PROTOCOL_UPGRADE"),
+          ),
+        ),
+    ]);
+    assert.equal(upgradedPlanRows[0]?.rootProgramVersionId, v12.id);
+    assert.equal(asRecord(upgradedPlanRows[0]?.params).protocolVersion, REF5_PROTOCOL_VERSION);
+    assert.equal(upgradedRuntimeRows[0]?.engineVersion, REF5_PROGRESSION_ENGINE_VERSION_V12);
+    assert.equal(asRecord(upgradedRuntimeRows[0]?.state).protocolVersion, REF5_PROTOCOL_VERSION);
+    assert.equal(upgradeEvents.length, 1);
+    assert.equal(
+      asRecord(upgradeEvents[0]!.meta).stableKey,
+      `ref5-protocol-upgrade:${upgradePlan.id}:1.1:1.2`,
+    );
+    assert.equal(
+      upgradedSessions.find((session) => session.id === unstartedSession.id)?.status,
+      "SKIPPED",
+    );
+    const replacements = upgradedSessions.filter(
+      (session) =>
+        asRecord(asRecord(session.snapshot).ref5).protocolVersion === REF5_PROTOCOL_VERSION &&
+        session.id !== completedSession.id,
+    );
+    assert.equal(replacements.length, 1);
+    assert.equal(asRecord(asRecord(replacements[0]!.snapshot).ref5).startCommitted, false);
+    const replacementJSON = JSON.stringify(replacements[0]!.snapshot);
+    for (const retired of [
+      "climbingWithin48h",
+      "strongClimbing",
+      "pullFallback",
+      "substitute",
+      "omitPullVolume",
+      "climbingReplacement",
+      "omitted",
+      "omittedPrescriptions",
+    ]) {
+      assert.equal(replacementJSON.includes(retired), false);
+    }
+
+    await db.transaction(async (tx) => {
+      await acquireRef5PlanLock(tx, upgradePlan.id);
+      await rebuildRef5ProgressionForPlan({ tx, userId, planId: upgradePlan.id, lockAlreadyHeld: true });
+    });
+    const replayOnce = await Promise.all([
+      db.select({ state: planRuntimeState.state }).from(planRuntimeState).where(eq(planRuntimeState.planId, upgradePlan.id)),
+      db.select({ id: planProgressEvent.id }).from(planProgressEvent).where(eq(planProgressEvent.planId, upgradePlan.id)).orderBy(asc(planProgressEvent.id)),
+    ]);
+    await db.transaction(async (tx) => {
+      await acquireRef5PlanLock(tx, upgradePlan.id);
+      await rebuildRef5ProgressionForPlan({ tx, userId, planId: upgradePlan.id, lockAlreadyHeld: true });
+    });
+    const replayTwice = await Promise.all([
+      db.select({ state: planRuntimeState.state }).from(planRuntimeState).where(eq(planRuntimeState.planId, upgradePlan.id)),
+      db.select({ id: planProgressEvent.id }).from(planProgressEvent).where(eq(planProgressEvent.planId, upgradePlan.id)).orderBy(asc(planProgressEvent.id)),
+    ]);
+    assert.deepEqual(replayTwice, replayOnce, "upgrade replay must be deterministic/idempotent");
+
+    const immutableAfter = {
+      session: await db
+        .select({ id: generatedSession.id, snapshot: generatedSession.snapshot, createdAt: generatedSession.createdAt })
+        .from(generatedSession)
+        .where(eq(generatedSession.id, completedSession.id)),
+      log: await db
+        .select({ id: workoutLog.id, performedAt: workoutLog.performedAt, notes: workoutLog.notes, createdAt: workoutLog.createdAt })
+        .from(workoutLog)
+        .where(eq(workoutLog.id, completedLog.id)),
+      events: await db
+        .select({ id: planProgressEvent.id, meta: planProgressEvent.meta, createdAt: planProgressEvent.createdAt })
+        .from(planProgressEvent)
+        .where(inArray(planProgressEvent.id, immutableBefore.events.map((event) => event.id)))
+        .orderBy(asc(planProgressEvent.createdAt), asc(planProgressEvent.id)),
+    };
+    assert.deepEqual(immutableAfter, immutableBefore, "completed v1.1 rows changed during upgrade");
+
+    const rerun = await upgradeRef5PlansToV12({ dryRun: false, planIds: [upgradePlan.id] });
+    assert.equal(rerun.totals.upgradedPlans, 0);
+    assert.equal(rerun.totals.replacementSessions, 0);
+
+    const [blockedPlan] = await db
+      .insert(planTable)
+      .values({
+        userId,
+        name: `REF5 blocked verify ${marker}`,
+        type: "SINGLE",
+        rootProgramVersionId: v11.id,
+        params: {
+          programFamily: "ref5",
+          protocolVersion: REF5_LEGACY_PROTOCOL_VERSION,
+          timezone: "Asia/Seoul",
+          ref5: { schemaVersion: 1, protocolVersion: REF5_LEGACY_PROTOCOL_VERSION },
+        },
+      })
+      .returning();
+    assert.ok(blockedPlan);
+    createdPlanIds.push(blockedPlan.id);
+    const blockedFixture = buildLegacyRef5Fixture({
+      planId: blockedPlan.id,
+      planName: blockedPlan.name,
+      actualStartAt: "2026-07-13T01:00:00.000Z",
+      startEventId: `verify-blocked-${marker}`,
+    });
+    await db.insert(generatedSession).values({
+      planId: blockedPlan.id,
+      userId,
+      sessionKey: blockedFixture.sessionKey,
+      scheduledAt: new Date(blockedFixture.domain.actualStartAt),
+      snapshot: blockedFixture.snapshot,
+    });
+    const started = applyRef5FirstSquatStart(
+      createInitialRef5LegacyV11State(),
+      blockedFixture.domain,
+      blockedFixture.startEventId,
+    );
+    await db.insert(planRuntimeState).values({
+      planId: blockedPlan.id,
+      userId,
+      engineVersion: REF5_LEGACY_PROGRESSION_ENGINE_VERSION,
+      state: started.nextState,
+    });
+    const blocked = await upgradeRef5PlansToV12({
+      dryRun: false,
+      planIds: [blockedPlan.id],
+    });
+    assert.equal(blocked.totals.blockedPlans, 1);
+    assert.equal(blocked.totals.startedIncompleteV11, 1);
+    assert.equal(blocked.totals.upgradedPlans, 0);
+    const blockedPlanAfter = await db.select().from(planTable).where(eq(planTable.id, blockedPlan.id));
+    assert.equal(asRecord(blockedPlanAfter[0]?.params).protocolVersion, REF5_LEGACY_PROTOCOL_VERSION);
+
+    const [unmarkedPlan] = await db
+      .insert(planTable)
+      .values({
+        userId,
+        name: `REF5 unmarked verify ${marker}`,
+        type: "SINGLE",
+        rootProgramVersionId: v11.id,
+        params: {
+          programFamily: "ref5",
+          protocolVersion: REF5_LEGACY_PROTOCOL_VERSION,
+          timezone: "Asia/Seoul",
+          ref5: { schemaVersion: 1, protocolVersion: REF5_LEGACY_PROTOCOL_VERSION },
+        },
+      })
+      .returning();
+    assert.ok(unmarkedPlan);
+    createdPlanIds.push(unmarkedPlan.id);
+    const unmarkedFixture = buildLegacyRef5Fixture({
+      planId: unmarkedPlan.id,
+      planName: unmarkedPlan.name,
+      actualStartAt: "2026-07-13T02:00:00.000Z",
+      startEventId: `verify-unmarked-${marker}`,
+    });
+    delete asRecord(asRecord(unmarkedFixture.snapshot.ref5).domainSnapshot).protocolVersion;
+    await db.insert(generatedSession).values({
+      planId: unmarkedPlan.id,
+      userId,
+      sessionKey: unmarkedFixture.sessionKey,
+      scheduledAt: new Date(unmarkedFixture.domain.actualStartAt),
+      snapshot: unmarkedFixture.snapshot,
+    });
+    const unmarked = await upgradeRef5PlansToV12({
+      dryRun: false,
+      planIds: [unmarkedPlan.id],
+    });
+    assert.equal(unmarked.totals.blockedPlans, 1);
+    assert.equal(unmarked.plans[0]?.blocker, "invalid-or-unmarked-v1.1-snapshot");
+    assert.equal(unmarked.totals.upgradedPlans, 0);
+    console.log("[verify] REF5 v1.1->v1.2 dry-run/CAS/replay/immutability workflow ok");
+  } finally {
+    if (createdPlanIds.length > 0) {
+      const logRows = await db
+        .select({ id: workoutLog.id })
+        .from(workoutLog)
+        .where(inArray(workoutLog.planId, createdPlanIds));
+      if (logRows.length > 0) {
+        await db.delete(workoutLog).where(inArray(workoutLog.id, logRows.map((row) => row.id)));
+      }
+      await db.delete(generatedSession).where(inArray(generatedSession.planId, createdPlanIds));
+      await db.delete(planTable).where(inArray(planTable.id, createdPlanIds));
+    }
+  }
+}
+
 async function main() {
   const userId = (process.env.WORKOUT_AUTH_USER_ID ?? "dev").trim() || "dev";
   const timezone = "Asia/Seoul";
   const createdLogIds: string[] = [];
 
   await verifyRef5SeedIdempotency(userId);
+  await verifyRef5ProtocolUpgradeWorkflow(userId);
 
   const plans = await db
     .select({
@@ -525,6 +937,8 @@ async function main() {
     {
       name: "Program Tactical Barbell Operator",
       date: "2026-01-05",
+      week: 1,
+      day: 1,
       checks: (session) => {
         const map = toMapByExercise(session);
         const squat = map.get("Back Squat");
@@ -549,6 +963,8 @@ async function main() {
     {
       name: "Program Tactical Barbell Operator",
       date: "2026-01-07",
+      week: 1,
+      day: 3,
       checks: (session) => {
         const map = toMapByExercise(session);
         const squat = map.get("Back Squat");
@@ -564,6 +980,8 @@ async function main() {
     {
       name: "Program Starting Strength LP",
       date: "2026-01-05",
+      week: 1,
+      day: 1,
       checks: (session) => {
         const map = toMapByExercise(session);
         const squat = map.get("Back Squat");
@@ -579,6 +997,8 @@ async function main() {
     {
       name: "Program StrongLifts 5x5",
       date: "2026-01-06",
+      week: 1,
+      day: 2,
       checks: (session) => {
         const map = toMapByExercise(session);
         const squat = map.get("Back Squat");
@@ -593,6 +1013,8 @@ async function main() {
     {
       name: "Program Texas Method",
       date: "2026-01-07",
+      week: 1,
+      day: 3,
       checks: (session) => {
         const map = toMapByExercise(session);
         const squat = map.get("Back Squat");
@@ -610,6 +1032,8 @@ async function main() {
     {
       name: "Program GZCLP",
       date: "2026-01-08",
+      week: 1,
+      day: 4,
       checks: (session) => {
         const map = toMapByExercise(session);
         const deadlift = map.get("Deadlift");
@@ -629,6 +1053,8 @@ async function main() {
     {
       name: "Program Greyskull LP",
       date: "2026-01-06",
+      week: 1,
+      day: 2,
       checks: (session) => {
         const map = toMapByExercise(session);
         const squat = map.get("Back Squat");
@@ -653,6 +1079,8 @@ async function main() {
     const generated = (await generateAndSaveSession({
       userId,
       planId: p.id,
+      week: target.week,
+      day: target.day,
       sessionDate: target.date,
       timezone,
     })) as GeneratedSessionPayload;

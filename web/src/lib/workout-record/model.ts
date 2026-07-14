@@ -46,7 +46,7 @@ export type WorkoutExerciseRef5Meta = {
 };
 
 export type WorkoutSessionRef5Meta = {
-  protocolVersion: "1.1";
+  protocolVersion: "1.1" | "1.2";
   actualStartAt: string;
   startEventId: string;
   completionEventId: string;
@@ -119,6 +119,28 @@ export type WorkoutRecordDraft = {
   seedEditLayer: Record<string, SeedExerciseEditPatch>;
   userExercises: WorkoutExerciseModel[];
 };
+
+/**
+ * A persisted REF5 editor draft may only be restored over the exact generated
+ * session and protocol that the server just loaded. This is the browser-cache
+ * boundary for upgrades and concurrent tabs; a v1.1 draft must never hydrate a
+ * v1.2 session (and an in-progress v1.1 session remains resumable as v1.1).
+ */
+export function isWorkoutDraftProtocolCompatible(
+  current: WorkoutRecordDraft | null,
+  persisted: WorkoutRecordDraft,
+): boolean {
+  const currentSession = current?.session ?? null;
+  const currentRef5 = currentSession?.ref5 ?? null;
+  const persistedRef5 = persisted.session.ref5 ?? null;
+  if (!currentRef5 && !persistedRef5) return true;
+  if (!currentSession || !currentRef5 || !persistedRef5) return false;
+  return (
+    currentRef5.protocolVersion === persistedRef5.protocolVersion &&
+    currentSession.generatedSessionId === persisted.session.generatedSessionId &&
+    currentRef5.startEventId === persistedRef5.startEventId
+  );
+}
 
 export type WorkoutExerciseViewModel = WorkoutExerciseModel & {
   isEdited: boolean;
@@ -446,7 +468,10 @@ function toRef5TerminationReason(value: unknown): Ref5TerminationReason | null {
 function readRef5SessionMeta(snapshot: any): WorkoutSessionRef5Meta | null {
   const raw = toRecord(snapshot?.ref5);
   const protocolVersion = String(raw.protocolVersion ?? snapshot?.protocolVersion ?? "");
-  if (protocolVersion !== "1.1" && String(snapshot?.program?.slug ?? "") !== "ref5-adaptive-strength") {
+  if (
+    (protocolVersion !== "1.1" && protocolVersion !== "1.2") ||
+    String(snapshot?.program?.slug ?? "") !== "ref5-adaptive-strength"
+  ) {
     return null;
   }
   const actualStartAt = String(raw.actualStartAt ?? snapshot?.actualStartAt ?? "").trim();
@@ -455,7 +480,7 @@ function readRef5SessionMeta(snapshot: any): WorkoutSessionRef5Meta | null {
   const before = Number(raw.runtimeRevisionBefore ?? 0);
   const after = Number(raw.runtimeRevisionAfter ?? before + 1);
   return {
-    protocolVersion: "1.1",
+    protocolVersion,
     actualStartAt,
     startEventId,
     // Deterministic across reloads/retries. The generated session is the idempotency anchor.

@@ -14,12 +14,10 @@ import (
 func ref5StartFromSession(session api.GeneratedSession) ref5StartValues {
 	meta := session.Snapshot.Ref5
 	return ref5StartValues{
-		ActualStartAt:     meta.ActualStartAt,
-		BodyweightKg:      float64(meta.DomainSnapshot.StartInput.TodayBodyweightKg),
-		ManualMicro:       meta.DomainSnapshot.StartInput.ManualMicro,
-		ClimbingWithin48h: meta.DomainSnapshot.StartInput.ClimbingWithin48h,
-		OmitPullVolume:    meta.DomainSnapshot.StartInput.OmitPullVolume,
-		StartEventID:      meta.StartEventID,
+		ActualStartAt: meta.ActualStartAt,
+		BodyweightKg:  float64(meta.DomainSnapshot.StartInput.TodayBodyweightKg),
+		ManualMicro:   meta.DomainSnapshot.StartInput.ManualMicro,
+		StartEventID:  meta.StartEventID,
 	}
 }
 

@@ -2,6 +2,9 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  REF5_LEGACY_MIGRATION_MARKER,
+  Ref5StaleVersionError,
+  createInitialRef5LegacyV11State,
   applyRef5FirstSquatStart,
   createInitialRef5State,
   generateRef5Session,
@@ -11,6 +14,7 @@ import {
 import {
   Ref5LogValidationError,
   canonicalizeRef5WorkoutLog,
+  decodeRef5RuntimeState,
   deriveRef5StateBeforeStart,
   probeRef5CanonicalCompletionAtStartTuple,
   replayRef5CanonicalRawLogs,
@@ -18,7 +22,22 @@ import {
 
 const START = "2026-07-13T01:00:00.000Z";
 
-function domainSnapshot(options: { climbing?: boolean; omitPullVolume?: boolean } = {}) {
+test("REF5 protocol-less runtime requires a known v1.1 shape and migration marker", () => {
+  const legacy = createInitialRef5LegacyV11State() as unknown as Record<string, unknown>;
+  delete legacy.protocolVersion;
+  assert.throws(() => decodeRef5RuntimeState(legacy), /verified v1\.1 migration marker/);
+  const decoded = decodeRef5RuntimeState({
+    ...legacy,
+    legacyMigrationMarker: REF5_LEGACY_MIGRATION_MARKER,
+  });
+  assert.equal(decoded?.protocolVersion, "1.1");
+  assert.throws(
+    () => decodeRef5RuntimeState({ ...legacy, schemaVersion: 99, legacyMigrationMarker: REF5_LEGACY_MIGRATION_MARKER }),
+    /verified v1\.1 migration marker/,
+  );
+});
+
+function domainSnapshot() {
   return generateRef5Session(createInitialRef5State(), {
     sessionId: "REF5:2026-07-13T01:00:00.000Z:start-1",
     snapshotId: "start-1:snapshot",
@@ -28,8 +47,6 @@ function domainSnapshot(options: { climbing?: boolean; omitPullVolume?: boolean 
     recent7DayMeasurementCount: 2,
     recent7DayAverageKg: 73.8,
     manualMicro: false,
-    climbingWithin48h: options.climbing === true,
-    omitPullVolume: options.omitPullVolume,
   });
 }
 
@@ -39,7 +56,8 @@ function generatedEnvelope(domain: Ref5SessionSnapshot) {
     actualStartAt: domain.actualStartAt,
     program: { slug: "ref5-adaptive-strength" },
     ref5: {
-      protocolVersion: "1.1",
+      protocolVersion: "1.2",
+      startCommitted: true,
       startEventId: "start-1",
       domainSnapshot: domain,
     },
@@ -51,9 +69,7 @@ function submittedSets(
   reasonFor: (stream: string) => Ref5EndReason = () => "NORMAL",
 ) {
   return domain.exercises.flatMap((exercise) =>
-    exercise.omitted
-      ? []
-      : exercise.sets.map((set) => ({
+    exercise.sets.map((set) => ({
           exerciseName: exercise.exerciseName,
           setNumber: set.setNumber,
           reps: set.plannedReps,
@@ -64,7 +80,7 @@ function submittedSets(
             memo: "preserved",
             ref5: {
               prescription: exercise,
-              protocolVersion: "1.1",
+              protocolVersion: "1.2",
               terminationReason: reasonFor(exercise.stream),
               actualStartAt: domain.actualStartAt,
               startEventId: "start-1",
@@ -93,7 +109,7 @@ test("REF5 canonicalization freezes load/RPE and retains complete PULL context",
   });
 
   const canonicalPull = result.sets.find((row) => row.exerciseName === "Weighted Pull-Up")!;
-  const expectedPull = domain.exercises.find((exercise) => exercise.lift === "PULL" && !exercise.omitted)!;
+  const expectedPull = domain.exercises.find((exercise) => exercise.lift === "PULL")!;
   assert.equal(canonicalPull.weightKg, expectedPull.sets[0]!.externalLoadKg);
   assert.equal(canonicalPull.rpe, 0);
   assert.equal(canonicalPull.meta.memo, "preserved");
@@ -195,20 +211,26 @@ test("REF5 tuple-local completion probe replays START then completion", () => {
   assert.equal(validated.reduced.nextState.completedSessions.length, 1);
 });
 
-test("REF5 omitted climbing prescriptions become server-owned INVALID outcomes", () => {
-  const domain = domainSnapshot({ climbing: true, omitPullVolume: true });
-  const result = canonicalizeRef5WorkoutLog({
-    generatedSnapshot: generatedEnvelope(domain),
-    performedAt: new Date(START),
-    sets: submittedSets(domain),
-    completedAt: "2026-07-13T02:00:00.000Z",
-  });
-  const omittedStreams = new Set(
-    domain.exercises.filter((exercise) => exercise.omitted).map((exercise) => exercise.stream),
-  );
-  assert.ok(omittedStreams.size > 0);
-  for (const outcome of result.exerciseOutcomes) {
-    if (omittedStreams.has(outcome.stream)) assert.equal(outcome.outcome.outcome, "INVALID");
+test("REF5 v1.2 completion metadata rejects every retired v1.1 input as stale", () => {
+  const domain = domainSnapshot();
+  for (const mutate of [
+    (ref5: Record<string, unknown>) => { ref5.climbingWithin48h = false; },
+    (ref5: Record<string, unknown>) => { ref5.omitted = false; },
+    (ref5: Record<string, unknown>) => {
+      (ref5.prescription as Record<string, unknown>).role = "CLIMBING_FOCUS_INVALID";
+    },
+  ]) {
+    const sets = submittedSets(domain);
+    mutate(sets[0]!.meta.ref5 as Record<string, unknown>);
+    assert.throws(
+      () => canonicalizeRef5WorkoutLog({
+        generatedSnapshot: generatedEnvelope(domain),
+        performedAt: new Date(START),
+        sets,
+        completedAt: "2026-07-13T02:00:00.000Z",
+      }),
+      Ref5StaleVersionError,
+    );
   }
 });
 
@@ -226,7 +248,6 @@ test("REF5 raw replay deduplicates the same completion idempotency key", () => {
     recent7DayMeasurementCount: 2,
     recent7DayAverageKg: 73.8,
     manualMicro: false,
-    climbingWithin48h: false,
     outcomes: {
       SQ_H3: { endReason: "NORMAL" as const, sets: Array.from({ length: 3 }, () => ({ plannedReps: 3, effectiveReps: 3 })) },
       PULL_FOCUS: { endReason: "NORMAL" as const, sets: Array.from({ length: 3 }, () => ({ plannedReps: 3, effectiveReps: 3 })) },
@@ -300,7 +321,11 @@ test("REF5 historical state helper is read-only and excludes tuples at/after tar
   const tx = {
     select(selection: Record<string, unknown>) {
       if ("params" in selection) {
-        return chain([{ id: "plan-1", userId: "user-1", params: { programFamily: "ref5" } }]);
+        return chain([{
+          id: "plan-1",
+          userId: "user-1",
+          params: { programFamily: "ref5", protocolVersion: "1.2" },
+        }]);
       }
       if ("sessionKey" in selection) return chain(generatedRows);
       if ("generatedSessionId" in selection) return chain(logRows);

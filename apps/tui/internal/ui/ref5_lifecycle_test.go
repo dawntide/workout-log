@@ -127,13 +127,17 @@ func TestRef5UnfinishedSessionFilterExcludesLoggedAndNonRef5AndSortsNewest(t *te
 	old := uiRef5Session("old", base)
 	logged := uiRef5Session("logged", base.Add(time.Hour))
 	newest := uiRef5Session("newest", base.Add(2*time.Hour))
+	uncommitted := uiRef5Session("upgrade-preview", base.Add(3*time.Hour))
+	uncommitted.Snapshot.Ref5.StartCommitted = false
+	skipped := uiRef5Session("skipped", base.Add(4*time.Hour))
+	skipped.Status = "SKIPPED"
 	ordinary := api.GeneratedSession{
 		ID: "ordinary", Snapshot: api.SessionSnapshot{SessionKey: "C1W1D1", Plan: api.SnapshotPlan{Name: "5/3/1"}},
 	}
 	emptyID := uiRef5Session("", base.Add(3*time.Hour))
 
 	got := ref5UnfinishedSessions(
-		[]api.GeneratedSession{old, logged, ordinary, newest, emptyID},
+		[]api.GeneratedSession{old, logged, ordinary, newest, uncommitted, skipped, emptyID},
 		[]api.LogItem{{ID: "log-finished", GeneratedSessionID: stringPtr(logged.ID)}},
 	)
 	if len(got) != 2 || got[0].ID != newest.ID || got[1].ID != old.ID {

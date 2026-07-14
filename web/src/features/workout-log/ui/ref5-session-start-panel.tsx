@@ -14,11 +14,10 @@ import { apiPost, isAbortError } from "@/shared/api";
 import type { GeneratedSessionLike } from "@/entities/workout-record";
 
 export type Ref5SessionStartValues = {
+  protocolVersion: "1.2";
   actualStartAt: string;
   bodyweightKg: number;
   manualMicro: boolean;
-  climbingWithin48h: boolean;
-  omitPullVolume: boolean;
   startEventId: string;
 };
 
@@ -178,7 +177,6 @@ export function summarizeRef5Preview(session: GeneratedSessionLike): PreviewSumm
     ...stringArray(ref5?.reasons),
     ...stringArray(ref5?.microReasons),
     ...stringArray(snapshot.microReasons),
-    ...(decision?.climbingReplacement === true ? ["CLIMBING_REPLACEMENT"] : []),
   ].filter((value, index, values) => values.indexOf(value) === index);
 
   const exerciseRows = Array.isArray(snapshot.exercises) ? snapshot.exercises : [];
@@ -196,17 +194,7 @@ export function summarizeRef5Preview(session: GeneratedSessionLike): PreviewSumm
         prescription: prescription.text,
       };
     });
-  const omittedRows = Array.isArray(ref5?.omittedPrescriptions)
-    ? ref5.omittedPrescriptions
-        .map(asRecord)
-        .filter((exercise): exercise is Record<string, unknown> => Boolean(exercise))
-        .map((exercise) => ({
-          name: firstString([exercise], ["exerciseName", "name", "lift"]) ?? "Exercise",
-          prescription: `${firstString([exercise], ["stream", "role"]) ?? "OMITTED"} · OMITTED · INVALID`,
-        }))
-    : [];
-
-  return { mode, squat, focus, reasons, exercises: [...exercises, ...omittedRows], setCount };
+  return { mode, squat, focus, reasons, exercises, setCount };
 }
 
 export function buildRef5GeneratePayload(
@@ -232,8 +220,6 @@ function toStartValues(input: {
   localStartAt: string;
   bodyweightText: string;
   manualMicro: boolean;
-  climbingWithin48h: boolean;
-  omitPullVolume: boolean;
   startEventId: string;
 }): Ref5SessionStartValues | null {
   const start = new Date(input.localStartAt);
@@ -242,11 +228,10 @@ function toStartValues(input: {
     return null;
   }
   return {
+    protocolVersion: "1.2",
     actualStartAt: start.toISOString(),
     bodyweightKg,
     manualMicro: input.manualMicro,
-    climbingWithin48h: input.climbingWithin48h,
-    omitPullVolume: input.omitPullVolume,
     startEventId: input.startEventId,
   };
 }
@@ -264,8 +249,6 @@ export function Ref5SessionStartPanel({
     defaultBodyweightKg && defaultBodyweightKg > 0 ? String(defaultBodyweightKg) : "",
   );
   const [manualMicro, setManualMicro] = useState(false);
-  const [climbingWithin48h, setClimbingWithin48h] = useState(false);
-  const [omitPullVolume, setOmitPullVolume] = useState(false);
   const [startEventId] = useState(stableEventId);
   const [previewSession, setPreviewSession] = useState<GeneratedSessionLike | null>(null);
   const [previewSignature, setPreviewSignature] = useState<string | null>(null);
@@ -283,11 +266,9 @@ export function Ref5SessionStartPanel({
         localStartAt,
         bodyweightText,
         manualMicro,
-        climbingWithin48h,
-        omitPullVolume,
         startEventId,
       }),
-    [bodyweightText, climbingWithin48h, localStartAt, manualMicro, omitPullVolume, startEventId],
+    [bodyweightText, localStartAt, manualMicro, startEventId],
   );
   const valuesSignature = values ? JSON.stringify(values) : null;
   const visiblePreview =
@@ -345,7 +326,7 @@ export function Ref5SessionStartPanel({
           <h2 className="v2-h2" style={{ margin: 0 }}>
             {locale === "ko" ? "REF5 세션 결정" : "REF5 session decision"}
           </h2>
-          <V2Chip tone="info">v1.1</V2Chip>
+          <V2Chip tone="info">v1.2</V2Chip>
         </div>
         <p className="v2-small" style={{ margin: 0, color: "var(--v2-ink-3)" }}>
           {planName} · {dateKey}
@@ -400,57 +381,6 @@ export function Ref5SessionStartPanel({
             aria-label={locale === "ko" ? "수동 마이크로 세션" : "Manual micro session"}
           />
         </label>
-        <label
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            gap: "var(--v2-s-3)",
-          }}
-        >
-          <span>
-            <span className="v2-label" style={{ display: "block" }}>
-              {locale === "ko" ? "48시간 내 클라이밍" : "Climbing within 48 hours"}
-            </span>
-            <span className="v2-small" style={{ color: "var(--v2-ink-3)" }}>
-              {locale === "ko" ? "당기기 처방을 조정합니다" : "Adjusts the pulling prescription"}
-            </span>
-          </span>
-          <V2Switch
-            checked={climbingWithin48h}
-            onCheckedChange={(checked) => {
-              setClimbingWithin48h(checked);
-              if (!checked) setOmitPullVolume(false);
-            }}
-            aria-label={locale === "ko" ? "48시간 내 클라이밍" : "Climbing within 48 hours"}
-          />
-        </label>
-        {climbingWithin48h ? (
-          <label
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              gap: "var(--v2-s-3)",
-            }}
-          >
-            <span>
-              <span className="v2-label" style={{ display: "block" }}>
-                {locale === "ko" ? "PULL 볼륨 생략" : "Omit PULL volume"}
-              </span>
-              <span className="v2-small" style={{ color: "var(--v2-ink-3)" }}>
-                {locale === "ko"
-                  ? "생략한 처방은 INVALID로 닫히며 진행창에 들어가지 않습니다"
-                  : "The omitted prescription closes as INVALID and does not enter a window"}
-              </span>
-            </span>
-            <V2Switch
-              checked={omitPullVolume}
-              onCheckedChange={setOmitPullVolume}
-              aria-label={locale === "ko" ? "PULL 볼륨 생략" : "Omit PULL volume"}
-            />
-          </label>
-        ) : null}
       </div>
 
       {requestError ? (

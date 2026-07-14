@@ -15,11 +15,10 @@ test("REF5 plan detection accepts the family marker or immutable REF5 params", (
 
 test("preview and start share one stable REF5 input envelope", () => {
   const values = {
+    protocolVersion: "1.2",
     actualStartAt: "2026-07-13T03:04:05.000Z",
     bodyweightKg: 81.2,
     manualMicro: true,
-    climbingWithin48h: false,
-    omitPullVolume: false,
     startEventId: "start-event-1",
   } as const;
 
@@ -33,7 +32,7 @@ test("preview and start share one stable REF5 input envelope", () => {
   });
 });
 
-test("preview summary reads the REF5 v1.1 snapshot contract", () => {
+test("preview summary reads the REF5 v1.2 snapshot contract", () => {
   const summary = summarizeRef5Preview({
     id: "preview-only",
     planId: "plan-1",
@@ -75,24 +74,30 @@ test("preview summary reads the REF5 v1.1 snapshot contract", () => {
   ]);
 });
 
-test("preview makes omitted climbing prescriptions explicit without counting sets", () => {
+test("v1.2 preview contains the complete nine-set PULL-focus prescription", () => {
   const summary = summarizeRef5Preview({
-    id: "preview-omitted",
+    id: "preview-v12",
     planId: "plan-1",
-    sessionKey: "ref5:preview:omitted",
+    sessionKey: "ref5:preview:v12",
     snapshot: {
       ref5: {
         decision: { sessionType: "NORMAL", focus: "PULL", squatPrescription: "H3" },
-        omittedPrescriptions: [
-          { exerciseName: "Weighted Pull-Up", stream: "PULL_FOCUS", outcome: "INVALID" },
-        ],
       },
-      exercises: [],
+      exercises: [
+        { exerciseName: "Back Squat", sets: Array.from({ length: 3 }, () => ({ plannedReps: 3, externalLoadKg: 82.5 })) },
+        { exerciseName: "Weighted Pull-Up", sets: Array.from({ length: 3 }, () => ({ plannedReps: 3, externalLoadKg: 12.5 })) },
+        { exerciseName: "Bench Press", sets: [{ plannedReps: 5, externalLoadKg: 70 }] },
+        { exerciseName: "Deadlift", sets: Array.from({ length: 2 }, () => ({ plannedReps: 4, externalLoadKg: 72.5 })) },
+      ],
     },
   });
 
-  assert.equal(summary.setCount, 0);
-  assert.deepEqual(summary.exercises, [
-    { name: "Weighted Pull-Up", prescription: "PULL_FOCUS · OMITTED · INVALID" },
+  assert.equal(summary.setCount, 9);
+  assert.deepEqual(summary.exercises.map((exercise) => exercise.name), [
+    "Back Squat",
+    "Weighted Pull-Up",
+    "Bench Press",
+    "Deadlift",
   ]);
+  assert.equal(JSON.stringify(summary).includes("climb"), false);
 });

@@ -7,6 +7,7 @@ import {
   type ExistingWorkoutLogLike,
   type GeneratedSessionLike,
   hasWorkoutEdits,
+  isWorkoutDraftProtocolCompatible,
   migrateWorkoutRecordDraft,
   patchSeedExercise,
   toWorkoutLogPayload,
@@ -29,13 +30,13 @@ function makeRef5Session(): GeneratedSessionLike {
     sessionKey: "REF5:2026-07-13T09:00:00.000Z:start-1",
     snapshot: {
       schemaVersion: 4,
-      protocolVersion: "1.1",
+      protocolVersion: "1.2",
       sessionKey: "REF5:2026-07-13T09:00:00.000Z:start-1",
       sessionDate: "2026-07-13",
       timezone: "Asia/Seoul",
       program: { slug: "ref5-adaptive-strength" },
       ref5: {
-        protocolVersion: "1.1",
+        protocolVersion: "1.2",
         actualStartAt: "2026-07-13T09:00:00.000Z",
         timezone: "Asia/Seoul",
         startEventId: "start-1",
@@ -97,7 +98,7 @@ test("REF5 draft freezes the exact start, locked added load, and termination met
   assert.deepEqual(meta.ref5, {
     prescription: draft.seedExercises[0]!.ref5!.prescription,
     terminationReason: "CLEAR_SLOWDOWN",
-    protocolVersion: "1.1",
+    protocolVersion: "1.2",
     actualStartAt: "2026-07-13T09:00:00.000Z",
     startEventId: "start-1",
     completionEventId: "start-1:completion",
@@ -119,6 +120,21 @@ test("REF5 reload preserves frozen external PULL loads and bypasses generic plat
 
   assert.equal(reloaded, draft, "immutable REF5 drafts must not be rewritten");
   assert.deepEqual(reloaded.seedExercises[0]?.set.weightKgPerSet, [12.5, 12.5, 12.5]);
+});
+
+test("REF5 local draft restore rejects stale protocol/concurrent-session caches", () => {
+  const current = createWorkoutRecordDraft(makeRef5Session(), "REF5");
+  const legacy = structuredClone(current);
+  legacy.session.ref5!.protocolVersion = "1.1";
+  assert.equal(isWorkoutDraftProtocolCompatible(current, legacy), false);
+
+  const sameLegacy = structuredClone(legacy);
+  assert.equal(isWorkoutDraftProtocolCompatible(legacy, sameLegacy), true);
+
+  const otherTab = structuredClone(current);
+  otherTab.session.generatedSessionId = "ref5-session-other-tab";
+  assert.equal(isWorkoutDraftProtocolCompatible(current, otherTab), false);
+  assert.equal(isWorkoutDraftProtocolCompatible(null, legacy), false);
 });
 
 test("REF5 log edit round-trips arbitrary set metadata without recomputing bodyweight", () => {

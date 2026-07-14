@@ -17,7 +17,7 @@ func uiRef5Plan() api.Plan {
 			"protocolVersion": api.Ref5ProtocolVersion,
 			"timezone":        "Asia/Seoul",
 			"ref5": map[string]any{
-				"schemaVersion":   1,
+				"schemaVersion":   2,
 				"protocolVersion": api.Ref5ProtocolVersion,
 			},
 		},
@@ -90,17 +90,9 @@ func uiRef5Session(id string, startedAt time.Time) api.GeneratedSession {
 			LockWindowID: "pull-window-7", LockedAddedKg: 7.5, ActualTotalKg: 90,
 		},
 	}
-	omittedPrescription := api.Ref5ExercisePrescription{
-		PrescriptionID: "rx-pull-volume-" + id,
-		Lift:           "PULL",
-		ExerciseName:   "Weighted Pull-Up Volume",
-		Role:           "VOLUME",
-		Stream:         "VOLUME",
-		Omitted:        true,
-	}
-
 	meta := &api.Ref5SessionMetadata{
 		ProtocolVersion:       api.Ref5ProtocolVersion,
+		StartCommitted:        true,
 		SnapshotID:            snapshotID,
 		SessionID:             sessionID,
 		ActualStartAt:         actualStartAt,
@@ -109,17 +101,8 @@ func uiRef5Session(id string, startedAt time.Time) api.GeneratedSession {
 		RuntimeRevisionBefore: 6,
 		RuntimeRevisionAfter:  7,
 		Decision:              decision,
-		OmittedPrescriptions: []api.Ref5OmittedPrescription{{
-			PrescriptionID: omittedPrescription.PrescriptionID,
-			ExerciseName:   omittedPrescription.ExerciseName,
-			Lift:           omittedPrescription.Lift,
-			Role:           omittedPrescription.Role,
-			Stream:         omittedPrescription.Stream,
-			Outcome:        "INVALID",
-			Reason:         ref5ReasonExternal,
-		}},
 		DomainSnapshot: api.Ref5DomainSnapshot{
-			SchemaVersion:    1,
+			SchemaVersion:    2,
 			ProtocolVersion:  api.Ref5ProtocolVersion,
 			SnapshotID:       snapshotID,
 			SessionID:        sessionID,
@@ -129,7 +112,7 @@ func uiRef5Session(id string, startedAt time.Time) api.GeneratedSession {
 			CalendarDate:     startedAt.In(time.FixedZone("KST", 9*60*60)).Format("2006-01-02"),
 			StartInput:       startInput,
 			Decision:         decision,
-			Exercises:        []api.Ref5ExercisePrescription{squatPrescription, pullPrescription, omittedPrescription},
+			Exercises:        []api.Ref5ExercisePrescription{squatPrescription, pullPrescription},
 			TotalWorkingSets: 4,
 		},
 	}

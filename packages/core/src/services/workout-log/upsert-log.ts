@@ -22,8 +22,14 @@ import {
   readRef5CompletedAtFromSets,
   readRef5CompletionEventIdFromSets,
   readRef5CompletionFingerprintFromSets,
+  readRef5GeneratedSessionProtocolVersion,
   rebuildRef5ProgressionForPlan,
 } from "@workout/core/progression/ref5-auto-progression";
+import {
+  REF5_LEGACY_PROTOCOL_VERSION,
+  REF5_PROTOCOL_VERSION,
+  Ref5StaleVersionError,
+} from "@workout/core/program-engine/ref5";
 
 
 export type UpsertWorkoutLogInput = {
@@ -239,6 +245,23 @@ async function upsertRef5WorkoutLog(input: {
     }
     if (!isRef5GeneratedSessionSnapshot(sessionRow.snapshot)) {
       throw new Error("Generated session is not REF5");
+    }
+    const planParams = planRow.params as Record<string, unknown>;
+    const nestedRef5 =
+      planParams.ref5 && typeof planParams.ref5 === "object" && !Array.isArray(planParams.ref5)
+        ? (planParams.ref5 as Record<string, unknown>)
+        : {};
+    const planProtocolVersion = String(
+      planParams.protocolVersion ?? nestedRef5.protocolVersion ?? "",
+    ).trim();
+    const sessionProtocolVersion = readRef5GeneratedSessionProtocolVersion(sessionRow.snapshot);
+    if (
+      !sessionProtocolVersion ||
+      sessionProtocolVersion !== planProtocolVersion ||
+      (planProtocolVersion !== REF5_PROTOCOL_VERSION &&
+        planProtocolVersion !== REF5_LEGACY_PROTOCOL_VERSION)
+    ) {
+      throw new Ref5StaleVersionError(sessionProtocolVersion);
     }
 
     const logsForSession = await tx

@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 import { and, asc, eq, inArray, sql } from "drizzle-orm";
 
 import {
@@ -10,21 +12,35 @@ import {
 } from "@workout/core/db/schema";
 import {
   REF5_IDENTIFIERS,
+  REF5_LEGACY_MIGRATION_MARKER,
+  REF5_LEGACY_PROTOCOL_VERSION,
+  REF5_LEGACY_RUNTIME_SCHEMA_VERSION,
   REF5_PROTOCOL_VERSION,
+  REF5_RUNTIME_SCHEMA_VERSION,
+  Ref5StaleVersionError,
   applyRef5FirstSquatStart,
+  createInitialRef5LegacyV11State,
   createInitialRef5State,
+  decodeRef5SessionSnapshot,
+  isRef5LegacyV11Snapshot,
   reduceRef5Completion,
   replayRef5RawLogs,
+  upgradeRef5RuntimeStateV11ToV12,
   validateAndClassifyRef5Outcome,
+  type Ref5DecodedSessionSnapshot,
   type Ref5EndReason,
   type Ref5OutcomeRecord,
   type Ref5RawLogEvent,
   type Ref5RuntimeState,
-  type Ref5SessionSnapshot,
+  type Ref5ProtocolUpgradeMetadata,
+  type Ref5ProtocolVersion,
 } from "@workout/core/program-engine/ref5";
 
 /** Kept numeric-compatible with the generation adapter without importing it. */
+// Preserve the original exported identifier for v1.1 audit rows/runtime.
 export const REF5_PROGRESSION_ENGINE_VERSION = 511;
+export const REF5_LEGACY_PROGRESSION_ENGINE_VERSION = REF5_PROGRESSION_ENGINE_VERSION;
+export const REF5_PROGRESSION_ENGINE_VERSION_V12 = 512;
 
 const REF5_END_REASONS = new Set<Ref5EndReason>([
   "NORMAL",
@@ -39,19 +55,44 @@ function asRecord(value: unknown): Record<string, unknown> {
   return value as Record<string, unknown>;
 }
 
-function readRef5DomainSnapshot(snapshot: unknown): Ref5SessionSnapshot | null {
+const REF5_V12_REMOVED_INPUT_KEYS = new Set([
+  "climb",
+  "climbing",
+  "climbingWithin48h",
+  "strongClimbing",
+  "pullFallback",
+  "substitute",
+  "substitution",
+  "omitPullVolume",
+  "climbingReplacement",
+  "omitted",
+  "omittedPrescriptions",
+]);
+
+function containsRemovedRef5V12Input(value: unknown): boolean {
+  if (Array.isArray(value)) return value.some(containsRemovedRef5V12Input);
+  if (!value || typeof value !== "object") return false;
+  return Object.entries(value as Record<string, unknown>).some(
+    ([key, child]) =>
+      REF5_V12_REMOVED_INPUT_KEYS.has(key) ||
+      (key === "role" && child === "CLIMBING_FOCUS_INVALID") ||
+      containsRemovedRef5V12Input(child),
+  );
+}
+
+function readRef5DomainSnapshot(snapshot: unknown): Ref5DecodedSessionSnapshot | null {
   const root = asRecord(snapshot);
   const ref5 = asRecord(root.ref5);
   const candidate = asRecord(ref5.domainSnapshot ?? ref5.snapshot ?? root.ref5Snapshot);
-  if (
-    candidate.protocolVersion !== REF5_PROTOCOL_VERSION ||
-    Number(candidate.schemaVersion) !== 1 ||
-    !nonEmptyString(candidate.snapshotId) ||
-    !nonEmptyString(candidate.sessionId)
-  ) {
-    return null;
-  }
-  return candidate as unknown as Ref5SessionSnapshot;
+  const looksRef5 =
+    String(asRecord(root.program).slug ?? "") === REF5_IDENTIFIERS.slug ||
+    Object.keys(ref5).length > 0 ||
+    Object.keys(candidate).length > 0;
+  if (!looksRef5) return null;
+  return decodeRef5SessionSnapshot(candidate, {
+    legacyMigrationMarker:
+      ref5.legacyMigrationMarker ?? asRecord(ref5.legacyMigration).marker,
+  });
 }
 
 export function isRef5PlanParameters(value: unknown): boolean {
@@ -59,8 +100,28 @@ export function isRef5PlanParameters(value: unknown): boolean {
   return (
     String(params.programFamily ?? "").trim().toLowerCase() === "ref5" ||
     String(params.protocolVersion ?? "").trim() === REF5_PROTOCOL_VERSION ||
+    String(params.protocolVersion ?? "").trim() === REF5_LEGACY_PROTOCOL_VERSION ||
     Object.keys(asRecord(params.ref5)).length > 0
   );
+}
+
+export function readRef5PlanProtocolVersion(value: unknown): Ref5ProtocolVersion | null {
+  const params = asRecord(value);
+  const nested = asRecord(params.ref5);
+  const explicit = String(params.protocolVersion ?? nested.protocolVersion ?? "").trim();
+  if (explicit === REF5_PROTOCOL_VERSION || explicit === REF5_LEGACY_PROTOCOL_VERSION) {
+    return explicit;
+  }
+  if (!explicit) {
+    const marker = nested.legacyMigrationMarker ?? asRecord(nested.legacyMigration).marker;
+    const knownV11Shape =
+      Number(nested.schemaVersion) === REF5_LEGACY_RUNTIME_SCHEMA_VERSION &&
+      Object.keys(asRecord(nested.startingValuesKg)).length >= 5;
+    if (marker === REF5_LEGACY_MIGRATION_MARKER && knownV11Shape) {
+      return REF5_LEGACY_PROTOCOL_VERSION;
+    }
+  }
+  return null;
 }
 
 function cloneJson<T>(value: T): T {
@@ -118,15 +179,15 @@ export type Ref5CanonicalWorkoutSet = {
 
 export type Ref5CanonicalExerciseOutcome = {
   prescriptionId: string;
-  lift: Ref5SessionSnapshot["exercises"][number]["lift"];
-  stream: Ref5SessionSnapshot["exercises"][number]["stream"];
-  role: Ref5SessionSnapshot["exercises"][number]["role"];
+  lift: Ref5DecodedSessionSnapshot["exercises"][number]["lift"];
+  stream: Ref5DecodedSessionSnapshot["exercises"][number]["stream"];
+  role: Ref5DecodedSessionSnapshot["exercises"][number]["role"];
   terminationReason: Ref5EndReason;
   outcome: Ref5OutcomeRecord;
 };
 
 export type Ref5CanonicalCompletion = {
-  protocolVersion: typeof REF5_PROTOCOL_VERSION;
+  protocolVersion: Ref5ProtocolVersion;
   snapshotId: string;
   sessionId: string;
   startEventId: string;
@@ -152,6 +213,12 @@ export function isRef5GeneratedSessionSnapshot(snapshot: unknown): boolean {
   return readRef5DomainSnapshot(snapshot) !== null;
 }
 
+export function readRef5GeneratedSessionProtocolVersion(
+  snapshot: unknown,
+): Ref5ProtocolVersion | null {
+  return readRef5DomainSnapshot(snapshot)?.protocolVersion ?? null;
+}
+
 function readStartEventId(generatedSnapshot: unknown): string | null {
   const root = asRecord(generatedSnapshot);
   const ref5 = asRecord(root.ref5);
@@ -160,7 +227,7 @@ function readStartEventId(generatedSnapshot: unknown): string | null {
 
 function assertRef5PerformedAt(
   performedAt: Date,
-  domainSnapshot: Ref5SessionSnapshot,
+  domainSnapshot: Ref5DecodedSessionSnapshot,
 ): void {
   const expected = Date.parse(domainSnapshot.actualStartAt);
   if (!Number.isFinite(expected) || performedAt.getTime() !== expected) {
@@ -197,13 +264,14 @@ function readRequiredStringConsistency(input: {
  * equal while a changed rep or termination reason does not.
  */
 export function buildRef5CompletionFingerprint(input: {
+  protocolVersion?: Ref5ProtocolVersion;
   snapshotId: string;
   sessionId: string;
   completionEventId: string;
   exerciseOutcomes: Ref5CanonicalExerciseOutcome[];
 }): string {
   return JSON.stringify({
-    protocolVersion: REF5_PROTOCOL_VERSION,
+    protocolVersion: input.protocolVersion ?? REF5_PROTOCOL_VERSION,
     snapshotId: input.snapshotId,
     sessionId: input.sessionId,
     completionEventId: input.completionEventId,
@@ -230,7 +298,7 @@ export function canonicalizeRef5WorkoutLog(input: {
 }): Ref5CanonicalCompletion {
   const domainSnapshot = readRef5DomainSnapshot(input.generatedSnapshot);
   if (!domainSnapshot) {
-    throw new Ref5LogValidationError(["Generated session is not a REF5 v1.1 snapshot"]);
+    throw new Ref5LogValidationError(["Generated session is not a supported REF5 snapshot"]);
   }
   assertRef5PerformedAt(input.performedAt, domainSnapshot);
   const startEventId = readStartEventId(input.generatedSnapshot);
@@ -246,7 +314,11 @@ export function canonicalizeRef5WorkoutLog(input: {
   const rows = Array.isArray(input.sets)
     ? input.sets.map((value) => asRecord(value))
     : [];
-  const prescribed = domainSnapshot.exercises.filter((exercise) => !exercise.omitted);
+  const isOmitted = (exercise: Ref5DecodedSessionSnapshot["exercises"][number]) =>
+    isRef5LegacyV11Snapshot(domainSnapshot) &&
+    "omitted" in exercise &&
+    exercise.omitted === true;
+  const prescribed = domainSnapshot.exercises.filter((exercise) => !isOmitted(exercise));
   const expectedSetCount = prescribed.reduce((sum, exercise) => sum + exercise.sets.length, 0);
   const errors: string[] = [];
   if (rows.length !== expectedSetCount) {
@@ -256,7 +328,7 @@ export function canonicalizeRef5WorkoutLog(input: {
   const expectedIds = new Set(prescribed.map((exercise) => exercise.prescriptionId));
   const omittedIds = new Set(
     domainSnapshot.exercises
-      .filter((exercise) => exercise.omitted)
+      .filter((exercise) => isOmitted(exercise))
       .map((exercise) => exercise.prescriptionId),
   );
   const byPrescriptionAndSet = new Map<string, Record<string, unknown>>();
@@ -332,7 +404,13 @@ export function canonicalizeRef5WorkoutLog(input: {
       }
       const { ref5 } = readSubmittedRef5Meta(row);
       const submittedPrescription = asRecord(ref5.prescription);
-      if (ref5.protocolVersion !== REF5_PROTOCOL_VERSION) {
+      if (
+        domainSnapshot.protocolVersion === REF5_PROTOCOL_VERSION &&
+        containsRemovedRef5V12Input(row)
+      ) {
+        throw new Ref5StaleVersionError(REF5_LEGACY_PROTOCOL_VERSION);
+      }
+      if (ref5.protocolVersion !== domainSnapshot.protocolVersion) {
         errors.push(`REF5 protocolVersion is required for ${exercise.prescriptionId}`);
       }
       const submittedSnapshotId = nonEmptyString(submittedPrescription.snapshotId);
@@ -425,7 +503,7 @@ export function canonicalizeRef5WorkoutLog(input: {
           ...originalMeta,
           ...pullLoadMeta,
           ref5: {
-            protocolVersion: REF5_PROTOCOL_VERSION,
+            protocolVersion: domainSnapshot.protocolVersion,
             snapshotId: domainSnapshot.snapshotId,
             sessionId: domainSnapshot.sessionId,
             prescriptionId: exercise.prescriptionId,
@@ -452,10 +530,9 @@ export function canonicalizeRef5WorkoutLog(input: {
     }
   }
 
-  // Omitted prescriptions are explicit INVALID outcomes owned by the frozen
-  // session decision (climbing substitution / allowed PULL-volume omission),
-  // not rows the client is allowed to invent.
-  for (const exercise of domainSnapshot.exercises.filter((item) => item.omitted)) {
+  // Frozen v1.1 omitted prescriptions remain explicit INVALID outcomes. The
+  // v1.2 decoder cannot produce this branch.
+  for (const exercise of domainSnapshot.exercises.filter((item) => isOmitted(item))) {
     const classified = validateAndClassifyRef5Outcome({ sets: [], endReason: "EXTERNAL" });
     if (!classified.ok) {
       errors.push(...classified.errors.map((error) => `${exercise.prescriptionId}: ${error}`));
@@ -503,6 +580,7 @@ export function canonicalizeRef5WorkoutLog(input: {
   }
   const completedAt = completedAtDate.toISOString();
   const fingerprint = buildRef5CompletionFingerprint({
+    protocolVersion: domainSnapshot.protocolVersion,
     snapshotId: domainSnapshot.snapshotId,
     sessionId: domainSnapshot.sessionId,
     completionEventId,
@@ -514,7 +592,7 @@ export function canonicalizeRef5WorkoutLog(input: {
   }
 
   return {
-    protocolVersion: REF5_PROTOCOL_VERSION,
+    protocolVersion: domainSnapshot.protocolVersion,
     snapshotId: domainSnapshot.snapshotId,
     sessionId: domainSnapshot.sessionId,
     startEventId,
@@ -569,13 +647,21 @@ type Ref5ReplaySessionRow = {
   id: string;
   sessionKey: string;
   snapshot: unknown;
-  domain: Ref5SessionSnapshot;
+  domain: Ref5DecodedSessionSnapshot;
   startEventId: string;
 };
 
 function compareReplaySessions(left: Ref5ReplaySessionRow, right: Ref5ReplaySessionRow): number {
   const byTime = Date.parse(left.domain.actualStartAt) - Date.parse(right.domain.actualStartAt);
   return byTime || left.sessionKey.localeCompare(right.sessionKey) || left.id.localeCompare(right.id);
+}
+
+function compareRef5OrderingTuple(
+  left: { actualStartAt: string; stableKey: string },
+  right: { actualStartAt: string; stableKey: string },
+): number {
+  const byTime = Date.parse(left.actualStartAt) - Date.parse(right.actualStartAt);
+  return byTime || left.stableKey.localeCompare(right.stableKey);
 }
 
 function outcomesByStream(completion: Ref5CanonicalCompletion) {
@@ -591,7 +677,7 @@ export function probeRef5CanonicalCompletionAtStartTuple(input: {
   rawLogId?: string;
 }) {
   const snapshot = readRef5DomainSnapshot(input.generatedSnapshot);
-  const state = readRef5RuntimeState(input.priorState);
+  const state = decodeRef5RuntimeState(input.priorState);
   if (!snapshot || !state) {
     throw new Ref5LogValidationError(["REF5 tuple-local state/snapshot is unavailable"]);
   }
@@ -599,7 +685,7 @@ export function probeRef5CanonicalCompletionAtStartTuple(input: {
   if (!startEventId) {
     throw new Ref5LogValidationError(["REF5 generated snapshot has no startEventId"]);
   }
-  const replaySnapshot: Ref5SessionSnapshot = {
+  const replaySnapshot: Ref5DecodedSessionSnapshot = {
     ...cloneJson(snapshot),
     runtimeRevision: state.revision,
   };
@@ -632,14 +718,34 @@ function aggregateRef5EventType(changes: Array<{ kind: string }>): string {
   return "REF5_COMPLETE";
 }
 
-function readRef5RuntimeState(value: unknown): Ref5RuntimeState | null {
+/** Strict runtime dispatcher. Protocol-less JSON is legacy only with an exact marker. */
+export function decodeRef5RuntimeState(value: unknown): Ref5RuntimeState | null {
   const record = asRecord(value);
-  if (
-    Number(record.schemaVersion) !== 1 ||
-    record.protocolVersion !== REF5_PROTOCOL_VERSION ||
-    !Number.isInteger(record.revision)
-  ) {
-    return null;
+  if (!Object.keys(record).length) return null;
+  let protocolVersion = String(record.protocolVersion ?? "").trim();
+  if (!protocolVersion) {
+    const marker = record.legacyMigrationMarker ?? asRecord(record.legacyMigration).marker;
+    const knownV11Shape =
+      Number(record.schemaVersion) === REF5_LEGACY_RUNTIME_SCHEMA_VERSION &&
+      Number.isInteger(record.revision) &&
+      Object.keys(asRecord(record.directStandardsKg)).length >= 5 &&
+      Array.isArray(record.appliedStartEventIds) &&
+      Array.isArray(record.appliedCompletionEventIds);
+    if (marker !== REF5_LEGACY_MIGRATION_MARKER || !knownV11Shape) {
+      throw new Ref5LogValidationError([
+        "REF5 runtime without protocolVersion lacks a verified v1.1 migration marker",
+      ]);
+    }
+    protocolVersion = REF5_LEGACY_PROTOCOL_VERSION;
+    record.protocolVersion = protocolVersion;
+  }
+  const supported =
+    (protocolVersion === REF5_PROTOCOL_VERSION &&
+      Number(record.schemaVersion) === REF5_RUNTIME_SCHEMA_VERSION) ||
+    (protocolVersion === REF5_LEGACY_PROTOCOL_VERSION &&
+      Number(record.schemaVersion) === REF5_LEGACY_RUNTIME_SCHEMA_VERSION);
+  if (!supported || !Number.isInteger(record.revision)) {
+    throw new Ref5LogValidationError(["REF5 runtime protocol/schema version is unsupported"]);
   }
   return record as unknown as Ref5RuntimeState;
 }
@@ -663,11 +769,18 @@ type Ref5ReplaySetRow = {
   meta: unknown;
 };
 
+type Ref5UpgradeBoundary = {
+  id: string;
+  metadata: Ref5ProtocolUpgradeMetadata;
+  createdAt: Date;
+};
+
 type Ref5ReplaySource = {
   sessions: Ref5ReplaySessionRow[];
   logs: Ref5ReplayLogRow[];
   logBySessionId: Map<string, Ref5ReplayLogRow>;
   setsByLogId: Map<string, Ref5ReplaySetRow[]>;
+  upgradeBoundary: Ref5UpgradeBoundary | null;
 };
 
 type Ref5ReplayFold = {
@@ -676,7 +789,17 @@ type Ref5ReplayFold = {
   completedGeneratedSessionIds: string[];
 };
 
-async function resolveRef5ReplayPlan(tx: any, userId: string, planId: string) {
+type Ref5ReplayPlanContext = {
+  id: string;
+  userId: string;
+  protocolVersion: Ref5ProtocolVersion;
+};
+
+async function resolveRef5ReplayPlan(
+  tx: any,
+  userId: string,
+  planId: string,
+): Promise<Ref5ReplayPlanContext | "skip:forbidden-plan" | "skip:not-ref5"> {
   const rows = await tx
     .select({ id: plan.id, userId: plan.userId, params: plan.params })
     .from(plan)
@@ -685,7 +808,13 @@ async function resolveRef5ReplayPlan(tx: any, userId: string, planId: string) {
   const row = rows[0];
   if (!row || row.userId !== userId) return "skip:forbidden-plan" as const;
   if (!isRef5PlanParameters(row.params)) return "skip:not-ref5" as const;
-  return null;
+  const protocolVersion = readRef5PlanProtocolVersion(row.params);
+  if (!protocolVersion) {
+    throw new Ref5LogValidationError([
+      "REF5 plan protocolVersion is missing or unsupported; explicit migration is required",
+    ]);
+  }
+  return { id: row.id, userId: row.userId, protocolVersion };
 }
 
 async function loadRef5ReplaySource(input: {
@@ -693,6 +822,56 @@ async function loadRef5ReplaySource(input: {
   planId: string;
   before?: { actualStartAt: string; sessionKey: string };
 }): Promise<Ref5ReplaySource> {
+  const upgradeRows = await input.tx
+    .select({
+      id: planProgressEvent.id,
+      meta: planProgressEvent.meta,
+      createdAt: planProgressEvent.createdAt,
+    })
+    .from(planProgressEvent)
+    .where(
+      and(
+        eq(planProgressEvent.planId, input.planId),
+        eq(planProgressEvent.programSlug, REF5_IDENTIFIERS.slug),
+        eq(planProgressEvent.eventType, "REF5_PROTOCOL_UPGRADE"),
+      ),
+    )
+    .orderBy(asc(planProgressEvent.createdAt), asc(planProgressEvent.id));
+  let upgradeBoundary: Ref5UpgradeBoundary | null = null;
+  for (const row of upgradeRows) {
+    const meta = asRecord(row.meta);
+    const metadata: Ref5ProtocolUpgradeMetadata = {
+      stableKey: String(meta.stableKey ?? "").trim(),
+      fromProtocolVersion: String(meta.fromProtocolVersion ?? "") as "1.1",
+      toProtocolVersion: String(meta.toProtocolVersion ?? "") as "1.2",
+      transitionedAt: String(meta.transitionedAt ?? "").trim(),
+    };
+    if (
+      !metadata.stableKey ||
+      metadata.fromProtocolVersion !== REF5_LEGACY_PROTOCOL_VERSION ||
+      metadata.toProtocolVersion !== REF5_PROTOCOL_VERSION ||
+      !Number.isFinite(Date.parse(metadata.transitionedAt))
+    ) {
+      throw new Ref5LogValidationError([`REF5 protocol upgrade event ${row.id} is invalid`]);
+    }
+    if (upgradeBoundary && upgradeBoundary.metadata.stableKey !== metadata.stableKey) {
+      throw new Ref5LogValidationError(["REF5 plan has conflicting protocol upgrade events"]);
+    }
+    upgradeBoundary ??= { id: row.id, metadata, createdAt: row.createdAt };
+  }
+  if (
+    upgradeBoundary &&
+    input.before &&
+    compareRef5OrderingTuple(
+      {
+        actualStartAt: upgradeBoundary.metadata.transitionedAt,
+        stableKey: upgradeBoundary.metadata.stableKey,
+      },
+      { actualStartAt: input.before.actualStartAt, stableKey: input.before.sessionKey },
+    ) >= 0
+  ) {
+    upgradeBoundary = null;
+  }
   const generatedRows = await input.tx
     .select({
       id: generatedSession.id,
@@ -701,28 +880,25 @@ async function loadRef5ReplaySource(input: {
     })
     .from(generatedSession)
     .where(eq(generatedSession.planId, input.planId));
-  const sessions: Ref5ReplaySessionRow[] = [];
+  const allSessions: Ref5ReplaySessionRow[] = [];
   for (const row of generatedRows) {
     const domain = readRef5DomainSnapshot(row.snapshot);
-    if (!domain) continue;
+    if (!domain) {
+      throw new Ref5LogValidationError([
+        `REF5 generated session ${row.id} has an unrecognized or unmarked snapshot`,
+      ]);
+    }
     const startEventId = readStartEventId(row.snapshot);
     if (!startEventId) {
       throw new Ref5LogValidationError([
         `REF5 generated session ${row.id} is missing its immutable startEventId`,
       ]);
     }
-    sessions.push({ ...row, domain, startEventId });
+    allSessions.push({ ...row, domain, startEventId });
   }
-  sessions.sort(compareReplaySessions);
-  const selected = input.before
-    ? sessions.filter((session) => {
-        const byTime = Date.parse(session.domain.actualStartAt) - Date.parse(input.before!.actualStartAt);
-        return byTime < 0 || (byTime === 0 && session.sessionKey.localeCompare(input.before!.sessionKey) < 0);
-      })
-    : sessions;
-
-  const sessionIds = selected.map((session) => session.id);
-  const logs: Ref5ReplayLogRow[] = sessionIds.length
+  allSessions.sort(compareReplaySessions);
+  const allSessionIds = allSessions.map((session) => session.id);
+  const allLogs: Ref5ReplayLogRow[] = allSessionIds.length
     ? await input.tx
         .select({
           id: workoutLog.id,
@@ -730,17 +906,73 @@ async function loadRef5ReplaySource(input: {
           performedAt: workoutLog.performedAt,
         })
         .from(workoutLog)
-        .where(inArray(workoutLog.generatedSessionId, sessionIds))
+        .where(inArray(workoutLog.generatedSessionId, allSessionIds))
         .orderBy(asc(workoutLog.performedAt), asc(workoutLog.id))
     : [];
-  const logBySessionId = new Map<string, Ref5ReplayLogRow>();
-  for (const log of logs) {
+  const allLogBySessionId = new Map<string, Ref5ReplayLogRow>();
+  for (const log of allLogs) {
     if (!log.generatedSessionId) continue;
-    if (logBySessionId.has(log.generatedSessionId)) {
+    if (allLogBySessionId.has(log.generatedSessionId)) {
       throw new Ref5LogValidationError([
         `REF5 generated session ${log.generatedSessionId} has duplicate workout logs`,
       ]);
     }
+    allLogBySessionId.set(log.generatedSessionId, log);
+  }
+  const [startRows, runtimeRows] = await Promise.all([
+    input.tx
+      .select({ meta: planProgressEvent.meta })
+      .from(planProgressEvent)
+      .where(
+        and(
+          eq(planProgressEvent.planId, input.planId),
+          eq(planProgressEvent.programSlug, REF5_IDENTIFIERS.slug),
+          eq(planProgressEvent.eventType, "REF5_START"),
+        ),
+      ),
+    input.tx
+      .select({ state: planRuntimeState.state })
+      .from(planRuntimeState)
+      .where(eq(planRuntimeState.planId, input.planId))
+      .limit(1),
+  ]);
+  const appliedStartEventIds = new Set<string>();
+  for (const row of startRows) {
+    const startEventId = nonEmptyString(asRecord(row.meta).startEventId);
+    if (startEventId) appliedStartEventIds.add(startEventId);
+  }
+  const decodedRuntime = decodeRef5RuntimeState(runtimeRows[0]?.state);
+  const runtimeApplied = decodedRuntime?.appliedStartEventIds;
+  if (Array.isArray(runtimeApplied)) {
+    for (const value of runtimeApplied) {
+      const startEventId = nonEmptyString(value);
+      if (startEventId) appliedStartEventIds.add(startEventId);
+    }
+  }
+  const sessions = allSessions.filter((session) => {
+    const ref5 = asRecord(asRecord(session.snapshot).ref5);
+    const explicitV12Commit =
+      session.domain.protocolVersion === REF5_PROTOCOL_VERSION && ref5.startCommitted === true;
+    return (
+      explicitV12Commit ||
+      appliedStartEventIds.has(session.startEventId) ||
+      allLogBySessionId.has(session.id)
+    );
+  });
+  const selected = input.before
+    ? sessions.filter((session) => {
+        const byTime = Date.parse(session.domain.actualStartAt) - Date.parse(input.before!.actualStartAt);
+        return byTime < 0 || (byTime === 0 && session.sessionKey.localeCompare(input.before!.sessionKey) < 0);
+      })
+    : sessions;
+
+  const selectedIds = new Set(selected.map((session) => session.id));
+  const logs = allLogs.filter(
+    (log) => log.generatedSessionId && selectedIds.has(log.generatedSessionId),
+  );
+  const logBySessionId = new Map<string, Ref5ReplayLogRow>();
+  for (const log of logs) {
+    if (!log.generatedSessionId) continue;
     logBySessionId.set(log.generatedSessionId, log);
   }
 
@@ -774,20 +1006,50 @@ async function loadRef5ReplaySource(input: {
     list.push(set);
     setsByLogId.set(set.logId, list);
   }
-  return { sessions: selected, logs, logBySessionId, setsByLogId };
+  return { sessions: selected, logs, logBySessionId, setsByLogId, upgradeBoundary };
 }
 
 function foldRef5ReplaySource(input: {
   userId: string;
   planId: string;
+  planProtocolVersion: Ref5ProtocolVersion;
   source: Ref5ReplaySource;
 }): Ref5ReplayFold {
-  let runningState = createInitialRef5State();
+  const hasLegacyHistory = input.source.sessions.some(
+    (session) => session.domain.protocolVersion === REF5_LEGACY_PROTOCOL_VERSION,
+  );
+  let runningState =
+    hasLegacyHistory || input.source.upgradeBoundary || input.planProtocolVersion === REF5_LEGACY_PROTOCOL_VERSION
+      ? createInitialRef5LegacyV11State()
+      : createInitialRef5State();
+  let upgradeApplied = false;
+  const applyUpgradeBoundary = () => {
+    const boundary = input.source.upgradeBoundary;
+    if (!boundary || upgradeApplied) return;
+    runningState = upgradeRef5RuntimeStateV11ToV12(runningState, boundary.metadata);
+    upgradeApplied = true;
+  };
   const auditRows: Array<typeof planProgressEvent.$inferInsert> = [];
   const completedGeneratedSessionIds: string[] = [];
   for (const session of input.source.sessions) {
+    const boundary = input.source.upgradeBoundary;
+    if (
+      boundary &&
+      !upgradeApplied &&
+      compareRef5OrderingTuple(
+        { actualStartAt: boundary.metadata.transitionedAt, stableKey: boundary.metadata.stableKey },
+        { actualStartAt: session.domain.actualStartAt, stableKey: session.sessionKey },
+      ) <= 0
+    ) {
+      applyUpgradeBoundary();
+    }
+    if (runningState.protocolVersion !== session.domain.protocolVersion) {
+      throw new Ref5LogValidationError([
+        `REF5 ${session.domain.protocolVersion} session ${session.id} crosses the protocol upgrade boundary incorrectly`,
+      ]);
+    }
     const beforeStart = runningState;
-    const replaySnapshot: Ref5SessionSnapshot = {
+    const replaySnapshot: Ref5DecodedSessionSnapshot = {
       ...cloneJson(session.domain),
       runtimeRevision: runningState.revision,
     };
@@ -813,8 +1075,11 @@ function foldRef5ReplaySource(input: {
       beforeState: cloneJson(beforeStart),
       afterState: cloneJson(runningState),
       meta: {
-        protocolVersion: REF5_PROTOCOL_VERSION,
-        engineVersion: REF5_PROGRESSION_ENGINE_VERSION,
+        protocolVersion: replaySnapshot.protocolVersion,
+        engineVersion:
+          replaySnapshot.protocolVersion === REF5_LEGACY_PROTOCOL_VERSION
+            ? REF5_LEGACY_PROGRESSION_ENGINE_VERSION
+            : REF5_PROGRESSION_ENGINE_VERSION_V12,
         startEventId: session.startEventId,
         snapshotId: replaySnapshot.snapshotId,
         sessionId: replaySnapshot.sessionId,
@@ -863,8 +1128,11 @@ function foldRef5ReplaySource(input: {
       beforeState: cloneJson(beforeCompletion),
       afterState: cloneJson(runningState),
       meta: {
-        protocolVersion: REF5_PROTOCOL_VERSION,
-        engineVersion: REF5_PROGRESSION_ENGINE_VERSION,
+        protocolVersion: replaySnapshot.protocolVersion,
+        engineVersion:
+          replaySnapshot.protocolVersion === REF5_LEGACY_PROTOCOL_VERSION
+            ? REF5_LEGACY_PROGRESSION_ENGINE_VERSION
+            : REF5_PROGRESSION_ENGINE_VERSION_V12,
         startEventId: completion.startEventId,
         completionEventId: completion.completionEventId,
         completionFingerprint: completion.fingerprint,
@@ -879,7 +1147,86 @@ function foldRef5ReplaySource(input: {
       createdAt: new Date(completion.completedAt),
     });
   }
+  if (input.source.upgradeBoundary && !upgradeApplied) applyUpgradeBoundary();
+  if (runningState.protocolVersion !== input.planProtocolVersion) {
+    throw new Ref5LogValidationError([
+      `REF5 replay ended at ${runningState.protocolVersion}, but plan expects ${input.planProtocolVersion}`,
+    ]);
+  }
   return { state: runningState, auditRows, completedGeneratedSessionIds };
+}
+
+function ref5AuditIdentity(input: {
+  eventType: string;
+  meta: unknown;
+}): string {
+  const meta = asRecord(input.meta);
+  return [
+    String(meta.protocolVersion ?? ""),
+    input.eventType,
+    String(meta.stableKey ?? ""),
+    String(meta.startEventId ?? ""),
+    String(meta.completionEventId ?? ""),
+    String(meta.completionFingerprint ?? ""),
+  ].join("\u0000");
+}
+
+/** Append-only audit persistence. Existing v1.1 IDs/meta/createdAt are never rewritten. */
+async function appendMissingRef5AuditRows(input: {
+  tx: any;
+  planId: string;
+  rows: Array<typeof planProgressEvent.$inferInsert>;
+}) {
+  const existing = await input.tx
+    .select({
+      id: planProgressEvent.id,
+      logId: planProgressEvent.logId,
+      eventType: planProgressEvent.eventType,
+      meta: planProgressEvent.meta,
+    })
+    .from(planProgressEvent)
+    .where(
+      and(
+        eq(planProgressEvent.planId, input.planId),
+        eq(planProgressEvent.programSlug, REF5_IDENTIFIERS.slug),
+      ),
+    );
+  const identities = new Set(
+    existing.map((row: { eventType: string; meta: unknown }) => ref5AuditIdentity(row)),
+  );
+  const occupiedLogIds = new Set(
+    existing
+      .map((row: { logId: string | null }) => row.logId)
+      .filter((value: string | null): value is string => Boolean(value)),
+  );
+  const inserts: Array<typeof planProgressEvent.$inferInsert> = [];
+  for (const desired of input.rows) {
+    const identity = ref5AuditIdentity({ eventType: desired.eventType, meta: desired.meta });
+    if (identities.has(identity)) continue;
+    let row = desired;
+    if (desired.logId && occupiedLogIds.has(desired.logId)) {
+      const meta = asRecord(desired.meta);
+      row = {
+        ...desired,
+        logId: null,
+        eventType: "REF5_REPLAY_CHECKPOINT",
+        reason: "ref5:append-only-replay",
+        meta: {
+          ...cloneJson(meta),
+          stableKey: `replay:${createHash("sha256").update(identity).digest("hex")}`,
+          supersedesLogId: desired.logId,
+        },
+        createdAt: new Date(),
+      };
+    }
+    const rowIdentity = ref5AuditIdentity({ eventType: row.eventType, meta: row.meta });
+    if (identities.has(rowIdentity)) continue;
+    inserts.push(row);
+    identities.add(rowIdentity);
+    if (row.logId) occupiedLogIds.add(row.logId);
+  }
+  if (inserts.length > 0) await input.tx.insert(planProgressEvent).values(inserts);
+  return inserts.length;
 }
 
 /** Read-only historical state immediately before the target ordering tuple. */
@@ -896,8 +1243,8 @@ export async function deriveRef5StateBeforeStart(input: {
     throw new Ref5LogValidationError(["A valid REF5 start tuple is required"]);
   }
   if (!input.lockAlreadyHeld) await acquireRef5PlanLock(input.tx, input.planId);
-  const planError = await resolveRef5ReplayPlan(input.tx, input.userId, input.planId);
-  if (planError) throw new Ref5LogValidationError([planError]);
+  const planContext = await resolveRef5ReplayPlan(input.tx, input.userId, input.planId);
+  if (typeof planContext === "string") throw new Ref5LogValidationError([planContext]);
   const source = await loadRef5ReplaySource({
     tx: input.tx,
     planId: input.planId,
@@ -906,6 +1253,7 @@ export async function deriveRef5StateBeforeStart(input: {
   const folded = foldRef5ReplaySource({
     userId: input.userId,
     planId: input.planId,
+    planProtocolVersion: planContext.protocolVersion,
     source,
   });
   return {
@@ -929,39 +1277,71 @@ export async function rebuildRef5ProgressionForPlan(input: {
   const planId = typeof input.planId === "string" ? input.planId.trim() : "";
   if (!planId) return { applied: false as const, reason: "skip:no-plan" as const };
   if (!input.lockAlreadyHeld) await acquireRef5PlanLock(input.tx, planId);
-  const planError = await resolveRef5ReplayPlan(input.tx, input.userId, planId);
-  if (planError) return { applied: false as const, reason: planError };
+  const planContext = await resolveRef5ReplayPlan(input.tx, input.userId, planId);
+  if (typeof planContext === "string") return { applied: false as const, reason: planContext };
 
   const source = await loadRef5ReplaySource({ tx: input.tx, planId });
-  const folded = foldRef5ReplaySource({ userId: input.userId, planId, source });
-  await input.tx
-    .delete(planProgressEvent)
-    .where(
-      and(
-        eq(planProgressEvent.planId, planId),
-        eq(planProgressEvent.programSlug, REF5_IDENTIFIERS.slug),
-      ),
-    );
-  if (folded.auditRows.length > 0) {
-    await input.tx.insert(planProgressEvent).values(folded.auditRows);
-  }
-  await input.tx
-    .insert(planRuntimeState)
-    .values({
-      planId,
-      userId: input.userId,
-      engineVersion: REF5_PROGRESSION_ENGINE_VERSION,
-      state: folded.state,
-    })
-    .onConflictDoUpdate({
-      target: planRuntimeState.planId,
-      set: {
+  const folded = foldRef5ReplaySource({
+    userId: input.userId,
+    planId,
+    planProtocolVersion: planContext.protocolVersion,
+    source,
+  });
+  const appendedAuditEventCount = await appendMissingRef5AuditRows({
+    tx: input.tx,
+    planId,
+    rows: folded.auditRows,
+  });
+  const runtimeRows = await input.tx
+    .select({ id: planRuntimeState.id, state: planRuntimeState.state })
+    .from(planRuntimeState)
+    .where(eq(planRuntimeState.planId, planId))
+    .limit(1);
+  const runtimeRow = runtimeRows[0];
+  if (runtimeRow) {
+    const expectedRevision = Number(asRecord(runtimeRow.state).revision);
+    if (!Number.isInteger(expectedRevision)) {
+      throw new Ref5LogValidationError(["REF5 runtime revision is missing; CAS rebuild aborted"]);
+    }
+    const updated = await input.tx
+      .update(planRuntimeState)
+      .set({
         userId: input.userId,
-        engineVersion: REF5_PROGRESSION_ENGINE_VERSION,
+        engineVersion:
+          folded.state.protocolVersion === REF5_LEGACY_PROTOCOL_VERSION
+            ? REF5_LEGACY_PROGRESSION_ENGINE_VERSION
+            : REF5_PROGRESSION_ENGINE_VERSION_V12,
         state: folded.state,
         updatedAt: new Date(),
-      },
-    });
+      })
+      .where(
+        and(
+          eq(planRuntimeState.planId, planId),
+          sql`(${planRuntimeState.state} ->> 'revision')::integer = ${expectedRevision}`,
+        ),
+      )
+      .returning({ id: planRuntimeState.id });
+    if (!updated[0]) {
+      throw new Ref5LogValidationError(["REF5 runtime revision changed during CAS rebuild"]);
+    }
+  } else {
+    const inserted = await input.tx
+      .insert(planRuntimeState)
+      .values({
+        planId,
+        userId: input.userId,
+        engineVersion:
+          folded.state.protocolVersion === REF5_LEGACY_PROTOCOL_VERSION
+            ? REF5_LEGACY_PROGRESSION_ENGINE_VERSION
+            : REF5_PROGRESSION_ENGINE_VERSION_V12,
+        state: folded.state,
+      })
+      .onConflictDoNothing({ target: planRuntimeState.planId })
+      .returning({ id: planRuntimeState.id });
+    if (!inserted[0]) {
+      throw new Ref5LogValidationError(["REF5 runtime was concurrently initialized"]);
+    }
+  }
 
   const sessionIds = source.sessions.map((session) => session.id);
   if (sessionIds.length > 0) {
@@ -983,6 +1363,7 @@ export async function rebuildRef5ProgressionForPlan(input: {
     programSlug: REF5_IDENTIFIERS.slug,
     rebuiltSessionCount: source.sessions.length,
     rebuiltLogCount: source.logs.length,
+    appendedAuditEventCount,
     state: folded.state,
   };
 }

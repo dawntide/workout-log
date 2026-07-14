@@ -217,12 +217,11 @@ func TestPreviewAndStartRef5SessionShareImmutableEnvelope(t *testing.T) {
 	})
 
 	input := Ref5GenerateInput{
+		ProtocolVersion:   Ref5ProtocolVersion,
 		ActualStartAt:     "2026-07-14T01:02:03.000Z",
 		TodayBodyweightKg: 81.25,
 		ManualMicro:       true,
-		ClimbingWithin48h: false,
 		StartEventID:      "start-1",
-		OmitPullVolume:    true,
 	}
 	if _, err := client.PreviewRef5Session(context.Background(), "plan-1", input); err != nil {
 		t.Fatalf("PreviewRef5Session: %v", err)
@@ -249,6 +248,14 @@ func TestPreviewAndStartRef5SessionShareImmutableEnvelope(t *testing.T) {
 		if got := ref5["todayBodyweightKg"]; got != 81.25 {
 			t.Errorf("request %d todayBodyweightKg = %#v", index, got)
 		}
+		if got := ref5["protocolVersion"]; got != Ref5ProtocolVersion {
+			t.Errorf("request %d protocolVersion = %#v", index, got)
+		}
+		for _, retired := range []string{"climb", "climbing", "climbingWithin48h", "strongClimbing", "pullFallback", "substitute", "substitution", "omitPullVolume", "omitted", "omittedPrescriptions"} {
+			if _, exists := ref5[retired]; exists {
+				t.Errorf("request %d sent retired field %s", index, retired)
+			}
+		}
 	}
 }
 
@@ -274,6 +281,7 @@ func TestStartRef5SessionRetryUsesExactSamePayloadAndDecodesSameID(t *testing.T)
 	})
 
 	input := Ref5GenerateInput{
+		ProtocolVersion:   Ref5ProtocolVersion,
 		ActualStartAt:     "2026-07-14T01:02:03.000Z",
 		TodayBodyweightKg: 80,
 		StartEventID:      "start-stable",

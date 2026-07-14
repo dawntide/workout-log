@@ -1,5 +1,5 @@
 /**
- * REF5 Adaptive Strength v1.1
+ * REF5 Adaptive Strength v1.2
  *
  * Framework/DB-independent domain model.  Direct kilogram standards are the
  * canonical state; control REFs, derived prescriptions and display loads are
@@ -7,9 +7,19 @@
  * shared with this module.
  */
 
-export const REF5_PROTOCOL_VERSION = "1.1" as const;
-export const REF5_RUNTIME_SCHEMA_VERSION = 1 as const;
-export const REF5_SNAPSHOT_SCHEMA_VERSION = 1 as const;
+export const REF5_PROTOCOL_VERSION = "1.2" as const;
+export const REF5_LEGACY_PROTOCOL_VERSION = "1.1" as const;
+export const REF5_RUNTIME_SCHEMA_VERSION = 2 as const;
+export const REF5_LEGACY_RUNTIME_SCHEMA_VERSION = 1 as const;
+export const REF5_SNAPSHOT_SCHEMA_VERSION = 2 as const;
+export const REF5_LEGACY_SNAPSHOT_SCHEMA_VERSION = 1 as const;
+export const REF5_LEGACY_MIGRATION_MARKER = "REF5_V1_1_SCHEMA_CONFIRMED" as const;
+export const REF5_PROGRAM_VERSION = 2 as const;
+export const REF5_LEGACY_ENGINE_VERSION = 511 as const;
+
+export type Ref5ProtocolVersion =
+  | typeof REF5_LEGACY_PROTOCOL_VERSION
+  | typeof REF5_PROTOCOL_VERSION;
 
 export const REF5_IDENTIFIERS = Object.freeze({
   displayName: "REF5 Adaptive Strength",
@@ -239,6 +249,17 @@ export class Ref5ValidationError extends Error {
   }
 }
 
+export class Ref5StaleVersionError extends Ref5ValidationError {
+  readonly expectedProtocolVersion = REF5_PROTOCOL_VERSION;
+
+  constructor(received: unknown) {
+    super([
+      `stale REF5 protocol version ${String(received ?? "missing")}; expected ${REF5_PROTOCOL_VERSION}`,
+    ]);
+    this.name = "Ref5StaleVersionError";
+  }
+}
+
 export function validateAndClassifyRef5Outcome(input: Ref5OutcomeInput): Ref5OutcomeValidationResult {
   const errors: string[] = [];
   if (!REF5_END_REASONS.includes(input.endReason)) errors.push("endReason is not a REF5 termination reason");
@@ -402,9 +423,18 @@ export interface Ref5ProgressionChange {
   causeEventIds: string[];
 }
 
+export interface Ref5ProtocolUpgradeMetadata {
+  stableKey: string;
+  fromProtocolVersion: typeof REF5_LEGACY_PROTOCOL_VERSION;
+  toProtocolVersion: typeof REF5_PROTOCOL_VERSION;
+  transitionedAt: string;
+}
+
 export interface Ref5RuntimeState {
-  schemaVersion: typeof REF5_RUNTIME_SCHEMA_VERSION;
-  protocolVersion: typeof REF5_PROTOCOL_VERSION;
+  schemaVersion:
+    | typeof REF5_LEGACY_RUNTIME_SCHEMA_VERSION
+    | typeof REF5_RUNTIME_SCHEMA_VERSION;
+  protocolVersion: Ref5ProtocolVersion;
   revision: number;
   directStandardsKg: Ref5DirectStandardsKg;
   nextFocus: Ref5Focus;
@@ -429,6 +459,7 @@ export interface Ref5RuntimeState {
   appliedCompletionEventIds: string[];
   appliedRawLogIds: string[];
   progressionChanges: Ref5ProgressionChange[];
+  protocolUpgrade?: Ref5ProtocolUpgradeMetadata;
 }
 
 function emptyFailStreams(): Record<Ref5Stream, Ref5FailStreamState> {
@@ -490,6 +521,64 @@ export function createInitialRef5State(
   };
 }
 
+export function createInitialRef5LegacyV11State(
+  standards: Ref5DirectStandardsKg = { ...REF5_INITIAL_DIRECT_STANDARDS_KG },
+): Ref5RuntimeState {
+  const state = createInitialRef5State(standards);
+  state.schemaVersion = REF5_LEGACY_RUNTIME_SCHEMA_VERSION;
+  state.protocolVersion = REF5_LEGACY_PROTOCOL_VERSION;
+  return state;
+}
+
+const REF5_V12_REMOVED_STATE_KEYS = new Set([
+  "climb",
+  "climbing",
+  "climbingWithin48h",
+  "strongClimbing",
+  "pullFallback",
+  "substitute",
+  "substitution",
+  "omitPullVolume",
+  "climbingReplacement",
+  "omitted",
+  "omittedPrescriptions",
+]);
+
+function cloneWithoutRef5V12RemovedFields(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(cloneWithoutRef5V12RemovedFields);
+  if (!value || typeof value !== "object") return value;
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>)
+      .filter(([key]) => !REF5_V12_REMOVED_STATE_KEYS.has(key))
+      .map(([key, child]) => [key, cloneWithoutRef5V12RemovedFields(child)]),
+  );
+}
+
+/** Pure, idempotent v1.1 -> v1.2 runtime transition used at the upgrade event boundary. */
+export function upgradeRef5RuntimeStateV11ToV12(
+  state: Ref5RuntimeState,
+  metadata: Ref5ProtocolUpgradeMetadata,
+): Ref5RuntimeState {
+  if (state.protocolVersion === REF5_PROTOCOL_VERSION) {
+    if (state.protocolUpgrade?.stableKey !== metadata.stableKey) {
+      throw new Ref5ValidationError(["REF5 runtime was upgraded by a different protocol event"]);
+    }
+    return cloneState(state);
+  }
+  if (
+    state.protocolVersion !== REF5_LEGACY_PROTOCOL_VERSION ||
+    state.schemaVersion !== REF5_LEGACY_RUNTIME_SCHEMA_VERSION
+  ) {
+    throw new Ref5ValidationError(["unsupported REF5 legacy runtime state version"]);
+  }
+  const upgraded = cloneWithoutRef5V12RemovedFields(state) as Ref5RuntimeState;
+  upgraded.schemaVersion = REF5_RUNTIME_SCHEMA_VERSION;
+  upgraded.protocolVersion = REF5_PROTOCOL_VERSION;
+  upgraded.protocolUpgrade = { ...metadata };
+  upgraded.revision += 1;
+  return upgraded;
+}
+
 function cloneState(state: Ref5RuntimeState): Ref5RuntimeState {
   return JSON.parse(JSON.stringify(state)) as Ref5RuntimeState;
 }
@@ -547,8 +636,6 @@ export interface Ref5SessionInput {
   recent7DayMeasurementCount: number;
   recent7DayAverageKg: number | null;
   manualMicro: boolean;
-  climbingWithin48h: boolean;
-  omitPullVolume?: boolean;
 }
 
 export interface Ref5SessionDecision {
@@ -556,7 +643,6 @@ export interface Ref5SessionDecision {
   microReasons: Ref5MicroReason[];
   focus: Ref5Focus;
   squatPrescription: Ref5SquatPrescription;
-  climbingReplacement: boolean;
   hard: {
     allowed: boolean;
     lastStartAt: string | null;
@@ -595,12 +681,7 @@ export interface Ref5PrescriptionSet {
   totalLoadKg: number;
 }
 
-export type Ref5ExerciseRole =
-  | "SQUAT"
-  | "FOCUS"
-  | "VOLUME"
-  | "AUXILIARY"
-  | "CLIMBING_FOCUS_INVALID";
+export type Ref5ExerciseRole = "SQUAT" | "FOCUS" | "VOLUME" | "AUXILIARY";
 
 export interface Ref5ExercisePrescription {
   prescriptionId: string;
@@ -608,7 +689,6 @@ export interface Ref5ExercisePrescription {
   exerciseName: string;
   role: Ref5ExerciseRole;
   stream: Ref5Stream;
-  omitted: boolean;
   sets: Ref5PrescriptionSet[];
   /** Canonical direct/derived progression target, total-weight based for PULL. */
   progressionTargetKg: number;
@@ -633,6 +713,111 @@ export interface Ref5SessionSnapshot {
   pullContext: Ref5PullSessionContext;
   exercises: Ref5ExercisePrescription[];
   totalWorkingSets: number;
+}
+
+/** Frozen v1.1 shape. It is accepted only by the legacy decoder/reducer boundary. */
+export interface Ref5LegacyV11SessionInput extends Ref5SessionInput {
+  climbingWithin48h: boolean;
+  omitPullVolume?: boolean;
+}
+
+export interface Ref5LegacyV11SessionDecision extends Ref5SessionDecision {
+  climbingReplacement: boolean;
+}
+
+export interface Ref5LegacyV11ExercisePrescription
+  extends Omit<Ref5ExercisePrescription, "role"> {
+  role: Ref5ExerciseRole | "CLIMBING_FOCUS_INVALID";
+  omitted: boolean;
+}
+
+export interface Ref5LegacyV11SessionSnapshot
+  extends Omit<
+    Ref5SessionSnapshot,
+    "schemaVersion" | "protocolVersion" | "startInput" | "decision" | "exercises"
+  > {
+  schemaVersion: typeof REF5_LEGACY_SNAPSHOT_SCHEMA_VERSION;
+  protocolVersion: typeof REF5_LEGACY_PROTOCOL_VERSION;
+  startInput: Ref5LegacyV11SessionInput;
+  decision: Ref5LegacyV11SessionDecision;
+  exercises: Ref5LegacyV11ExercisePrescription[];
+}
+
+export type Ref5DecodedSessionSnapshot = Ref5SessionSnapshot | Ref5LegacyV11SessionSnapshot;
+
+export function isRef5LegacyV11Snapshot(
+  snapshot: Ref5DecodedSessionSnapshot,
+): snapshot is Ref5LegacyV11SessionSnapshot {
+  return (
+    snapshot.protocolVersion === REF5_LEGACY_PROTOCOL_VERSION &&
+    snapshot.schemaVersion === REF5_LEGACY_SNAPSHOT_SCHEMA_VERSION
+  );
+}
+
+function recordValue(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
+function containsRef5V12RemovedField(value: unknown): boolean {
+  if (Array.isArray(value)) return value.some(containsRef5V12RemovedField);
+  if (!value || typeof value !== "object") return false;
+  return Object.entries(value as Record<string, unknown>).some(
+    ([key, child]) =>
+      REF5_V12_REMOVED_STATE_KEYS.has(key) ||
+      (key === "role" && child === "CLIMBING_FOCUS_INVALID") ||
+      containsRef5V12RemovedField(child),
+  );
+}
+
+/** Strict version dispatcher for frozen domain snapshots. */
+export function decodeRef5SessionSnapshot(
+  value: unknown,
+  options: { legacyMigrationMarker?: unknown } = {},
+): Ref5DecodedSessionSnapshot {
+  const candidate = recordValue(value);
+  let protocolVersion = String(candidate.protocolVersion ?? "").trim();
+  if (!protocolVersion) {
+    const knownLegacyShape =
+      Number(candidate.schemaVersion) === REF5_LEGACY_SNAPSHOT_SCHEMA_VERSION &&
+      typeof recordValue(candidate.startInput).climbingWithin48h === "boolean" &&
+      typeof recordValue(candidate.decision).climbingReplacement === "boolean" &&
+      Array.isArray(candidate.exercises);
+    if (
+      options.legacyMigrationMarker !== REF5_LEGACY_MIGRATION_MARKER ||
+      !knownLegacyShape
+    ) {
+      throw new Ref5ValidationError([
+        "REF5 snapshot without protocolVersion lacks a verified v1.1 migration marker",
+      ]);
+    }
+    protocolVersion = REF5_LEGACY_PROTOCOL_VERSION;
+    candidate.protocolVersion = protocolVersion;
+  }
+  if (
+    !String(candidate.snapshotId ?? "").trim() ||
+    !String(candidate.sessionId ?? "").trim() ||
+    !Array.isArray(candidate.exercises)
+  ) {
+    throw new Ref5ValidationError(["invalid REF5 domain snapshot shape"]);
+  }
+  if (protocolVersion === REF5_PROTOCOL_VERSION) {
+    if (Number(candidate.schemaVersion) !== REF5_SNAPSHOT_SCHEMA_VERSION) {
+      throw new Ref5ValidationError(["unsupported REF5 v1.2 snapshot schema"]);
+    }
+    if (containsRef5V12RemovedField(candidate)) {
+      throw new Ref5StaleVersionError(protocolVersion);
+    }
+    return candidate as unknown as Ref5SessionSnapshot;
+  }
+  if (
+    protocolVersion === REF5_LEGACY_PROTOCOL_VERSION &&
+    Number(candidate.schemaVersion) === REF5_LEGACY_SNAPSHOT_SCHEMA_VERSION
+  ) {
+    return candidate as unknown as Ref5LegacyV11SessionSnapshot;
+  }
+  throw new Ref5StaleVersionError(protocolVersion);
 }
 
 export function decideRef5SessionType(
@@ -707,9 +892,6 @@ function validateSessionInput(input: Ref5SessionInput): void {
     (!Number.isFinite(input.recent7DayAverageKg) || (input.recent7DayAverageKg ?? 0) <= 0)
   ) {
     errors.push("recent7DayAverageKg is required when at least three measurements are available");
-  }
-  if (input.omitPullVolume && !input.climbingWithin48h) {
-    errors.push("PULL volume may only be omitted for a climbing-adjusted session");
   }
   if (errors.length > 0) throw new Ref5ValidationError(errors);
   // Also validates the IANA zone, including DST-aware zones.
@@ -801,7 +983,6 @@ function exercise(input: {
   stream: Ref5Stream;
   sets: Ref5PrescriptionSet[];
   progressionTargetKg: number;
-  omitted?: boolean;
   pull?: Ref5PullPrescriptionMetadata;
 }): Ref5ExercisePrescription {
   return {
@@ -810,7 +991,6 @@ function exercise(input: {
     exerciseName: input.exerciseName,
     role: input.role,
     stream: input.stream,
-    omitted: input.omitted ?? false,
     sets: input.sets,
     progressionTargetKg: input.progressionTargetKg,
     ...(input.pull ? { pull: input.pull } : {}),
@@ -885,7 +1065,6 @@ function pullExercise(
   snapshotId: string,
   role: "FOCUS" | "VOLUME",
   pull: Ref5PullPrescriptionMetadata,
-  omitted = false,
 ): Ref5ExercisePrescription {
   const focus = role === "FOCUS";
   return exercise({
@@ -894,26 +1073,8 @@ function pullExercise(
     exerciseName: "Weighted Pull-Up",
     role,
     stream: focus ? "PULL_FOCUS" : "PULL_VOLUME",
-    sets: omitted ? [] : prescriptionSets(focus ? 3 : 1, focus ? 3 : 6, pull.lockedAddedKg, pull.actualTotalKg),
+    sets: prescriptionSets(focus ? 3 : 1, focus ? 3 : 6, pull.lockedAddedKg, pull.actualTotalKg),
     progressionTargetKg: pull.targetTotalKg,
-    omitted,
-    pull,
-  });
-}
-
-function climbingFocusPlaceholder(
-  snapshotId: string,
-  pull: Ref5PullPrescriptionMetadata,
-): Ref5ExercisePrescription {
-  return exercise({
-    snapshotId,
-    lift: "PULL",
-    exerciseName: "Weighted Pull-Up",
-    role: "CLIMBING_FOCUS_INVALID",
-    stream: "PULL_FOCUS",
-    sets: [],
-    progressionTargetKg: pull.targetTotalKg,
-    omitted: true,
     pull,
   });
 }
@@ -938,8 +1099,11 @@ function auxiliaryExercise(
 
 export function generateRef5Session(state: Ref5RuntimeState, input: Ref5SessionInput): Ref5SessionSnapshot {
   validateSessionInput(input);
-  if (state.schemaVersion !== REF5_RUNTIME_SCHEMA_VERSION || state.protocolVersion !== REF5_PROTOCOL_VERSION) {
-    throw new Ref5ValidationError(["unsupported REF5 runtime state version"]);
+  if (state.protocolVersion !== REF5_PROTOCOL_VERSION) {
+    throw new Ref5StaleVersionError(state.protocolVersion);
+  }
+  if (state.schemaVersion !== REF5_RUNTIME_SCHEMA_VERSION) {
+    throw new Ref5ValidationError(["unsupported REF5 v1.2 runtime schema"]);
   }
   if (state.startedSessions.some((session) => session.sessionId === input.sessionId)) {
     throw new Ref5ValidationError([`session ${input.sessionId} has already started`]);
@@ -950,14 +1114,11 @@ export function generateRef5Session(state: Ref5RuntimeState, input: Ref5SessionI
   const direct = { ...state.directStandardsKg };
   const derived = deriveRef5Standards(direct);
   const pullContext = derivePullSessionContext(state, input, derived);
-  const climbingReplacement =
-    typeDecision.sessionType === "NORMAL" && input.climbingWithin48h && state.nextFocus === "PULL";
   const decision: Ref5SessionDecision = {
     sessionType: typeDecision.sessionType,
     microReasons: typeDecision.microReasons,
     focus: state.nextFocus,
     squatPrescription: squatDecision.squatPrescription,
-    climbingReplacement,
     hard: squatDecision.hard,
   };
 
@@ -965,25 +1126,15 @@ export function generateRef5Session(state: Ref5RuntimeState, input: Ref5SessionI
     squatExercise(input.snapshotId, decision.squatPrescription, decision.sessionType, direct, derived),
   ];
   if (decision.sessionType === "MICRO") {
-    if (decision.focus === "PULL") {
-      exercises.push(pullExercise(input.snapshotId, "VOLUME", pullContext.volume, input.omitPullVolume === true));
-      exercises.push(bpVolumeExercise(input.snapshotId, derived));
-    } else {
-      exercises.push(bpVolumeExercise(input.snapshotId, derived));
-      exercises.push(pullExercise(input.snapshotId, "VOLUME", pullContext.volume, input.omitPullVolume === true));
-    }
-  } else if (climbingReplacement) {
-    exercises.push(climbingFocusPlaceholder(input.snapshotId, pullContext.focus));
-    exercises.push(pullExercise(input.snapshotId, "VOLUME", pullContext.volume, input.omitPullVolume === true));
     exercises.push(bpVolumeExercise(input.snapshotId, derived));
-    exercises.push(auxiliaryExercise(input.snapshotId, "DL", direct));
+    exercises.push(pullExercise(input.snapshotId, "VOLUME", pullContext.volume));
   } else if (decision.focus === "PULL") {
     exercises.push(pullExercise(input.snapshotId, "FOCUS", pullContext.focus));
     exercises.push(bpVolumeExercise(input.snapshotId, derived));
     exercises.push(auxiliaryExercise(input.snapshotId, "DL", direct));
   } else {
     exercises.push(bpFocusExercise(input.snapshotId, direct));
-    exercises.push(pullExercise(input.snapshotId, "VOLUME", pullContext.volume, input.omitPullVolume === true));
+    exercises.push(pullExercise(input.snapshotId, "VOLUME", pullContext.volume));
     exercises.push(auxiliaryExercise(input.snapshotId, "OHP", direct));
   }
 
@@ -1021,7 +1172,7 @@ export interface Ref5FirstSquatStartResult {
 
 export function applyRef5FirstSquatStart(
   state: Ref5RuntimeState,
-  snapshot: Ref5SessionSnapshot,
+  snapshot: Ref5DecodedSessionSnapshot,
   startEventId: string,
   options: { historicalReplay?: boolean } = {},
 ): Ref5FirstSquatStartResult {
@@ -1048,8 +1199,17 @@ export function applyRef5FirstSquatStart(
       `stale REF5 snapshot revision ${snapshot.runtimeRevision}; current revision is ${state.revision}`,
     ]);
   }
-  if (snapshot.protocolVersion !== REF5_PROTOCOL_VERSION || snapshot.schemaVersion !== REF5_SNAPSHOT_SCHEMA_VERSION) {
-    throw new Ref5ValidationError(["unsupported REF5 session snapshot version"]);
+  const versionsMatch =
+    (snapshot.protocolVersion === REF5_PROTOCOL_VERSION &&
+      snapshot.schemaVersion === REF5_SNAPSHOT_SCHEMA_VERSION &&
+      state.protocolVersion === REF5_PROTOCOL_VERSION &&
+      state.schemaVersion === REF5_RUNTIME_SCHEMA_VERSION) ||
+    (snapshot.protocolVersion === REF5_LEGACY_PROTOCOL_VERSION &&
+      snapshot.schemaVersion === REF5_LEGACY_SNAPSHOT_SCHEMA_VERSION &&
+      state.protocolVersion === REF5_LEGACY_PROTOCOL_VERSION &&
+      state.schemaVersion === REF5_LEGACY_RUNTIME_SCHEMA_VERSION);
+  if (!versionsMatch) {
+    throw new Ref5StaleVersionError(snapshot.protocolVersion);
   }
 
   const next = cloneState(state);
@@ -1160,7 +1320,7 @@ function inputFromRecord(record: Ref5OutcomeRecord): Ref5OutcomeInput {
 }
 
 function normalizeCompletionOutcomes(
-  snapshot: Ref5SessionSnapshot,
+  snapshot: Ref5DecodedSessionSnapshot,
   input: Ref5SessionCompletionInput,
 ): Partial<Record<Ref5Stream, Ref5OutcomeRecord>> {
   const errors: string[] = [];
@@ -1364,7 +1524,7 @@ interface WindowDecision {
 
 function relockPull(
   state: Ref5RuntimeState,
-  snapshot: Ref5SessionSnapshot,
+  snapshot: Ref5DecodedSessionSnapshot,
   changes: Ref5ProgressionChange[],
   causeEventIds: string[],
   resetBothFailStreams: boolean,
@@ -1406,9 +1566,12 @@ function relockPull(
  */
 export function reduceRef5Completion(
   state: Ref5RuntimeState,
-  snapshot: Ref5SessionSnapshot,
+  snapshot: Ref5DecodedSessionSnapshot,
   input: Ref5SessionCompletionInput,
 ): Ref5CompletionResult {
+  if (snapshot.protocolVersion !== state.protocolVersion) {
+    throw new Ref5StaleVersionError(snapshot.protocolVersion);
+  }
   if (!input.completionEventId.trim()) throw new Ref5ValidationError(["completionEventId is required"]);
   timestampMs(input.completedAt, "completedAt");
   if (timestampMs(input.completedAt, "completedAt") < timestampMs(snapshot.actualStartAt, "actualStartAt")) {
@@ -1464,7 +1627,11 @@ export function reduceRef5Completion(
   // Queue and H3/H2 alternation are completion semantics. A hard INVALID stays
   // in density history (recorded at START) but does not alternate.
   if (snapshot.decision.sessionType === "NORMAL") {
-    if (snapshot.decision.climbingReplacement && snapshot.decision.focus === "PULL") {
+    if (
+      isRef5LegacyV11Snapshot(snapshot) &&
+      snapshot.decision.climbingReplacement &&
+      snapshot.decision.focus === "PULL"
+    ) {
       next.nextFocus = "BP";
     } else {
       const focusStream: Ref5Stream = snapshot.decision.focus === "PULL" ? "PULL_FOCUS" : "BP_FOCUS";
@@ -1521,7 +1688,7 @@ export function reduceRef5Completion(
     } else if (
       snapshot.decision.sessionType === "NORMAL" &&
       item.stream === "PULL_FOCUS" &&
-      item.role !== "CLIMBING_FOCUS_INVALID"
+      (!isRef5LegacyV11Snapshot(snapshot) || item.role !== "CLIMBING_FOCUS_INVALID")
     ) {
       next.mainWindows.PULL.exposures.push(exposure);
     }
@@ -1739,8 +1906,6 @@ export interface Ref5RawLogEvent {
   recent7DayMeasurementCount: number;
   recent7DayAverageKg: number | null;
   manualMicro: boolean;
-  climbingWithin48h: boolean;
-  omitPullVolume?: boolean;
   outcomes: Partial<Record<Ref5Stream, Ref5OutcomeInput | Ref5OutcomeRecord>>;
 }
 
@@ -1824,8 +1989,6 @@ export function replayRef5RawLogs(
       recent7DayMeasurementCount: event.recent7DayMeasurementCount,
       recent7DayAverageKg: event.recent7DayAverageKg,
       manualMicro: event.manualMicro,
-      climbingWithin48h: event.climbingWithin48h,
-      omitPullVolume: event.omitPullVolume,
     });
     const start = applyRef5FirstSquatStart(state, snapshot, `${event.idempotencyKey}:START`);
     state = start.nextState;

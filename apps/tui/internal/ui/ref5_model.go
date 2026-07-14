@@ -46,12 +46,10 @@ var ref5Reasons = []string{
 }
 
 type ref5StartValues struct {
-	ActualStartAt     string  `json:"actualStartAt"`
-	BodyweightKg      float64 `json:"bodyweightKg"`
-	ManualMicro       bool    `json:"manualMicro"`
-	ClimbingWithin48h bool    `json:"climbingWithin48h"`
-	OmitPullVolume    bool    `json:"omitPullVolume"`
-	StartEventID      string  `json:"startEventId"`
+	ActualStartAt string  `json:"actualStartAt"`
+	BodyweightKg  float64 `json:"bodyweightKg"`
+	ManualMicro   bool    `json:"manualMicro"`
+	StartEventID  string  `json:"startEventId"`
 }
 
 func (v ref5StartValues) valid() bool {
@@ -255,9 +253,6 @@ func ref5PreviewDecision(s *api.GeneratedSession) (mode, squat, focus string, re
 	squat = anyString(decision, "squatPrescription")
 	focus = anyString(decision, "focus")
 	reasons = anyStrings(decision["microReasons"])
-	if replacement, _ := decision["climbingReplacement"].(bool); replacement {
-		reasons = append(reasons, "CLIMBING_REPLACEMENT")
-	}
 	return mode, squat, focus, reasons
 }
 
@@ -290,7 +285,13 @@ func ref5UnfinishedSessions(sessions []api.GeneratedSession, logs []api.LogItem)
 	}
 	var out []api.GeneratedSession
 	for _, session := range sessions {
-		if session.ID != "" && session.Snapshot.IsRef5() && !logged[session.ID] {
+		if session.Status == "SKIPPED" || session.Status == "DONE" {
+			continue
+		}
+		meta := session.Snapshot.Ref5
+		committedOrLegacy := meta != nil &&
+			(meta.StartCommitted || meta.ProtocolVersion == api.Ref5LegacyProtocolVersion)
+		if session.ID != "" && session.Snapshot.IsRef5() && committedOrLegacy && !logged[session.ID] {
 			out = append(out, session)
 		}
 	}

@@ -15,6 +15,8 @@ import { and, eq } from "drizzle-orm";
 import {
   REF5_IDENTIFIERS,
   REF5_INITIAL_DIRECT_STANDARDS_KG,
+  REF5_LEGACY_PROTOCOL_VERSION,
+  REF5_LEGACY_RUNTIME_SCHEMA_VERSION,
   REF5_RUNTIME_SCHEMA_VERSION,
   deriveRef5ControlRefs,
 } from "../program-engine/ref5";
@@ -73,6 +75,24 @@ export async function runSeed(options: SeedRunOptions = {}) {
       .where(and(eq(programVersion.templateId, templateId), eq(programVersion.version, version)))
       .limit(1);
     return rows[0];
+  }
+
+  async function ensureVersion(templateId: string, version: number, values: any) {
+    const inserted = await db
+      .insert(programVersion)
+      .values({ templateId, version, ...values })
+      .onConflictDoNothing({
+        target: [programVersion.templateId, programVersion.version],
+      })
+      .returning();
+    if (inserted[0]) return inserted[0];
+    return (
+      await db
+        .select()
+        .from(programVersion)
+        .where(and(eq(programVersion.templateId, templateId), eq(programVersion.version, version)))
+        .limit(1)
+    )[0];
   }
 
   async function upsertExercise(input: {
@@ -655,7 +675,7 @@ export async function runSeed(options: SeedRunOptions = {}) {
   });
 
   // REF5 Adaptive Strength — 독립 세션 기반 LOGIC 엔진. 1RM/TM 시작값이 아니라
-  // v1.1 정의서의 kg 직접 기준을 정본으로 보존한다.
+  // kg 직접 기준을 정본으로 보존한다. v1.1은 immutable legacy version으로 남긴다.
   const ref5StartConfig = {
     schemaVersion: REF5_RUNTIME_SCHEMA_VERSION,
     protocolVersion: REF5_IDENTIFIERS.protocolVersion,
@@ -673,7 +693,28 @@ export async function runSeed(options: SeedRunOptions = {}) {
     tags: ["strength", "barbell", "ref5", "intermediate", "session-based", "adaptive"],
   });
 
-  const templateRef5V1 = await upsertVersion(templateRef5.id, 1, {
+  await ensureVersion(templateRef5.id, 1, {
+    definition: {
+      id: REF5_IDENTIFIERS.slug,
+      dslVersion: 1,
+      kind: REF5_IDENTIFIERS.kind,
+      family: REF5_IDENTIFIERS.family,
+      protocolVersion: REF5_LEGACY_PROTOCOL_VERSION,
+      modules: ["SQUAT", "PULL", "BENCH", "DEADLIFT", "OHP"],
+      progression: { profile: "ref5-v1.1" },
+    },
+    defaults: {
+      ref5: {
+        ...ref5StartConfig,
+        schemaVersion: REF5_LEGACY_RUNTIME_SCHEMA_VERSION,
+        protocolVersion: REF5_LEGACY_PROTOCOL_VERSION,
+      },
+    },
+    changelog:
+      "Protocol v1.1 — fixed direct kg baselines, independent adaptive session state machine",
+  });
+
+  const templateRef5V2 = await upsertVersion(templateRef5.id, 2, {
     definition: {
       id: REF5_IDENTIFIERS.slug,
       dslVersion: 1,
@@ -681,11 +722,11 @@ export async function runSeed(options: SeedRunOptions = {}) {
       family: REF5_IDENTIFIERS.family,
       protocolVersion: REF5_IDENTIFIERS.protocolVersion,
       modules: ["SQUAT", "PULL", "BENCH", "DEADLIFT", "OHP"],
-      progression: { profile: "ref5-v1.1" },
+      progression: { profile: "ref5-v1.2" },
     },
     defaults: { ref5: ref5StartConfig },
     changelog:
-      "Protocol v1.1 — fixed direct kg baselines, independent adaptive session state machine",
+      "Protocol v1.2 — removes external-activity inputs and fixes all standard/micro prescriptions",
   });
 
   const templateGreyskull = await upsertTemplate("greyskull-lp", {
@@ -919,12 +960,12 @@ export async function runSeed(options: SeedRunOptions = {}) {
       });
     }
 
-    if (templateRef5V1?.id) {
+    if (templateRef5V2?.id) {
       // A demo seed must never overwrite a plan the user has already started or
       // customized. REF5 is inserted once and subsequent seed runs are no-ops.
       await ensurePlanForUser(devUserId, "Program REF5 Adaptive Strength", {
         type: "SINGLE",
-        rootProgramVersionId: templateRef5V1.id,
+        rootProgramVersionId: templateRef5V2.id,
         params: {
           timezone: "Asia/Seoul",
           startDate: "2026-01-05",

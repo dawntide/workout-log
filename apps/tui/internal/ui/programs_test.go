@@ -76,7 +76,7 @@ func ref5ProgramsPlan() api.Plan {
 		Type: "SINGLE",
 		Params: map[string]any{
 			"programFamily":   "ref5",
-			"protocolVersion": "1.1",
+			"protocolVersion": api.Ref5ProtocolVersion,
 			"timezone":        "Asia/Seoul",
 		},
 	}
@@ -286,7 +286,7 @@ func TestProgramsRef5PlanUsesProtocolSubtitle(t *testing.T) {
 	pr.loaded = true
 	pr.plans = []api.Plan{ref5ProgramsPlan()}
 	out := ansi.Strip(pr.Body(50, 10))
-	if !strings.Contains(out, "ref5 v1.1") {
+	if !strings.Contains(out, "ref5 v"+api.Ref5ProtocolVersion) {
 		t.Fatalf("REF5 protocol subtitle missing:\n%s", out)
 	}
 }

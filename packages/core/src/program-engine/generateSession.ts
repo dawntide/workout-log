@@ -1618,12 +1618,11 @@ export type GenerateSessionInput = {
   timezone?: string;
   /** REF5 is generated from an exact first-work-set start, never a date bucket. */
   ref5?: {
+    protocolVersion: "1.2";
     actualStartAt: string;
     todayBodyweightKg: number;
     manualMicro: boolean;
-    climbingWithin48h: boolean;
     startEventId: string;
-    omitPullVolume?: boolean;
   };
 };
 

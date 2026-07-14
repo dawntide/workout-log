@@ -48,6 +48,10 @@ import {
 import { getSettingsSnapshotForUser } from "@workout/core/services/settings/settings-snapshot";
 import { readWorkoutPreferences } from "@workout/core/settings/workout-preferences";
 import { resolveLoggedTotalLoadKg } from "@workout/core/bodyweight-load";
+import {
+  REF5_PROTOCOL_VERSION,
+  Ref5StaleVersionError,
+} from "@workout/core/program-engine/ref5";
 
 import { requireAuth, type AppEnv } from "../auth";
 import { apiError, normalizeTimezone, resolveLocale } from "../lib/http";
@@ -370,6 +374,9 @@ logsRoutes.post("/", async (c) => {
 
     return c.json(created, (created as { idempotent?: boolean }).idempotent ? 200 : 201);
   } catch (e) {
+    if (e instanceof Ref5StaleVersionError) {
+      return c.json({ error: e.message, code: "REF5_STALE_VERSION", expectedProtocolVersion: REF5_PROTOCOL_VERSION }, 409);
+    }
     if (e instanceof Ref5LogValidationError) return c.json({ error: e.message }, 400);
     if (e instanceof WorkoutLogClientMutationValidationError) {
       return c.json({ error: e.message }, 400);
@@ -692,6 +699,9 @@ logsRoutes.patch("/:logId", async (c) => {
 
     return c.json(updated, 200);
   } catch (e) {
+    if (e instanceof Ref5StaleVersionError) {
+      return c.json({ error: e.message, code: "REF5_STALE_VERSION", expectedProtocolVersion: REF5_PROTOCOL_VERSION }, 409);
+    }
     if (e instanceof Ref5LogValidationError) return c.json({ error: e.message }, 400);
     return apiError(c, e, locale);
   }
