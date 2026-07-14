@@ -94,7 +94,7 @@ test.describe("smoke — API health", () => {
 });
 
 test.describe("smoke — core navigation flow", () => {
-  test("홈에서 운동 기록으로 이동", async ({ page }) => {
+  test("활성 플랜이 없으면 기록 탭에서 프로그램 스토어로 안내", async ({ page }) => {
     test.skip(IS_EXTERNAL_E2E, "외부 Preview에는 인증 테스트 사용자가 없습니다.");
 
     await page.goto("/", { timeout: NAV_TIMEOUT });
@@ -110,9 +110,14 @@ test.describe("smoke — core navigation flow", () => {
       await expect(page).toHaveURL(/\/$/);
     }
 
-    // 실제 하단 내비게이션을 눌러 AppShell의 클라이언트 전환까지 검증한다.
-    await page.getByRole("link", { name: /기록|Log/ }).click();
-    await expect(page).toHaveURL(/\/workout\/log/);
+    // 실제 하단 내비게이션의 기록 탭 배선을 검증한다. 빈 CI seed에는 활성 플랜이
+    // 없으므로 /workout/log 부트스트랩이 최종적으로 프로그램 스토어로 안내한다.
+    const logLink = page
+      .getByRole("navigation", { name: "Main navigation" })
+      .getByRole("link", { name: /^(기록|Log)$/ });
+    await expect(logLink).toHaveAttribute("href", "/workout/log");
+    await logLink.click();
+    await expect(page).toHaveURL(/\/program-store$/);
     await expectNoRenderCrash(page);
   });
 
