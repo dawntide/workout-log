@@ -50,15 +50,18 @@ export async function requireAuthenticatedUserId(): Promise<string> {
  * 미들웨어가 보호하지 못하는 영역에서의 graceful fallback에 사용.
  */
 export async function tryAuthenticatedUserId(): Promise<string | null> {
+  let token: string | undefined;
   try {
     const cookieStore = await cookies();
-    const token = cookieStore.get(SESSION_COOKIE_NAME)?.value;
-    if (token) {
-      const session = await findActiveSession(token);
-      if (session) return session.userId;
-    }
+    token = cookieStore.get(SESSION_COOKIE_NAME)?.value;
   } catch {
     // cookies() may throw outside request scope (e.g. background jobs)
+  }
+  // DB failures must remain observable. Treating them as a missing session
+  // masks schema/connection faults as logout and surfaces a misleading 401.
+  if (token) {
+    const session = await findActiveSession(token);
+    if (session) return session.userId;
   }
   // env fallback은 LOCAL-DEV 편의용(.env.local의 WORKOUT_AUTH_USER_ID)으로,
   // 로그인 없이 앱을 쓸 수 있게 한다. 프로덕션에서는 반드시 UNSET이어야 한다 —
