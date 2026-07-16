@@ -41,9 +41,10 @@ type Log struct {
 	generatedSessionID string            // canonical log↔generated-session identity
 	genericDirty       bool              // unsaved non-REF5 input; blocks destructive buffer replacement
 	ref5               *ref5SessionState // REF5 start gate / frozen-session identity (nil for generic logs)
-	pendAccsry         string            // accessory exercise awaiting its sets input (override flow)
-	pendBlock          string            // block target awaiting its replacement exercise (override flow)
-	pendingOverride    bool              // server override in flight; locks/re-correlates Today
+	ref5Progress       ref5WindowProgressState
+	pendAccsry         string // accessory exercise awaiting its sets input (override flow)
+	pendBlock          string // block target awaiting its replacement exercise (override flow)
+	pendingOverride    bool   // server override in flight; locks/re-correlates Today
 	overridePlanID     string
 	bodyweight         float64       // user bodyweight (kg) for bodyweight-exercise load math
 	load               loadState     // boot-time auto-load of today's session
@@ -239,6 +240,9 @@ func (l Log) Update(msg tea.Msg) (Screen, tea.Cmd) {
 		l.clientMutationID = ""
 		l.load, l.undo = loadIdle, nil
 		l.clearDraft() // 서버 상태 == 버퍼 — draft는 역할 종료
+		if l.ref5 != nil && l.planID != "" {
+			return l, l.beginRef5WindowStatusLoad(l.planID)
+		}
 		return l, nil
 	case editLogMsg:
 		if l.hasBlockingReplacement() {
@@ -246,7 +250,11 @@ func (l Log) Update(msg tea.Msg) (Screen, tea.Cmd) {
 			return l, nil
 		}
 		l.amrapDeferred, l.lightBlock, l.feedback = false, false, nil
+		l.clearRef5WindowStatus()
 		l.loadForEdit(m)
+		if l.ref5 != nil && l.planID != "" {
+			return l, l.beginRef5WindowStatusLoad(l.planID)
+		}
 		return l, nil
 	case ref5PlanPreparedMsg:
 		if l.load != loadPending || l.hasBlockingRef5Work() || len(l.groups) != 0 ||
@@ -260,15 +268,17 @@ func (l Log) Update(msg tea.Msg) (Screen, tea.Cmd) {
 		if l.planID != "" && l.planID != m.plan.ID {
 			return l, nil
 		}
+		progressCmd := l.beginRef5WindowStatusLoad(m.plan.ID)
 		l.load = loadIdle
 		l.planID, l.planName = m.plan.ID, m.plan.Name
 		if m.err != nil {
 			next, cmd := l.beginRef5Start(m.plan, m.bodyweight)
 			next.status, next.statusErr = "미완료 세션 확인 실패: "+humanizeAuthErr(m.err), true
-			return next, cmd
+			return next, tea.Batch(cmd, progressCmd)
 		}
 		if len(m.sessions) == 0 {
-			return l.beginRef5Start(m.plan, m.bodyweight)
+			next, cmd := l.beginRef5Start(m.plan, m.bodyweight)
+			return next, tea.Batch(cmd, progressCmd)
 		}
 		l.groups, l.planID, l.planName = nil, m.plan.ID, m.plan.Name
 		l.ref5 = newRef5StartState(m.plan, m.bodyweight, time.Now())
@@ -277,7 +287,24 @@ func (l Log) Update(msg tea.Msg) (Screen, tea.Cmd) {
 			l.ref5.Resume[session.ID] = session
 		}
 		l.status, l.statusErr = fmt.Sprintf("미완료 REF5 세션 %d개 · 이어하기 또는 새 시작", len(m.sessions)), false
-		return l.openRef5ResumePicker()
+		next, cmd := l.openRef5ResumePicker()
+		return next, tea.Batch(cmd, progressCmd)
+	case ref5WindowStatusLoadedMsg:
+		if m.planID == "" || m.planID != l.planID || m.planID != l.ref5Progress.planID ||
+			m.requestID != l.ref5Progress.requestID {
+			return l, nil
+		}
+		l.ref5Progress.loading = false
+		if m.err != nil {
+			l.ref5Progress.err = humanizeAuthErr(m.err)
+			return l, nil
+		}
+		if m.status == nil {
+			l.ref5Progress.err = "REF5 판정창 상태가 없습니다"
+			return l, nil
+		}
+		l.ref5Progress.status, l.ref5Progress.err = m.status, ""
+		return l, nil
 	case ref5PreviewResultMsg:
 		if l.ref5 == nil || l.ref5.Phase != ref5Previewing ||
 			m.planID != l.ref5.Plan.ID || (l.planID != "" && m.planID != l.planID) ||
@@ -436,6 +463,9 @@ func (l Log) Update(msg tea.Msg) (Screen, tea.Cmd) {
 			return l, nil
 		}
 		l.loadFromDraft(m.draft)
+		if l.ref5 != nil && l.planID != "" {
+			return l, l.beginRef5WindowStatusLoad(l.planID)
+		}
 		return l, nil
 	case pickedMsg:
 		if l.load == loadPending {

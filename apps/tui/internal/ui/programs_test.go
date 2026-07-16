@@ -339,11 +339,11 @@ func TestProgramsRef5StatusRendersOpenEndedState(t *testing.T) {
 			Reasons: []string{"STAGNATION_BP"},
 		},
 		Windows: map[string]api.Ref5WindowStatus{
-			"SQ":   {Current: 1, Threshold: 6},
-			"BP":   {Current: 0, Threshold: 4},
-			"PULL": {Current: 0, Threshold: 4},
-			"DL":   {Current: 2, Threshold: 4},
-			"OHP":  {Current: 3, Threshold: 4},
+			"SQ":   {Current: 1, Threshold: 6, Completed: 2},
+			"BP":   {Current: 0, Threshold: 4, Completed: 1},
+			"PULL": {Current: 0, Threshold: 4, Completed: 3},
+			"DL":   {Current: 2, Threshold: 4, Completed: 4},
+			"OHP":  {Current: 3, Threshold: 4, Completed: 5},
 		},
 		DirectStandardsKg: api.Ref5DirectStandardsKg{
 			SqH3Kg: 82.5, BpFocusKg: 82.5, PullFocusTotalKg: 87.5,
@@ -359,7 +359,8 @@ func TestProgramsRef5StatusRendersOpenEndedState(t *testing.T) {
 	out := ansi.Strip(pr.Body(60, 18))
 	for _, want := range []string{
 		"REF5 STATUS", "NEXT", "PULL · SQ H3", "STD", "SQ-H3 82.5kg",
-		"WIN", "SQ 1/6", "BP 0/4", "DL 2/4", "LOCK", "pull:2",
+		"WIN", "진행/기준 · 판정완료", "SQ 하드 1/6·2", "BP 집중 0/4·1",
+		"PULL 집중 0/4·3", "DL 2/4·4", "OHP 3/4·5", "LOCK", "pull:2",
 		"MICRO", "STAGNATION_BP", "START 4", "DONE 3", "REV 5",
 	} {
 		if !strings.Contains(out, want) {

@@ -563,8 +563,14 @@ func (s Programs) renderRef5Status(w, h int) string {
 			ref5Kg(status.DirectStandardsKg.SqH3Kg), ref5Kg(status.DirectStandardsKg.BpFocusKg), ref5Kg(status.DirectStandardsKg.PullFocusTotalKg)), inner),
 		ref5StatusLine("", fmt.Sprintf("DL %skg · OHP %skg",
 			ref5Kg(status.DirectStandardsKg.DeadliftKg), ref5Kg(status.DirectStandardsKg.OhpKg)), inner),
-		ref5StatusLine("WIN", ref5Windows(status.Windows, []string{"SQ", "BP", "PULL"}), inner),
-		ref5StatusLine("", ref5Windows(status.Windows, []string{"DL", "OHP"}), inner),
+		ref5StatusLine("WIN", "진행/기준 · 판정완료", inner),
+	}
+	windowWidth := inner - 6
+	if windowWidth < 1 {
+		windowWidth = 1
+	}
+	for _, windowLine := range ref5WindowPlainLines(status.Windows, windowWidth) {
+		lines = append(lines, ref5StatusLine("", windowLine, inner))
 	}
 
 	lock := "OPEN · 다음 PULL 시작 시 고정"
@@ -599,15 +605,6 @@ func ref5StatusLine(label, value string, w int) string {
 		return fitLine("      "+valueStyle.Render(value), w)
 	}
 	return fitLine(labelStyle.Width(5).Render(label)+" "+valueStyle.Render(value), w)
-}
-
-func ref5Windows(windows map[string]api.Ref5WindowStatus, lifts []string) string {
-	parts := make([]string, 0, len(lifts))
-	for _, lift := range lifts {
-		window := windows[lift]
-		parts = append(parts, fmt.Sprintf("%s %d/%d", lift, window.Current, window.Threshold))
-	}
-	return strings.Join(parts, " · ")
 }
 
 func ref5Kg(value api.Float64) string { return trimNum(float64(value)) }

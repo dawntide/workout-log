@@ -175,6 +175,7 @@ func (l *Log) resetForSessionLoad() {
 	l.planID, l.planName, l.sessionKey, l.generatedSessionID = "", "", "", ""
 	l.clientMutationID = ""
 	l.ref5, l.undo, l.feedback = nil, nil, nil
+	l.clearRef5WindowStatus()
 	l.pendAccsry, l.pendBlock = "", ""
 	l.pendingOverride, l.overridePlanID = false, ""
 	l.saveUncertain = false

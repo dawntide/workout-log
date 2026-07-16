@@ -19,6 +19,10 @@ import (
 func (l Log) Body(w, h int) string {
 	pad := bodyPad(h)
 	compact := compactView(h)
+	contentWidth := w - 2
+	if contentWidth < 1 {
+		contentWidth = 1
+	}
 	inner := h - 2*pad
 	if inner < 1 {
 		inner = 1
@@ -30,11 +34,12 @@ func (l Log) Body(w, h int) string {
 	// between them.
 	var head, foot []string
 	if sh := l.sessionHeader(); sh != "" {
-		head = append(head, sh)
+		head = append(head, fitLine(sh, contentWidth))
 	}
 	if l.editID != "" {
-		head = append(head, lipgloss.NewStyle().Foreground(theme.Amber).Render("■ 편집 중 · "+l.performedAt.Format("2006-01-02")))
+		head = append(head, fitLine(lipgloss.NewStyle().Foreground(theme.Amber).Render("■ 편집 중 · "+l.performedAt.Format("2006-01-02")), contentWidth))
 	}
+	head = append(head, l.ref5WindowPanelLines(contentWidth, compact)...)
 	if len(head) > 0 && !compact {
 		head = append(head, "")
 	}
@@ -46,10 +51,13 @@ func (l Log) Body(w, h int) string {
 		}
 		foot = append(foot, lipgloss.NewStyle().Foreground(tone).Render(l.status))
 	}
+	for index := range foot {
+		foot[index] = fitLine(foot[index], contentWidth)
+	}
 
 	all := append([]string{}, head...)
 	if len(l.groups) == 0 {
-		emptyLines := strings.Split(l.renderEmpty(w-2), "\n")
+		emptyLines := strings.Split(l.renderEmpty(contentWidth), "\n")
 		avail := inner - len(head) - len(foot)
 		if avail < 1 {
 			avail = 1

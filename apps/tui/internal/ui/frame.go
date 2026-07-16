@@ -360,7 +360,7 @@ func (f Frame) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case saveResultMsg, draftRestoredMsg, overrideDoneMsg, sessionLoadedMsg,
 		ref5PreviewResultMsg, ref5StartConfirmedMsg, ref5StartResultMsg,
 		ref5ResumeResultMsg, ref5CloseExerciseMsg, ref5SaveConfirmedMsg,
-		genericDiscardConfirmedMsg:
+		ref5WindowStatusLoadedMsg, genericDiscardConfirmedMsg:
 		// Today owns these asynchronous results even when the user navigated to
 		// another buffer while the request was in flight.
 		nv, cmd := f.views[vToday].Update(msg)
