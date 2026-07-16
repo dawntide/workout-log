@@ -13,6 +13,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/sharru0701/workout-log/apps/tui/internal/securefile"
 )
 
 const (
@@ -237,7 +239,7 @@ func (c Config) QuarantinedDraftOwner(path string) (string, error) {
 
 func writeAtomicFile(path string, data []byte) error {
 	tmp := fmt.Sprintf("%s.tmp.%d", path, time.Now().UnixNano())
-	f, err := os.OpenFile(tmp, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+	f, err := securefile.OpenExclusive(tmp)
 	if err != nil {
 		return err
 	}
@@ -267,7 +269,7 @@ func writeAtomicFile(path string, data []byte) error {
 
 func writeFileIfAbsent(path string, data []byte) error {
 	tmp := fmt.Sprintf("%s.recover.%d", path, time.Now().UnixNano())
-	f, err := os.OpenFile(tmp, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+	f, err := securefile.OpenExclusive(tmp)
 	if err != nil {
 		return err
 	}
@@ -308,7 +310,7 @@ func (c Config) claimQuarantinedDraft(path, userID string) (string, error) {
 		claimedPath = filepath.Join(c.dir, fmt.Sprintf(
 			"%s%s.%s.json", legacyClaimedPrefix, c.quarantineOwnerKey(userID), randomClaimSuffix(),
 		))
-		if err := os.Rename(path, claimedPath); err != nil {
+		if err := claimRename(path, claimedPath); err != nil {
 			return "", fmt.Errorf("claim legacy draft: %w", err)
 		}
 	} else if !c.claimedPathMatchesUser(path, userID) {
@@ -434,7 +436,7 @@ func (c Config) SaveBaseURL(url string) error {
 		}
 		return nil
 	}
-	return os.WriteFile(p, []byte(url), 0o600)
+	return securefile.WriteFile(p, []byte(url))
 }
 
 // SessionToken returns the persisted wl_session token, or "" if none is saved.
@@ -448,7 +450,7 @@ func (c Config) SessionToken() string {
 
 // SaveSessionToken persists the wl_session token with 0600 permissions.
 func (c Config) SaveSessionToken(tok string) error {
-	return os.WriteFile(filepath.Join(c.dir, sessionFile), []byte(tok), 0o600)
+	return securefile.WriteFile(filepath.Join(c.dir, sessionFile), []byte(tok))
 }
 
 // ClearSession removes the persisted token (logout). Missing file is not an error.
@@ -476,7 +478,7 @@ func (c Config) LoadDraft() ([]byte, error) {
 func (c Config) SaveDraft(data []byte) error {
 	p := c.draftPath()
 	tmp := p + ".tmp"
-	if err := os.WriteFile(tmp, data, 0o600); err != nil {
+	if err := securefile.WriteFile(tmp, data); err != nil {
 		return err
 	}
 	return os.Rename(tmp, p)

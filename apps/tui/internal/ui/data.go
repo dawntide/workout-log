@@ -12,6 +12,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/sharru0701/workout-log/apps/tui/internal/api"
+	"github.com/sharru0701/workout-log/apps/tui/internal/securefile"
 )
 
 // exportDoneMsg / importDryRunMsg / importDoneMsg carry export-import results
@@ -47,7 +48,7 @@ func exportCmd(c *api.Client) tea.Cmd {
 			return exportDoneMsg{err: err}
 		}
 		path := filepath.Join(home, fmt.Sprintf("ironlog-export-%s.json", time.Now().Format("20060102-150405")))
-		if err := os.WriteFile(path, data, 0o600); err != nil {
+		if err := securefile.WriteFile(path, data); err != nil {
 			return exportDoneMsg{err: err}
 		}
 		return exportDoneMsg{path: path}

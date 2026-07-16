@@ -85,7 +85,7 @@ go build -o ironlog .     # 빌드
 | `ironlog --set-server https://your-app` | 다른 서버를 config에 저장(한 번) → 이후 `ironlog`만 |
 | `IRONLOG_API_URL=https://your-app ironlog` | 환경변수로 임시 오버라이드 |
 
-설정·세션은 OS 설정 디렉터리(`%AppData%\ironlog` / `~/.config/ironlog`)에 저장됩니다 — `base_url`, `session`(0600). 로그인 화면 상단에 현재 접속 중인 서버가 표시됩니다.
+설정·세션은 OS 설정 디렉터리(`%AppData%\ironlog` / `~/.config/ironlog`)에 저장됩니다 — `base_url`, `session`(Unix 0600, Windows 보호 DACL). 로그인 화면 상단에 현재 접속 중인 서버가 표시됩니다.
 
 ## 사용법
 

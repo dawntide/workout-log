@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 	"os"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/sharru0701/workout-log/apps/tui/internal/api"
 	"github.com/sharru0701/workout-log/apps/tui/internal/config"
+	"github.com/sharru0701/workout-log/apps/tui/internal/securefile"
 )
 
 func validGenericGroups() []exGroup {
@@ -449,6 +451,16 @@ func TestExportFileIsOwnerOnly(t *testing.T) {
 	info, err := os.Stat(msg.path)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if runtime.GOOS == "windows" {
+		ok, err := securefile.OwnerOnly(msg.path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !ok {
+			t.Fatal("export file does not have a protected owner-only DACL")
+		}
+		return
 	}
 	if got := info.Mode().Perm(); got != 0o600 {
 		t.Fatalf("export permissions = %o, want 600", got)
