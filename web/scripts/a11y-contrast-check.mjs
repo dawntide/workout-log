@@ -1,39 +1,89 @@
 #!/usr/bin/env node
 
-const themes = {
-  dark: {
-    fillSurface: "#141d29",
-    labelPrimary: "#edf3fb",
-    labelSecondary: "#a8bbd2",
-    tint: "#0a84ff",
-    successText: "#30d158",
-    warningText: "#ff9f0a",
-    dangerText: "#ff453a",
-  },
-  light: {
-    fillSurface: "#ffffff",
-    labelPrimary: "#111111",
-    labelSecondary: "#6b7280",
-    tint: "#0067d8",
-    successText: "#1e7a34",
-    warningText: "#9a5b00",
-    dangerText: "#b3261e",
-  },
-};
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 
-const checks = [
-  { label: "Primary text", token: "labelPrimary", minRatio: 4.5 },
-  { label: "Secondary text", token: "labelSecondary", minRatio: 4.5 },
-  { label: "Tint text", token: "tint", minRatio: 4.5 },
-  { label: "Success text", token: "successText", minRatio: 4.5 },
-  { label: "Warning text", token: "warningText", minRatio: 4.5 },
-  { label: "Danger text", token: "dangerText", minRatio: 4.5 },
+const themeCssPath = fileURLToPath(
+  new URL("../src/styles/color-themes.css", import.meta.url),
+);
+const themeCss = readFileSync(themeCssPath, "utf8");
+
+const expectedThemes = [
+  "paper",
+  "github-light",
+  "solarized-light",
+  "catppuccin-latte",
+  "tokyo-night-day",
+  "obsidian",
+  "github-dark",
+  "solarized-dark",
+  "catppuccin-mocha",
+  "tokyo-night",
 ];
 
+const requiredTokens = [
+  "--v2-bg",
+  "--v2-paper",
+  "--v2-paper-2",
+  "--v2-paper-3",
+  "--v2-paper-4",
+  "--v2-ink",
+  "--v2-ink-2",
+  "--v2-ink-3",
+  "--v2-ink-4",
+  "--v2-ink-on-accent",
+  "--v2-accent",
+  "--v2-accent-2",
+  "--v2-accent-weak",
+  "--v2-accent-ink",
+  "--v2-c-weight",
+  "--v2-c-reps",
+  "--v2-c-volume",
+  "--v2-c-onerm",
+  "--v2-c-progress",
+  "--v2-c-pr",
+  "--v2-c-danger",
+  "--v2-c-success",
+  "--v2-c-info",
+  "--v2-c-warning",
+];
+
+const paperTextTokens = [
+  "--v2-ink",
+  "--v2-ink-2",
+  "--v2-ink-3",
+  "--v2-accent-ink",
+  "--v2-c-weight",
+  "--v2-c-reps",
+  "--v2-c-volume",
+  "--v2-c-onerm",
+  "--v2-c-progress",
+  "--v2-c-pr",
+  "--v2-c-danger",
+  "--v2-c-success",
+  "--v2-c-info",
+  "--v2-c-warning",
+];
+
+function parseThemes(css) {
+  const themes = new Map();
+  const blockPattern = /:root\[data-color-theme="([^"]+)"\]\s*\{([\s\S]*?)\}/g;
+  for (const match of css.matchAll(blockPattern)) {
+    const tokens = {};
+    const tokenPattern = /(--v2-[\w-]+)\s*:\s*([^;]+);/g;
+    for (const tokenMatch of match[2].matchAll(tokenPattern)) {
+      tokens[tokenMatch[1]] = tokenMatch[2].trim();
+    }
+    themes.set(match[1], tokens);
+  }
+  return themes;
+}
+
 function hexToRgb(hex) {
-  const raw = hex.replace("#", "");
-  const normalized = raw.length === 3 ? raw.split("").map((ch) => `${ch}${ch}`).join("") : raw;
-  const parsed = Number.parseInt(normalized, 16);
+  if (!/^#[\da-f]{6}$/i.test(hex)) {
+    throw new Error(`Expected a 6-digit hex color, received ${hex}`);
+  }
+  const parsed = Number.parseInt(hex.slice(1), 16);
   return [(parsed >> 16) & 255, (parsed >> 8) & 255, parsed & 255];
 }
 
@@ -45,35 +95,68 @@ function relativeChannel(value) {
 
 function luminance(hex) {
   const [r, g, b] = hexToRgb(hex);
-  return 0.2126 * relativeChannel(r) + 0.7152 * relativeChannel(g) + 0.0722 * relativeChannel(b);
+  return (
+    0.2126 * relativeChannel(r) +
+    0.7152 * relativeChannel(g) +
+    0.0722 * relativeChannel(b)
+  );
 }
 
 function contrastRatio(foreground, background) {
-  const a = luminance(foreground);
-  const b = luminance(background);
-  const lighter = Math.max(a, b);
-  const darker = Math.min(a, b);
+  const foregroundLuminance = luminance(foreground);
+  const backgroundLuminance = luminance(background);
+  const lighter = Math.max(foregroundLuminance, backgroundLuminance);
+  const darker = Math.min(foregroundLuminance, backgroundLuminance);
   return (lighter + 0.05) / (darker + 0.05);
 }
 
-let hasFailure = false;
+const themes = parseThemes(themeCss);
+const failures = [];
 
-for (const [themeName, tokens] of Object.entries(themes)) {
-  console.log(`\n[${themeName}] background ${tokens.fillSurface}`);
-  for (const check of checks) {
-    const foreground = tokens[check.token];
-    const ratio = contrastRatio(foreground, tokens.fillSurface);
-    const passed = ratio >= check.minRatio;
-    if (!passed) hasFailure = true;
-    console.log(
-      `- ${check.label.padEnd(14)} ${foreground} contrast ${ratio.toFixed(2)}:1 ${passed ? "PASS" : "FAIL"} (>= ${check.minRatio}:1)`,
+for (const themeName of expectedThemes) {
+  const tokens = themes.get(themeName);
+  if (!tokens) {
+    failures.push(`${themeName}: theme selector is missing`);
+    continue;
+  }
+
+  for (const token of requiredTokens) {
+    if (!tokens[token]) failures.push(`${themeName}: ${token} is missing`);
+  }
+  if (requiredTokens.some((token) => !tokens[token])) continue;
+
+  for (const token of paperTextTokens) {
+    const ratio = contrastRatio(tokens[token], tokens["--v2-paper"]);
+    if (ratio < 4.5) {
+      failures.push(
+        `${themeName}: ${token} on --v2-paper is ${ratio.toFixed(2)}:1`,
+      );
+    }
+  }
+
+  const onAccentRatio = contrastRatio(
+    tokens["--v2-ink-on-accent"],
+    tokens["--v2-accent"],
+  );
+  if (onAccentRatio < 4.5) {
+    failures.push(
+      `${themeName}: --v2-ink-on-accent on --v2-accent is ${onAccentRatio.toFixed(2)}:1`,
     );
   }
 }
 
-if (hasFailure) {
-  console.error("\nContrast checks failed.");
+for (const unexpectedTheme of themes.keys()) {
+  if (!expectedThemes.includes(unexpectedTheme)) {
+    failures.push(`${unexpectedTheme}: selector is not registered in the checker`);
+  }
+}
+
+if (failures.length > 0) {
+  console.error("Theme contrast checks failed:");
+  for (const failure of failures) console.error(`- ${failure}`);
   process.exit(1);
 }
 
-console.log("\nAll contrast checks passed.");
+console.log(
+  `All ${expectedThemes.length} color themes include the required tokens and pass WCAG AA text contrast.`,
+);

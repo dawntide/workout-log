@@ -5,6 +5,11 @@ import { eq } from "@workout/core/db/ops";
 import { userSetting } from "@workout/core/db/schema";
 import { invalidateStatsCacheForUser } from "@workout/core/stats/cache";
 import { runSeed } from "@workout/core/db/seed";
+import {
+  DEFAULT_DARK_COLOR_THEME,
+  DEFAULT_LIGHT_COLOR_THEME,
+  SETTINGS_KEYS,
+} from "@workout/core/settings/workout-preferences";
 
 import { requireAuth, type AppEnv } from "../auth";
 import { apiError, resolveLocale } from "../lib/http";
@@ -28,6 +33,8 @@ type PatchRequestBody = {
 const DEFAULT_SETTINGS: SettingsSnapshot = {
   "prefs.locale": "ko",
   "prefs.theme.mode": "SYSTEM",
+  [SETTINGS_KEYS.lightColorTheme]: DEFAULT_LIGHT_COLOR_THEME,
+  [SETTINGS_KEYS.darkColorTheme]: DEFAULT_DARK_COLOR_THEME,
   "prefs.minimumPlate.defaultKg": 2.5,
   "prefs.minimumPlate.rulesJson": "[]",
   "prefs.bodyweight.kg": 70,

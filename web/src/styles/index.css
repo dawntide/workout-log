@@ -17,3 +17,6 @@
 
 /* v2 design system overrides — 마지막에 로드되어 모든 토큰을 v2 톤으로 매핑 */
 @import "./v2-overrides.css";
+
+/* 레이아웃은 유지하고 semantic color token만 교체하는 사용자 컬러스키마 */
+@import "./color-themes.css";

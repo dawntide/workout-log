@@ -16,6 +16,7 @@ import { WebVitalsReporter } from "@/components/web-vitals-reporter";
 import { WorkoutUxEventSync } from "@/components/workout-ux-event-sync";
 import { resolveRequestLocale } from "@/lib/i18n/server";
 import { getAppCopy, type AppLocale } from "@/lib/i18n/messages";
+import { createEarlyThemeBootstrapScript } from "@/lib/settings/workout-preferences";
 
 // Inter Variable Font — wght 100–900 전 범위 지원
 const inter = Inter({
@@ -24,33 +25,7 @@ const inter = Inter({
   display: "swap",
 });
 
-const EARLY_THEME_BOOTSTRAP = `
-(() => {
-  try {
-    const storageKey = "workout-log.setting.v1.prefs.theme.mode";
-    const raw = window.localStorage.getItem(storageKey);
-    let preference = "system";
-
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      const normalized = String(parsed?.value ?? "").trim().toLowerCase();
-      if (normalized === "light" || normalized === "dark" || normalized === "system") {
-        preference = normalized;
-      }
-    }
-
-    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-    const resolvedDark = preference === "dark" || (preference !== "light" && prefersDark);
-
-    const backgroundColor = resolvedDark ? "#0e0d12" : "#f6f1e8";
-
-    document.documentElement.setAttribute("data-theme-preference", preference);
-    document.documentElement.removeAttribute("data-theme");
-    document.documentElement.style.backgroundColor = backgroundColor;
-    document.body.style.backgroundColor = backgroundColor;
-  } catch {}
-})();
-`;
+const EARLY_THEME_BOOTSTRAP = createEarlyThemeBootstrapScript();
 
 export const viewport: Viewport = {
   width: "device-width",

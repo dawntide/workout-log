@@ -4,7 +4,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   createBrowserSettingStore,
   type PersistSettingFn,
-  resolveSettingInitialValue,
   type SettingStore,
   type SettingValue,
   updateSetting,
@@ -73,24 +72,31 @@ export function useSettingRowMutation<T extends SettingValue>({
   const store = useMemo(() => storeFromProps ?? createBrowserSettingStore(), [storeFromProps]);
   const resolvedServerValue = (serverValue ?? fallbackValue) as T;
 
-  const [value, setValue] = useState<T>(() =>
-    resolveSettingInitialValue<T>({
-      key,
-      store,
-      serverValue: resolvedServerValue,
-      fallbackValue,
-    }),
-  );
+  // SSR와 hydration의 첫 렌더는 같은 server/fallback 값을 사용한다.
+  // 브라우저 캐시는 mount 후 반영해 저장된 값으로 인한 text mismatch를 막는다.
+  const [value, setValue] = useState<T>(resolvedServerValue);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const valueRef = useRef(value);
-  const hadCachedAtInitRef = useRef(store.read(key) !== undefined);
+  const hadCachedAtInitRef = useRef(false);
+  const didReadInitialCacheRef = useRef(false);
   const lastResolvedServerValueRef = useRef<T>(resolvedServerValue);
 
   useEffect(() => {
     valueRef.current = value;
   }, [value]);
+
+  useEffect(() => {
+    if (didReadInitialCacheRef.current) return;
+    didReadInitialCacheRef.current = true;
+    const cached = store.read(key);
+    hadCachedAtInitRef.current = cached !== undefined;
+    if (cached === undefined) return;
+    const nextValue = cached as T;
+    valueRef.current = nextValue;
+    setValue(nextValue);
+  }, [key, store]);
 
   useEffect(() => {
     if (pending) return;

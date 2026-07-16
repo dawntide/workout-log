@@ -1,0 +1,345 @@
+/*
+  Color themes only.
+  Every selector overrides semantic color tokens while preserving the same
+  component tree, layout, typography, spacing, radius, and motion tokens.
+*/
+
+:root[data-color-theme="paper"] {
+  --v2-bg: #f6f1e8;
+  --v2-paper: #fbf7ee;
+  --v2-paper-2: #f0eadd;
+  --v2-paper-3: #e8e1d2;
+  --v2-paper-4: #d9d0bd;
+  --v2-ink: #2b2a26;
+  --v2-ink-2: #4a4842;
+  --v2-ink-3: #625e54;
+  --v2-ink-4: #9d957f;
+  --v2-ink-on-accent: #fbf7ee;
+  --v2-accent: #5b4cdb;
+  --v2-accent-2: #7d6ff5;
+  --v2-accent-weak: #ebe7fb;
+  --v2-accent-ink: #3528a8;
+  --v2-c-weight: #40359f;
+  --v2-c-reps: #236659;
+  --v2-c-volume: #93450e;
+  --v2-c-onerm: #4a3bbd;
+  --v2-c-progress: #3b6c27;
+  --v2-c-pr: #765200;
+  --v2-c-danger: #9b2d22;
+  --v2-c-success: #3b6c27;
+  --v2-c-info: #1f6878;
+  --v2-c-warning: #765a00;
+  --v2-shadow-soft: rgba(60, 50, 35, 0.05);
+  --v2-shadow-med: rgba(60, 50, 35, 0.08);
+  --v2-shadow-strong: rgba(60, 50, 35, 0.14);
+  --v2-elev-sheet: 0 -8px 32px rgba(60, 50, 35, 0.16);
+  --v2-focus: rgba(91, 76, 219, 0.32);
+  --v2-overlay: rgba(43, 42, 38, 0.36);
+  --v2-hairline: color-mix(in srgb, var(--v2-paper-4) 60%, transparent);
+}
+
+:root[data-color-theme="github-light"] {
+  --v2-bg: #f6f8fa;
+  --v2-paper: #ffffff;
+  --v2-paper-2: #f6f8fa;
+  --v2-paper-3: #eaeef2;
+  --v2-paper-4: #d0d7de;
+  --v2-ink: #1f2328;
+  --v2-ink-2: #424a53;
+  --v2-ink-3: #59636e;
+  --v2-ink-4: #818b98;
+  --v2-ink-on-accent: #ffffff;
+  --v2-accent: #0969da;
+  --v2-accent-2: #0550ae;
+  --v2-accent-weak: #ddf4ff;
+  --v2-accent-ink: #0550ae;
+  --v2-c-weight: #8250df;
+  --v2-c-reps: #1a7f37;
+  --v2-c-volume: #9a6700;
+  --v2-c-onerm: #0969da;
+  --v2-c-progress: #1a7f37;
+  --v2-c-pr: #7d4e00;
+  --v2-c-danger: #cf222e;
+  --v2-c-success: #1a7f37;
+  --v2-c-info: #0969da;
+  --v2-c-warning: #7d4e00;
+  --v2-shadow-soft: rgba(31, 35, 40, 0.04);
+  --v2-shadow-med: rgba(31, 35, 40, 0.1);
+  --v2-shadow-strong: rgba(31, 35, 40, 0.16);
+  --v2-elev-sheet: 0 -8px 32px rgba(31, 35, 40, 0.16);
+  --v2-focus: rgba(9, 105, 218, 0.32);
+  --v2-overlay: rgba(31, 35, 40, 0.4);
+  --v2-hairline: color-mix(in srgb, var(--v2-paper-4) 72%, transparent);
+}
+
+:root[data-color-theme="solarized-light"] {
+  --v2-bg: #eee8d5;
+  --v2-paper: #fdf6e3;
+  --v2-paper-2: #eee8d5;
+  --v2-paper-3: #ded8c5;
+  --v2-paper-4: #b9b29f;
+  --v2-ink: #002b36;
+  --v2-ink-2: #3f565d;
+  --v2-ink-3: #586e75;
+  --v2-ink-4: #7b8e91;
+  --v2-ink-on-accent: #ffffff;
+  --v2-accent: #006da6;
+  --v2-accent-2: #005b8a;
+  --v2-accent-weak: #d9edf2;
+  --v2-accent-ink: #005b8a;
+  --v2-c-weight: #5b4bb7;
+  --v2-c-reps: #4f6b00;
+  --v2-c-volume: #a23a10;
+  --v2-c-onerm: #006da6;
+  --v2-c-progress: #4f6b00;
+  --v2-c-pr: #765900;
+  --v2-c-danger: #b3212b;
+  --v2-c-success: #4f6b00;
+  --v2-c-info: #006f7a;
+  --v2-c-warning: #765900;
+  --v2-shadow-soft: rgba(0, 43, 54, 0.05);
+  --v2-shadow-med: rgba(0, 43, 54, 0.1);
+  --v2-shadow-strong: rgba(0, 43, 54, 0.16);
+  --v2-elev-sheet: 0 -8px 32px rgba(0, 43, 54, 0.18);
+  --v2-focus: rgba(0, 109, 166, 0.32);
+  --v2-overlay: rgba(0, 43, 54, 0.4);
+  --v2-hairline: color-mix(in srgb, var(--v2-paper-4) 68%, transparent);
+}
+
+:root[data-color-theme="catppuccin-latte"] {
+  --v2-bg: #e6e9ef;
+  --v2-paper: #eff1f5;
+  --v2-paper-2: #dce0e8;
+  --v2-paper-3: #ccd0da;
+  --v2-paper-4: #bcc0cc;
+  --v2-ink: #4c4f69;
+  --v2-ink-2: #555872;
+  --v2-ink-3: #5c5f77;
+  --v2-ink-4: #8c8fa1;
+  --v2-ink-on-accent: #ffffff;
+  --v2-accent: #8839ef;
+  --v2-accent-2: #6c24c7;
+  --v2-accent-weak: #e7d8fb;
+  --v2-accent-ink: #7130c5;
+  --v2-c-weight: #8839ef;
+  --v2-c-reps: #2d7d20;
+  --v2-c-volume: #a94700;
+  --v2-c-onerm: #1859d1;
+  --v2-c-progress: #2d7d20;
+  --v2-c-pr: #8a5900;
+  --v2-c-danger: #c30932;
+  --v2-c-success: #2d7d20;
+  --v2-c-info: #07727a;
+  --v2-c-warning: #8a5900;
+  --v2-shadow-soft: rgba(76, 79, 105, 0.05);
+  --v2-shadow-med: rgba(76, 79, 105, 0.1);
+  --v2-shadow-strong: rgba(76, 79, 105, 0.16);
+  --v2-elev-sheet: 0 -8px 32px rgba(76, 79, 105, 0.18);
+  --v2-focus: rgba(136, 57, 239, 0.3);
+  --v2-overlay: rgba(76, 79, 105, 0.4);
+  --v2-hairline: color-mix(in srgb, var(--v2-paper-4) 72%, transparent);
+}
+
+:root[data-color-theme="tokyo-night-day"] {
+  --v2-bg: #d0d5e3;
+  --v2-paper: #e1e2e7;
+  --v2-paper-2: #d0d5e3;
+  --v2-paper-3: #c4c8da;
+  --v2-paper-4: #b4b9cc;
+  --v2-ink: #25335f;
+  --v2-ink-2: #45517c;
+  --v2-ink-3: #505a82;
+  --v2-ink-4: #7a82a8;
+  --v2-ink-on-accent: #ffffff;
+  --v2-accent: #1d5fb9;
+  --v2-accent-2: #2e7de9;
+  --v2-accent-weak: #cad8ee;
+  --v2-accent-ink: #1f5bb0;
+  --v2-c-weight: #7847bd;
+  --v2-c-reps: #4f6a31;
+  --v2-c-volume: #934d00;
+  --v2-c-onerm: #1d5fb9;
+  --v2-c-progress: #4f6a31;
+  --v2-c-pr: #72562e;
+  --v2-c-danger: #b93434;
+  --v2-c-success: #4f6a31;
+  --v2-c-info: #00647f;
+  --v2-c-warning: #72562e;
+  --v2-shadow-soft: rgba(37, 51, 95, 0.05);
+  --v2-shadow-med: rgba(37, 51, 95, 0.1);
+  --v2-shadow-strong: rgba(37, 51, 95, 0.16);
+  --v2-elev-sheet: 0 -8px 32px rgba(37, 51, 95, 0.18);
+  --v2-focus: rgba(46, 125, 233, 0.3);
+  --v2-overlay: rgba(37, 51, 95, 0.42);
+  --v2-hairline: color-mix(in srgb, var(--v2-paper-4) 72%, transparent);
+}
+
+:root[data-color-theme="obsidian"] {
+  --v2-bg: #0e0d12;
+  --v2-paper: #16151c;
+  --v2-paper-2: #1d1c25;
+  --v2-paper-3: #25232f;
+  --v2-paper-4: #2f2d3b;
+  --v2-ink: #ece9f2;
+  --v2-ink-2: #d2cee0;
+  --v2-ink-3: #9994ad;
+  --v2-ink-4: #6a657f;
+  --v2-ink-on-accent: #0e0d12;
+  --v2-accent: #9b87ff;
+  --v2-accent-2: #b9aaff;
+  --v2-accent-weak: rgba(155, 135, 255, 0.14);
+  --v2-accent-ink: #b9aaff;
+  --v2-c-weight: #b9aaff;
+  --v2-c-reps: #6dd0b6;
+  --v2-c-volume: #f3a868;
+  --v2-c-onerm: #b9aaff;
+  --v2-c-progress: #7ec57a;
+  --v2-c-pr: #f3c66b;
+  --v2-c-danger: #ff8e7a;
+  --v2-c-success: #7ec57a;
+  --v2-c-info: #6cc8d4;
+  --v2-c-warning: #f3c66b;
+  --v2-shadow-soft: rgba(0, 0, 0, 0.32);
+  --v2-shadow-med: rgba(0, 0, 0, 0.44);
+  --v2-shadow-strong: rgba(0, 0, 0, 0.6);
+  --v2-elev-sheet: 0 -8px 32px rgba(0, 0, 0, 0.6);
+  --v2-focus: rgba(155, 135, 255, 0.36);
+  --v2-overlay: rgba(0, 0, 0, 0.6);
+  --v2-hairline: color-mix(in srgb, var(--v2-paper-4) 70%, transparent);
+}
+
+:root[data-color-theme="github-dark"] {
+  --v2-bg: #0d1117;
+  --v2-paper: #161b22;
+  --v2-paper-2: #21262d;
+  --v2-paper-3: #30363d;
+  --v2-paper-4: #484f58;
+  --v2-ink: #f0f6fc;
+  --v2-ink-2: #c9d1d9;
+  --v2-ink-3: #8b949e;
+  --v2-ink-4: #6e7681;
+  --v2-ink-on-accent: #0d1117;
+  --v2-accent: #58a6ff;
+  --v2-accent-2: #79c0ff;
+  --v2-accent-weak: rgba(88, 166, 255, 0.16);
+  --v2-accent-ink: #79c0ff;
+  --v2-c-weight: #d2a8ff;
+  --v2-c-reps: #56d364;
+  --v2-c-volume: #f0883e;
+  --v2-c-onerm: #58a6ff;
+  --v2-c-progress: #56d364;
+  --v2-c-pr: #e3b341;
+  --v2-c-danger: #ff7b72;
+  --v2-c-success: #56d364;
+  --v2-c-info: #58a6ff;
+  --v2-c-warning: #e3b341;
+  --v2-shadow-soft: rgba(0, 0, 0, 0.3);
+  --v2-shadow-med: rgba(0, 0, 0, 0.42);
+  --v2-shadow-strong: rgba(0, 0, 0, 0.58);
+  --v2-elev-sheet: 0 -8px 32px rgba(0, 0, 0, 0.6);
+  --v2-focus: rgba(88, 166, 255, 0.36);
+  --v2-overlay: rgba(1, 4, 9, 0.66);
+  --v2-hairline: color-mix(in srgb, var(--v2-paper-4) 76%, transparent);
+}
+
+:root[data-color-theme="solarized-dark"] {
+  --v2-bg: #002b36;
+  --v2-paper: #073642;
+  --v2-paper-2: #0d424e;
+  --v2-paper-3: #164f5b;
+  --v2-paper-4: #586e75;
+  --v2-ink: #fdf6e3;
+  --v2-ink-2: #d8d3c2;
+  --v2-ink-3: #a9b6b5;
+  --v2-ink-4: #71868b;
+  --v2-ink-on-accent: #002b36;
+  --v2-accent: #2aa198;
+  --v2-accent-2: #55b8b0;
+  --v2-accent-weak: rgba(42, 161, 152, 0.17);
+  --v2-accent-ink: #65c5bd;
+  --v2-c-weight: #aaa6e8;
+  --v2-c-reps: #a6bd43;
+  --v2-c-volume: #f18c62;
+  --v2-c-onerm: #6db4e3;
+  --v2-c-progress: #a6bd43;
+  --v2-c-pr: #e6c26f;
+  --v2-c-danger: #ff7b74;
+  --v2-c-success: #a6bd43;
+  --v2-c-info: #65c9d0;
+  --v2-c-warning: #e6c26f;
+  --v2-shadow-soft: rgba(0, 0, 0, 0.3);
+  --v2-shadow-med: rgba(0, 0, 0, 0.42);
+  --v2-shadow-strong: rgba(0, 0, 0, 0.58);
+  --v2-elev-sheet: 0 -8px 32px rgba(0, 0, 0, 0.6);
+  --v2-focus: rgba(42, 161, 152, 0.4);
+  --v2-overlay: rgba(0, 20, 26, 0.68);
+  --v2-hairline: color-mix(in srgb, var(--v2-paper-4) 70%, transparent);
+}
+
+:root[data-color-theme="catppuccin-mocha"] {
+  --v2-bg: #11111b;
+  --v2-paper: #1e1e2e;
+  --v2-paper-2: #313244;
+  --v2-paper-3: #45475a;
+  --v2-paper-4: #585b70;
+  --v2-ink: #cdd6f4;
+  --v2-ink-2: #bac2de;
+  --v2-ink-3: #a6adc8;
+  --v2-ink-4: #7f849c;
+  --v2-ink-on-accent: #11111b;
+  --v2-accent: #cba6f7;
+  --v2-accent-2: #b4befe;
+  --v2-accent-weak: rgba(203, 166, 247, 0.16);
+  --v2-accent-ink: #cba6f7;
+  --v2-c-weight: #cba6f7;
+  --v2-c-reps: #94e2d5;
+  --v2-c-volume: #fab387;
+  --v2-c-onerm: #89b4fa;
+  --v2-c-progress: #a6e3a1;
+  --v2-c-pr: #f9e2af;
+  --v2-c-danger: #f38ba8;
+  --v2-c-success: #a6e3a1;
+  --v2-c-info: #89dceb;
+  --v2-c-warning: #f9e2af;
+  --v2-shadow-soft: rgba(0, 0, 0, 0.3);
+  --v2-shadow-med: rgba(0, 0, 0, 0.42);
+  --v2-shadow-strong: rgba(0, 0, 0, 0.58);
+  --v2-elev-sheet: 0 -8px 32px rgba(0, 0, 0, 0.6);
+  --v2-focus: rgba(203, 166, 247, 0.36);
+  --v2-overlay: rgba(0, 0, 0, 0.66);
+  --v2-hairline: color-mix(in srgb, var(--v2-paper-4) 70%, transparent);
+}
+
+:root[data-color-theme="tokyo-night"] {
+  --v2-bg: #16161e;
+  --v2-paper: #1a1b26;
+  --v2-paper-2: #292e42;
+  --v2-paper-3: #33394f;
+  --v2-paper-4: #414868;
+  --v2-ink: #c0caf5;
+  --v2-ink-2: #a9b1d6;
+  --v2-ink-3: #929bc5;
+  --v2-ink-4: #737aa2;
+  --v2-ink-on-accent: #0c0e14;
+  --v2-accent: #7aa2f7;
+  --v2-accent-2: #9ab8ff;
+  --v2-accent-weak: rgba(122, 162, 247, 0.16);
+  --v2-accent-ink: #9ab8ff;
+  --v2-c-weight: #bb9af7;
+  --v2-c-reps: #73daca;
+  --v2-c-volume: #ff9e64;
+  --v2-c-onerm: #7aa2f7;
+  --v2-c-progress: #9ece6a;
+  --v2-c-pr: #e0af68;
+  --v2-c-danger: #f7768e;
+  --v2-c-success: #9ece6a;
+  --v2-c-info: #7dcfff;
+  --v2-c-warning: #e0af68;
+  --v2-shadow-soft: rgba(0, 0, 0, 0.3);
+  --v2-shadow-med: rgba(0, 0, 0, 0.42);
+  --v2-shadow-strong: rgba(0, 0, 0, 0.58);
+  --v2-elev-sheet: 0 -8px 32px rgba(0, 0, 0, 0.6);
+  --v2-focus: rgba(122, 162, 247, 0.36);
+  --v2-overlay: rgba(0, 0, 0, 0.66);
+  --v2-hairline: color-mix(in srgb, var(--v2-paper-4) 72%, transparent);
+}

@@ -6,13 +6,20 @@
 import { eq } from "drizzle-orm";
 import { db } from "../../db/client";
 import { userSetting } from "../../db/schema";
-import type { SettingValue } from "../../settings/workout-preferences";
+import {
+  DEFAULT_DARK_COLOR_THEME,
+  DEFAULT_LIGHT_COLOR_THEME,
+  SETTINGS_KEYS,
+  type SettingValue,
+} from "../../settings/workout-preferences";
 
 export type SettingsSnapshot = Record<string, SettingValue>;
 
 export const DEFAULT_SETTINGS: SettingsSnapshot = {
   "prefs.locale": "ko",
   "prefs.theme.mode": "SYSTEM",
+  [SETTINGS_KEYS.lightColorTheme]: DEFAULT_LIGHT_COLOR_THEME,
+  [SETTINGS_KEYS.darkColorTheme]: DEFAULT_DARK_COLOR_THEME,
   "prefs.minimumPlate.defaultKg": 2.5,
   "prefs.minimumPlate.rulesJson": "[]",
   "prefs.bodyweight.kg": 70,

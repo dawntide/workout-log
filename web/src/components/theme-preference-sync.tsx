@@ -3,16 +3,49 @@
 import { useEffect } from "react";
 import { fetchSettingsSnapshot } from "@/lib/settings/settings-api";
 import {
-  applyThemePreferenceToDocument,
+  applyThemePreferencesToDocument,
   clearLegacyThemeSkinPreference,
-  readThemePreferenceFromLocalCache,
+  normalizeDarkColorTheme,
+  normalizeLightColorTheme,
+  normalizeThemePreference,
+  readThemePreferencesFromLocalCache,
   readWorkoutPreferences,
+  type ColorThemePreferences,
 } from "@/lib/settings/workout-preferences";
 
 export function ThemePreferenceSync() {
   useEffect(() => {
     clearLegacyThemeSkinPreference();
-    applyThemePreferenceToDocument(readThemePreferenceFromLocalCache());
+    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+    let currentPreferences: ColorThemePreferences =
+      readThemePreferencesFromLocalCache();
+    const applyCurrentPreferences = () => {
+      applyThemePreferencesToDocument(
+        currentPreferences,
+        mediaQuery.matches,
+      );
+    };
+    const applySystemThemeChange = () => {
+      const root = document.documentElement;
+      currentPreferences = {
+        theme: normalizeThemePreference(
+          root.getAttribute("data-theme-preference") ??
+            currentPreferences.theme,
+        ),
+        lightColorTheme: normalizeLightColorTheme(
+          root.getAttribute("data-light-color-theme") ??
+            currentPreferences.lightColorTheme,
+        ),
+        darkColorTheme: normalizeDarkColorTheme(
+          root.getAttribute("data-dark-color-theme") ??
+            currentPreferences.darkColorTheme,
+        ),
+      };
+      applyCurrentPreferences();
+    };
+
+    applyCurrentPreferences();
+    mediaQuery.addEventListener("change", applySystemThemeChange);
 
     let cancelled = false;
     (async () => {
@@ -20,7 +53,12 @@ export function ThemePreferenceSync() {
         const snapshot = await fetchSettingsSnapshot();
         if (cancelled) return;
         const preferences = readWorkoutPreferences(snapshot);
-        applyThemePreferenceToDocument(preferences.theme);
+        currentPreferences = {
+          theme: preferences.theme,
+          lightColorTheme: preferences.lightColorTheme,
+          darkColorTheme: preferences.darkColorTheme,
+        };
+        applyCurrentPreferences();
       } catch {
         // Ignore fetch failure and keep local/system theme.
       }
@@ -28,6 +66,7 @@ export function ThemePreferenceSync() {
 
     return () => {
       cancelled = true;
+      mediaQuery.removeEventListener("change", applySystemThemeChange);
     };
   }, []);
 

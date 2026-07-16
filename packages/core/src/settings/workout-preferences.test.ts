@@ -1,15 +1,45 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  DARK_COLOR_THEMES,
+  DEFAULT_DARK_COLOR_THEME,
+  DEFAULT_LIGHT_COLOR_THEME,
   DEFAULT_TRAINING_GOAL_PRIMARY,
+  LIGHT_COLOR_THEMES,
   SETTINGS_KEYS,
   TRAINING_GOAL_KEYS,
+  normalizeDarkColorTheme,
+  normalizeLightColorTheme,
   normalizeTrainingGoal,
   parseTrainingGoalSecondary,
   readWorkoutPreferences,
   serializeTrainingGoalSecondary,
   toDefaultWorkoutPreferences,
 } from "./workout-preferences";
+
+test("color theme normalizers accept known values and reject unknown values", () => {
+  for (const theme of LIGHT_COLOR_THEMES) {
+    assert.equal(normalizeLightColorTheme(theme.toLowerCase()), theme);
+  }
+  for (const theme of DARK_COLOR_THEMES) {
+    assert.equal(normalizeDarkColorTheme(theme.toLowerCase()), theme);
+  }
+  assert.equal(normalizeLightColorTheme("dracula"), DEFAULT_LIGHT_COLOR_THEME);
+  assert.equal(normalizeDarkColorTheme("dracula"), DEFAULT_DARK_COLOR_THEME);
+});
+
+test("workout preferences keep independent light and dark color themes", () => {
+  const prefs = readWorkoutPreferences({
+    [SETTINGS_KEYS.lightColorTheme]: "SOLARIZED_LIGHT",
+    [SETTINGS_KEYS.darkColorTheme]: "TOKYO_NIGHT",
+  });
+  assert.equal(prefs.lightColorTheme, "SOLARIZED_LIGHT");
+  assert.equal(prefs.darkColorTheme, "TOKYO_NIGHT");
+
+  const defaults = toDefaultWorkoutPreferences();
+  assert.equal(defaults.lightColorTheme, DEFAULT_LIGHT_COLOR_THEME);
+  assert.equal(defaults.darkColorTheme, DEFAULT_DARK_COLOR_THEME);
+});
 
 test("normalizeTrainingGoal accepts all known keys", () => {
   for (const key of TRAINING_GOAL_KEYS) {

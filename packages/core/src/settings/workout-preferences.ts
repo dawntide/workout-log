@@ -7,7 +7,35 @@ export type SettingValue = string | number | boolean | null;
 export type SettingsSnapshot = Record<string, SettingValue>;
 
 export type ThemePreference = "SYSTEM" | "LIGHT" | "DARK";
+export type LightColorTheme =
+  | "PAPER"
+  | "GITHUB_LIGHT"
+  | "SOLARIZED_LIGHT"
+  | "CATPPUCCIN_LATTE"
+  | "TOKYO_NIGHT_DAY";
+export type DarkColorTheme =
+  | "OBSIDIAN"
+  | "GITHUB_DARK"
+  | "SOLARIZED_DARK"
+  | "CATPPUCCIN_MOCHA"
+  | "TOKYO_NIGHT";
 export type LocalePreference = "ko" | "en";
+
+export const LIGHT_COLOR_THEMES: readonly LightColorTheme[] = [
+  "PAPER",
+  "GITHUB_LIGHT",
+  "SOLARIZED_LIGHT",
+  "CATPPUCCIN_LATTE",
+  "TOKYO_NIGHT_DAY",
+] as const;
+
+export const DARK_COLOR_THEMES: readonly DarkColorTheme[] = [
+  "OBSIDIAN",
+  "GITHUB_DARK",
+  "SOLARIZED_DARK",
+  "CATPPUCCIN_MOCHA",
+  "TOKYO_NIGHT",
+] as const;
 
 export type TrainingGoalKey =
   | "strength"
@@ -33,6 +61,8 @@ export type MinimumPlateRule = {
 export type WorkoutPreferences = {
   locale: LocalePreference;
   theme: ThemePreference;
+  lightColorTheme: LightColorTheme;
+  darkColorTheme: DarkColorTheme;
   minimumPlateDefaultKg: number;
   minimumPlateRules: MinimumPlateRule[];
   bodyweightKg: number | null;
@@ -48,6 +78,8 @@ export type ResolvedMinimumPlateIncrement = {
 export const SETTINGS_KEYS = {
   locale: "prefs.locale",
   theme: "prefs.theme.mode",
+  lightColorTheme: "prefs.theme.light",
+  darkColorTheme: "prefs.theme.dark",
   minimumPlateDefaultKg: "prefs.minimumPlate.defaultKg",
   minimumPlateRulesJson: "prefs.minimumPlate.rulesJson",
   bodyweightKg: "prefs.bodyweight.kg",
@@ -57,6 +89,8 @@ export const SETTINGS_KEYS = {
 
 export const DEFAULT_LOCALE_PREFERENCE: LocalePreference = "ko";
 export const DEFAULT_THEME_PREFERENCE: ThemePreference = "SYSTEM";
+export const DEFAULT_LIGHT_COLOR_THEME: LightColorTheme = "PAPER";
+export const DEFAULT_DARK_COLOR_THEME: DarkColorTheme = "OBSIDIAN";
 export const DEFAULT_MINIMUM_PLATE_KG = 2.5;
 export const DEFAULT_BODYWEIGHT_KG: number | null = null;
 export const DEFAULT_TRAINING_GOAL_PRIMARY: TrainingGoalKey = "general";
@@ -91,6 +125,26 @@ export function normalizeThemePreference(value: unknown): ThemePreference {
   if (normalized === "LIGHT") return "LIGHT";
   if (normalized === "DARK") return "DARK";
   return "SYSTEM";
+}
+
+export function normalizeLightColorTheme(value: unknown): LightColorTheme {
+  const normalized = String(value ?? "")
+    .trim()
+    .toUpperCase();
+  if ((LIGHT_COLOR_THEMES as readonly string[]).includes(normalized)) {
+    return normalized as LightColorTheme;
+  }
+  return DEFAULT_LIGHT_COLOR_THEME;
+}
+
+export function normalizeDarkColorTheme(value: unknown): DarkColorTheme {
+  const normalized = String(value ?? "")
+    .trim()
+    .toUpperCase();
+  if ((DARK_COLOR_THEMES as readonly string[]).includes(normalized)) {
+    return normalized as DarkColorTheme;
+  }
+  return DEFAULT_DARK_COLOR_THEME;
 }
 
 export function normalizeLocalePreference(value: unknown): LocalePreference {
@@ -210,6 +264,12 @@ export function serializeMinimumPlateRules(rules: MinimumPlateRule[]): string {
 export function readWorkoutPreferences(snapshot: SettingsSnapshot): WorkoutPreferences {
   const locale = normalizeLocalePreference(snapshot[SETTINGS_KEYS.locale]);
   const theme = normalizeThemePreference(snapshot[SETTINGS_KEYS.theme]);
+  const lightColorTheme = normalizeLightColorTheme(
+    snapshot[SETTINGS_KEYS.lightColorTheme],
+  );
+  const darkColorTheme = normalizeDarkColorTheme(
+    snapshot[SETTINGS_KEYS.darkColorTheme],
+  );
   const minimumPlateDefaultKg = normalizeIncrementKg(
     snapshot[SETTINGS_KEYS.minimumPlateDefaultKg],
     DEFAULT_MINIMUM_PLATE_KG,
@@ -227,6 +287,8 @@ export function readWorkoutPreferences(snapshot: SettingsSnapshot): WorkoutPrefe
   return {
     locale,
     theme,
+    lightColorTheme,
+    darkColorTheme,
     minimumPlateDefaultKg,
     minimumPlateRules,
     bodyweightKg,
@@ -239,6 +301,8 @@ export function toDefaultWorkoutPreferences(): WorkoutPreferences {
   return {
     locale: DEFAULT_LOCALE_PREFERENCE,
     theme: DEFAULT_THEME_PREFERENCE,
+    lightColorTheme: DEFAULT_LIGHT_COLOR_THEME,
+    darkColorTheme: DEFAULT_DARK_COLOR_THEME,
     minimumPlateDefaultKg: DEFAULT_MINIMUM_PLATE_KG,
     minimumPlateRules: [],
     bodyweightKg: DEFAULT_BODYWEIGHT_KG,

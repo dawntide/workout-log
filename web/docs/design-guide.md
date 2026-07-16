@@ -30,6 +30,8 @@
 
 웹 테마는 컴포넌트 트리와 레이아웃을 공유하고 색상 토큰만 교체한다. 테마별 셸·화면·컴포넌트 포크는 만들지 않는다. 터미널 UX는 독립 `apps/tui` 클라이언트가 담당한다.
 
+설정은 `화면 모드(SYSTEM | LIGHT | DARK)`와 `라이트 컬러스키마`, `다크 컬러스키마`를 각각 저장한다. `SYSTEM`은 OS 모드가 바뀔 때 사용자가 고른 두 컬러스키마 사이를 자동 전환한다.
+
 ---
 
 ## 0.5. Hard Rules — 디자인 통일 5계명
@@ -135,55 +137,26 @@
 
 ---
 
-### 1-1. 다크 테마 (GitHub Dark 영감)
+### 1-1. 컬러스키마 목록
 
-```
-background:                 #10141a   (페이지 배경)
-surface:                    #10141a
-on-surface:                 #dfe2eb   (기본 텍스트)
-on-surface-variant:         #c0c7d4   (보조 텍스트)
-outline:                    #8b919d   (흐린 레이블, 메타)
-outline-variant:            #414752   (구분선, 테두리)
+| 라이트 | 다크 |
+|---|---|
+| Paper (기본) | Obsidian (기본) |
+| GitHub Light | GitHub Dark |
+| Solarized Light | Solarized Dark |
+| Catppuccin Latte | Catppuccin Mocha |
+| Tokyo Night Day | Tokyo Night |
 
-surface-container-lowest:   #0a0e14   ← 함몰 영역
-surface-container-low:      #181c22   ← 카드 기본 ★
-surface-container:          #1c2026   ← 중첩 카드
-surface-container-high:     #262a31   ← 헤더 행, shimmer 하이라이트
-surface-container-highest:  #31353c   ← 최상위 강조
-surface-bright:             #353940   ← hover state
+원본 개발 테마의 대표 팔레트를 앱의 semantic token에 매핑하되, 본문과 상태 텍스트는 WCAG AA 대비를 만족하도록 보정한다. 따라서 에디터 팔레트 값을 모든 역할에 그대로 복사하지 않는다.
 
-primary:                    #a2c9ff   (action blue — eyebrow, links, icons)
-primary-container:          #58a6ff   (button fill)
-on-primary:                 #00315c   (text on primary button)
-secondary:                  #67df70   (success/completion)
-secondary-container:        #27a640
-tertiary:                   #fabc45   (PR 강조, 경고, 골드)
-error:                      #ffb4ab   (삭제, 실패)
-error-container:            #93000a
-```
+### 1-2. 구현 규칙
 
-### 1-2. 라이트 테마 (Solarized Light 영감)
-
-```
-background:                 #FDF6E3   (warm paper)
-surface:                    #EEE8D5
-on-surface:                 #586E75   (기본 텍스트)
-on-surface-variant:         #93A1A1
-
-surface-container-lowest:   #F6F0DF
-surface-container-low:      #EEE8D5
-surface-container:          #E6E0CB
-surface-container-high:     #E0DAC1
-surface-container-highest:  #D6D1BC
-
-primary:    #268BD2  (blue)
-error:      #DC322F
-tertiary:   #B58900  (amber/gold)
-outline:    #93A1A1
-outline-variant: #C9C4B1
-```
-
-> 테마: `prefers-color-scheme` 기준 자동 전환. 다크 우선 기본값, 라이트 오버라이드.
+- 소스: [`styles/color-themes.css`](../src/styles/color-themes.css)
+- 선택자: `html[data-color-theme="..."]`
+- 변경 허용: `--v2-bg`, `--v2-paper*`, `--v2-ink*`, accent/domain 색상, 색 기반 shadow/focus/overlay
+- 변경 금지: DOM 구조, 컴포넌트, spacing, typography, radius, motion
+- 초기 렌더 전에 로컬 캐시를 적용하고, 서버 설정 수신 후 canonical 값으로 동기화한다.
+- `pnpm -C web test:a11y:contrast`가 10개 스키마의 필수 토큰과 주요 텍스트 대비를 검사한다.
 
 ### 1-3. CSS 토큰 매핑 (앱 실제 사용)
 
