@@ -125,6 +125,9 @@ test("REF5 reload preserves frozen external PULL loads and bypasses generic plat
 
 test("REF5 local draft restore rejects stale protocol/concurrent-session caches", () => {
   const current = createWorkoutRecordDraft(makeRef5Session(), "REF5");
+  const sameSession = structuredClone(current);
+  assert.equal(isWorkoutDraftProtocolCompatible(current, sameSession), true);
+
   const legacy = structuredClone(current);
   (legacy.session.ref5 as { protocolVersion: string }).protocolVersion = "1.1";
   assert.equal(isWorkoutDraftProtocolCompatible(current, legacy), false);

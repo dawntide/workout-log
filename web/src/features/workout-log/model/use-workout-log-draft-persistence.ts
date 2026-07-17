@@ -32,6 +32,9 @@ export function useWorkoutLogDraftPersistence({
   const reloadDraftContextRef = useRef<(() => Promise<void>) | null>(null);
   const [pendingRestorePrompt, setPendingRestorePrompt] = useState<PendingRestorePrompt | null>(null);
   const restorePromptResolveRef = useRef<((keep: boolean) => void) | null>(null);
+  // REF5 compatibility must be checked against the generated session loaded
+  // from the server. The URL key is available before that draft on a reload.
+  const isPersistenceReady = enabled && draft !== null;
   currentDraftRef.current = draft;
 
   useEffect(() => {
@@ -83,7 +86,7 @@ export function useWorkoutLogDraftPersistence({
         isRestoringRef.current = false;
       }
     }, [onRestoreAccepted]),
-    { enabled, isUserEditing },
+    { enabled: isPersistenceReady, isUserEditing },
   );
 
   useEffect(() => {
