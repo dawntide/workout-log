@@ -43,10 +43,12 @@ import {
   REF5_PROTOCOL_VERSION,
   Ref5StaleVersionError,
   Ref5ValidationError,
+  readRef5PlanStartConfig,
 } from "@workout/core/program-engine/ref5";
 
 import { requireAuth, type AppEnv } from "../auth";
 import { apiError, normalizeTimezone, resolveLocale } from "../lib/http";
+import { resolveRef5PlanStartConfig } from "../lib/ref5-plan-creation";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Plans — the TUI-critical plan workflow (list/create/rename/delete/generate/
@@ -338,6 +340,22 @@ plansRoutes.post("/", async (c) => {
         409,
       );
     }
+    const ref5StartConfig = isRef5Root
+      ? resolveRef5PlanStartConfig(submittedParams, versionDefaults)
+      : null;
+    if (ref5StartConfig && !ref5StartConfig.ok) {
+      return c.json(
+        {
+          error:
+            locale === "ko"
+              ? "REF5 시작 중량은 2.5~500kg 범위의 2.5kg 단위여야 하며 DL/OHP 상한을 넘을 수 없습니다."
+              : "REF5 starting loads must use the 2.5 kg grid from 2.5 to 500 kg and stay within the DL/OHP caps.",
+          code: "REF5_INVALID_START_CONFIG",
+          details: ref5StartConfig.errors,
+        },
+        400,
+      );
+    }
     const canonicalParams = isRef5Root
       ? {
           timezone: normalizeTimezone(
@@ -346,7 +364,7 @@ plansRoutes.post("/", async (c) => {
           autoProgression: true,
           programFamily: REF5_IDENTIFIERS.family,
           protocolVersion: REF5_PROTOCOL_VERSION,
-          ref5: asRecord(versionDefaults.ref5),
+          ref5: ref5StartConfig!.value,
         }
       : withAutoProgressionDefaults(body.params);
 
@@ -872,10 +890,11 @@ plansRoutes.get("/:planId/progression-state", async (c) => {
         .where(eq(planRuntimeState.planId, planId))
         .limit(1);
       const state = runtimeRows[0]?.state ?? null;
+      const initialDirectStandardsKg = readRef5PlanStartConfig(params).startingValuesKg;
       return c.json({
         program: "ref5",
         state,
-        ref5Status: buildRef5Status(state),
+        ref5Status: buildRef5Status(state, initialDirectStandardsKg),
         effectiveRules: null,
         targetsLastEvent: {},
         lastEvent: null,
@@ -1273,7 +1292,10 @@ plansRoutes.get("/:planId/cycle-overview", async (c) => {
         currentDay: null,
         sessions: [],
         targets: [],
-        ref5Status: buildRef5Status(runtimeRows[0]?.state ?? null),
+        ref5Status: buildRef5Status(
+          runtimeRows[0]?.state ?? null,
+          readRef5PlanStartConfig(params).startingValuesKg,
+        ),
       });
     }
 

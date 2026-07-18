@@ -15,6 +15,7 @@ import {
 } from "@workout/core/db/schema";
 import { generateSessionSnapshot } from "@workout/core/program-engine/generateSession";
 import { isRef5PlanParams } from "@workout/core/program-engine/ref5-integration";
+import { readRef5PlanStartConfig } from "@workout/core/program-engine/ref5";
 import {
   buildRef5Status,
   type Ref5Status,
@@ -511,17 +512,22 @@ async function fetchRef5Status(
   planId: string,
 ): Promise<Ref5Status> {
   const rows = await db
-    .select({ state: planRuntimeState.state })
-    .from(planRuntimeState)
+    .select({ state: planRuntimeState.state, params: plan.params })
+    .from(plan)
+    .leftJoin(planRuntimeState, eq(planRuntimeState.planId, plan.id))
     .where(
       and(
-        eq(planRuntimeState.userId, userId),
-        eq(planRuntimeState.planId, planId),
+        eq(plan.userId, userId),
+        eq(plan.id, planId),
       ),
     )
     .limit(1);
 
-  return buildRef5Status(rows[0]?.state ?? null);
+  const row = rows[0];
+  return buildRef5Status(
+    row?.state ?? null,
+    row ? readRef5PlanStartConfig(row.params).startingValuesKg : undefined,
+  );
 }
 
 async function fetchLogs(userId: string, limit: number) {

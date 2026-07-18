@@ -5,6 +5,7 @@ import {
   deriveRef5AuxiliaryCaps,
   deriveRef5ControlRefs,
   deriveRef5Standards,
+  type Ref5DirectStandardsKg,
   type Ref5RuntimeState,
 } from "./ref5";
 
@@ -19,8 +20,13 @@ function isRef5State(value: unknown): value is Ref5RuntimeState {
   );
 }
 
-export function buildRef5Status(value: unknown) {
-  const state = isRef5State(value) ? value : createInitialRef5State();
+export function buildRef5Status(
+  value: unknown,
+  initialDirectStandardsKg?: Ref5DirectStandardsKg,
+) {
+  const state = isRef5State(value)
+    ? value
+    : createInitialRef5State(initialDirectStandardsKg);
   const directStandardsKg = { ...state.directStandardsKg };
   const stagnationPending = (["SQ", "BP", "PULL"] as const).filter(
     (lift) => state.stagnation[lift].phase === "PENDING_MICRO",

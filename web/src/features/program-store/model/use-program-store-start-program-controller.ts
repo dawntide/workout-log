@@ -13,6 +13,13 @@ import {
   type OneRmTarget,
   type ProgramTemplate,
 } from "@workout/core/program-store/model";
+import {
+  deriveRef5AuxiliaryCaps,
+  deriveRef5ControlRefs,
+  validateRef5StartConfig,
+  type Ref5DirectStandardsKg,
+  type Ref5StartConfig,
+} from "@workout/core/program-engine/ref5";
 import type { PlanItem } from "./types";
 import { formatProgramDisplayName } from "./view";
 
@@ -40,24 +47,7 @@ export type StartProgramDraft = {
   ref5Config: Ref5StartConfig | null;
 };
 
-export type Ref5StartConfig = {
-  schemaVersion: number;
-  protocolVersion: string;
-  startingValuesKg: {
-    sqH3Kg: number;
-    bpFocusKg: number;
-    pullFocusTotalKg: number;
-    deadliftKg: number;
-    ohpKg: number;
-  };
-  controlRefsKg: {
-    sqKg: number;
-    bpKg: number;
-    pullTotalKg: number;
-    deadliftKg: number;
-    ohpKg: number;
-  };
-};
+export type Ref5StartField = keyof Ref5DirectStandardsKg;
 
 export type PrStatsResponse = {
   items?: Array<{
@@ -95,10 +85,6 @@ function parsePositiveNumber(input: string) {
   return Math.round(n * 100) / 100;
 }
 
-function isPositiveFinite(value: unknown): value is number {
-  return Number.isFinite(value) && Number(value) > 0;
-}
-
 export function readRef5StartConfigFromTemplate(
   template: ProgramTemplate,
 ): Ref5StartConfig | null {
@@ -108,34 +94,49 @@ export function readRef5StartConfigFromTemplate(
     | null
     | undefined;
   const starts = raw?.startingValuesKg;
-  const refs = raw?.controlRefsKg;
   if (
     raw?.schemaVersion !== 2 ||
     raw?.protocolVersion !== "1.2" ||
-    !starts ||
-    !refs ||
-    ![
-      starts.sqH3Kg,
-      starts.bpFocusKg,
-      starts.pullFocusTotalKg,
-      starts.deadliftKg,
-      starts.ohpKg,
-      refs.sqKg,
-      refs.bpKg,
-      refs.pullTotalKg,
-      refs.deadliftKg,
-      refs.ohpKg,
-    ].every(isPositiveFinite)
+    !starts
   ) {
     return null;
   }
+  const validated = validateRef5StartConfig(starts);
+  return validated.ok ? validated.value : null;
+}
 
-  return {
-    schemaVersion: 2,
-    protocolVersion: "1.2",
-    startingValuesKg: { ...starts } as Ref5StartConfig["startingValuesKg"],
-    controlRefsKg: { ...refs } as Ref5StartConfig["controlRefsKg"],
-  };
+export function readRef5StartConfigFromPlanParams(params: unknown): Ref5StartConfig | null {
+  const root = params && typeof params === "object" && !Array.isArray(params)
+    ? (params as Record<string, unknown>)
+    : {};
+  const nested = root.ref5 && typeof root.ref5 === "object" && !Array.isArray(root.ref5)
+    ? (root.ref5 as Record<string, unknown>)
+    : {};
+  const validated = validateRef5StartConfig(nested.startingValuesKg);
+  return validated.ok ? validated.value : null;
+}
+
+export function ref5StartConfigValidationMessage(
+  config: Ref5StartConfig,
+  locale: "ko" | "en",
+): string | null {
+  const result = validateRef5StartConfig(config.startingValuesKg);
+  if (result.ok) return null;
+  const starts = config.startingValuesKg;
+  const caps = deriveRef5AuxiliaryCaps(starts);
+  if (starts.deadliftKg > caps.deadliftMaxKg) {
+    return locale === "ko"
+      ? `DL 시작 중량은 현재 SQ 기준 상한 ${caps.deadliftMaxKg}kg 이하여야 합니다.`
+      : `DL must not exceed the ${caps.deadliftMaxKg} kg cap derived from SQ.`;
+  }
+  if (starts.ohpKg > caps.ohpMaxKg) {
+    return locale === "ko"
+      ? `OHP 시작 중량은 현재 BP 기준 상한 ${caps.ohpMaxKg}kg 이하여야 합니다.`
+      : `OHP must not exceed the ${caps.ohpMaxKg} kg cap derived from BP.`;
+  }
+  return locale === "ko"
+    ? "각 시작 중량은 2.5~500kg 범위에서 2.5kg 단위로 입력하세요."
+    : "Enter each starting load on the 2.5 kg grid from 2.5 to 500 kg.";
 }
 
 export function shouldLoadOneRmRecommendations(template: ProgramTemplate) {
@@ -163,18 +164,15 @@ export function buildRef5StartPlanParams(input: {
   today: string;
   config: Ref5StartConfig;
 }) {
+  const validated = validateRef5StartConfig(input.config.startingValuesKg);
+  if (!validated.ok) throw new Error(validated.errors.join("; "));
   return {
     timezone: input.timezone,
     startDate: input.today,
     autoProgression: true,
     programFamily: "ref5",
-    protocolVersion: input.config.protocolVersion,
-    ref5: {
-      schemaVersion: input.config.schemaVersion,
-      protocolVersion: input.config.protocolVersion,
-      startingValuesKg: { ...input.config.startingValuesKg },
-      controlRefsKg: { ...input.config.controlRefsKg },
-    },
+    protocolVersion: validated.value.protocolVersion,
+    ref5: validated.value,
   };
 }
 
@@ -561,12 +559,16 @@ export function useProgramStoreStartProgramController({
             plan.type === expectedPlanType,
         ) ?? null;
       const ref5 = isRef5Template(template);
-      const ref5Config = ref5 ? readRef5StartConfigFromTemplate(template) : null;
+      const ref5Config = ref5
+        ? existing
+          ? readRef5StartConfigFromPlanParams(existing.params)
+          : readRef5StartConfigFromTemplate(template)
+        : null;
       if (ref5 && !ref5Config) {
         setError(
           locale === "ko"
-            ? "REF5 고정 시작 설정을 불러오지 못했습니다."
-            : "The fixed REF5 start configuration is unavailable.",
+            ? "REF5 시작 중량 설정을 불러오지 못했습니다."
+            : "The REF5 starting-load configuration is unavailable.",
         );
         return;
       }
@@ -622,6 +624,27 @@ export function useProgramStoreStartProgramController({
     });
   }, []);
 
+  const updateRef5StartingValue = useCallback(
+    (field: Ref5StartField, value: number) => {
+      setStartProgramDraft((prev) => {
+        if (!prev?.ref5Config || prev.existingPlanId) return prev;
+        const startingValuesKg = {
+          ...prev.ref5Config.startingValuesKg,
+          [field]: value,
+        };
+        return {
+          ...prev,
+          ref5Config: {
+            ...prev.ref5Config,
+            startingValuesKg,
+            controlRefsKg: deriveRef5ControlRefs(startingValuesKg),
+          },
+        };
+      });
+    },
+    [],
+  );
+
   const applyRecommendation = useCallback((targetKey: string) => {
     setStartProgramDraft((prev) => {
       if (!prev) return prev;
@@ -641,6 +664,14 @@ export function useProgramStoreStartProgramController({
     if (!startProgramDraft) return;
 
     const isRef5Start = startProgramDraft.mode === "REF5";
+    const ref5ValidationMessage =
+      isRef5Start && startProgramDraft.ref5Config
+        ? ref5StartConfigValidationMessage(startProgramDraft.ref5Config, locale)
+        : null;
+    if (ref5ValidationMessage) {
+      setError(ref5ValidationMessage);
+      return;
+    }
     const ref5PlanParams =
       isRef5Start && startProgramDraft.ref5Config
         ? buildRef5StartPlanParams({
@@ -769,6 +800,7 @@ export function useProgramStoreStartProgramController({
     closeStartProgramDraft,
     openStartProgramDraft,
     updateOneRmInput,
+    updateRef5StartingValue,
     applyRecommendation,
     submitStartProgram,
   };

@@ -4,12 +4,14 @@ import type { ProgramTemplate } from "@workout/core/program-store/model";
 import {
   buildRef5StartPlanParams,
   readRef5StartConfigFromTemplate,
+  ref5StartConfigValidationMessage,
   requestOneRmStatsForProgramStart,
   shouldLoadOneRmRecommendations,
 } from "./use-program-store-start-program-controller";
 import { buildInitialCreateDraft } from "./use-program-store-sheet-entry-controller";
 
 const ref5Config = {
+  initializationVersion: 1,
   schemaVersion: 2,
   protocolVersion: "1.2",
   startingValuesKg: {
@@ -26,7 +28,7 @@ const ref5Config = {
     deadliftKg: 100,
     ohpKg: 50,
   },
-};
+} as const;
 
 const ref5Template: ProgramTemplate = {
   id: "template-ref5",
@@ -67,6 +69,22 @@ const manualTemplate: ProgramTemplate = {
 
 test("REF5 start config is read from the versioned seed defaults", () => {
   assert.deepEqual(readRef5StartConfigFromTemplate(ref5Template), ref5Config);
+  assert.deepEqual(
+    readRef5StartConfigFromTemplate({
+      ...ref5Template,
+      latestVersion: {
+        ...ref5Template.latestVersion!,
+        defaults: {
+          ref5: {
+            ...ref5Config,
+            controlRefsKg: { ...ref5Config.controlRefsKg, sqKg: 999 },
+          },
+        },
+      },
+    }),
+    ref5Config,
+    "display REFs are re-derived from canonical direct starts",
+  );
   assert.equal(
     readRef5StartConfigFromTemplate({
       ...ref5Template,
@@ -101,18 +119,28 @@ test("REF5 start bypasses the PR/e1RM recommendation request", async () => {
   assert.equal(apiCalls, 1);
 });
 
-test("REF5 plan params preserve fixed kg baselines without generic 1RM/TM or finite schedule fields", () => {
+test("REF5 plan params preserve user-selected direct kg baselines without generic 1RM/TM fields", () => {
+  const customConfig = {
+    ...ref5Config,
+    startingValuesKg: {
+      sqH3Kg: 90,
+      bpFocusKg: 90,
+      pullFocusTotalKg: 100,
+      deadliftKg: 80,
+      ohpKg: 35,
+    },
+  };
   const params = buildRef5StartPlanParams({
     timezone: "Asia/Seoul",
     today: "2026-07-13",
-    config: ref5Config,
+    config: customConfig,
   });
 
   assert.equal(params.programFamily, "ref5");
   assert.equal(params.protocolVersion, "1.2");
   assert.equal(params.ref5.schemaVersion, 2);
-  assert.deepEqual(params.ref5.startingValuesKg, ref5Config.startingValuesKg);
-  assert.deepEqual(params.ref5.controlRefsKg, ref5Config.controlRefsKg);
+  assert.deepEqual(params.ref5.startingValuesKg, customConfig.startingValuesKg);
+  assert.notDeepEqual(params.ref5.controlRefsKg, ref5Config.controlRefsKg);
 
   const raw = params as Record<string, unknown>;
   assert.equal("oneRepMaxKg" in raw, false);
@@ -121,6 +149,19 @@ test("REF5 plan params preserve fixed kg baselines without generic 1RM/TM or fin
   assert.equal("sessionsPerWeek" in raw, false);
   assert.equal("week" in raw, false);
   assert.equal("day" in raw, false);
+});
+
+test("REF5 start validation reports the active auxiliary cap", () => {
+  assert.equal(
+    ref5StartConfigValidationMessage(
+      {
+        ...ref5Config,
+        startingValuesKg: { ...ref5Config.startingValuesKg, ohpKg: 35 },
+      },
+      "ko",
+    ),
+    "OHP 시작 중량은 현재 BP 기준 상한 32.5kg 이하여야 합니다.",
+  );
 });
 
 test("REF5 is not offered as a generic official-template fork source", () => {

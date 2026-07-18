@@ -4,8 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -47,6 +49,14 @@ type templatesLoadedMsg struct {
 
 type planCreatedMsg struct{ err error }
 
+type ref5StartingValues struct {
+	SqH3Kg           float64
+	BpFocusKg        float64
+	PullFocusTotalKg float64
+	DeadliftKg       float64
+	OhpKg            float64
+}
+
 func templatesLoadCmd(c *api.Client) tea.Cmd {
 	return func() tea.Msg {
 		ts, err := c.Templates(context.Background())
@@ -79,7 +89,7 @@ func createTemplatePlanCmd(c *api.Client, t api.Template) tea.Cmd {
 	}
 }
 
-func createRef5TemplatePlanCmd(c *api.Client, t api.Template, timezone string) tea.Cmd {
+func createRef5TemplatePlanCmd(c *api.Client, t api.Template, timezone string, starts ref5StartingValues) tea.Cmd {
 	return func() tea.Msg {
 		if t.LatestVersion == nil {
 			return planCreatedMsg{err: fmt.Errorf("프로그램 버전을 찾을 수 없습니다")}
@@ -96,7 +106,21 @@ func createRef5TemplatePlanCmd(c *api.Client, t api.Template, timezone string) t
 			Name:                 t.Name,
 			Type:                 planType,
 			RootProgramVersionID: t.LatestVersion.ID,
-			Params:               map[string]any{"timezone": timezone},
+			Params: map[string]any{
+				"timezone":        timezone,
+				"programFamily":   api.Ref5ProgramFamily,
+				"protocolVersion": api.Ref5ProtocolVersion,
+				"ref5": map[string]any{
+					"initializationVersion": api.Ref5StartConfigVersion,
+					"schemaVersion":         api.Ref5RuntimeSchemaVersion,
+					"protocolVersion":       api.Ref5ProtocolVersion,
+					"startingValuesKg": map[string]any{
+						"sqH3Kg": starts.SqH3Kg, "bpFocusKg": starts.BpFocusKg,
+						"pullFocusTotalKg": starts.PullFocusTotalKg,
+						"deadliftKg":       starts.DeadliftKg, "ohpKg": starts.OhpKg,
+					},
+				},
+			},
 		})}
 	}
 }
@@ -116,6 +140,82 @@ func ref5TimezonePickerMsg(initial string) openPickerMsg {
 		owner:   vPrograms,
 		owned:   true,
 	}
+}
+
+func ref5WeightPickerMsg(tag, prompt, initial string) openPickerMsg {
+	return openPickerMsg{
+		prompt: prompt, tag: tag, initial: strings.TrimSpace(initial), owner: vPrograms, owned: true,
+	}
+}
+
+func ref5StartNumber(value any) (float64, bool) {
+	switch number := value.(type) {
+	case float64:
+		return number, true
+	case float32:
+		return float64(number), true
+	case int:
+		return float64(number), true
+	case json.Number:
+		parsed, err := number.Float64()
+		return parsed, err == nil
+	default:
+		return 0, false
+	}
+}
+
+func ref5StartingValuesFromTemplate(t api.Template) (ref5StartingValues, error) {
+	if t.LatestVersion == nil {
+		return ref5StartingValues{}, fmt.Errorf("프로그램 버전을 찾을 수 없습니다")
+	}
+	ref5Defaults, ok := t.LatestVersion.Defaults["ref5"].(map[string]any)
+	if !ok {
+		return ref5StartingValues{}, fmt.Errorf("REF5 시작 중량 기본값을 찾을 수 없습니다")
+	}
+	raw, ok := ref5Defaults["startingValuesKg"].(map[string]any)
+	if !ok {
+		return ref5StartingValues{}, fmt.Errorf("REF5 시작 중량 기본값을 찾을 수 없습니다")
+	}
+	read := func(key string) (float64, error) {
+		value, ok := ref5StartNumber(raw[key])
+		if !ok || !validRef5StartingWeight(value) {
+			return 0, fmt.Errorf("REF5 %s 기본값이 올바르지 않습니다", key)
+		}
+		return value, nil
+	}
+	values := ref5StartingValues{}
+	var err error
+	if values.SqH3Kg, err = read("sqH3Kg"); err != nil {
+		return values, err
+	}
+	if values.BpFocusKg, err = read("bpFocusKg"); err != nil {
+		return values, err
+	}
+	if values.PullFocusTotalKg, err = read("pullFocusTotalKg"); err != nil {
+		return values, err
+	}
+	if values.DeadliftKg, err = read("deadliftKg"); err != nil {
+		return values, err
+	}
+	if values.OhpKg, err = read("ohpKg"); err != nil {
+		return values, err
+	}
+	if values.DeadliftKg > ref5DeadliftCap(values)+1e-9 || values.OhpKg > ref5OhpCap(values)+1e-9 {
+		return values, fmt.Errorf("REF5 보조종목 기본값이 상한을 넘습니다")
+	}
+	return values, nil
+}
+
+func validRef5StartingWeight(value float64) bool {
+	return value >= 2.5 && value <= 500 && math.Abs(value/2.5-math.Round(value/2.5)) <= 1e-9
+}
+
+func ref5DeadliftCap(values ref5StartingValues) float64 {
+	return math.Floor(((104*values.SqH3Kg/82.5)*72.5/100)/2.5) * 2.5
+}
+
+func ref5OhpCap(values ref5StartingValues) float64 {
+	return math.Floor((((101*values.BpFocusKg/82.5)*0.5)*32.5/50)/2.5) * 2.5
 }
 
 func ref5PlanTimezone(settings map[string]json.RawMessage) string {
@@ -202,6 +302,8 @@ type Programs struct {
 	statusLoading         bool
 	statusErr             string
 	pendingRef5TemplateID string
+	pendingRef5Timezone   string
+	pendingRef5Starts     ref5StartingValues
 	w, h                  int
 }
 
@@ -295,29 +397,25 @@ func (s Programs) Update(msg tea.Msg) (Screen, tea.Cmd) {
 				if t.ID == m.value && t.LatestVersion != nil {
 					s.err = ""
 					if t.IsRef5() {
+						starts, err := ref5StartingValuesFromTemplate(t)
+						if err != nil {
+							s.err = err.Error()
+							return s, nil
+						}
 						s.pendingRef5TemplateID = t.ID
+						s.pendingRef5Timezone = ""
+						s.pendingRef5Starts = starts
 						return s, ref5TimezonePickerCmd(s.client)
 					}
 					s.pendingRef5TemplateID = ""
+					s.pendingRef5Timezone = ""
+					s.pendingRef5Starts = ref5StartingValues{}
 					return s, createTemplatePlanCmd(s.client, t)
 				}
 			}
 		}
-		if m.tag == "ref5-timezone" {
-			timezone := strings.TrimSpace(m.value)
-			if !isIANATimezone(timezone) {
-				s.err = "올바른 IANA 시간대를 입력하세요 (예: Asia/Seoul)"
-				return s, func() tea.Msg { return ref5TimezonePickerMsg(timezone) }
-			}
-			for _, t := range s.templates {
-				if t.ID == s.pendingRef5TemplateID && t.LatestVersion != nil && t.IsRef5() {
-					s.pendingRef5TemplateID = ""
-					s.err = ""
-					return s, createRef5TemplatePlanCmd(s.client, t, timezone)
-				}
-			}
-			s.pendingRef5TemplateID = ""
-			s.err = "선택한 REF5 프로그램을 찾을 수 없습니다"
+		if strings.HasPrefix(m.tag, "ref5-") {
+			return s.handleRef5SetupPick(m)
 		}
 		return s, nil
 	case tea.KeyPressMsg:
@@ -332,6 +430,113 @@ func (s Programs) Update(msg tea.Msg) (Screen, tea.Cmd) {
 		return s, cmd
 	}
 	return s, nil
+}
+
+func ref5StartPrompt(tag string, values ref5StartingValues) string {
+	switch tag {
+	case "ref5-sq-h3":
+		return "SQ H3 시작 kg (2.5 단위) "
+	case "ref5-bp-focus":
+		return "BP 집중 시작 kg (2.5 단위) "
+	case "ref5-pull-total":
+		return "PULL 집중 총중량 kg (2.5 단위) "
+	case "ref5-deadlift":
+		return fmt.Sprintf("DL 시작 kg (상한 %s) ", trimNum(ref5DeadliftCap(values)))
+	case "ref5-ohp":
+		return fmt.Sprintf("OHP 시작 kg (상한 %s) ", trimNum(ref5OhpCap(values)))
+	default:
+		return "REF5 시작 kg "
+	}
+}
+
+func ref5StartPickerCmd(tag string, values ref5StartingValues, initial float64) tea.Cmd {
+	return func() tea.Msg {
+		return ref5WeightPickerMsg(tag, ref5StartPrompt(tag, values), trimNum(initial))
+	}
+}
+
+func (s Programs) pendingRef5Template() (api.Template, bool) {
+	for _, template := range s.templates {
+		if template.ID == s.pendingRef5TemplateID && template.LatestVersion != nil && template.IsRef5() {
+			return template, true
+		}
+	}
+	return api.Template{}, false
+}
+
+func (s Programs) handleRef5SetupPick(m pickedMsg) (Screen, tea.Cmd) {
+	template, ok := s.pendingRef5Template()
+	if !ok {
+		s.pendingRef5TemplateID = ""
+		s.pendingRef5Timezone = ""
+		s.pendingRef5Starts = ref5StartingValues{}
+		s.err = "선택한 REF5 프로그램을 찾을 수 없습니다"
+		return s, nil
+	}
+
+	if m.tag == "ref5-timezone" {
+		timezone := strings.TrimSpace(m.value)
+		if !isIANATimezone(timezone) {
+			s.err = "올바른 IANA 시간대를 입력하세요 (예: Asia/Seoul)"
+			return s, func() tea.Msg { return ref5TimezonePickerMsg(timezone) }
+		}
+		s.pendingRef5Timezone = timezone
+		s.err = ""
+		return s, ref5StartPickerCmd("ref5-sq-h3", s.pendingRef5Starts, s.pendingRef5Starts.SqH3Kg)
+	}
+
+	value, err := strconv.ParseFloat(strings.TrimSpace(m.value), 64)
+	if err != nil || !validRef5StartingWeight(value) {
+		s.err = "시작 중량은 2.5~500kg 범위에서 2.5kg 단위로 입력하세요"
+		return s, func() tea.Msg {
+			return ref5WeightPickerMsg(m.tag, ref5StartPrompt(m.tag, s.pendingRef5Starts), m.value)
+		}
+	}
+
+	s.err = ""
+	switch m.tag {
+	case "ref5-sq-h3":
+		s.pendingRef5Starts.SqH3Kg = value
+		return s, ref5StartPickerCmd("ref5-bp-focus", s.pendingRef5Starts, s.pendingRef5Starts.BpFocusKg)
+	case "ref5-bp-focus":
+		s.pendingRef5Starts.BpFocusKg = value
+		return s, ref5StartPickerCmd("ref5-pull-total", s.pendingRef5Starts, s.pendingRef5Starts.PullFocusTotalKg)
+	case "ref5-pull-total":
+		s.pendingRef5Starts.PullFocusTotalKg = value
+		return s, ref5StartPickerCmd("ref5-deadlift", s.pendingRef5Starts, s.pendingRef5Starts.DeadliftKg)
+	case "ref5-deadlift":
+		capKg := ref5DeadliftCap(s.pendingRef5Starts)
+		if value > capKg+1e-9 {
+			s.err = fmt.Sprintf("DL 시작 중량은 현재 SQ 기준 상한 %skg 이하여야 합니다", trimNum(capKg))
+			return s, func() tea.Msg {
+				return ref5WeightPickerMsg(m.tag, ref5StartPrompt(m.tag, s.pendingRef5Starts), m.value)
+			}
+		}
+		s.pendingRef5Starts.DeadliftKg = value
+		return s, ref5StartPickerCmd("ref5-ohp", s.pendingRef5Starts, s.pendingRef5Starts.OhpKg)
+	case "ref5-ohp":
+		capKg := ref5OhpCap(s.pendingRef5Starts)
+		if value > capKg+1e-9 {
+			s.err = fmt.Sprintf("OHP 시작 중량은 현재 BP 기준 상한 %skg 이하여야 합니다", trimNum(capKg))
+			return s, func() tea.Msg {
+				return ref5WeightPickerMsg(m.tag, ref5StartPrompt(m.tag, s.pendingRef5Starts), m.value)
+			}
+		}
+		s.pendingRef5Starts.OhpKg = value
+		command := createRef5TemplatePlanCmd(
+			s.client,
+			template,
+			s.pendingRef5Timezone,
+			s.pendingRef5Starts,
+		)
+		s.pendingRef5TemplateID = ""
+		s.pendingRef5Timezone = ""
+		s.pendingRef5Starts = ref5StartingValues{}
+		return s, command
+	default:
+		s.err = "알 수 없는 REF5 시작 설정 단계입니다"
+		return s, nil
+	}
 }
 
 func (s Programs) handleKey(m tea.KeyPressMsg) (Screen, tea.Cmd) {

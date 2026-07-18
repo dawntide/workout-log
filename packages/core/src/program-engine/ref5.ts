@@ -13,6 +13,7 @@ export const REF5_RUNTIME_SCHEMA_VERSION = 2 as const;
 export const REF5_LEGACY_RUNTIME_SCHEMA_VERSION = 1 as const;
 export const REF5_SNAPSHOT_SCHEMA_VERSION = 2 as const;
 export const REF5_PROGRAM_VERSION = 2 as const;
+export const REF5_START_CONFIG_VERSION = 1 as const;
 export const REF5_LEGACY_ENGINE_VERSION = 511 as const;
 
 export type Ref5ProtocolVersion = typeof REF5_PROTOCOL_VERSION;
@@ -104,6 +105,21 @@ export interface Ref5AuxiliaryCapsKg {
   ohpControlRefMaxKg: number;
 }
 
+export interface Ref5StartConfig {
+  initializationVersion: typeof REF5_START_CONFIG_VERSION;
+  schemaVersion: typeof REF5_RUNTIME_SCHEMA_VERSION;
+  protocolVersion: typeof REF5_PROTOCOL_VERSION;
+  startingValuesKg: Ref5DirectStandardsKg;
+  controlRefsKg: Ref5ControlRefsKg;
+}
+
+export const REF5_START_LOAD_MIN_KG = 2.5;
+export const REF5_START_LOAD_MAX_KG = 500;
+
+export type Ref5StartConfigValidationResult =
+  | { ok: true; value: Ref5StartConfig }
+  | { ok: false; errors: string[] };
+
 export const REF5_INITIAL_DIRECT_STANDARDS_KG: Readonly<Ref5DirectStandardsKg> = Object.freeze({
   sqH3Kg: 82.5,
   bpFocusKg: 82.5,
@@ -179,6 +195,81 @@ export function deriveRef5AuxiliaryCaps(direct: Ref5DirectStandardsKg): Ref5Auxi
     deadliftControlRefMaxKg: refs.sqKg,
     ohpControlRefMaxKg: cleanKg(refs.bpKg * 0.5),
   };
+}
+
+const REF5_DIRECT_STANDARD_KEYS = [
+  "sqH3Kg",
+  "bpFocusKg",
+  "pullFocusTotalKg",
+  "deadliftKg",
+  "ohpKg",
+] as const satisfies readonly (keyof Ref5DirectStandardsKg)[];
+
+function ref5Record(value: unknown): Record<string, unknown> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  return value as Record<string, unknown>;
+}
+
+/** Validates plan-creation loads. Runtime progression still owns later changes. */
+export function validateRef5StartConfig(value: unknown): Ref5StartConfigValidationResult {
+  const source = ref5Record(value);
+  const errors: string[] = [];
+  const startingValuesKg = {} as Ref5DirectStandardsKg;
+
+  if (Object.keys(source).length === 0) {
+    return { ok: false, errors: ["REF5 startingValuesKg must be an object"] };
+  }
+
+  for (const key of REF5_DIRECT_STANDARD_KEYS) {
+    const raw = source[key];
+    if (typeof raw !== "number" || !Number.isFinite(raw)) {
+      errors.push(`${key} must be a finite number`);
+      continue;
+    }
+    if (raw < REF5_START_LOAD_MIN_KG || raw > REF5_START_LOAD_MAX_KG) {
+      errors.push(
+        `${key} must be between ${REF5_START_LOAD_MIN_KG} and ${REF5_START_LOAD_MAX_KG} kg`,
+      );
+    }
+    if (Math.abs(raw - nearestRef5To2p5(raw)) > 1e-9) {
+      errors.push(`${key} must use the 2.5 kg grid`);
+    }
+    startingValuesKg[key] = cleanKg(raw);
+  }
+
+  if (errors.length === 0) {
+    const caps = deriveRef5AuxiliaryCaps(startingValuesKg);
+    if (startingValuesKg.deadliftKg > caps.deadliftMaxKg + 1e-9) {
+      errors.push(`deadliftKg exceeds the ${caps.deadliftMaxKg} kg REF5 auxiliary cap`);
+    }
+    if (startingValuesKg.ohpKg > caps.ohpMaxKg + 1e-9) {
+      errors.push(`ohpKg exceeds the ${caps.ohpMaxKg} kg REF5 auxiliary cap`);
+    }
+  }
+
+  if (errors.length > 0) return { ok: false, errors };
+  return {
+    ok: true,
+    value: {
+      initializationVersion: REF5_START_CONFIG_VERSION,
+      schemaVersion: REF5_RUNTIME_SCHEMA_VERSION,
+      protocolVersion: REF5_PROTOCOL_VERSION,
+      startingValuesKg,
+      controlRefsKg: deriveRef5ControlRefs(startingValuesKg),
+    },
+  };
+}
+
+export function normalizeRef5StartConfig(value: unknown): Ref5StartConfig {
+  const result = validateRef5StartConfig(value);
+  if (!result.ok) throw new Ref5ValidationError(result.errors);
+  return result.value;
+}
+
+export function readRef5PlanStartConfig(planParams: unknown): Ref5StartConfig {
+  const params = ref5Record(planParams);
+  const nested = ref5Record(params.ref5);
+  return normalizeRef5StartConfig(nested.startingValuesKg);
 }
 
 export function ref5AuxiliaryCandidateIsWithinCap(

@@ -431,8 +431,8 @@ export function getProgramDetailInfo(
       modules,
       progressionNote: t(
         locale,
-        "고정 시작 기준 · PASS/HOLD/FAIL/INVALID · 세션별 적응",
-        "Fixed starting baselines · PASS/HOLD/FAIL/INVALID · Session-adaptive",
+        "직접 kg 시작 기준 · PASS/HOLD/FAIL/INVALID · 세션별 적응",
+        "Direct kg starting baselines · PASS/HOLD/FAIL/INVALID · Session-adaptive",
       ),
     };
   }

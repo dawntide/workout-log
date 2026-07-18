@@ -257,9 +257,17 @@ test("REF5 raw replay deduplicates the same completion idempotency key", () => {
 });
 
 test("REF5 historical state helper is read-only and excludes tuples at/after target", async () => {
-  const first = domainSnapshot();
+  const customStarts = {
+    sqH3Kg: 90,
+    bpFocusKg: 90,
+    pullFocusTotalKg: 100,
+    deadliftKg: 80,
+    ohpKg: 35,
+  };
+  const seed = domainSnapshot();
+  const first = generateRef5Session(createInitialRef5State(customStarts), seed.startInput);
   const firstStarted = applyRef5FirstSquatStart(
-    createInitialRef5State(),
+    createInitialRef5State(customStarts),
     first,
     "start-1",
   ).nextState;
@@ -319,7 +327,11 @@ test("REF5 historical state helper is read-only and excludes tuples at/after tar
         return chain([{
           id: "plan-1",
           userId: "user-1",
-          params: { programFamily: "ref5", protocolVersion: "1.2" },
+          params: {
+            programFamily: "ref5",
+            protocolVersion: "1.2",
+            ref5: { startingValuesKg: customStarts },
+          },
         }]);
       }
       if ("sessionKey" in selection) return chain(generatedRows);
@@ -355,4 +367,5 @@ test("REF5 historical state helper is read-only and excludes tuples at/after tar
   assert.equal(derived.state.startedSessions.length, 1);
   assert.equal(derived.state.completedSessions.length, 1);
   assert.equal(derived.state.startedSessions[0]!.sessionId, first.sessionId);
+  assert.deepEqual(derived.state.directStandardsKg, customStarts);
 });
