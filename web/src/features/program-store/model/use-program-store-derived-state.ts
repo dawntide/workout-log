@@ -1,14 +1,14 @@
 import { useMemo } from "react";
 import {
-  getProgramScheduleLabel,
   isOperatorTemplate,
   toProgramListItems,
   type ProgramTemplate,
 } from "@workout/core/program-store/model";
 import {
+  filterProgramListItemsBySearch,
   filterProgramListItemsByCategory,
-  formatProgramDisplayName,
-  normalizeSearchText,
+  getProgramStoreDetailVariants,
+  groupProgramStoreListItems,
   storeCategories,
 } from "./view";
 
@@ -33,23 +33,20 @@ export function useProgramStoreDerivedState({
 }: UseProgramStoreDerivedStateInput) {
   const categoryOptions = useMemo(() => storeCategories(locale), [locale]);
 
-  const listItems = useMemo(() => toProgramListItems(templates, locale), [locale, templates]);
+  const templateItems = useMemo(
+    () => toProgramListItems(templates, locale),
+    [locale, templates],
+  );
 
-  const filteredListItems = useMemo(() => {
-    const normalizedQuery = storeQuery.trim().toLowerCase();
-    if (!normalizedQuery) return listItems;
-    return listItems.filter((item) => {
-      const scheduleLabel = getProgramScheduleLabel(item.template, locale);
-      const tags = Array.isArray(item.template.tags) ? item.template.tags.join(" ") : "";
-      return normalizeSearchText(
-        formatProgramDisplayName(item.name),
-        item.subtitle,
-        item.description,
-        scheduleLabel,
-        tags,
-      ).includes(normalizedQuery);
-    });
-  }, [listItems, locale, storeQuery]);
+  const listItems = useMemo(
+    () => groupProgramStoreListItems(templateItems, locale),
+    [locale, templateItems],
+  );
+
+  const filteredListItems = useMemo(
+    () => filterProgramListItemsBySearch(listItems, storeQuery, locale),
+    [listItems, locale, storeQuery],
+  );
 
   const categoryFilteredItems = useMemo(
     () => filterProgramListItemsByCategory(filteredListItems, categoryFilter),
@@ -67,13 +64,19 @@ export function useProgramStoreDerivedState({
   );
 
   const detailTarget = useMemo(
-    () => listItems.find((entry) => entry.template.id === detailTargetId) ?? null,
-    [detailTargetId, listItems],
+    () =>
+      templateItems.find((entry) => entry.template.id === detailTargetId) ?? null,
+    [detailTargetId, templateItems],
+  );
+
+  const detailVariants = useMemo(
+    () => getProgramStoreDetailVariants(templateItems, detailTarget),
+    [detailTarget, templateItems],
   );
 
   const customProgramCount = useMemo(
-    () => listItems.filter((entry) => entry.source === "CUSTOM").length,
-    [listItems],
+    () => templateItems.filter((entry) => entry.source === "CUSTOM").length,
+    [templateItems],
   );
 
   const marketListItems = useMemo(
@@ -93,12 +96,14 @@ export function useProgramStoreDerivedState({
 
   return {
     categoryOptions,
+    templateItems,
     listItems,
     filteredListItems,
     categoryFilteredItems,
     publicTemplates,
     manualPublicTemplate,
     detailTarget,
+    detailVariants,
     customProgramCount,
     marketListItems,
     customListItems,

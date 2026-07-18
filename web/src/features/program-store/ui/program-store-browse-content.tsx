@@ -3,7 +3,7 @@
 import { SearchInput } from "@/components/ui/search-input";
 import { V2PrimaryBtn, V2SecondaryBtn, V2SectionHeader } from "@/components/v2/primitives";
 import { AppPage, PageSection, StateBlock } from "@/components/ui/page-layout";
-import type { ProgramListItem } from "@workout/core/program-store/model";
+import type { ProgramStoreListItem } from "@/features/program-store/model/view";
 import { ProgramListCard } from "./program-list-card";
 
 type ProgramStoreCopy = {
@@ -30,11 +30,11 @@ type ProgramStoreBrowseContentProps = {
   notice: string | null;
   storeQuery: string;
   categoryFilter: string;
-  listItems: ProgramListItem[];
-  filteredListItems: ProgramListItem[];
-  categoryFilteredItems: ProgramListItem[];
-  marketListItems: ProgramListItem[];
-  customListItems: ProgramListItem[];
+  listItems: ProgramStoreListItem[];
+  filteredListItems: ProgramStoreListItem[];
+  categoryFilteredItems: ProgramStoreListItem[];
+  marketListItems: ProgramStoreListItem[];
+  customListItems: ProgramStoreListItem[];
   customProgramCount: number;
   categoryOptions: readonly CategoryOption[];
   isStoreSettled: boolean;
@@ -42,7 +42,7 @@ type ProgramStoreBrowseContentProps = {
   onRetry: () => void;
   onChangeStoreQuery: (value: string) => void;
   onChangeCategoryFilter: (key: string) => void;
-  onSelectItem: (item: ProgramListItem) => void;
+  onSelectItem: (item: ProgramStoreListItem) => void;
   onOpenCreateSheet: () => void;
 };
 

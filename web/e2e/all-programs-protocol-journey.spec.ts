@@ -13,6 +13,7 @@ type ProgramStart = {
   slug: string;
   inventoryName: string;
   search: string;
+  variantLabel?: "기본" | "FSL" | "BBB";
   oneRmInputs: number;
 };
 
@@ -114,20 +115,23 @@ const PROGRAM = {
   },
   wendler531: {
     slug: "wendler-531",
-    inventoryName: "Jim Wendler 5/3/1 (No Assistance)",
+    inventoryName: "Jim Wendler 5/3/1",
     search: "Jim Wendler 5/3/1 (No Assistance)",
+    variantLabel: "기본",
     oneRmInputs: 4,
   },
   wendler531Fsl: {
     slug: "wendler-531-fsl",
-    inventoryName: "Jim Wendler 5/3/1 + FSL",
+    inventoryName: "Jim Wendler 5/3/1",
     search: "Jim Wendler 5/3/1 + FSL",
+    variantLabel: "FSL",
     oneRmInputs: 4,
   },
   wendler531Bbb: {
     slug: "wendler-531-bbb",
-    inventoryName: "Jim Wendler 5/3/1 + BBB",
+    inventoryName: "Jim Wendler 5/3/1",
     search: "Jim Wendler 5/3/1 + BBB",
+    variantLabel: "BBB",
     oneRmInputs: 4,
   },
   asymptote: {
@@ -188,8 +192,21 @@ async function activateProgram(
   await card.getByRole("button", { name: "시작하기" }).click();
   const detail = page.getByRole("dialog", { name: "프로그램 상세" });
   await expect(detail).toBeVisible();
+  if (program.variantLabel) {
+    const variants = detail.getByRole("radiogroup", { name: "5/3/1 방식" });
+    await expect(variants.getByRole("radio")).toHaveCount(3);
+    await variants
+      .getByRole("radio", { name: new RegExp(`^${program.variantLabel}`) })
+      .click();
+  }
   if (inspectDetail) await inspectDetail(detail);
-  await detail.getByRole("button", { name: "이 프로그램으로 시작하기" }).click();
+  await detail
+    .getByRole("button", {
+      name: program.variantLabel
+        ? `${program.variantLabel} 방식으로 시작하기`
+        : "이 프로그램으로 시작하기",
+    })
+    .click();
 
   await expect(page.getByRole("heading", { name: "시작 전 1RM 입력" })).toBeVisible({
     timeout: 15_000,

@@ -10,6 +10,7 @@ import {
   useProgramStoreBootstrapController,
 } from "@/features/program-store/model/use-program-store-bootstrap-controller";
 import { useProgramStoreDerivedState } from "@/features/program-store/model/use-program-store-derived-state";
+import { resolveProgramStoreSelection } from "@/features/program-store/model/view";
 import {
   useProgramStoreSheetEntryController,
   type ProgramStoreCreateDraft as CreateDraft,
@@ -80,12 +81,14 @@ export function ProgramStoreScreen({
 
   const {
     categoryOptions,
+    templateItems,
     listItems,
     filteredListItems,
     categoryFilteredItems,
     publicTemplates,
     manualPublicTemplate,
     detailTarget,
+    detailVariants,
     customProgramCount,
     marketListItems,
     customListItems,
@@ -101,7 +104,7 @@ export function ProgramStoreScreen({
 
   useProgramStoreSheetEntryController({
     queryState,
-    listItems,
+    listItems: templateItems,
     templates,
     locale,
     setDetailTargetId,
@@ -209,7 +212,12 @@ export function ProgramStoreScreen({
           onChangeStoreQuery={setStoreQuery}
           onChangeCategoryFilter={setCategoryFilter}
           onSelectItem={(item) => {
-            setDetailTargetId(item.template.id);
+            const selectedItem = resolveProgramStoreSelection(
+              item,
+              storeQuery,
+              locale,
+            );
+            setDetailTargetId(selectedItem.template.id);
           }}
           onOpenCreateSheet={openCreateSheet}
       />
@@ -218,7 +226,11 @@ export function ProgramStoreScreen({
         open={Boolean(detailTarget)}
         onClose={() => setDetailTargetId(null)}
         item={detailTarget}
+        variants={detailVariants}
         saving={saving}
+        onSelectVariant={(variant) => {
+          setDetailTargetId(variant.template.id);
+        }}
         onStart={() => {
           if (detailTarget) openStartProgramDraft(detailTarget.template);
         }}

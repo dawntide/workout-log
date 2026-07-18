@@ -6,6 +6,7 @@ import { BottomSheet } from "@/components/ui/bottom-sheet";
 import {
   V2Chip,
   V2PrimaryBtn,
+  V2SelectableRow,
   V2SecondaryBtn,
   type V2ChipTone,
 } from "@/components/v2/primitives";
@@ -19,6 +20,7 @@ import {
   type ProgramSessionDraft,
   type ProgramTemplate,
 } from "@workout/core/program-store/model";
+import { getWendler531VariantPresentation } from "@/features/program-store/model/view";
 
 // ─── Local helpers ────────────────────────────────────────────────────────────
 
@@ -333,7 +335,9 @@ type Props = {
   open: boolean;
   onClose: () => void;
   item: ProgramListItem | null;
+  variants?: ProgramListItem[];
   saving: boolean;
+  onSelectVariant?: (item: ProgramListItem) => void;
   onStart: () => void;
   onCustomize: () => void;
   onDelete?: () => void;
@@ -348,7 +352,9 @@ export function ProgramDetailSheet({
   open,
   onClose,
   item,
+  variants = [],
   saving,
+  onSelectVariant,
   onStart,
   onCustomize,
   onDelete,
@@ -361,7 +367,13 @@ export function ProgramDetailSheet({
   const tags = Array.isArray(item.template.tags) ? item.template.tags : [];
   const isCustom = item.source === "CUSTOM";
   const canCustomize = !isRef5Template(item.template);
-  const programName = formatName(item.template.name);
+  const hasVariants = variants.length > 1;
+  const activeVariant = hasVariants
+    ? getWendler531VariantPresentation(item.template.slug, locale)
+    : null;
+  const programName = hasVariants
+    ? "Jim Wendler 5/3/1"
+    : formatName(item.template.name);
 
   const cycleStat = info.stats.find((s) => s.key === "cycle");
   const frequencyStat = info.stats.find((s) => s.key === "frequency");
@@ -516,11 +528,23 @@ export function ProgramDetailSheet({
         disabled={saving || !item.template.latestVersion}
         onClick={onStart}
       >
-        {locale === "ko" ? "이 프로그램으로 시작하기" : "Start This Program"}
+        {activeVariant
+          ? locale === "ko"
+            ? `${activeVariant.label} 방식으로 시작하기`
+            : `Start ${activeVariant.label}`
+          : locale === "ko"
+            ? "이 프로그램으로 시작하기"
+            : "Start This Program"}
       </V2PrimaryBtn>
       {canCustomize ? (
         <V2SecondaryBtn full onClick={onCustomize}>
-          {locale === "ko" ? "커스터마이징해서 사용하기" : "Customize Before Starting"}
+          {activeVariant
+            ? locale === "ko"
+              ? `${activeVariant.label} 방식 커스터마이징`
+              : `Customize ${activeVariant.label}`
+            : locale === "ko"
+              ? "커스터마이징해서 사용하기"
+              : "Customize Before Starting"}
         </V2SecondaryBtn>
       ) : null}
       {isCustom && onDelete && (
@@ -547,6 +571,39 @@ export function ProgramDetailSheet({
           gap: "var(--v2-s-7)",
         }}
       >
+        {hasVariants && onSelectVariant ? (
+          <div>
+            <span className="v2-eyebrow" style={sectionEyebrowStyle}>
+              {locale === "ko" ? "방식 선택" : "Choose a Variant"}
+            </span>
+            <div
+              role="radiogroup"
+              aria-label={locale === "ko" ? "5/3/1 방식" : "5/3/1 variant"}
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: "var(--v2-s-2)",
+              }}
+            >
+              {variants.map((variant) => {
+                const presentation = getWendler531VariantPresentation(
+                  variant.template.slug,
+                  locale,
+                );
+                return (
+                  <V2SelectableRow
+                    key={variant.template.id}
+                    selected={variant.template.id === item.template.id}
+                    onClick={() => onSelectVariant(variant)}
+                    title={presentation.label}
+                    description={presentation.description}
+                  />
+                );
+              })}
+            </div>
+          </div>
+        ) : null}
+
         {/* ── Bento Stats Grid ── */}
         <div
           style={{
