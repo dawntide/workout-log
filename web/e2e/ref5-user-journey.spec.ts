@@ -88,16 +88,16 @@ async function activateRef5ProgramThroughUi(
   await ref5Card.getByRole("button", { name: "시작하기" }).click();
   await expect(page.getByRole("dialog", { name: "프로그램 상세" })).toBeVisible();
   await page.getByRole("button", { name: "이 프로그램으로 시작하기" }).click();
-  await expect(page.getByRole("heading", { name: "REF5 고정 시작 설정" })).toBeVisible({
+  await expect(page.getByRole("heading", { name: "REF5 시작 중량 설정" })).toBeVisible({
     timeout: 15_000,
   });
-  await expect(page.getByText("SQ H3 직접 기준 · 3×3")).toBeVisible();
-  await expect(page.getByText("82.5 kg").first()).toBeVisible();
+  await expect(page.locator('input[aria-label$="kg"]')).toHaveCount(5);
+  await expect(page.locator('input[aria-label^="SQ H3"]')).toHaveValue("82.5");
   if (capture) {
-    await page.screenshot({ path: testInfo.outputPath("ref5-fixed-start.png"), fullPage: true });
+    await page.screenshot({ path: testInfo.outputPath("ref5-starting-loads.png"), fullPage: true });
   }
 
-  await page.getByRole("button", { name: "고정 기준으로 시작" }).click();
+  await page.getByRole("button", { name: "설정한 중량으로 시작" }).click();
   await expect(page).toHaveURL(/\/workout\/log\?/, { timeout: 20_000 });
   const planId = new URL(page.url()).searchParams.get("planId");
   expect(planId).toBeTruthy();

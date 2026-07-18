@@ -58,6 +58,13 @@ func TestCreatePlanRequestPreservesRef5TimezoneAndParams(t *testing.T) {
 		if got := ref5["protocolVersion"]; got != Ref5ProtocolVersion {
 			t.Errorf("params.ref5.protocolVersion = %#v", got)
 		}
+		if got := ref5["initializationVersion"]; got != float64(Ref5StartConfigVersion) {
+			t.Errorf("params.ref5.initializationVersion = %#v", got)
+		}
+		starts, _ := ref5["startingValuesKg"].(map[string]any)
+		if got := starts["sqH3Kg"]; got != 90.0 {
+			t.Errorf("params.ref5.startingValuesKg.sqH3Kg = %#v", got)
+		}
 		writeJSONForTest(t, w, http.StatusCreated, map[string]any{"plan": map[string]any{"id": "plan-1"}})
 	})
 
@@ -69,8 +76,13 @@ func TestCreatePlanRequestPreservesRef5TimezoneAndParams(t *testing.T) {
 			"timezone":      "Asia/Seoul",
 			"programFamily": Ref5ProgramFamily,
 			"ref5": map[string]any{
-				"protocolVersion": Ref5ProtocolVersion,
-				"futureDefault":   map[string]any{"enabled": true},
+				"initializationVersion": Ref5StartConfigVersion,
+				"protocolVersion":       Ref5ProtocolVersion,
+				"startingValuesKg": map[string]any{
+					"sqH3Kg": 90.0, "bpFocusKg": 90.0, "pullFocusTotalKg": 100.0,
+					"deadliftKg": 80.0, "ohpKg": 35.0,
+				},
+				"futureDefault": map[string]any{"enabled": true},
 			},
 		},
 	})

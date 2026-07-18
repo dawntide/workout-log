@@ -28,3 +28,18 @@ test("REF5 status exposes open-ended queues, windows, refs and caps", () => {
   assert.equal(status.controlRefsKg.sqKg, 104);
   assert.equal(status.auxiliaryCapsKg.ohpMaxKg, 32.5);
 });
+
+test("REF5 status before the first session uses the plan's custom starts", () => {
+  const starts = {
+    sqH3Kg: 90,
+    bpFocusKg: 90,
+    pullFocusTotalKg: 100,
+    deadliftKg: 80,
+    ohpKg: 35,
+  };
+  const status = buildRef5Status(null, starts);
+  assert.deepEqual(status.directStandardsKg, starts);
+  assert.equal(status.revision, 0);
+  assert.equal(status.auxiliaryCapsKg.deadliftMaxKg, 80);
+  assert.equal(status.auxiliaryCapsKg.ohpMaxKg, 35);
+});

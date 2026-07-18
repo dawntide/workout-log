@@ -82,6 +82,26 @@ func ref5ProgramsPlan() api.Plan {
 	}
 }
 
+func ref5ProgramsTemplate() api.Template {
+	return api.Template{
+		ID: "template-ref5", Slug: api.Ref5TemplateSlug, Name: "REF5", Type: "LOGIC",
+		LatestVersion: &api.TemplateVersion{
+			ID: "version-ref5",
+			Defaults: map[string]any{
+				"ref5": map[string]any{
+					"initializationVersion": api.Ref5StartConfigVersion,
+					"schemaVersion":         api.Ref5RuntimeSchemaVersion,
+					"protocolVersion":       api.Ref5ProtocolVersion,
+					"startingValuesKg": map[string]any{
+						"sqH3Kg": 82.5, "bpFocusKg": 82.5, "pullFocusTotalKg": 87.5,
+						"deadliftKg": 72.5, "ohpKg": 32.5,
+					},
+				},
+			},
+		},
+	}
+}
+
 func TestPickRef5TemplateRequiresTimezoneBeforeCreate(t *testing.T) {
 	var settingsReads int
 	var planPosts int
@@ -110,10 +130,7 @@ func TestPickRef5TemplateRequiresTimezoneBeforeCreate(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	template := api.Template{
-		ID: "template-ref5", Slug: api.Ref5TemplateSlug, Name: "REF5", Type: "LOGIC",
-		LatestVersion: &api.TemplateVersion{ID: "version-ref5"},
-	}
+	template := ref5ProgramsTemplate()
 	programs := NewPrograms(client)
 	programs.templates = []api.Template{template}
 
@@ -136,12 +153,32 @@ func TestPickRef5TemplateRequiresTimezoneBeforeCreate(t *testing.T) {
 		t.Fatalf("pending template = %q", programs.pendingRef5TemplateID)
 	}
 
-	// The submitted value, rather than merely the suggested initial value, must
-	// be persisted in the plan params.
-	scr, createCmd := programs.Update(pickedMsg{tag: "ref5-timezone", value: "America/New_York"})
+	// Timezone is followed by all five direct starting loads. Nothing is posted
+	// until the final OHP value is accepted.
+	scr, setupCmd := programs.Update(pickedMsg{tag: "ref5-timezone", value: "America/New_York"})
+	programs = scr.(Programs)
+	if setupCmd == nil || setupCmd().(openPickerMsg).tag != "ref5-sq-h3" {
+		t.Fatal("valid timezone did not open the SQ start picker")
+	}
+	for _, step := range []struct{ tag, value, next string }{
+		{"ref5-sq-h3", "90", "ref5-bp-focus"},
+		{"ref5-bp-focus", "90", "ref5-pull-total"},
+		{"ref5-pull-total", "100", "ref5-deadlift"},
+		{"ref5-deadlift", "80", "ref5-ohp"},
+	} {
+		scr, setupCmd = programs.Update(pickedMsg{tag: step.tag, value: step.value})
+		programs = scr.(Programs)
+		if setupCmd == nil || setupCmd().(openPickerMsg).tag != step.next {
+			t.Fatalf("%s did not open %s", step.tag, step.next)
+		}
+		if planPosts != 0 {
+			t.Fatalf("plan posted before final start load: %d", planPosts)
+		}
+	}
+	scr, createCmd := programs.Update(pickedMsg{tag: "ref5-ohp", value: "35"})
 	programs = scr.(Programs)
 	if createCmd == nil {
-		t.Fatal("valid timezone did not create the REF5 plan")
+		t.Fatal("valid OHP did not create the REF5 plan")
 	}
 	msg := createCmd()
 	created, ok := msg.(planCreatedMsg)
@@ -157,6 +194,16 @@ func TestPickRef5TemplateRequiresTimezoneBeforeCreate(t *testing.T) {
 	}
 	if posted["rootProgramVersionId"] != "version-ref5" {
 		t.Errorf("root version = %#v", posted["rootProgramVersionId"])
+	}
+	ref5, _ := params["ref5"].(map[string]any)
+	starts, _ := ref5["startingValuesKg"].(map[string]any)
+	for key, want := range map[string]float64{
+		"sqH3Kg": 90, "bpFocusKg": 90, "pullFocusTotalKg": 100,
+		"deadliftKg": 80, "ohpKg": 35,
+	} {
+		if got := starts[key]; got != want {
+			t.Errorf("startingValuesKg.%s = %#v, want %v", key, got, want)
+		}
 	}
 	if programs.pendingRef5TemplateID != "" {
 		t.Errorf("pending template was not cleared: %q", programs.pendingRef5TemplateID)
@@ -205,10 +252,7 @@ func TestPickNonRef5TemplateKeepsLegacyCreateRequest(t *testing.T) {
 }
 
 func TestPickRef5TemplateRejectsInvalidTimezone(t *testing.T) {
-	template := api.Template{
-		ID: "template-ref5", Slug: api.Ref5TemplateSlug, Name: "REF5", Type: "LOGIC",
-		LatestVersion: &api.TemplateVersion{ID: "version-ref5"},
-	}
+	template := ref5ProgramsTemplate()
 	programs := NewPrograms(nil)
 	programs.templates = []api.Template{template}
 	programs.pendingRef5TemplateID = template.ID
@@ -227,6 +271,34 @@ func TestPickRef5TemplateRejectsInvalidTimezone(t *testing.T) {
 	picker, ok := cmd().(openPickerMsg)
 	if !ok || picker.tag != "ref5-timezone" || picker.initial != "not/a-zone" {
 		t.Fatalf("reopened picker = %#v", picker)
+	}
+}
+
+func TestRef5StartLoadPickerRejectsOffGridAndAuxiliaryCap(t *testing.T) {
+	template := ref5ProgramsTemplate()
+	starts, err := ref5StartingValuesFromTemplate(template)
+	if err != nil {
+		t.Fatal(err)
+	}
+	programs := NewPrograms(nil)
+	programs.templates = []api.Template{template}
+	programs.pendingRef5TemplateID = template.ID
+	programs.pendingRef5Timezone = "Asia/Seoul"
+	programs.pendingRef5Starts = starts
+
+	scr, cmd := programs.Update(pickedMsg{tag: "ref5-sq-h3", value: "83"})
+	programs = scr.(Programs)
+	if !strings.Contains(programs.err, "2.5kg 단위") || cmd == nil || cmd().(openPickerMsg).tag != "ref5-sq-h3" {
+		t.Fatalf("off-grid validation = %q, cmd=%v", programs.err, cmd != nil)
+	}
+
+	scr, cmd = programs.Update(pickedMsg{tag: "ref5-ohp", value: "35"})
+	programs = scr.(Programs)
+	if !strings.Contains(programs.err, "상한 32.5kg") || cmd == nil || cmd().(openPickerMsg).tag != "ref5-ohp" {
+		t.Fatalf("OHP cap validation = %q, cmd=%v", programs.err, cmd != nil)
+	}
+	if programs.pendingRef5TemplateID != template.ID {
+		t.Fatal("invalid start load discarded the pending REF5 template")
 	}
 }
 

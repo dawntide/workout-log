@@ -19,6 +19,7 @@ import {
   applyRef5FirstSquatStart,
   createInitialRef5State,
   decodeRef5SessionSnapshot,
+  readRef5PlanStartConfig,
   reduceRef5Completion,
   replayRef5RawLogs,
   validateAndClassifyRef5Outcome,
@@ -28,6 +29,7 @@ import {
   type Ref5RawLogEvent,
   type Ref5RuntimeState,
   type Ref5ProtocolVersion,
+  type Ref5DirectStandardsKg,
 } from "@workout/core/program-engine/ref5";
 
 /** Kept numeric-compatible with the generation adapter without importing it. */
@@ -709,6 +711,7 @@ type Ref5ReplayPlanContext = {
   id: string;
   userId: string;
   protocolVersion: Ref5ProtocolVersion;
+  initialDirectStandardsKg: Ref5DirectStandardsKg;
 };
 
 async function resolveRef5ReplayPlan(
@@ -731,7 +734,12 @@ async function resolveRef5ReplayPlan(
       params.protocolVersion ?? asRecord(params.ref5).protocolVersion,
     );
   }
-  return { id: row.id, userId: row.userId, protocolVersion };
+  return {
+    id: row.id,
+    userId: row.userId,
+    protocolVersion,
+    initialDirectStandardsKg: readRef5PlanStartConfig(row.params).startingValuesKg,
+  };
 }
 
 async function loadRef5ReplaySource(input: {
@@ -880,9 +888,10 @@ function foldRef5ReplaySource(input: {
   userId: string;
   planId: string;
   planProtocolVersion: Ref5ProtocolVersion;
+  initialDirectStandardsKg: Ref5DirectStandardsKg;
   source: Ref5ReplaySource;
 }): Ref5ReplayFold {
-  let runningState = createInitialRef5State();
+  let runningState = createInitialRef5State(input.initialDirectStandardsKg);
   const auditRows: Array<typeof planProgressEvent.$inferInsert> = [];
   const completedGeneratedSessionIds: string[] = [];
   for (const session of input.source.sessions) {
@@ -1085,6 +1094,7 @@ export async function deriveRef5StateBeforeStart(input: {
     userId: input.userId,
     planId: input.planId,
     planProtocolVersion: planContext.protocolVersion,
+    initialDirectStandardsKg: planContext.initialDirectStandardsKg,
     source,
   });
   return {
@@ -1116,6 +1126,7 @@ export async function rebuildRef5ProgressionForPlan(input: {
     userId: input.userId,
     planId,
     planProtocolVersion: planContext.protocolVersion,
+    initialDirectStandardsKg: planContext.initialDirectStandardsKg,
     source,
   });
   const appendedAuditEventCount = await appendMissingRef5AuditRows({

@@ -18,11 +18,13 @@ import {
   floorRef5To2p5,
   generateRef5Session,
   nearestRef5To2p5,
+  readRef5PlanStartConfig,
   reduceRef5Completion,
   ref5CalendarDate,
   replayRef5RawLogs,
   selectRef5SquatPrescription,
   validateAndClassifyRef5Outcome,
+  validateRef5StartConfig,
   type Ref5CompletedSessionSummary,
   type Ref5ExercisePrescription,
   type Ref5MainLift,
@@ -161,6 +163,41 @@ test("v1.2 constants, direct-derived formulas, refs, caps and 2.5 kg rounding ar
   assert.equal(floorRef5To2p5(-0.1), -2.5, "floor helper does not invent a zero floor");
   assert.equal(nearestRef5To2p5(11.25), 12.5, "exact midpoint rounds upward");
   assert.equal(nearestRef5To2p5(11.249), 10);
+});
+
+test("plan creation accepts custom direct starts, derives REFs, and rejects grid or cap violations", () => {
+  const custom = {
+    sqH3Kg: 100,
+    bpFocusKg: 100,
+    pullFocusTotalKg: 110,
+    deadliftKg: 90,
+    ohpKg: 37.5,
+  };
+  const valid = validateRef5StartConfig(custom);
+  assert.equal(valid.ok, true);
+  if (!valid.ok) return;
+  assert.deepEqual(valid.value.startingValuesKg, custom);
+  assert.deepEqual(valid.value.controlRefsKg, deriveRef5ControlRefs(custom));
+  assert.deepEqual(
+    readRef5PlanStartConfig({ ref5: valid.value }).startingValuesKg,
+    custom,
+  );
+
+  const offGrid = validateRef5StartConfig({ ...custom, sqH3Kg: 101 });
+  assert.equal(offGrid.ok, false);
+  if (!offGrid.ok) assert.ok(offGrid.errors.some((error) => error.includes("2.5 kg grid")));
+
+  const deadliftOverCap = validateRef5StartConfig({ ...custom, deadliftKg: 92.5 });
+  assert.equal(deadliftOverCap.ok, false);
+  if (!deadliftOverCap.ok) {
+    assert.ok(deadliftOverCap.errors.some((error) => error.includes("deadliftKg exceeds")));
+  }
+
+  const ohpOverCap = validateRef5StartConfig({ ...custom, ohpKg: 40 });
+  assert.equal(ohpOverCap.ok, false);
+  if (!ohpOverCap.ok) {
+    assert.ok(ohpOverCap.errors.some((error) => error.includes("ohpKg exceeds")));
+  }
 });
 
 test("first normal session is PULL focus + H3 with nine working sets and lossless PULL metadata", () => {

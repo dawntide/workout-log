@@ -5,7 +5,12 @@ import dynamic from "next/dynamic";
 import { V2Card, V2Chip, V2SecondaryBtn } from "@/components/v2/primitives";
 import { NumberKeypadField } from "@/components/ui/number-keypad-field";
 import { formatProgramDisplayName } from "@/features/program-store/model/view";
-import type { StartProgramDraft } from "@/features/program-store/model/use-program-store-start-program-controller";
+import {
+  ref5StartConfigValidationMessage,
+  type Ref5StartField,
+  type StartProgramDraft,
+} from "@/features/program-store/model/use-program-store-start-program-controller";
+import { deriveRef5AuxiliaryCaps } from "@workout/core/program-engine/ref5";
 
 const BottomSheet = dynamic(
   () => import("@/components/ui/bottom-sheet").then((mod) => mod.BottomSheet),
@@ -23,6 +28,7 @@ type StartProgramSheetProps = {
   onClose: () => void;
   onSubmit: () => void;
   onChangeOneRmInput: (targetKey: string, value: number) => void;
+  onChangeRef5StartingValue: (field: Ref5StartField, value: number) => void;
   onApplyRecommendation: (targetKey: string) => void;
 };
 
@@ -33,20 +39,26 @@ export const StartProgramSheet = memo(function StartProgramSheet({
   onClose,
   onSubmit,
   onChangeOneRmInput,
+  onChangeRef5StartingValue,
   onApplyRecommendation,
 }: StartProgramSheetProps) {
   const isRef5 = draft?.mode === "REF5";
   const ref5Starts = draft?.ref5Config?.startingValuesKg;
   const ref5Refs = draft?.ref5Config?.controlRefsKg;
-  const ref5StartingRows: Array<[string, number]> = ref5Starts
+  const ref5StartingRows: Array<[Ref5StartField, string, number]> = ref5Starts
     ? [
-        [locale === "ko" ? "SQ H3 직접 기준 · 3×3" : "SQ H3 Direct · 3×3", ref5Starts.sqH3Kg],
-        [locale === "ko" ? "PULL 집중 목표 · 총중량" : "PULL Focus Target · Total", ref5Starts.pullFocusTotalKg],
-        [locale === "ko" ? "BP 집중 직접 기준 · 3×3" : "BP Focus Direct · 3×3", ref5Starts.bpFocusKg],
-        [locale === "ko" ? "DL 직접 기준 · 2×4" : "DL Direct · 2×4", ref5Starts.deadliftKg],
-        [locale === "ko" ? "OHP 직접 기준 · 2×6" : "OHP Direct · 2×6", ref5Starts.ohpKg],
+        ["sqH3Kg", locale === "ko" ? "SQ H3 · 3×3" : "SQ H3 · 3×3", ref5Starts.sqH3Kg],
+        ["bpFocusKg", locale === "ko" ? "BP 집중 · 3×3" : "BP Focus · 3×3", ref5Starts.bpFocusKg],
+        ["pullFocusTotalKg", locale === "ko" ? "PULL 집중 · 총중량 3×3" : "PULL Focus · Total Load 3×3", ref5Starts.pullFocusTotalKg],
+        ["deadliftKg", locale === "ko" ? "DL · 2×4" : "DL · 2×4", ref5Starts.deadliftKg],
+        ["ohpKg", locale === "ko" ? "OHP · 2×6" : "OHP · 2×6", ref5Starts.ohpKg],
       ]
     : [];
+  const ref5Editable = isRef5 && !draft?.existingPlanId;
+  const ref5Caps = ref5Starts ? deriveRef5AuxiliaryCaps(ref5Starts) : null;
+  const ref5ValidationMessage = draft?.ref5Config
+    ? ref5StartConfigValidationMessage(draft.ref5Config, locale)
+    : null;
 
   return (
     <BottomSheet
@@ -54,8 +66,8 @@ export const StartProgramSheet = memo(function StartProgramSheet({
       title={
         isRef5
           ? locale === "ko"
-            ? "REF5 고정 시작 설정"
-            : "REF5 Fixed Start Setup"
+            ? "REF5 시작 중량 설정"
+            : "Set REF5 Starting Loads"
           : locale === "ko"
             ? "시작 전 1RM 입력"
             : "Enter 1RM Before Starting"
@@ -63,8 +75,8 @@ export const StartProgramSheet = memo(function StartProgramSheet({
       description={
         isRef5
           ? locale === "ko"
-            ? "1RM이나 TM을 입력하지 않습니다. 고정 kg 기준으로 시작합니다."
-            : "No 1RM or training max is entered. REF5 starts from fixed kg baselines."
+            ? "1RM·TM이 아니라 다섯 종목의 직접 작업 기준을 2.5kg 단위로 정합니다."
+            : "Set five direct work baselines on the 2.5 kg grid, not 1RM or training max."
           : locale === "ko"
             ? "모든 종목의 1RM 입력이 필수입니다."
             : "A 1RM entry is required for each lift."
@@ -84,13 +96,13 @@ export const StartProgramSheet = memo(function StartProgramSheet({
                     : "Saving 1RM and starting"
                 : locale === "ko"
                   ? isRef5
-                    ? "고정 기준으로 시작"
+                    ? "설정한 중량으로 시작"
                     : "1RM 저장 후 시작"
                   : isRef5
-                    ? "Start with Fixed Baselines"
+                    ? "Start with These Loads"
                     : "Save 1RM and Start",
               onPress: onSubmit,
-              disabled: saving,
+              disabled: saving || Boolean(ref5ValidationMessage),
             }
           : null
       }
@@ -134,24 +146,55 @@ export const StartProgramSheet = memo(function StartProgramSheet({
                 </span>
                 <div
                   style={{
-                    display: "grid",
-                    gridTemplateColumns: "minmax(0, 1fr) auto",
-                    gap: "var(--v2-s-1) var(--v2-s-3)",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "var(--v2-s-3)",
                     marginTop: "var(--v2-s-2)",
                   }}
                 >
-                  {ref5StartingRows.map(([label, value]) => (
-                    <div key={label} style={{ display: "contents" }}>
+                  {ref5StartingRows.map(([field, label, value]) => (
+                    <div key={field} style={{ display: "flex", flexDirection: "column", gap: "var(--v2-s-1)" }}>
                       <span className="v2-small" style={{ color: "var(--v2-ink-2)" }}>
                         {label}
                       </span>
-                      <strong className="v2-small" style={{ color: "var(--v2-ink)" }}>
-                        {formatKg(value)} kg
-                      </strong>
+                      {ref5Editable ? (
+                        <NumberKeypadField
+                          ariaLabel={`${label} kg`}
+                          value={value}
+                          min={2.5}
+                          max={500}
+                          step={2.5}
+                          allowDecimal
+                          onChange={(next) => onChangeRef5StartingValue(field, next)}
+                        />
+                      ) : (
+                        <strong className="v2-small" style={{ color: "var(--v2-ink)" }}>
+                          {formatKg(value)} kg
+                        </strong>
+                      )}
                     </div>
                   ))}
                 </div>
               </V2Card>
+              {ref5Caps ? (
+                <p className="v2-small" style={{ color: "var(--v2-ink-2)", margin: 0 }}>
+                  {locale === "ko"
+                    ? `현재 보조 상한: DL ${formatKg(ref5Caps.deadliftMaxKg)}kg · OHP ${formatKg(ref5Caps.ohpMaxKg)}kg`
+                    : `Current auxiliary caps: DL ${formatKg(ref5Caps.deadliftMaxKg)} kg · OHP ${formatKg(ref5Caps.ohpMaxKg)} kg`}
+                </p>
+              ) : null}
+              {ref5ValidationMessage ? (
+                <p className="v2-small" role="alert" style={{ color: "var(--v2-danger)", margin: 0 }}>
+                  {ref5ValidationMessage}
+                </p>
+              ) : null}
+              {!ref5Editable ? (
+                <p className="v2-small" style={{ color: "var(--v2-ink-2)", margin: 0 }}>
+                  {locale === "ko"
+                    ? "기존 REF5 계획의 시작 중량은 기록 재계산 기준이므로 변경하지 않습니다."
+                    : "An existing REF5 plan keeps its original loads because replay depends on them."}
+                </p>
+              ) : null}
               <V2Card padding="var(--v2-s-4)" tone="inset">
                 <span className="v2-eyebrow" style={{ color: "var(--v2-ink-2)" }}>
                   {locale === "ko" ? "시작 제어 REF (kg)" : "Starting Control REF (kg)"}
@@ -164,8 +207,8 @@ export const StartProgramSheet = memo(function StartProgramSheet({
               </V2Card>
               <p className="v2-small" style={{ color: "var(--v2-ink-2)", margin: 0 }}>
                 {locale === "ko"
-                  ? "이 kg 값은 정본으로 저장되며 1RM·e1RM·PR 추천이나 TM 비율을 계산하지 않습니다."
-                  : "These kg values are stored canonically; no 1RM, e1RM, PR recommendation, or TM ratio is calculated."}
+                  ? "PULL은 체중+추가중량의 총중량입니다. 값은 정본으로 저장되며 1RM·e1RM·TM을 계산하지 않습니다."
+                  : "PULL is total load: bodyweight plus added load. Values are canonical; no 1RM, e1RM, or TM is calculated."}
               </p>
             </>
           ) : null}

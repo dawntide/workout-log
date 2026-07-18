@@ -18,6 +18,7 @@ import {
   REF5_LEGACY_PROTOCOL_VERSION,
   REF5_LEGACY_RUNTIME_SCHEMA_VERSION,
   REF5_RUNTIME_SCHEMA_VERSION,
+  REF5_START_CONFIG_VERSION,
   deriveRef5ControlRefs,
 } from "../program-engine/ref5";
 
@@ -674,9 +675,11 @@ export async function runSeed(options: SeedRunOptions = {}) {
     changelog: "v1.0 — 3-session A/B/C rotation, 4-cycle blocks, cycle-3 AMRAP gating",
   });
 
-  // REF5 Adaptive Strength — 독립 세션 기반 LOGIC 엔진. 1RM/TM 시작값이 아니라
-  // kg 직접 기준을 정본으로 보존한다. v1.1은 immutable legacy version으로 남긴다.
+  // REF5 Adaptive Strength — 독립 세션 기반 LOGIC 엔진. 1RM/TM이 아니라
+  // 계획 생성 때 확정한 kg 직접 기준을 정본으로 보존한다. 아래 값은 입력 기본값이다.
+  // v1.1은 immutable legacy version으로 남긴다.
   const ref5StartConfig = {
+    initializationVersion: REF5_START_CONFIG_VERSION,
     schemaVersion: REF5_RUNTIME_SCHEMA_VERSION,
     protocolVersion: REF5_IDENTIFIERS.protocolVersion,
     startingValuesKg: { ...REF5_INITIAL_DIRECT_STANDARDS_KG },
@@ -689,7 +692,7 @@ export async function runSeed(options: SeedRunOptions = {}) {
     type: "LOGIC",
     visibility: "PUBLIC",
     description:
-      "A session-based adaptive strength program for irregular 2–4 day schedules. High-bar squat remains the priority across Squat, Weighted Pull-Up, Bench Press, Deadlift, and Overhead Press. It uses fixed starting kg baselines and PASS/HOLD/FAIL/INVALID outcomes instead of 1RM tests, AMRAP, RIR, or finite training blocks.",
+      "A session-based adaptive strength program for irregular 2–4 day schedules. High-bar squat remains the priority across Squat, Weighted Pull-Up, Bench Press, Deadlift, and Overhead Press. Each new plan starts from five direct kg baselines and uses PASS/HOLD/FAIL/INVALID outcomes instead of 1RM tests, AMRAP, RIR, or finite training blocks.",
     tags: ["strength", "barbell", "ref5", "intermediate", "session-based", "adaptive"],
   });
 
