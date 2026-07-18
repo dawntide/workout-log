@@ -32,7 +32,7 @@ type Ref5SessionStartPanelProps = {
   dateKey: string;
   locale: "ko" | "en";
   defaultBodyweightKg: number | null;
-  onStarted: (session: GeneratedSessionLike) => void;
+  onStarted: (session: GeneratedSessionLike, options?: { resumed?: boolean }) => void;
 };
 
 type PreviewExercise = {
@@ -291,7 +291,7 @@ export function Ref5SessionStartPanel({
     const controller = new AbortController();
     requestAbortRef.current = controller;
     try {
-      const response = await apiPost<{ session: GeneratedSessionLike }>(
+      const response = await apiPost<{ session: GeneratedSessionLike; resumed?: boolean }>(
         `/api/plans/${encodeURIComponent(planId)}/generate`,
         buildRef5GeneratePayload(previewOnly, values),
         { invalidateCache: !previewOnly, signal: controller.signal },
@@ -301,7 +301,7 @@ export function Ref5SessionStartPanel({
         setPreviewSession(response.session);
         setPreviewSignature(JSON.stringify(values));
       } else {
-        onStarted(response.session);
+        onStarted(response.session, { resumed: response.resumed === true });
       }
     } catch (error) {
       if (isAbortError(error)) return;

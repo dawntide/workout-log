@@ -48,6 +48,12 @@ import { useSetAtom, useAtomValue } from "jotai";
 import { draftAtom, programEntryStateAtom, workflowStateAtom, saveErrorAtom, recentLogItemsAtom, lastSessionAtom, workoutPreferencesAtom } from "../store/workout-log-atoms";
 import type { WorkoutLogInitialContext } from "@/server/services/workout-log/get-workout-log-page-bootstrap";
 
+function ref5ResumeMessage(locale: "ko" | "en") {
+  return locale === "ko"
+    ? "미완료 REF5 세션을 이어서 불러왔습니다. 이 세션을 저장한 뒤 새 세션을 시작할 수 있습니다."
+    : "Resumed your unfinished REF5 session. Save it before starting another session.";
+}
+
 export function useWorkoutLogContextController({
   initialPlans,
   initialSettings,
@@ -80,6 +86,7 @@ export function useWorkoutLogContextController({
   // 로드 실패(error)가 아니라 정책 안내다. error 와 분리해 에러 페이지 대신
   // 안내 배너로 표시한다.
   const [blockedMessage, setBlockedMessage] = useState<string | null>(null);
+  const [ref5ResumeNotice, setRef5ResumeNotice] = useState<string | null>(null);
   const [ref5StartContext, setRef5StartContext] =
     useState<Ref5StartRequiredWorkoutContextResult | null>(null);
   
@@ -94,6 +101,27 @@ export function useWorkoutLogContextController({
 
   const contextHasLoadedRef = useRef(false);
 
+  const markResumedRef5Session = useCallback(
+    (input: { planId: string; dateKey: string; sessionId: string }) => {
+      setRef5ResumeNotice(ref5ResumeMessage(locale));
+      const url = new URL(window.location.href);
+      url.searchParams.set("planId", input.planId);
+      url.searchParams.set("date", input.dateKey);
+      url.searchParams.set("sessionId", input.sessionId);
+      url.searchParams.delete("logId");
+      window.history.replaceState(window.history.state, "", url.pathname + url.search);
+      setQuery((previous) => ({
+        ...previous,
+        planId: input.planId,
+        date: input.dateKey,
+        hasExplicitDate: true,
+        logId: null,
+        sessionId: input.sessionId,
+      }));
+    },
+    [locale, setQuery],
+  );
+
   const loadWorkoutContext = useCallback(
     async (input: LoadWorkoutContextInput & { isRefresh?: boolean }) => {
       try {
@@ -102,6 +130,7 @@ export function useWorkoutLogContextController({
         }
         setError(null);
         setBlockedMessage(null);
+        setRef5ResumeNotice(null);
         // Prevent a stale REF5 start action from surviving plan/date changes
         // while the next context request is in flight.
         setRef5StartContext(null);
@@ -145,6 +174,13 @@ export function useWorkoutLogContextController({
 
         setRecentLogItems(result.recentLogItems);
         setLastSession(result.lastSession);
+        if (result.resumedRef5SessionId) {
+          markResumedRef5Session({
+            planId: result.selectedPlanId,
+            sessionId: result.resumedRef5SessionId!,
+            dateKey: result.draft.session.sessionDate,
+          });
+        }
         setWorkflowState((prev) => (hasRestoredDraft() ? prev : "idle"));
         contextHasLoadedRef.current = true;
       } catch (e) {
@@ -170,6 +206,7 @@ export function useWorkoutLogContextController({
       browserTimezone,
       hasRestoredDraft,
       locale,
+      markResumedRef5Session,
       setDraft,
       setProgramEntryState,
       setSaveError,
@@ -215,6 +252,7 @@ export function useWorkoutLogContextController({
       setLoading(true);
       setError(null);
       setBlockedMessage(null);
+      setRef5ResumeNotice(null);
 
       try {
         const bootstrap = await resolveWorkoutLogBootstrap({
@@ -274,6 +312,13 @@ export function useWorkoutLogContextController({
             }
             setRecentLogItems(ssrContext.recentLogItems);
             setLastSession(ssrContext.lastSession);
+            if (ssrContext.resumedRef5SessionId) {
+              markResumedRef5Session({
+                planId: ssrContext.selectedPlanId,
+                sessionId: ssrContext.resumedRef5SessionId!,
+                dateKey: ssrContext.draft.session.sessionDate,
+              });
+            }
             setWorkflowState((prev) => (hasRestoredDraft() ? prev : "idle"));
             contextHasLoadedRef.current = true;
           }
@@ -312,6 +357,7 @@ export function useWorkoutLogContextController({
     initialContext,
     loadWorkoutContext,
     locale,
+    markResumedRef5Session,
     onBootstrapOpenAddSheet,
     onNoPlanDetected,
     setDraft,
@@ -375,7 +421,7 @@ export function useWorkoutLogContextController({
   const noPlan = isPlansSettled && !error && plans.length === 0 && !query.logId && !query.sessionId;
 
   const hydrateRef5GeneratedSession = useCallback(
-    (session: GeneratedSessionLike) => {
+    (session: GeneratedSessionLike, options?: { resumed?: boolean }) => {
       const context = ref5StartContext;
       if (!context) {
         throw new Error(
@@ -397,6 +443,9 @@ export function useWorkoutLogContextController({
       setProgramEntryState(prepared.programEntryState);
       setRef5StartContext(null);
       setBlockedMessage(null);
+      setRef5ResumeNotice(
+        options?.resumed ? ref5ResumeMessage(locale) : null,
+      );
       setWorkflowState("idle");
       contextHasLoadedRef.current = true;
       if (typeof session.id === "string" && session.id.trim()) {
@@ -440,6 +489,7 @@ export function useWorkoutLogContextController({
     selectedPlan,
     noPlan,
     blockedMessage,
+    ref5ResumeNotice,
     ref5StartContext,
     hydrateRef5GeneratedSession,
     handlePlanChange,

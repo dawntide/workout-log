@@ -157,6 +157,7 @@ function WorkoutLogScreenContent({
     selectedPlan,
     noPlan,
     blockedMessage,
+    ref5ResumeNotice,
     ref5StartContext,
     hydrateRef5GeneratedSession,
     handlePlanChange,
@@ -599,11 +600,18 @@ function WorkoutLogScreenContent({
             />
           ) : (
           <>
-          <WorkoutLogStackedList
-            ref={stackedListRef}
-            onExerciseAction={handleExerciseAction}
-            onOpenAddExerciseSheet={draft.session.ref5 ? undefined : openAddExerciseSheet}
-          />
+            <NoticeStateRows
+              message={ref5ResumeNotice}
+              tone="neutral"
+              preferInline
+              label={locale === "ko" ? "미완료 세션 재개" : "Unfinished session resumed"}
+              ariaLabel={locale === "ko" ? "REF5 세션 재개 안내" : "REF5 session resume notice"}
+            />
+            <WorkoutLogStackedList
+              ref={stackedListRef}
+              onExerciseAction={handleExerciseAction}
+              onOpenAddExerciseSheet={draft.session.ref5 ? undefined : openAddExerciseSheet}
+            />
 
           <StickyActionBar>
             {totalSetsCount > 0 && (

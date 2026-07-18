@@ -34,6 +34,7 @@ import { invalidateStatsCacheForUser } from "@workout/core/stats/cache";
 import { buildSessionKey } from "@workout/core/session-key";
 import {
   extractRef5DomainSnapshot,
+  findRef5ResumableSession,
   isRef5PlanParams,
   readRef5PlanProtocolVersion,
 } from "@workout/core/program-engine/ref5-integration";
@@ -536,6 +537,45 @@ plansRoutes.delete("/:planId", async (c) => {
   }
 });
 
+// GET /api/plans/:planId/generated-sessions/active — find the earliest
+// unfinished session on a plan calendar date. Returning it before rendering the
+// start panel prevents an accidental second start from consuming REF5 state.
+plansRoutes.get("/:planId/generated-sessions/active", async (c) => {
+  const locale = resolveLocale(c);
+  c.header("Cache-Control", "private, no-store");
+  try {
+    const userId = c.get("userId");
+    const planId = c.req.param("planId");
+    const calendarDate = c.req.query("date")?.trim() ?? "";
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(calendarDate)) {
+      return c.json(
+        { error: locale === "ko" ? "올바른 계획 날짜가 필요합니다." : "A valid plan date is required." },
+        400,
+      );
+    }
+    const planRows = await db
+      .select({ userId: planTable.userId, params: planTable.params })
+      .from(planTable)
+      .where(eq(planTable.id, planId))
+      .limit(1);
+    const planRow = planRows[0];
+    if (!planRow || planRow.userId !== userId || !isRef5PlanParams(planRow.params)) {
+      return c.json(
+        { error: locale === "ko" ? "REF5 플랜을 찾을 수 없습니다." : "REF5 plan not found." },
+        404,
+      );
+    }
+    const session = await findRef5ResumableSession({
+      userId,
+      planId,
+      calendarDate,
+    });
+    return c.json({ session }, 200);
+  } catch (e) {
+    return apiError(c, e, locale);
+  }
+});
+
 // GET /api/plans/:planId/generated-sessions/:sessionId — resume an explicitly
 // started, immutable REF5 session after reload or in another tab.
 plansRoutes.get("/:planId/generated-sessions/:sessionId", async (c) => {
@@ -753,8 +793,12 @@ plansRoutes.post("/:planId/generate", async (c) => {
     }
 
     const session = await generateAndSaveSession(generationInput);
+    const savedRef5 = toRecord(toRecord(session.snapshot).ref5);
+    const resumed = Boolean(
+      ref5 && String(savedRef5.startEventId ?? "") !== ref5.startEventId,
+    );
 
-    return c.json({ session }, 201);
+    return c.json({ session, resumed }, resumed ? 200 : 201);
   } catch (e) {
     if (e instanceof Ref5StaleVersionError) {
       return c.json(

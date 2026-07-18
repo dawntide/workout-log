@@ -18,6 +18,7 @@ import {
   Ref5ValidationError,
   applyRef5FirstSquatStart,
   generateRef5Session,
+  ref5CalendarDate,
   type Ref5RuntimeState,
   type Ref5SessionInput,
   decodeRef5SessionSnapshot,
@@ -170,6 +171,79 @@ function readDomainSnapshot(snapshot: unknown): Ref5DecodedSessionSnapshot | nul
     Object.keys(candidate).length > 0;
   if (!looksRef5) return null;
   return decodeRef5SessionSnapshot(candidate);
+}
+
+type Ref5ResumableSessionCandidate = {
+  id: string;
+  sessionKey: string;
+  status: string;
+  snapshot: unknown;
+};
+
+/**
+ * A started REF5 session remains the canonical entry target until it is saved.
+ * Choose the earliest current-protocol session on the requested plan calendar
+ * date so a page revisit cannot silently consume another start transition.
+ */
+export function selectRef5ResumableSession<
+  T extends Ref5ResumableSessionCandidate,
+>(rows: readonly T[], calendarDate: string): T | null {
+  const candidates = rows.flatMap((row) => {
+    if (row.status !== "PLANNED") return [];
+    const ref5 = toRecord(toRecord(row.snapshot).ref5);
+    if (
+      ref5.startCommitted !== true ||
+      String(ref5.protocolVersion ?? "") !== REF5_PROTOCOL_VERSION
+    ) {
+      return [];
+    }
+    try {
+      const domain = readDomainSnapshot(row.snapshot);
+      if (
+        !domain ||
+        domain.protocolVersion !== REF5_PROTOCOL_VERSION ||
+        ref5CalendarDate(domain.actualStartAt, domain.timeZone) !== calendarDate
+      ) {
+        return [];
+      }
+      return [{ row, actualStartAt: domain.actualStartAt }];
+    } catch {
+      return [];
+    }
+  });
+  candidates.sort((left, right) => {
+    const byStart = Date.parse(left.actualStartAt) - Date.parse(right.actualStartAt);
+    return byStart || left.row.sessionKey.localeCompare(right.row.sessionKey);
+  });
+  return candidates[0]?.row ?? null;
+}
+
+export async function findRef5ResumableSession(input: {
+  tx?: any;
+  userId: string;
+  planId: string;
+  calendarDate: string;
+}): Promise<typeof generatedSession.$inferSelect | null> {
+  const tx = input.tx ?? db;
+  const rows = await tx
+    .select()
+    .from(generatedSession)
+    .where(
+      and(
+        eq(generatedSession.userId, input.userId),
+        eq(generatedSession.planId, input.planId),
+        eq(generatedSession.status, "PLANNED"),
+      ),
+    )
+    .orderBy(
+      asc(generatedSession.scheduledAt),
+      asc(generatedSession.createdAt),
+      asc(generatedSession.sessionKey),
+    );
+  return selectRef5ResumableSession(
+    rows as Array<typeof generatedSession.$inferSelect>,
+    input.calendarDate,
+  );
 }
 
 type RecentBodyweight = { count: number; averageKg: number | null };
@@ -451,6 +525,14 @@ export async function buildRef5PlanSession(
         "REF5 start event ID is already bound to another immutable session",
       ]);
     }
+
+    const resumable = await findRef5ResumableSession({
+      tx,
+      userId: input.userId,
+      planId: planRow.id,
+      calendarDate: ref5CalendarDate(request.actualStartAt, request.timezone),
+    });
+    if (resumable) return resumable;
 
     const historical = await deriveRef5StateBeforeStart({
       tx,

@@ -28,6 +28,7 @@ import type { GeneratedSessionLike } from "@/entities/workout-record";
 import type { WorkoutLogInitialContext } from "./get-workout-log-page-bootstrap";
 import { shouldBlockAutoProgressionNewLog } from "@workout/core/services/workout-log/logging-policy";
 import { isRef5PlanParams } from "@/lib/workout-record/ref5-plan";
+import { findRef5ResumableSession } from "@workout/core/program-engine/ref5-integration";
 
 // ─── DB 헬퍼 ─────────────────────────────────────────────────────────────────
 
@@ -375,17 +376,59 @@ export async function loadWorkoutContextServer(
     }
 
     // 선택 날짜 기록 + 최근 로그 + 이후 로그 존재 여부를 병렬 조회
-    const [existingLogIdForDate, recentLogs, hasLaterLogs] = await Promise.all([
+    const ref5Plan = isRef5PlanParams(input.planParams);
+    const [existingLogIdForDate, recentLogs, hasLaterLogs, resumableRef5Session] = await Promise.all([
       findLogIdForDate(userId, planId, dateKey),
       fetchRecentLogsServer(userId, planId),
       input.planAutoProgression === true && dateKey
         ? hasLaterLog(userId, planId, dateKey)
         : Promise.resolve(false),
+      ref5Plan
+        ? findRef5ResumableSession({ userId, planId, calendarDate: dateKey })
+        : Promise.resolve(null),
     ]);
 
-    // REF5 may start multiple sessions on the same plan-local calendar day, so
-    // date buckets never imply edit mode. Only input.logId does.
-    if (isRef5PlanParams(input.planParams)) {
+    // Completed REF5 sessions do not block another same-day start, but a
+    // started, unfinished session is always resumed before exposing the start
+    // panel again.
+    if (ref5Plan) {
+      if (resumableRef5Session) {
+        const prepared = prepareWorkoutRecordDraftForEntry(
+          applyWorkoutLogWeightRulesToDraft(
+            createWorkoutRecordDraft(
+              {
+                id: resumableRef5Session.id,
+                planId: resumableRef5Session.planId,
+                sessionKey: resumableRef5Session.sessionKey,
+                snapshot: resumableRef5Session.snapshot,
+              },
+              planName,
+              {
+                timezone: "UTC",
+                planSchedule: input.planSchedule,
+                locale,
+              },
+            ),
+            preferences,
+          ),
+        );
+        return {
+          kind: "loaded",
+          matchKey,
+          selectedPlanId: planId,
+          draft: prepared.draft,
+          programEntryState: prepared.programEntryState,
+          recentLogItems: recentLogs,
+          lastSession: buildLastSessionSummary(
+            recentLogs,
+            prepared.draft.session.sessionDate,
+            input.planParams,
+            preferences.bodyweightKg,
+            locale,
+          ),
+          resumedRef5SessionId: resumableRef5Session.id,
+        };
+      }
       return {
         kind: "ref5-start-required",
         matchKey,

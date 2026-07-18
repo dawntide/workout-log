@@ -37,6 +37,7 @@ export type WorkoutLogInitialContext =
       programEntryState: WorkoutProgramExerciseEntryStateMap;
       recentLogItems: WorkoutLogRecentLogItem[];
       lastSession: WorkoutLogLastSessionSummary;
+      resumedRef5SessionId?: string;
     }
   | {
       kind: "blocked";

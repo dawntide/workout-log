@@ -14,6 +14,7 @@ import {
 import type {
   WorkoutLogDetailResponse,
   WorkoutLogDetailedLogItem,
+  WorkoutLogActiveRef5SessionResponse,
   WorkoutLogGeneratedSessionResponse,
   WorkoutLogLastSessionSummary,
   WorkoutLogLogsResponse,
@@ -50,6 +51,7 @@ export type LoadedWorkoutContextResult = {
   programEntryState: WorkoutProgramExerciseEntryStateMap;
   recentLogItems: WorkoutLogRecentLogItem[];
   lastSession: WorkoutLogLastSessionSummary;
+  resumedRef5SessionId?: string;
 };
 
 export type BlockedWorkoutContextResult = {
@@ -188,7 +190,10 @@ export async function loadWorkoutContextData(
     const ref5Plan = isRef5PlanParams(input.planParams);
     const logsPromise = apiGet<WorkoutLogLogsResponse>(recentLogsPath);
     const sessionPromise = ref5Plan
-      ? Promise.resolve<WorkoutLogGeneratedSessionResponse | null>(null)
+      ? apiGet<WorkoutLogActiveRef5SessionResponse>(
+          `/api/plans/${encodeURIComponent(input.planId)}/generated-sessions/active?date=${encodeURIComponent(input.dateKey)}`,
+          { cachePolicy: "network-only" },
+        )
       : apiPost<WorkoutLogGeneratedSessionResponse>(
           `/api/plans/${encodeURIComponent(input.planId)}/generate`,
           {
@@ -203,8 +208,8 @@ export async function loadWorkoutContextData(
       isLogOnDate(item.performedAt, input.dateKey, browserTimezone),
     );
 
-    // REF5 allows more than one explicitly started session on the same calendar
-    // day. Only an explicit logId selects an existing REF5 log for editing.
+    // A completed REF5 log does not block another explicit session on the same
+    // calendar day, but an unfinished started session must be resumed first.
     if (todayLogItem && !ref5Plan) {
       // 오늘 기록이 이미 있으면 상세 정보만 추가 로드 (recentLogs는 이미 있음)
       const logRes = await apiGet<WorkoutLogDetailResponse>(
@@ -241,6 +246,33 @@ export async function loadWorkoutContextData(
     }
 
     if (ref5Plan) {
+      if (sessionRes.session) {
+        const prepared = prepareWorkoutRecordDraftForEntry(
+          applyWeightRulesToDraft(
+            createWorkoutRecordDraft(sessionRes.session, input.planName, {
+              timezone: browserTimezone,
+              planSchedule: input.planSchedule,
+              locale,
+            }),
+            input.preferences,
+          ),
+        );
+        return {
+          kind: "loaded",
+          selectedPlanId: input.planId,
+          draft: prepared.draft,
+          programEntryState: prepared.programEntryState,
+          recentLogItems: logsRes.items ?? [],
+          lastSession: buildLastSessionSummary(
+            logsRes.items ?? [],
+            prepared.draft.session.sessionDate,
+            input.planParams,
+            input.preferences.bodyweightKg,
+            locale,
+          ),
+          resumedRef5SessionId: sessionRes.session.id ?? undefined,
+        };
+      }
       return {
         kind: "ref5-start-required",
         selectedPlanId: input.planId,
@@ -260,7 +292,7 @@ export async function loadWorkoutContextData(
     }
 
     // 오늘 기록 없음 → generate 결과 사용
-    if (!sessionRes) {
+    if (!sessionRes.session) {
       return {
         kind: "blocked",
         message:

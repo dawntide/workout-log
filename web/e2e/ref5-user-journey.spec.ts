@@ -834,6 +834,65 @@ test("REF5 시작 세션 부분 입력 새로고침 복구", async ({ page }, te
   await expect(page.locator('input[aria-label*="반복"]').first()).toHaveValue("2");
 });
 
+test("REF5 미완료 세션은 새 시작 대신 기존 세션을 자동 재개", async ({ page }, testInfo) => {
+  test.setTimeout(180_000);
+  const browserFailures = observeBrowser(page);
+  const planId = await activateRef5ProgramThroughUi(page, "unfinished-resume", testInfo);
+  await openAndPreviewRef5Session(page, planId, {
+    startAt: localDateTimeDaysAgo(0),
+    mode: "NORMAL",
+    squat: "H3",
+    focus: "PULL",
+    setCount: 9,
+  });
+  await startPreviewedRef5Session(page);
+  const firstSessionId = new URL(page.url()).searchParams.get("sessionId");
+  expect(firstSessionId).toBeTruthy();
+
+  await page.goto(`/workout/log?planId=${encodeURIComponent(planId)}&context=today`);
+  await expect(page).toHaveURL(new RegExp(`sessionId=${firstSessionId}`), { timeout: 20_000 });
+  await expect(
+    page.getByText(
+      "미완료 REF5 세션을 이어서 불러왔습니다. 이 세션을 저장한 뒤 새 세션을 시작할 수 있습니다.",
+      { exact: true },
+    ),
+  ).toBeVisible();
+  await expect(page.getByLabel("REF5 종료 사유").first()).toBeVisible();
+  await page.screenshot({
+    path: testInfo.outputPath("ref5-unfinished-session-resumed.png"),
+    fullPage: true,
+  });
+
+  const retryStart = new Date();
+  retryStart.setMinutes(retryStart.getMinutes() + 1);
+  const retryResponse = await page.request.post(
+    `/api/plans/${encodeURIComponent(planId)}/generate`,
+    {
+      data: {
+        ref5: {
+          protocolVersion: "1.2",
+          actualStartAt: retryStart.toISOString(),
+          bodyweightKg: 75,
+          manualMicro: false,
+          startEventId: `resume-guard-${Date.now()}`,
+        },
+      },
+    },
+  );
+  expect(retryResponse.status()).toBe(200);
+  const retryBody = await retryResponse.json();
+  expect(retryBody.resumed).toBe(true);
+  expect(retryBody.session.id).toBe(firstSessionId);
+
+  const sessionsResponse = await page.request.get(
+    `/api/generated-sessions?planId=${encodeURIComponent(planId)}&limit=10`,
+  );
+  expect(sessionsResponse.status()).toBe(200);
+  const sessionsBody = await sessionsResponse.json();
+  expect(sessionsBody.items).toHaveLength(1);
+  expect(browserFailures).toEqual([]);
+});
+
 test("일반 프로그램 시작 세션 부분 입력 새로고침 복구", async ({ page }, testInfo) => {
   test.setTimeout(180_000);
   const planId = await activateOneRmProgramThroughUi(page, "generic-draft-restore", testInfo);

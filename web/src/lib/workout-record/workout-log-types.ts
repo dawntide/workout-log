@@ -39,6 +39,11 @@ export type WorkoutLogExerciseOption = {
 
 export type WorkoutLogGeneratedSessionResponse = {
   session: GeneratedSessionLike;
+  resumed?: boolean;
+};
+
+export type WorkoutLogActiveRef5SessionResponse = {
+  session: GeneratedSessionLike | null;
 };
 
 export type WorkoutLogPlansResponse = {
