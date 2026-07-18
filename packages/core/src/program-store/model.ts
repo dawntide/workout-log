@@ -195,7 +195,7 @@ const PROGRAM_DESCRIPTIONS: Record<ProgramStoreLocale, Partial<Record<string, st
     "asymptote-protocol":
       "회복·영양·수면이 불안정한 중급 리프터를 위한 성과 기반(performance-gated) 스트렝스 프로그램입니다. 3개 세션(A/B/C)이 블록마다 적응·빌드·검증·디로드 네 단계를 순환하며, 훈련 최대 중량(TM)은 자동으로 오르지 않고 사이클 3의 AMRAP 검증을 통과해야만 갱신됩니다. 스쿼트·벤치·중량 풀업·데드리프트·오버헤드 프레스 5개 종목으로 구성되고, 보조 TM은 메인 종목에서 파생되며, 캘린더에 묶이지 않는 세션 기반 로테이션으로 진행됩니다.",
     "ref5-adaptive-strength":
-      "불규칙한 주 2–4회 일정에 맞춰 다음 처방을 자동 결정하는 세션 기반 스트렝스 프로그램입니다. 하이바 스쿼트를 최우선으로 스쿼트·중량 풀업·벤치프레스·데드리프트·오버헤드 프레스 다섯 종목만 사용하며, 1RM이나 AMRAP 없이 유효 반복과 종료 사유를 PASS·HOLD·FAIL·INVALID로 분류해 진행합니다. 유한 주차나 블록 없이 집중 큐, 마이크로 세션, 직접 작업 기준과 보조 상한을 독립 상태 머신이 조정합니다.",
+      "불규칙한 주 2–4회 일정에 맞춰 다음 처방을 자동 결정하는 세션 기반 스트렝스 프로그램입니다. 하이바 스쿼트를 최우선으로 다섯 종목만 사용하며, 시작할 때 최근 기록이나 e1RM으로 첫 작업중량을 추천할 수 있습니다. 이후에는 실측 1RM 테스트나 AMRAP 없이 유효 반복과 종료 사유를 PASS·HOLD·FAIL·INVALID로 분류하고, 직접 작업 기준과 보조 상한을 독립 상태 머신이 조정합니다.",
   },
   en: {
     operator:
@@ -221,7 +221,7 @@ const PROGRAM_DESCRIPTIONS: Record<ProgramStoreLocale, Partial<Record<string, st
     "asymptote-protocol":
       "A performance-gated strength program for intermediates whose recovery, nutrition, or sleep is inconsistent. Three rotating sessions (A/B/C) cycle through four phases per block — acclimation, build, validation, deload — and the training max only moves when a cycle-3 AMRAP earns it. Five lifts (Squat, Bench, Weighted Pull-Up, Deadlift, Overhead Press) with auxiliary TMs derived from the mains, on a session-based rotation that ignores the calendar.",
     "ref5-adaptive-strength":
-      "A session-based strength program that chooses the next prescription around an irregular 2–4 day training schedule. High-bar squat stays first priority across exactly five lifts: Squat, Weighted Pull-Up, Bench Press, Deadlift, and Overhead Press. There is no 1RM test or AMRAP; valid reps and stop reasons produce PASS, HOLD, FAIL, or INVALID, while an independent state machine manages the focus queue, micro sessions, direct work baselines, and auxiliary caps without finite weeks or blocks.",
+      "A session-based strength program for an irregular 2–4 day training schedule. High-bar squat stays first priority across exactly five lifts. Recent records or e1RM can suggest the first work loads; after start, there is no 1RM test or AMRAP. Valid reps and stop reasons produce PASS, HOLD, FAIL, or INVALID while an independent state machine manages direct work baselines and auxiliary caps without finite weeks or blocks.",
   },
 };
 
@@ -431,8 +431,8 @@ export function getProgramDetailInfo(
       modules,
       progressionNote: t(
         locale,
-        "직접 kg 시작 기준 · PASS/HOLD/FAIL/INVALID · 세션별 적응",
-        "Direct kg starting baselines · PASS/HOLD/FAIL/INVALID · Session-adaptive",
+        "최근 기록/e1RM 첫 처방 · 직접 kg PASS/HOLD/FAIL/INVALID",
+        "Recent records/e1RM first Rx · Direct kg PASS/HOLD/FAIL/INVALID",
       ),
     };
   }

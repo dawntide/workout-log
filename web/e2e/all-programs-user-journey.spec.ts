@@ -194,12 +194,13 @@ async function activateProgram(page: Page, scenario: ProgramScenario) {
   await openProgramFromStore(page, scenario);
 
   if (scenario.startMode === "REF5") {
-    await expect(page.getByRole("heading", { name: "REF5 시작 중량 설정" })).toBeVisible({
+    await expect(page.getByRole("heading", { name: "REF5 시작 기준 설정" })).toBeVisible({
       timeout: 15_000,
     });
-    await expect(page.locator('input[aria-label$="1RM"]')).toHaveCount(0);
+    await expect(page.locator('input[aria-label$=" 1RM"]')).toHaveCount(0);
+    await page.getByRole("radio", { name: "직접 입력 · 고급" }).click();
     await expect(page.locator('input[aria-label$="kg"]')).toHaveCount(5);
-    await page.getByRole("button", { name: "설정한 중량으로 시작" }).click();
+    await page.getByRole("button", { name: "첫 처방으로 시작" }).click();
     await expect(page).toHaveURL(/\/workout\/log\?/, { timeout: 20_000 });
     await expect(page.getByRole("heading", { name: "REF5 세션 결정" })).toBeVisible({
       timeout: 20_000,
@@ -208,7 +209,7 @@ async function activateProgram(page: Page, scenario: ProgramScenario) {
     await expect(page.getByRole("heading", { name: "시작 전 1RM 입력" })).toBeVisible({
       timeout: 15_000,
     });
-    const oneRmInputs = page.locator('input[aria-label$="1RM"]');
+    const oneRmInputs = page.locator('input[aria-label$=" 1RM"]');
     await expect(oneRmInputs).toHaveCount(scenario.expectedOneRmInputs);
     for (let index = 0; index < scenario.expectedOneRmInputs; index += 1) {
       await oneRmInputs.nth(index).fill("100");

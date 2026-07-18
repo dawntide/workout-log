@@ -251,8 +251,8 @@ function Ref5StatusPanel({
 
         <p className="v2-small" style={{ margin: 0, color: "var(--v2-ink-2)" }}>
           {locale === "ko"
-            ? "REF5는 1RM/TM이나 주차를 사용하지 않습니다. 아래 값은 완료 로그를 재생해 계산한 읽기 전용 상태입니다."
-            : "REF5 has no 1RM/TM or cycle grid. These read-only values are rebuilt from the completion ledger."}
+            ? "REF5 런타임은 1RM/e1RM·TM이나 주차를 사용하지 않습니다. 아래 값은 완료 로그를 재생해 계산한 읽기 전용 상태입니다."
+            : "REF5 runtime uses no 1RM/e1RM, TM, or cycle grid. These read-only values are rebuilt from the completion ledger."}
         </p>
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "var(--v2-s-2)" }}>

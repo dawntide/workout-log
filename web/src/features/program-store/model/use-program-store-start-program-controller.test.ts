@@ -4,9 +4,12 @@ import type { ProgramTemplate } from "@workout/core/program-store/model";
 import {
   buildRef5StartPlanParams,
   readRef5StartConfigFromTemplate,
+  ref5E1rmValidationMessage,
   ref5StartConfigValidationMessage,
   requestOneRmStatsForProgramStart,
+  requestRef5StartRecommendation,
   shouldLoadOneRmRecommendations,
+  type Ref5StartRecommendationResponse,
 } from "./use-program-store-start-program-controller";
 import { buildInitialCreateDraft } from "./use-program-store-sheet-entry-controller";
 
@@ -97,7 +100,7 @@ test("REF5 start config is read from the versioned seed defaults", () => {
   );
 });
 
-test("REF5 start bypasses the PR/e1RM recommendation request", async () => {
+test("REF5 bypasses the generic program 1RM recommendation request", async () => {
   assert.equal(shouldLoadOneRmRecommendations(ref5Template), false);
   assert.equal(shouldLoadOneRmRecommendations(manualTemplate), true);
 
@@ -111,12 +114,37 @@ test("REF5 start bypasses the PR/e1RM recommendation request", async () => {
     await requestOneRmStatsForProgramStart(ref5Template, signal, request),
     null,
   );
-  assert.equal(apiCalls, 0, "REF5 must not cross the 1RM/TM API boundary");
+  assert.equal(apiCalls, 0, "REF5 must not use the generic program 1RM API");
   assert.deepEqual(
     await requestOneRmStatsForProgramStart(manualTemplate, signal, request),
     { items: [] },
   );
   assert.equal(apiCalls, 1);
+});
+
+test("REF5 loads its one-time start calibration from the dedicated boundary", async () => {
+  const signal = new AbortController().signal;
+  let requestedPath = "";
+  const response: Ref5StartRecommendationResponse = {
+    calibrationVersion: 1 as const,
+    lookbackDays: 56 as const,
+    maxReps: 10 as const,
+    items: [],
+    missingLifts: ["SQ", "BP", "PULL", "DL", "OHP"],
+    calibration: null,
+  };
+
+  const actual = await requestRef5StartRecommendation(
+    signal,
+    async (path, options) => {
+      requestedPath = path;
+      assert.equal(options.signal, signal);
+      return response;
+    },
+  );
+
+  assert.equal(requestedPath, "/api/stats/ref5-start-recommendation");
+  assert.deepEqual(actual, response);
 });
 
 test("REF5 plan params preserve user-selected direct kg baselines without generic 1RM/TM fields", () => {
@@ -161,6 +189,23 @@ test("REF5 start validation reports the active auxiliary cap", () => {
       "ko",
     ),
     "OHP 시작 중량은 현재 BP 기준 상한 32.5kg 이하여야 합니다.",
+  );
+});
+
+test("REF5 e1RM calibration requires all five positive inputs", () => {
+  assert.equal(
+    ref5E1rmValidationMessage(
+      { SQ: 104, BP: 101, PULL: 108, DL: 100, OHP: 0 },
+      "ko",
+    ),
+    "다섯 종목의 추정 1RM(e1RM)을 입력하세요. 미입력: OHP",
+  );
+  assert.equal(
+    ref5E1rmValidationMessage(
+      { SQ: 104, BP: 101, PULL: 108, DL: 100, OHP: 50 },
+      "ko",
+    ),
+    null,
   );
 });
 

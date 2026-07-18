@@ -4,6 +4,7 @@ import {
   computeBodyweightTotalLoadKg,
   computeExternalLoadFromTotalKg,
   formatExerciseLoadLabel,
+  readLoggedBodyweightTotalLoadKg,
   resolveLoggedTotalLoadKg,
   bodyweightAddedSuffix,
   resolveLoggedLoadDisplay,
@@ -53,6 +54,18 @@ test("resolveLoggedTotalLoadKg prefers logged total load meta for bodyweight exe
     }),
     90,
   );
+});
+
+test("readLoggedBodyweightTotalLoadKg distinguishes reliable total load from legacy external-only logs", () => {
+  assert.equal(readLoggedBodyweightTotalLoadKg({ totalLoadKg: 90 }), 90);
+  assert.equal(
+    readLoggedBodyweightTotalLoadKg({
+      ref5: { prescription: { pull: { actualTotalKg: 88.5 } } },
+    }),
+    88.5,
+  );
+  assert.equal(readLoggedBodyweightTotalLoadKg({ bodyweightKg: 70 }), null);
+  assert.equal(readLoggedBodyweightTotalLoadKg(null), null);
 });
 
 test("formatExerciseLoadLabel shows total load first with added weight in parens", () => {

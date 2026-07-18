@@ -13,7 +13,9 @@ function toRecord(value: unknown): Record<string, unknown> {
     : {};
 }
 
-function readLoggedMetaTotalLoadKg(meta: Record<string, unknown> | null | undefined) {
+export function readLoggedBodyweightTotalLoadKg(
+  meta: Record<string, unknown> | null | undefined,
+) {
   const direct = toFiniteNumber(meta?.totalLoadKg);
   if (direct !== null) return direct;
   const ref5 = toRecord(meta?.ref5);
@@ -133,7 +135,7 @@ export function resolveLoggedTotalLoadKg(input: {
 }): number | null {
   const loggedWeightKg = toFiniteNumber(input.weightKg);
   if (!isBodyweightExerciseName(input.exerciseName)) return loggedWeightKg;
-  const metaTotalLoadKg = readLoggedMetaTotalLoadKg(input.meta);
+  const metaTotalLoadKg = readLoggedBodyweightTotalLoadKg(input.meta);
   if (metaTotalLoadKg !== null && metaTotalLoadKg > 0) return roundTo2(metaTotalLoadKg);
   return loggedWeightKg;
 }
@@ -181,7 +183,7 @@ export function resolveLoggedLoadDisplay(input: {
   if (!isBodyweightExerciseName(input.exerciseName)) {
     return { totalKg, suffix: null };
   }
-  const metaTotalLoadKg = readLoggedMetaTotalLoadKg(input.meta);
+  const metaTotalLoadKg = readLoggedBodyweightTotalLoadKg(input.meta);
   // 총부하 메타가 없으면 총무게로 환산 불가 → 원래 값 그대로, 병기 없음.
   if (metaTotalLoadKg === null || metaTotalLoadKg <= 0) {
     return { totalKg, suffix: null };

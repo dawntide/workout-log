@@ -675,8 +675,8 @@ export async function runSeed(options: SeedRunOptions = {}) {
     changelog: "v1.0 — 3-session A/B/C rotation, 4-cycle blocks, cycle-3 AMRAP gating",
   });
 
-  // REF5 Adaptive Strength — 독립 세션 기반 LOGIC 엔진. 1RM/TM이 아니라
-  // 계획 생성 때 확정한 kg 직접 기준을 정본으로 보존한다. 아래 값은 입력 기본값이다.
+  // REF5 Adaptive Strength — 독립 세션 기반 LOGIC 엔진. 시작 도우미가
+  // e1RM을 일회성 추천에 써도 계획은 확정된 kg 직접 기준만 정본으로 보존한다.
   // v1.1은 immutable legacy version으로 남긴다.
   const ref5StartConfig = {
     initializationVersion: REF5_START_CONFIG_VERSION,
@@ -692,7 +692,7 @@ export async function runSeed(options: SeedRunOptions = {}) {
     type: "LOGIC",
     visibility: "PUBLIC",
     description:
-      "A session-based adaptive strength program for irregular 2–4 day schedules. High-bar squat remains the priority across Squat, Weighted Pull-Up, Bench Press, Deadlift, and Overhead Press. Each new plan starts from five direct kg baselines and uses PASS/HOLD/FAIL/INVALID outcomes instead of 1RM tests, AMRAP, RIR, or finite training blocks.",
+      "A session-based adaptive strength program for irregular 2–4 day schedules. High-bar squat remains the priority across Squat, Weighted Pull-Up, Bench Press, Deadlift, and Overhead Press. Recent records or e1RM can suggest the first prescription; the plan then progresses five direct kg baselines from PASS/HOLD/FAIL/INVALID outcomes without 1RM tests, AMRAP, RIR, or finite training blocks.",
     tags: ["strength", "barbell", "ref5", "intermediate", "session-based", "adaptive"],
   });
 

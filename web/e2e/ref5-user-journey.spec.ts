@@ -88,16 +88,28 @@ async function activateRef5ProgramThroughUi(
   await ref5Card.getByRole("button", { name: "시작하기" }).click();
   await expect(page.getByRole("dialog", { name: "프로그램 상세" })).toBeVisible();
   await page.getByRole("button", { name: "이 프로그램으로 시작하기" }).click();
-  await expect(page.getByRole("heading", { name: "REF5 시작 중량 설정" })).toBeVisible({
+  await expect(page.getByRole("heading", { name: "REF5 시작 기준 설정" })).toBeVisible({
     timeout: 15_000,
   });
-  await expect(page.locator('input[aria-label$="kg"]')).toHaveCount(5);
-  await expect(page.locator('input[aria-label^="SQ H3"]')).toHaveValue("82.5");
+  const e1rmInputs = page.locator('input[aria-label$="추정 1RM (e1RM)"]');
+  await expect(e1rmInputs).toHaveCount(5);
+  const e1rmByLabel = [
+    ["SQ 추정 1RM (e1RM)", "104"],
+    ["BP 추정 1RM (e1RM)", "101"],
+    ["PULL 총중량 추정 1RM (e1RM)", "108"],
+    ["DL 추정 1RM (e1RM)", "100"],
+    ["OHP 추정 1RM (e1RM)", "50"],
+  ] as const;
+  for (const [ariaLabel, value] of e1rmByLabel) {
+    await page.getByLabel(ariaLabel, { exact: true }).fill(value);
+  }
+  await expect(page.getByText(/계산된 첫 처방/)).toBeVisible();
+  await expect(page.getByText(/SQ · 3×3 82\.5kg/)).toBeVisible();
   if (capture) {
-    await page.screenshot({ path: testInfo.outputPath("ref5-starting-loads.png"), fullPage: true });
+    await page.screenshot({ path: testInfo.outputPath("ref5-start-calibration.png"), fullPage: true });
   }
 
-  await page.getByRole("button", { name: "설정한 중량으로 시작" }).click();
+  await page.getByRole("button", { name: "첫 처방으로 시작" }).click();
   await expect(page).toHaveURL(/\/workout\/log\?/, { timeout: 20_000 });
   const planId = new URL(page.url()).searchParams.get("planId");
   expect(planId).toBeTruthy();
@@ -128,7 +140,7 @@ async function activateOneRmProgramThroughUi(
     timeout: 15_000,
   });
 
-  const oneRmInputs = page.locator('input[aria-label$="1RM"]');
+  const oneRmInputs = page.locator('input[aria-label$=" 1RM"]');
   const inputCount = await oneRmInputs.count();
   expect(inputCount).toBeGreaterThan(0);
   for (let index = 0; index < inputCount; index += 1) {

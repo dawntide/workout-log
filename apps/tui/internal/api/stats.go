@@ -52,6 +52,37 @@ type StatsBundle struct {
 	Prs90d      []PrItem `json:"prs90d"`
 }
 
+// Ref5StartRecommendationItem is one exact-lift record used only to suggest
+// REF5's first direct work loads. PULL values are bodyweight-inclusive totals.
+type Ref5StartRecommendationItem struct {
+	Lift               string  `json:"lift"`
+	SourceExerciseName string  `json:"sourceExerciseName"`
+	E1rmKg             Float64 `json:"e1rmKg"`
+	RecordDate         string  `json:"recordDate"`
+	RecordWeightKg     Float64 `json:"recordWeightKg"`
+	RecordReps         int     `json:"recordReps"`
+}
+
+// Ref5StartRecommendation is the one-time onboarding calibration payload.
+// The TUI deliberately does not retain its e1RM values in plan params.
+type Ref5StartRecommendation struct {
+	CalibrationVersion int                           `json:"calibrationVersion"`
+	LookbackDays       int                           `json:"lookbackDays"`
+	MaxReps            int                           `json:"maxReps"`
+	Items              []Ref5StartRecommendationItem `json:"items"`
+	MissingLifts       []string                      `json:"missingLifts"`
+}
+
+// Ref5StartingRecommendation fetches recent exact-lift records for the REF5
+// start assistant. Failure is recoverable because direct/e1RM entry remains.
+func (c *Client) Ref5StartingRecommendation(ctx context.Context) (*Ref5StartRecommendation, error) {
+	var out Ref5StartRecommendation
+	if err := c.do(ctx, "GET", "/api/stats/ref5-start-recommendation", nil, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
 // Bundle fetches the comprehensive stats bundle over `days`.
 func (c *Client) Bundle(ctx context.Context, days int) (*StatsBundle, error) {
 	var out StatsBundle

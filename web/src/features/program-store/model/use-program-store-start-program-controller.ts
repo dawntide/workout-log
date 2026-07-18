@@ -18,8 +18,17 @@ import {
   deriveRef5ControlRefs,
   validateRef5StartConfig,
   type Ref5DirectStandardsKg,
+  type Ref5Lift,
   type Ref5StartConfig,
 } from "@workout/core/program-engine/ref5";
+import {
+  deriveRef5StartCalibration,
+  REF5_START_CALIBRATION_LIFTS,
+  type Ref5CalibrationE1rmKg,
+  type Ref5StartCalibration,
+  type Ref5StartRecommendation,
+  type Ref5StartRecommendationItem,
+} from "@workout/core/program-engine/ref5-start-calibration";
 import type { PlanItem } from "./types";
 import { formatProgramDisplayName } from "./view";
 
@@ -45,6 +54,10 @@ export type StartProgramDraft = {
   recommendationStatus: "idle" | "loading" | "ready" | "failed";
   recommendationMessage: string | null;
   ref5Config: Ref5StartConfig | null;
+  ref5SetupMode: "E1RM" | "DIRECT";
+  ref5E1rmInputs: Ref5CalibrationE1rmKg;
+  ref5Calibration: Ref5StartCalibration | null;
+  ref5RecommendationItems: Partial<Record<Ref5Lift, Ref5StartRecommendationItem>>;
 };
 
 export type Ref5StartField = keyof Ref5DirectStandardsKg;
@@ -56,6 +69,18 @@ export type PrStatsResponse = {
     latest?: { e1rm?: number; date?: string } | null;
   }>;
 };
+
+export type Ref5StartRecommendationResponse = Ref5StartRecommendation & {
+  recordedAt?: string;
+};
+
+const EMPTY_REF5_E1RM_INPUTS: Ref5CalibrationE1rmKg = Object.freeze({
+  SQ: 0,
+  BP: 0,
+  PULL: 0,
+  DL: 0,
+  OHP: 0,
+});
 
 function todayKeyInTimezone(timezone: string) {
   const fmt = new Intl.DateTimeFormat("en-CA", {
@@ -139,6 +164,26 @@ export function ref5StartConfigValidationMessage(
     : "Enter each starting load on the 2.5 kg grid from 2.5 to 500 kg.";
 }
 
+export function ref5E1rmValidationMessage(
+  inputs: Ref5CalibrationE1rmKg,
+  locale: "ko" | "en",
+): string | null {
+  const missing = REF5_START_CALIBRATION_LIFTS.filter((lift) => {
+    const value = Number(inputs[lift]);
+    return !Number.isFinite(value) || value <= 0;
+  });
+  if (missing.length > 0) {
+    return locale === "ko"
+      ? `다섯 종목의 추정 1RM(e1RM)을 입력하세요. 미입력: ${missing.join(" · ")}`
+      : `Enter a baseline e1RM for all five lifts. Missing: ${missing.join(" · ")}`;
+  }
+  const result = deriveRef5StartCalibration(inputs);
+  if (result.ok) return null;
+  return locale === "ko"
+    ? "e1RM에서 계산한 시작 처방이 REF5 허용 범위를 벗어났습니다. 값을 확인하세요."
+    : "The starting prescription derived from e1RM is outside the REF5 limits.";
+}
+
 export function shouldLoadOneRmRecommendations(template: ProgramTemplate) {
   return !isRef5Template(template);
 }
@@ -147,6 +192,11 @@ type OneRmStatsRequest = (
   path: string,
   options: { signal: AbortSignal },
 ) => Promise<PrStatsResponse>;
+
+type Ref5StartRecommendationRequest = (
+  path: string,
+  options: { signal: AbortSignal },
+) => Promise<Ref5StartRecommendationResponse>;
 
 /** The network boundary used by the actual start flow, guarded inside the boundary. */
 export async function requestOneRmStatsForProgramStart(
@@ -157,6 +207,14 @@ export async function requestOneRmStatsForProgramStart(
 ) {
   if (!shouldLoadOneRmRecommendations(template)) return null;
   return request("/api/stats/prs?days=3650&limit=100", { signal });
+}
+
+export async function requestRef5StartRecommendation(
+  signal: AbortSignal,
+  request: Ref5StartRecommendationRequest = (path, options) =>
+    apiGet<Ref5StartRecommendationResponse>(path, options),
+) {
+  return request("/api/stats/ref5-start-recommendation", { signal });
 }
 
 export function buildRef5StartPlanParams(input: {
@@ -450,12 +508,12 @@ export function useProgramStoreStartProgramController({
 }: UseProgramStoreStartProgramControllerInput) {
   const [startProgramDraft, setStartProgramDraft] =
     useState<StartProgramDraft | null>(null);
-  const oneRmRecommendationControllerRef = useRef<AbortController | null>(null);
+  const startRecommendationControllerRef = useRef<AbortController | null>(null);
 
   const loadOneRmRecommendations = useCallback(
     async (template: ProgramTemplate, targets: OneRmTarget[]) => {
       const templateId = template.id;
-      const controller = replaceAbortController(oneRmRecommendationControllerRef);
+      const controller = replaceAbortController(startRecommendationControllerRef);
 
       try {
         const response = await requestOneRmStatsForProgramStart(
@@ -463,7 +521,7 @@ export function useProgramStoreStartProgramController({
           controller.signal,
         );
         if (!response) return;
-        if (oneRmRecommendationControllerRef.current !== controller) return;
+        if (startRecommendationControllerRef.current !== controller) return;
 
         const recommendations = buildOneRmRecommendations(targets, response.items);
         setStartProgramDraft((prev) => {
@@ -496,7 +554,7 @@ export function useProgramStoreStartProgramController({
       } catch (error) {
         if (
           isAbortError(error) ||
-          oneRmRecommendationControllerRef.current !== controller
+          startRecommendationControllerRef.current !== controller
         ) {
           return;
         }
@@ -513,8 +571,86 @@ export function useProgramStoreStartProgramController({
           };
         });
       } finally {
-        if (oneRmRecommendationControllerRef.current === controller) {
-          oneRmRecommendationControllerRef.current = null;
+        if (startRecommendationControllerRef.current === controller) {
+          startRecommendationControllerRef.current = null;
+        }
+      }
+    },
+    [locale],
+  );
+
+  const loadRef5Recommendations = useCallback(
+    async (template: ProgramTemplate) => {
+      const templateId = template.id;
+      const controller = replaceAbortController(startRecommendationControllerRef);
+
+      try {
+        const response = await requestRef5StartRecommendation(controller.signal);
+        if (startRecommendationControllerRef.current !== controller) return;
+
+        setStartProgramDraft((prev) => {
+          if (!prev || prev.template.id !== templateId || prev.mode !== "REF5") {
+            return prev;
+          }
+          const ref5E1rmInputs = { ...prev.ref5E1rmInputs };
+          const ref5RecommendationItems: StartProgramDraft["ref5RecommendationItems"] = {};
+          for (const item of response.items) {
+            ref5RecommendationItems[item.lift] = item;
+            if (ref5E1rmInputs[item.lift] <= 0) {
+              ref5E1rmInputs[item.lift] = item.e1rmKg;
+            }
+          }
+          const calibration = deriveRef5StartCalibration(ref5E1rmInputs);
+          const matched = response.items.length;
+
+          return {
+            ...prev,
+            ref5E1rmInputs,
+            ref5RecommendationItems,
+            ref5Calibration: calibration.ok ? calibration.value : null,
+            ref5Config:
+              calibration.ok && prev.ref5SetupMode === "E1RM"
+                ? calibration.value.startConfig
+                : prev.ref5Config,
+            recommendationStatus: "ready",
+            recommendationMessage:
+              matched === REF5_START_CALIBRATION_LIFTS.length
+                ? locale === "ko"
+                  ? "최근 8주 1–10회 기록에서 다섯 종목의 최고 e1RM을 자동 입력했습니다."
+                  : "Loaded all five lifts from the best 1–10 rep records in the last 8 weeks."
+                : matched > 0
+                  ? locale === "ko"
+                    ? `최근 기록 ${matched}/5종목을 찾았습니다. 나머지 종목은 추정 1RM(e1RM)을 직접 입력하세요.`
+                    : `Found recent records for ${matched}/5 lifts. Enter the remaining baseline e1RMs.`
+                  : locale === "ko"
+                    ? "최근 8주에 사용할 수 있는 1–10회 기록이 없습니다. 추정 1RM(e1RM)을 직접 입력하세요."
+                    : "No eligible 1–10 rep records were found in the last 8 weeks. Enter baseline e1RMs.",
+          };
+        });
+      } catch (error) {
+        if (
+          isAbortError(error) ||
+          startRecommendationControllerRef.current !== controller
+        ) {
+          return;
+        }
+        setStartProgramDraft((prev) => {
+          if (!prev || prev.template.id !== templateId || prev.mode !== "REF5") {
+            return prev;
+          }
+          return {
+            ...prev,
+            recommendationStatus: "failed",
+            recommendationMessage:
+              errorMessage(error) ??
+              (locale === "ko"
+                ? "최근 e1RM 기록을 불러오지 못했습니다. 직접 입력은 계속 사용할 수 있습니다."
+                : "Could not load recent e1RM records. Manual entry is still available."),
+          };
+        });
+      } finally {
+        if (startRecommendationControllerRef.current === controller) {
+          startRecommendationControllerRef.current = null;
         }
       }
     },
@@ -523,13 +659,13 @@ export function useProgramStoreStartProgramController({
 
   useEffect(() => {
     if (startProgramDraft) return;
-    oneRmRecommendationControllerRef.current?.abort();
-    oneRmRecommendationControllerRef.current = null;
+    startRecommendationControllerRef.current?.abort();
+    startRecommendationControllerRef.current = null;
   }, [startProgramDraft]);
 
   useEffect(() => {
     return () => {
-      oneRmRecommendationControllerRef.current?.abort();
+      startRecommendationControllerRef.current?.abort();
     };
   }, []);
 
@@ -567,7 +703,7 @@ export function useProgramStoreStartProgramController({
       if (ref5 && !ref5Config) {
         setError(
           locale === "ko"
-            ? "REF5 시작 중량 설정을 불러오지 못했습니다."
+            ? "REF5 시작 기준을 불러오지 못했습니다."
             : "The REF5 starting-load configuration is unavailable.",
         );
         return;
@@ -600,15 +736,25 @@ export function useProgramStoreStartProgramController({
         targets,
         oneRmInputs,
         recommendations: {},
-        recommendationStatus: ref5 ? "idle" : "loading",
+        recommendationStatus: existing ? "idle" : "loading",
         recommendationMessage: null,
         ref5Config,
+        ref5SetupMode: ref5 && !existing ? "E1RM" : "DIRECT",
+        ref5E1rmInputs: { ...EMPTY_REF5_E1RM_INPUTS },
+        ref5Calibration: null,
+        ref5RecommendationItems: {},
       });
       setError(null);
 
-      void loadOneRmRecommendations(template, targets);
+      if (!existing) {
+        if (ref5) {
+          void loadRef5Recommendations(template);
+        } else {
+          void loadOneRmRecommendations(template, targets);
+        }
+      }
     },
-    [loadOneRmRecommendations, locale, plans, setError],
+    [loadOneRmRecommendations, loadRef5Recommendations, locale, plans, setError],
   );
 
   const updateOneRmInput = useCallback((targetKey: string, value: number) => {
@@ -634,6 +780,7 @@ export function useProgramStoreStartProgramController({
         };
         return {
           ...prev,
+          ref5Calibration: null,
           ref5Config: {
             ...prev.ref5Config,
             startingValuesKg,
@@ -644,6 +791,37 @@ export function useProgramStoreStartProgramController({
     },
     [],
   );
+
+  const updateRef5SetupMode = useCallback((mode: "E1RM" | "DIRECT") => {
+    setStartProgramDraft((prev) => {
+      if (!prev || prev.mode !== "REF5" || prev.existingPlanId) return prev;
+      if (mode === "DIRECT") return { ...prev, ref5SetupMode: mode };
+      const calibration = deriveRef5StartCalibration(prev.ref5E1rmInputs);
+      return {
+        ...prev,
+        ref5SetupMode: mode,
+        ref5Calibration: calibration.ok ? calibration.value : null,
+        ref5Config: calibration.ok ? calibration.value.startConfig : prev.ref5Config,
+      };
+    });
+  }, []);
+
+  const updateRef5E1rmInput = useCallback((lift: Ref5Lift, value: number) => {
+    setStartProgramDraft((prev) => {
+      if (!prev || prev.mode !== "REF5" || prev.existingPlanId) return prev;
+      const ref5E1rmInputs = {
+        ...prev.ref5E1rmInputs,
+        [lift]: Math.round(value * 10) / 10,
+      };
+      const calibration = deriveRef5StartCalibration(ref5E1rmInputs);
+      return {
+        ...prev,
+        ref5E1rmInputs,
+        ref5Calibration: calibration.ok ? calibration.value : null,
+        ref5Config: calibration.ok ? calibration.value.startConfig : prev.ref5Config,
+      };
+    });
+  }, []);
 
   const applyRecommendation = useCallback((targetKey: string) => {
     setStartProgramDraft((prev) => {
@@ -664,10 +842,15 @@ export function useProgramStoreStartProgramController({
     if (!startProgramDraft) return;
 
     const isRef5Start = startProgramDraft.mode === "REF5";
-    const ref5ValidationMessage =
-      isRef5Start && startProgramDraft.ref5Config
-        ? ref5StartConfigValidationMessage(startProgramDraft.ref5Config, locale)
-        : null;
+    const ref5ValidationMessage = isRef5Start
+      ? startProgramDraft.ref5SetupMode === "E1RM" && !startProgramDraft.existingPlanId
+        ? ref5E1rmValidationMessage(startProgramDraft.ref5E1rmInputs, locale)
+        : startProgramDraft.ref5Config
+          ? ref5StartConfigValidationMessage(startProgramDraft.ref5Config, locale)
+          : locale === "ko"
+            ? "REF5 시작 설정이 올바르지 않습니다."
+            : "The REF5 start configuration is invalid."
+      : null;
     if (ref5ValidationMessage) {
       setError(ref5ValidationMessage);
       return;
@@ -801,6 +984,8 @@ export function useProgramStoreStartProgramController({
     openStartProgramDraft,
     updateOneRmInput,
     updateRef5StartingValue,
+    updateRef5SetupMode,
+    updateRef5E1rmInput,
     applyRecommendation,
     submitStartProgram,
   };

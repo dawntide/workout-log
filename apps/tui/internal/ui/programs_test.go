@@ -153,12 +153,17 @@ func TestPickRef5TemplateRequiresTimezoneBeforeCreate(t *testing.T) {
 		t.Fatalf("pending template = %q", programs.pendingRef5TemplateID)
 	}
 
-	// Timezone is followed by all five direct starting loads. Nothing is posted
-	// until the final OHP value is accepted.
+	// Timezone is followed by an input-mode choice. The advanced direct path
+	// still accepts all five canonical work loads, then shows a first-Rx preview.
 	scr, setupCmd := programs.Update(pickedMsg{tag: "ref5-timezone", value: "America/New_York"})
 	programs = scr.(Programs)
+	if setupCmd == nil || setupCmd().(openPickerMsg).tag != "ref5-start-mode" {
+		t.Fatal("valid timezone did not open the start-mode picker")
+	}
+	scr, setupCmd = programs.Update(pickedMsg{tag: "ref5-start-mode", value: "direct"})
+	programs = scr.(Programs)
 	if setupCmd == nil || setupCmd().(openPickerMsg).tag != "ref5-sq-h3" {
-		t.Fatal("valid timezone did not open the SQ start picker")
+		t.Fatal("direct mode did not open the SQ start picker")
 	}
 	for _, step := range []struct{ tag, value, next string }{
 		{"ref5-sq-h3", "90", "ref5-bp-focus"},
@@ -175,10 +180,22 @@ func TestPickRef5TemplateRequiresTimezoneBeforeCreate(t *testing.T) {
 			t.Fatalf("plan posted before final start load: %d", planPosts)
 		}
 	}
-	scr, createCmd := programs.Update(pickedMsg{tag: "ref5-ohp", value: "35"})
+	scr, confirmCmd := programs.Update(pickedMsg{tag: "ref5-ohp", value: "35"})
+	programs = scr.(Programs)
+	if confirmCmd == nil {
+		t.Fatal("valid OHP did not open the first-prescription confirmation")
+	}
+	confirm := confirmCmd().(openPickerMsg)
+	if confirm.tag != "ref5-confirm" || !strings.Contains(confirm.items[0].desc, "SQ 3×3 90kg") {
+		t.Fatalf("first-prescription preview = %#v", confirm)
+	}
+	if planPosts != 0 {
+		t.Fatalf("plan posted before first-prescription confirmation: %d", planPosts)
+	}
+	scr, createCmd := programs.Update(pickedMsg{tag: "ref5-confirm", value: "start"})
 	programs = scr.(Programs)
 	if createCmd == nil {
-		t.Fatal("valid OHP did not create the REF5 plan")
+		t.Fatal("confirmed first prescription did not create the REF5 plan")
 	}
 	msg := createCmd()
 	created, ok := msg.(planCreatedMsg)
@@ -207,6 +224,118 @@ func TestPickRef5TemplateRequiresTimezoneBeforeCreate(t *testing.T) {
 	}
 	if programs.pendingRef5TemplateID != "" {
 		t.Errorf("pending template was not cleared: %q", programs.pendingRef5TemplateID)
+	}
+}
+
+func TestRef5E1rmStartUsesRecentRecommendationAndPersistsOnlyDirectLoads(t *testing.T) {
+	var recommendationReads int
+	var posted map[string]any
+	mux := http.NewServeMux()
+	mux.HandleFunc("/api/stats/ref5-start-recommendation", func(w http.ResponseWriter, _ *http.Request) {
+		recommendationReads++
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"calibrationVersion": 1,
+			"lookbackDays":       56,
+			"maxReps":            10,
+			"items": []map[string]any{
+				{"lift": "SQ", "e1rmKg": 104, "recordWeightKg": 100, "recordReps": 1, "recordDate": "2026-07-17"},
+				{"lift": "BP", "e1rmKg": 101, "recordWeightKg": 90, "recordReps": 3, "recordDate": "2026-07-16"},
+				{"lift": "PULL", "e1rmKg": 108, "recordWeightKg": 90, "recordReps": 6, "recordDate": "2026-07-15"},
+				{"lift": "DL", "e1rmKg": 100, "recordWeightKg": 90, "recordReps": 3, "recordDate": "2026-07-14"},
+				{"lift": "OHP", "e1rmKg": 50, "recordWeightKg": 45, "recordReps": 3, "recordDate": "2026-07-13"},
+			},
+			"missingLifts": []string{},
+		})
+	})
+	mux.HandleFunc("/api/plans", func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewDecoder(r.Body).Decode(&posted)
+		w.WriteHeader(http.StatusCreated)
+	})
+	server := httptest.NewServer(mux)
+	t.Cleanup(server.Close)
+	client, err := api.New(server.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	template := ref5ProgramsTemplate()
+	starts, err := ref5StartingValuesFromTemplate(template)
+	if err != nil {
+		t.Fatal(err)
+	}
+	programs := NewPrograms(client)
+	programs.templates = []api.Template{template}
+	programs.pendingRef5TemplateID = template.ID
+	programs.pendingRef5Timezone = "Asia/Seoul"
+	programs.pendingRef5Starts = starts
+
+	scr, loadCmd := programs.Update(pickedMsg{tag: "ref5-start-mode", value: "e1rm"})
+	programs = scr.(Programs)
+	if loadCmd == nil {
+		t.Fatal("e1RM mode did not request recent recommendations")
+	}
+	scr, pickerCmd := programs.Update(loadCmd())
+	programs = scr.(Programs)
+	if recommendationReads != 1 {
+		t.Fatalf("recommendation reads = %d, want 1", recommendationReads)
+	}
+	picker := pickerCmd().(openPickerMsg)
+	if picker.tag != "ref5-e1rm-sq" || picker.initial != "104" || !strings.Contains(picker.prompt, "100kg×1") {
+		t.Fatalf("SQ e1RM picker = %#v", picker)
+	}
+
+	for _, step := range []struct{ tag, value, next string }{
+		{"ref5-e1rm-sq", "104", "ref5-e1rm-bp"},
+		{"ref5-e1rm-bp", "101", "ref5-e1rm-pull"},
+		{"ref5-e1rm-pull", "108", "ref5-e1rm-deadlift"},
+		{"ref5-e1rm-deadlift", "100", "ref5-e1rm-ohp"},
+	} {
+		scr, pickerCmd = programs.Update(pickedMsg{tag: step.tag, value: step.value})
+		programs = scr.(Programs)
+		if pickerCmd == nil || pickerCmd().(openPickerMsg).tag != step.next {
+			t.Fatalf("%s did not open %s", step.tag, step.next)
+		}
+	}
+	scr, confirmCmd := programs.Update(pickedMsg{tag: "ref5-e1rm-ohp", value: "50"})
+	programs = scr.(Programs)
+	confirm := confirmCmd().(openPickerMsg)
+	if confirm.tag != "ref5-confirm" || !strings.Contains(confirm.items[0].desc, "SQ 3×3 82.5kg") ||
+		!strings.Contains(confirm.items[0].desc, "PULL 총 87.5kg") {
+		t.Fatalf("calibrated first prescription = %#v", confirm)
+	}
+
+	scr, createCmd := programs.Update(pickedMsg{tag: "ref5-confirm", value: "start"})
+	programs = scr.(Programs)
+	if result := createCmd().(planCreatedMsg); result.err != nil {
+		t.Fatal(result.err)
+	}
+	params := posted["params"].(map[string]any)
+	ref5 := params["ref5"].(map[string]any)
+	persisted := ref5["startingValuesKg"].(map[string]any)
+	if persisted["sqH3Kg"] != 82.5 || persisted["pullFocusTotalKg"] != 87.5 || persisted["ohpKg"] != 32.5 {
+		t.Fatalf("persisted direct starts = %#v", persisted)
+	}
+	if _, leaked := params["e1rmKg"]; leaked {
+		t.Fatalf("one-time e1RM leaked into plan params: %#v", params)
+	}
+	if programs.pendingRef5TemplateID != "" {
+		t.Fatal("confirmed calibration did not clear pending state")
+	}
+}
+
+func TestRef5E1rmCalibrationFloorsAndAppliesAuxiliaryCaps(t *testing.T) {
+	starts, adjustments, err := ref5StartingValuesFromE1rms(ref5E1rmValues{
+		SqKg: 104, BpKg: 101, PullTotalKg: 108, DeadliftKg: 200, OhpKg: 100,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if starts.SqH3Kg != 82.5 || starts.BpFocusKg != 82.5 || starts.PullFocusTotalKg != 87.5 ||
+		starts.DeadliftKg != 75 || starts.OhpKg != 32.5 {
+		t.Fatalf("calibrated starts = %#v", starts)
+	}
+	if strings.Join(adjustments, ",") != "DL 145→75,OHP 65→32.5" {
+		t.Fatalf("cap adjustments = %#v", adjustments)
 	}
 }
 

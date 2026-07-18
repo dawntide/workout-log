@@ -82,7 +82,7 @@ test("REF5 store copy is bilingual and describes an open-ended session schedule"
   assert.equal(enInfo.stats.find((stat) => stat.key === "cycle")?.value, "No blocks");
   assert.deepEqual(koInfo.modules, ["SQUAT", "PULL", "BENCH", "DEADLIFT", "OHP"]);
   assert.equal(koInfo.sessions, null, "REF5 must not expose a finite week/day grid");
-  assert.match(koInfo.progressionNote ?? "", /직접 kg 시작 기준/);
+  assert.match(koInfo.progressionNote ?? "", /최근 기록\/e1RM 첫 처방/);
   assert.match(koInfo.progressionNote ?? "", /PASS\/HOLD\/FAIL\/INVALID/);
 });
 

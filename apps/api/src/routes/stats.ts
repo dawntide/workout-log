@@ -12,6 +12,11 @@ import { fetchE1rmStats } from "@workout/core/stats/e1rm-service";
 import { fetchStatsBundle } from "@workout/core/stats/bundle-service";
 import { fetchPrsList } from "@workout/core/stats/prs-service";
 import {
+  buildRef5StartRecommendation,
+  REF5_START_CALIBRATION_LOOKBACK_DAYS,
+  REF5_START_CALIBRATION_MAX_REPS,
+} from "@workout/core/program-engine/ref5-start-calibration";
+import {
   fetchVolumeSeries,
   type VolumeBucket,
 } from "@workout/core/stats/volume-series-service";
@@ -172,6 +177,37 @@ statsRoutes.get("/prs", async (c) => {
       to: result.to,
       rangeDays: result.rangeDays,
       items: result.items,
+    });
+  } catch (e) {
+    return apiError(c, e);
+  }
+});
+
+// GET /api/stats/ref5-start-recommendation — one-time onboarding calibration.
+// Runtime REF5 progression remains direct-load based; e1RM is not persisted as
+// TM or used again after the plan has been created.
+statsRoutes.get("/ref5-start-recommendation", async (c) => {
+  try {
+    const userId = c.get("userId");
+    const to = new Date();
+    const from = new Date(to);
+    from.setDate(from.getDate() - REF5_START_CALIBRATION_LOOKBACK_DAYS);
+
+    const result = await fetchPrsList({
+      userId,
+      from,
+      to,
+      rangeDays: REF5_START_CALIBRATION_LOOKBACK_DAYS,
+      limit: 100,
+      locale: resolveLocale(c),
+      maxReps: REF5_START_CALIBRATION_MAX_REPS,
+      requireBodyweightTotalLoad: true,
+    });
+
+    c.header("Cache-Control", CACHE_HEADER);
+    return c.json({
+      ...buildRef5StartRecommendation(result.items),
+      recordedAt: to.toISOString(),
     });
   } catch (e) {
     return apiError(c, e);

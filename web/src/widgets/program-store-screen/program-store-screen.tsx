@@ -145,6 +145,8 @@ export function ProgramStoreScreen({
     openStartProgramDraft,
     updateOneRmInput,
     updateRef5StartingValue,
+    updateRef5SetupMode,
+    updateRef5E1rmInput,
     applyRecommendation,
     submitStartProgram,
   } = useProgramStoreStartProgramController({
@@ -244,6 +246,8 @@ export function ProgramStoreScreen({
         }}
         onChangeOneRmInput={updateOneRmInput}
         onChangeRef5StartingValue={updateRef5StartingValue}
+        onChangeRef5SetupMode={updateRef5SetupMode}
+        onChangeRef5E1rmInput={updateRef5E1rmInput}
         onApplyRecommendation={applyRecommendation}
       />
 

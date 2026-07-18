@@ -1,5 +1,9 @@
 import { and, eq, gte, lte, or, sql } from "drizzle-orm";
-import { resolveLoggedTotalLoadKg } from "@workout/core/bodyweight-load";
+import {
+  isBodyweightExerciseName,
+  readLoggedBodyweightTotalLoadKg,
+  resolveLoggedTotalLoadKg,
+} from "@workout/core/bodyweight-load";
 import { db } from "@workout/core/db/client";
 import { exercise, workoutLog, workoutSet } from "@workout/core/db/schema";
 import type { AppLocale } from "../locale";
@@ -51,6 +55,8 @@ export async function fetchPrsList({
   exerciseName,
   limit,
   locale,
+  maxReps,
+  requireBodyweightTotalLoad,
 }: {
   userId: string;
   from: Date;
@@ -60,6 +66,8 @@ export async function fetchPrsList({
   exerciseName?: string | null;
   limit: number;
   locale: AppLocale;
+  maxReps?: number | null;
+  requireBodyweightTotalLoad?: boolean;
 }): Promise<FetchPrsResult> {
   const normalizedExerciseId = exerciseId?.trim() ?? "";
   const normalizedExerciseName = exerciseName?.trim() ?? "";
@@ -90,6 +98,11 @@ export async function fetchPrsList({
     exerciseId: resolvedExerciseId,
     exerciseName: resolvedExerciseName ?? normalizedExerciseName ?? null,
     limit,
+    maxReps:
+      Number.isFinite(Number(maxReps)) && Number(maxReps) > 0
+        ? Math.floor(Number(maxReps))
+        : null,
+    requireBodyweightTotalLoad: Boolean(requireBodyweightTotalLoad),
   };
 
   const cached = await getStatsCache<FetchPrsResult>({
@@ -114,12 +127,16 @@ export async function fetchPrsList({
       ? sql`lower(${workoutSet.exerciseName}) = lower(${resolvedExerciseName})`
       : undefined;
 
+  const repCap = cacheParams.maxReps
+    ? lte(workoutSet.reps, cacheParams.maxReps)
+    : undefined;
   const baseWhere = and(
     eq(workoutLog.userId, userId),
     gte(workoutLog.performedAt, from),
     lte(workoutLog.performedAt, to),
     sql`${workoutSet.weightKg} is not null`,
-    sql`${workoutSet.reps} is not null`,
+    sql`${workoutSet.reps} > 0`,
+    repCap,
   );
   const where = exerciseFilter ? and(baseWhere, exerciseFilter) : baseWhere;
 
@@ -140,10 +157,20 @@ export async function fetchPrsList({
 
   const byExercise = new Map<string, PrItemInternal>();
   for (const r of rows) {
+    const exerciseName = String(r.exerciseName ?? "");
+    const meta = r.meta as Record<string, unknown> | null | undefined;
+    const bodyweightTotalLoadKg = readLoggedBodyweightTotalLoadKg(meta);
+    if (
+      cacheParams.requireBodyweightTotalLoad &&
+      isBodyweightExerciseName(exerciseName) &&
+      (bodyweightTotalLoadKg === null || bodyweightTotalLoadKg <= 0)
+    ) {
+      continue;
+    }
     const weightKg = resolveLoggedTotalLoadKg({
-      exerciseName: String(r.exerciseName ?? ""),
+      exerciseName,
       weightKg: r.weightKg,
-      meta: r.meta as Record<string, unknown> | null | undefined,
+      meta,
     });
     const reps = Number(r.reps ?? 0);
     if (!weightKg || !reps) continue;
@@ -158,9 +185,8 @@ export async function fetchPrsList({
     if (!byExercise.has(key)) {
       byExercise.set(key, {
         exerciseId: r.exerciseId ?? null,
-        exerciseName: String(
-          r.exerciseName ?? (locale === "ko" ? "알 수 없는 운동" : "Unknown Exercise"),
-        ),
+        exerciseName:
+          exerciseName || (locale === "ko" ? "알 수 없는 운동" : "Unknown Exercise"),
         first: point,
         best: point,
         latest: point,
