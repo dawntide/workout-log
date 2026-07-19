@@ -20,15 +20,12 @@ test("PTR 취소 시 safe-area 레이어를 움직이지 않고 상태를 정리
     });
   });
 
-  await page.goto("/");
+  // 신규 CI 사용자는 홈에서 온보딩으로 비동기 이동할 수 있다. PTR 자체를 검증하는
+  // 테스트이므로 온보딩 상태와 무관하게 앱 셸이 렌더되는 설정 화면에서 시작한다.
+  await page.goto("/settings");
 
   const pathname = new URL(page.url()).pathname;
   test.skip(pathname === "/login", "외부 Preview에는 인증 테스트 사용자가 없습니다.");
-
-  if (pathname === "/onboarding") {
-    await page.getByRole("button", { name: /닫기|Close/ }).click();
-    await expect(page).toHaveURL(/\/$/);
-  }
 
   const ptr = page.locator(".ptr");
   const shell = page.locator(".app-shell");
