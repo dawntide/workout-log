@@ -9,10 +9,9 @@ export type StatsDefaultExerciseCandidate = {
   lastPerformedAt: Date | null;
 };
 
-const SQUAT_NAMES = new Set<string>([
+const PRIORITY_SQUAT_NAMES = new Set<string>([
   EXERCISE_NAMES.highBarBackSquat,
   EXERCISE_NAMES.lowBarBackSquat,
-  EXERCISE_NAMES.frontSquat,
 ]);
 
 const BIG_THREE_NAMES = new Set<string>([
@@ -34,7 +33,7 @@ function canonicalName(name: string): string {
 
 function exerciseTier(name: string): number {
   const canonical = canonicalName(name);
-  if (SQUAT_NAMES.has(canonical)) return 0;
+  if (PRIORITY_SQUAT_NAMES.has(canonical)) return 0;
   if (BIG_THREE_NAMES.has(canonical)) return 1;
   return 2;
 }
@@ -54,10 +53,10 @@ function compareCandidates(
   const leftHasHistory = leftPerformedAt !== null;
   const rightHasHistory = rightPerformedAt !== null;
 
+  if (leftHasHistory !== rightHasHistory) return leftHasHistory ? -1 : 1;
+
   const tierDifference = exerciseTier(left.name) - exerciseTier(right.name);
   if (tierDifference !== 0) return tierDifference;
-
-  if (leftHasHistory !== rightHasHistory) return leftHasHistory ? -1 : 1;
 
   if (leftPerformedAt !== rightPerformedAt) {
     return (rightPerformedAt ?? 0) - (leftPerformedAt ?? 0);
@@ -76,7 +75,8 @@ function compareCandidates(
 
 /**
  * Default stats filter priority:
- * squat -> the other big-three lifts -> workout history -> latest activity.
+ * recorded high/low-bar squat -> recorded bench/deadlift -> other recorded
+ * exercise -> latest activity. Falls back to high-bar squat without history.
  */
 export function selectDefaultStatsExercise<T extends StatsDefaultExerciseCandidate>(
   candidates: readonly T[],
