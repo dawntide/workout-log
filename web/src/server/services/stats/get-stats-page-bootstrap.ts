@@ -1,6 +1,3 @@
-import { asc } from "drizzle-orm";
-import { db } from "@workout/core/db/client";
-import { exercise } from "@workout/core/db/schema";
 import { requireAuthenticatedUserId } from "@/server/auth/user";
 import { resolveRequestLocale } from "@/lib/i18n/messages";
 import type { AppLocale } from "@workout/core/locale";
@@ -11,6 +8,7 @@ import {
 import { getSettingsSnapshot } from "@/server/services/settings/get-settings-snapshot";
 import { fetchStatsBundle } from "@workout/core/stats/bundle-service";
 import {
+  fetchDefaultStatsExerciseId,
   fetchE1rmStats,
   fetchStats1RMFilterOptions,
 } from "@workout/core/stats/e1rm-service";
@@ -155,9 +153,10 @@ export async function getStatsPageBootstrap(
   });
 
   if (defer1rmBootstrap) {
-    const [bundle, volumeWeekly, goalMetrics, asymptoteMonitor] = await Promise.all([
+    const [bundle, volumeWeekly, defaultExerciseId, goalMetrics, asymptoteMonitor] = await Promise.all([
       fetchStatsBundle({ userId, days: 90, locale }),
       fetchWeeklyVolumeForBootstrap(userId, locale),
+      fetchDefaultStatsExerciseId(userId),
       goalMetricsPromise,
       asymptoteMonitorPromise,
     ]);
@@ -167,7 +166,7 @@ export async function getStatsPageBootstrap(
       initialPlans: undefined,
       initialE1rm: null,
       initialVolumeWeekly: volumeWeekly,
-      initialSelectedExerciseId: null,
+      initialSelectedExerciseId: defaultExerciseId,
       initialSelectedPlanId: selectedPlanId,
       goal,
       goalMetrics,
@@ -208,14 +207,10 @@ export async function getStatsPageBootstrap(
     };
   }
 
-  // exerciseId/exerciseName 미지정: 첫 번째 운동 ID를 빠른 쿼리로 먼저 조회한 뒤
+  // exerciseId/exerciseName 미지정: 기록 여부 → 스쿼트 → 3대운동 우선순위로
+  // 기본 운동 ID를 먼저 조회한 뒤
   // bundle + filterOptions + e1rm + volumeWeekly를 모두 병렬로 실행
-  const firstExerciseRows = await db
-    .select({ id: exercise.id })
-    .from(exercise)
-    .orderBy(asc(exercise.name))
-    .limit(1);
-  const initialExerciseId = firstExerciseRows[0]?.id ?? "";
+  const initialExerciseId = await fetchDefaultStatsExerciseId(userId) ?? "";
 
   const [bundle, filterOptions, initialE1rm, volumeWeekly, goalMetrics, asymptoteMonitor] = await Promise.all([
     fetchStatsBundle({ userId, days: 90, locale }),

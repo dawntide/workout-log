@@ -12,6 +12,7 @@ import {
 } from "react";
 import { apiGet } from "@/lib/api";
 import { useQuerySettled } from "@/lib/ui/use-query-settled";
+import { selectDefaultStatsExercise } from "@workout/core/stats/default-exercise";
 import type {
   BaseFilterOption,
   E1RMResponse,
@@ -82,8 +83,14 @@ export function useStats1RMController({
   const [internalRefreshTick, setInternalRefreshTick] = useState(0);
   const [exercises, setExercises] = useState<ExerciseOption[]>(initialExerciseOptions);
   const [plans, setPlans] = useState<PlanOption[]>(initialPlanOptions);
+  const fallbackInitialExerciseId = selectDefaultStatsExercise(
+    initialExerciseOptions.map((exercise) => ({
+      ...exercise,
+      lastPerformedAt: null,
+    })),
+  )?.id ?? null;
   const [selectedExerciseId, setSelectedExerciseId] = useState<string | null>(
-    initialSelectedExerciseId ?? initialExerciseOptions[0]?.id ?? null,
+    initialSelectedExerciseId ?? fallbackInitialExerciseId,
   );
   const [selectedPlanId, setSelectedPlanId] = useState(initialSelectedPlanId);
   const [rangeFilter, setRangeFilter] = useState<RangeFilter>(initialRangeFilter);
@@ -149,7 +156,12 @@ export function useStats1RMController({
           );
           if (matchedExercise) return matchedExercise.id;
         }
-        return nextExercises[0]?.id ?? null;
+        return selectDefaultStatsExercise(
+          nextExercises.map((exercise) => ({
+            ...exercise,
+            lastPerformedAt: null,
+          })),
+        )?.id ?? null;
       });
       setSelectedPlanId((prev) =>
         prev && nextPlans.some((entry) => entry.id === prev) ? prev : "",

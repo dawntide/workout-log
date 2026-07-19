@@ -1,9 +1,10 @@
-import { and, desc, eq, gte, lte, or, sql } from "drizzle-orm";
+import { and, desc, eq, gte, isNotNull, lte, max, or, sql } from "drizzle-orm";
 import { resolveLoggedTotalLoadKg } from "@workout/core/bodyweight-load";
 import { db } from "@workout/core/db/client";
 import { exercise, plan, workoutLog, workoutSet } from "@workout/core/db/schema";
 import { getExerciseById, resolveExerciseByName } from "@workout/core/exercise/resolve";
 import { getStatsCache, setStatsCache } from "./cache";
+import { selectDefaultStatsExercise } from "./default-exercise";
 
 export type E1RMPoint = {
   date: string;
@@ -74,6 +75,43 @@ export async function fetchStats1RMFilterOptions(userId: string): Promise<Stats1
     exercises: exerciseRows,
     plans: planRows,
   };
+}
+
+export async function fetchDefaultStatsExerciseId(userId: string): Promise<string | null> {
+  const [exerciseRows, historyRows] = await Promise.all([
+    db
+      .select({ id: exercise.id, name: exercise.name })
+      .from(exercise)
+      .orderBy(exercise.name)
+      .limit(200),
+    db
+      .select({
+        exerciseId: workoutSet.exerciseId,
+        lastPerformedAt: max(workoutLog.performedAt),
+      })
+      .from(workoutLog)
+      .innerJoin(workoutSet, eq(workoutSet.logId, workoutLog.id))
+      .where(
+        and(
+          eq(workoutLog.userId, userId),
+          isNotNull(workoutSet.exerciseId),
+        ),
+      )
+      .groupBy(workoutSet.exerciseId),
+  ]);
+
+  const lastPerformedAtByExerciseId = new Map<string, Date>();
+  for (const row of historyRows) {
+    if (!row.exerciseId || !row.lastPerformedAt) continue;
+    lastPerformedAtByExerciseId.set(row.exerciseId, row.lastPerformedAt);
+  }
+
+  return selectDefaultStatsExercise(
+    exerciseRows.map((row) => ({
+      ...row,
+      lastPerformedAt: lastPerformedAtByExerciseId.get(row.id) ?? null,
+    })),
+  )?.id ?? null;
 }
 
 export async function fetchE1rmStats({
