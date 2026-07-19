@@ -14,6 +14,7 @@ import {
   workoutSet,
 } from "@workout/core/db/schema";
 import { runSeed } from "@workout/core/db/seed";
+import { EXERCISE_NAMES } from "@workout/core/exercise/catalog";
 import {
   generateAndSaveSession,
   generateSessionSnapshot,
@@ -526,7 +527,7 @@ async function main() {
       day: 1,
       checks: (session) => {
         const map = toMapByExercise(session);
-        const squat = map.get("Back Squat");
+        const squat = map.get(EXERCISE_NAMES.highBarBackSquat);
         const bench = map.get("Bench Press");
         const pull = map.get("Pull-Up");
         assert.ok(squat && bench && pull, "Operator D1 base exercises missing");
@@ -552,7 +553,7 @@ async function main() {
       day: 3,
       checks: (session) => {
         const map = toMapByExercise(session);
-        const squat = map.get("Back Squat");
+        const squat = map.get(EXERCISE_NAMES.highBarBackSquat);
         const bench = map.get("Bench Press");
         const deadlift = map.get("Deadlift");
         assert.ok(squat && bench && deadlift, "Operator D3 base exercises missing");
@@ -569,7 +570,7 @@ async function main() {
       day: 1,
       checks: (session) => {
         const map = toMapByExercise(session);
-        const squat = map.get("Back Squat");
+        const squat = map.get(EXERCISE_NAMES.highBarBackSquat);
         const bench = map.get("Bench Press");
         const deadlift = map.get("Deadlift");
         assert.ok(squat && bench && deadlift, "Starting Strength A day base exercises missing");
@@ -586,7 +587,7 @@ async function main() {
       day: 2,
       checks: (session) => {
         const map = toMapByExercise(session);
-        const squat = map.get("Back Squat");
+        const squat = map.get(EXERCISE_NAMES.highBarBackSquat);
         const press = map.get("Overhead Press");
         const deadlift = map.get("Deadlift");
         assert.ok(squat && press && deadlift, "StrongLifts B day base exercises missing");
@@ -602,7 +603,7 @@ async function main() {
       day: 3,
       checks: (session) => {
         const map = toMapByExercise(session);
-        const squat = map.get("Back Squat");
+        const squat = map.get(EXERCISE_NAMES.highBarBackSquat);
         const bench = map.get("Bench Press");
         const deadlift = map.get("Deadlift");
         assert.ok(squat && bench && deadlift, "Texas Method intensity day exercises missing");
@@ -642,7 +643,7 @@ async function main() {
       day: 2,
       checks: (session) => {
         const map = toMapByExercise(session);
-        const squat = map.get("Back Squat");
+        const squat = map.get(EXERCISE_NAMES.highBarBackSquat);
         const press = map.get("Overhead Press");
         const deadlift = map.get("Deadlift");
         assert.ok(squat && press && deadlift, "Greyskull LP B day exercises missing");

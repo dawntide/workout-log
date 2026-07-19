@@ -1,3 +1,5 @@
+import { EXERCISE_NAMES } from "@workout/core/exercise/catalog";
+
 export type SelectionOptionSeed = {
   value: string;
   label: string;
@@ -38,8 +40,9 @@ export const statsMetricOptions: SelectionOptionSeed[] = [
 ];
 
 export const commonExerciseOptions: SelectionOptionSeed[] = [
-  { value: "Back Squat", label: "Back Squat", keywords: ["squat"] },
-  { value: "Front Squat", label: "Front Squat", keywords: ["squat"] },
+  { value: EXERCISE_NAMES.highBarBackSquat, label: EXERCISE_NAMES.highBarBackSquat, keywords: ["squat", "high bar", "하이바"] },
+  { value: EXERCISE_NAMES.lowBarBackSquat, label: EXERCISE_NAMES.lowBarBackSquat, keywords: ["squat", "low bar", "로우바"] },
+  { value: EXERCISE_NAMES.frontSquat, label: EXERCISE_NAMES.frontSquat, keywords: ["squat", "front", "프론트"] },
   { value: "Bench Press", label: "Bench Press", keywords: ["bench", "chest"] },
   { value: "Incline Bench Press", label: "Incline Bench Press", keywords: ["bench", "incline"] },
   { value: "Overhead Press", label: "Overhead Press", keywords: ["press", "ohp"] },

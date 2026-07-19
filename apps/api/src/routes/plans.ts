@@ -46,6 +46,7 @@ import {
   Ref5ValidationError,
   readRef5PlanStartConfig,
 } from "@workout/core/program-engine/ref5";
+import { EXERCISE_NAMES } from "@workout/core/exercise/catalog";
 
 import { requireAuth, type AppEnv } from "../auth";
 import { apiError, normalizeTimezone, resolveLocale } from "../lib/http";
@@ -1172,7 +1173,7 @@ const PROGRESSION_TARGET_SET = new Set<ProgressionTarget>([
 ]);
 
 const TARGET_LABELS: Record<ProgressionTarget, { ko: string; en: string }> = {
-  SQUAT: { ko: "스쿼트", en: "Back Squat" },
+  SQUAT: { ko: "하이바 백 스쿼트", en: EXERCISE_NAMES.highBarBackSquat },
   BENCH: { ko: "벤치 프레스", en: "Bench Press" },
   DEADLIFT: { ko: "데드리프트", en: "Deadlift" },
   OHP: { ko: "오버헤드 프레스", en: "Overhead Press" },

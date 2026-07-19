@@ -9,7 +9,8 @@ const CASES: Array<{ name: string; expected: StrengthTarget | null }> = [
   // SQUAT
   { name: "Back Squat", expected: "SQUAT" },
   { name: "Front Squat", expected: "SQUAT" },
-  { name: "  high-bar SQUAT  ", expected: "SQUAT" },
+  { name: "High-Bar Back Squat", expected: "SQUAT" },
+  { name: "Low-Bar Back Squat", expected: "SQUAT" },
   // BENCH
   { name: "Bench Press", expected: "BENCH" },
   { name: "Close-Grip Bench", expected: "BENCH" },

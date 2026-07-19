@@ -1,4 +1,5 @@
 import { mapExerciseNameToTarget } from "../strength-engine/target-mapping";
+import { EXERCISE_NAMES } from "../exercise/catalog";
 import {
   ASYMPTOTE_HYBRID_TM_PERCENT,
   ASYMPTOTE_SESSIONS,
@@ -131,7 +132,7 @@ function uid(prefix: string) {
 
 function defaultExerciseNameForTarget(targetRaw: string) {
   const target = String(targetRaw).trim().toUpperCase();
-  if (target === "SQUAT") return "Back Squat";
+  if (target === "SQUAT") return EXERCISE_NAMES.highBarBackSquat;
   if (target === "BENCH") return "Bench Press";
   if (target === "DEADLIFT") return "Deadlift";
   if (target === "OHP") return "Overhead Press";
@@ -517,7 +518,7 @@ export function getProgramDetailInfo(
       {
         key: "A",
         exercises: [
-          { name: "Back Squat", setsReps: "4×3+", hasAmrap: true },
+          { name: EXERCISE_NAMES.highBarBackSquat, setsReps: "4×3+", hasAmrap: true },
           { name: "Bench Press", setsReps: "4×5", hasAmrap: false },
           { name: "Weighted Pull-Up", setsReps: "4×3+", hasAmrap: true },
         ],
@@ -525,7 +526,7 @@ export function getProgramDetailInfo(
       {
         key: "B",
         exercises: [
-          { name: "Back Squat", setsReps: "5×5", hasAmrap: false },
+          { name: EXERCISE_NAMES.highBarBackSquat, setsReps: "5×5", hasAmrap: false },
           { name: "Deadlift", setsReps: "3×3", hasAmrap: false },
           { name: "Weighted Pull-Up", setsReps: "3×8", hasAmrap: false },
         ],
@@ -533,7 +534,7 @@ export function getProgramDetailInfo(
       {
         key: "C",
         exercises: [
-          { name: "Back Squat", setsReps: "6×3", hasAmrap: false },
+          { name: EXERCISE_NAMES.highBarBackSquat, setsReps: "6×3", hasAmrap: false },
           { name: "Bench Press", setsReps: "4×3+", hasAmrap: true },
           { name: "Overhead Press", setsReps: "4×5", hasAmrap: false },
         ],
@@ -686,7 +687,7 @@ function canonicalTarget(raw: string) {
 
 function targetLabel(target: string) {
   const canonical = canonicalTarget(target);
-  if (canonical === "SQUAT") return "Back Squat";
+  if (canonical === "SQUAT") return EXERCISE_NAMES.highBarBackSquat;
   if (canonical === "BENCH") return "Bench Press";
   if (canonical === "DEADLIFT") return "Deadlift";
   if (canonical === "OHP") return "Overhead Press";
@@ -1051,7 +1052,7 @@ function operatorSessionDrafts(): ProgramSessionDraft[] {
       id: uid("session"),
       key: "D1",
       exercises: [
-        createFixedExerciseDraft("Back Squat", "AUTO", "SQUAT"),
+        createFixedExerciseDraft(EXERCISE_NAMES.highBarBackSquat, "AUTO", "SQUAT"),
         createFixedExerciseDraft("Bench Press", "AUTO", "BENCH"),
         createFixedExerciseDraft("Pull-Up", "AUTO", "PULL"),
       ],
@@ -1060,7 +1061,7 @@ function operatorSessionDrafts(): ProgramSessionDraft[] {
       id: uid("session"),
       key: "D2",
       exercises: [
-        createFixedExerciseDraft("Back Squat", "AUTO", "SQUAT"),
+        createFixedExerciseDraft(EXERCISE_NAMES.highBarBackSquat, "AUTO", "SQUAT"),
         createFixedExerciseDraft("Bench Press", "AUTO", "BENCH"),
         createFixedExerciseDraft("Pull-Up", "AUTO", "PULL"),
       ],
@@ -1069,7 +1070,7 @@ function operatorSessionDrafts(): ProgramSessionDraft[] {
       id: uid("session"),
       key: "D3",
       exercises: [
-        createFixedExerciseDraft("Back Squat", "AUTO", "SQUAT"),
+        createFixedExerciseDraft(EXERCISE_NAMES.highBarBackSquat, "AUTO", "SQUAT"),
         createFixedExerciseDraft("Bench Press", "AUTO", "BENCH"),
         createFixedExerciseDraft("Deadlift", "AUTO", "DEADLIFT"),
       ],

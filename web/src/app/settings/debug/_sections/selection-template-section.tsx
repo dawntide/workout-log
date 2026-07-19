@@ -4,12 +4,13 @@ import { useMemo, useState } from "react";
 import { MultiSelectionScreen, PickerSelectionScreen, SingleSelectionScreen } from "@/components/ui/selection-screen-template";
 import { useLocale } from "@/components/locale-provider";
 import { commonExerciseOptions, statsMetricOptions } from "@/lib/selection-options";
+import { EXERCISE_NAMES } from "@workout/core/exercise/catalog";
 
 export function SelectionTemplateSection() {
   const { locale } = useLocale();
   const [singleValue, setSingleValue] = useState("DATE");
   const [multiValues, setMultiValues] = useState<string[]>(["e1rm", "volume"]);
-  const [searchValue, setSearchValue] = useState("Back Squat");
+  const [searchValue, setSearchValue] = useState<string>(EXERCISE_NAMES.highBarBackSquat);
   const [dateValue, setDateValue] = useState(new Date().toISOString().slice(0, 10));
   const [timeValue, setTimeValue] = useState("08:00");
   const [numberValue, setNumberValue] = useState("90");

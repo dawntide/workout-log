@@ -66,10 +66,12 @@ test("REF5 calibration requires all five positive e1RMs", () => {
 
 test("REF5 calibration matching stays on the exact five exercise identities", () => {
   assert.equal(ref5CalibrationLiftForExerciseName("Back Squat"), "SQ");
+  assert.equal(ref5CalibrationLiftForExerciseName("High-Bar Back Squat"), "SQ");
   assert.equal(ref5CalibrationLiftForExerciseName("Weighted Pull-Up"), "PULL");
   assert.equal(ref5CalibrationLiftForExerciseName("Overhead Press"), "OHP");
   assert.equal(ref5CalibrationLiftForExerciseName("Front Squat"), null);
   assert.equal(ref5CalibrationLiftForExerciseName("Low Bar Squat"), null);
+  assert.equal(ref5CalibrationLiftForExerciseName("Low-Bar Back Squat"), null);
   assert.equal(ref5CalibrationLiftForExerciseName("Squat"), null);
   assert.equal(ref5CalibrationLiftForExerciseName("스쿼트"), null);
   assert.equal(ref5CalibrationLiftForExerciseName("Romanian Deadlift"), null);

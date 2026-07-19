@@ -1,3 +1,5 @@
+import { EXERCISE_NAMES } from "../exercise/catalog";
+
 // Asymptote Protocol 슬롯 청사진 — lib(커스터마이즈 draft 생성)와 server(처방·진행)가
 // 공유하는 단일 진실원. 기존에 model.ts(asymptoteSessionDrafts)와
 // server/program-engine/asymptote.ts(ASYMPTOTE_SESSIONS)에 중복 하드코딩돼 있던 세션 구성을
@@ -42,19 +44,19 @@ export type AsymptoteLiftRow = {
 // 탑세트는 강도 슬롯에만: SQ(세션A)·PULL(세션A)·BP(세션C). DL·OHP는 보조 역할 유지(§A.1).
 export const ASYMPTOTE_SESSIONS: Record<number, AsymptoteLiftRow[]> = {
   1: [
-    { target: "SQUAT", name: "Back Squat", sets: 4, reps: 3, coef: ASYMPTOTE_SQUAT_A_COEF, amrap: true, role: { ko: "중강도·검증", en: "Moderate · Test" }, topSet: ASYMPTOTE_TOP_SET },
-    { target: "BENCH", name: "Bench Press", sets: 4, reps: 5, coef: 0.775, amrap: false, role: { ko: "볼륨", en: "Volume" } },
-    { target: "PULL", name: "Weighted Pull-Up", sets: 4, reps: 3, coef: 0.85, amrap: true, role: { ko: "중강도·검증", en: "Moderate · Test" }, topSet: ASYMPTOTE_TOP_SET },
+    { target: "SQUAT", name: EXERCISE_NAMES.highBarBackSquat, sets: 4, reps: 3, coef: ASYMPTOTE_SQUAT_A_COEF, amrap: true, role: { ko: "중강도·검증", en: "Moderate · Test" }, topSet: ASYMPTOTE_TOP_SET },
+    { target: "BENCH", name: EXERCISE_NAMES.benchPress, sets: 4, reps: 5, coef: 0.775, amrap: false, role: { ko: "볼륨", en: "Volume" } },
+    { target: "PULL", name: EXERCISE_NAMES.weightedPullUp, sets: 4, reps: 3, coef: 0.85, amrap: true, role: { ko: "중강도·검증", en: "Moderate · Test" }, topSet: ASYMPTOTE_TOP_SET },
   ],
   2: [
-    { target: "SQUAT", name: "Back Squat", sets: 5, reps: 5, coef: 0.70, amrap: false, role: { ko: "볼륨", en: "Volume" } },
-    { target: "DEADLIFT", name: "Deadlift", sets: 3, reps: 3, coef: 0.80, amrap: false, role: { ko: "고강도", en: "Heavy" } },
-    { target: "PULL", name: "Weighted Pull-Up", sets: 3, reps: 8, coef: 0.65, amrap: false, role: { ko: "고볼륨", en: "High Volume" } },
+    { target: "SQUAT", name: EXERCISE_NAMES.highBarBackSquat, sets: 5, reps: 5, coef: 0.70, amrap: false, role: { ko: "볼륨", en: "Volume" } },
+    { target: "DEADLIFT", name: EXERCISE_NAMES.deadlift, sets: 3, reps: 3, coef: 0.80, amrap: false, role: { ko: "고강도", en: "Heavy" } },
+    { target: "PULL", name: EXERCISE_NAMES.weightedPullUp, sets: 3, reps: 8, coef: 0.65, amrap: false, role: { ko: "고볼륨", en: "High Volume" } },
   ],
   3: [
-    { target: "SQUAT", name: "Back Squat", sets: 6, reps: 3, coef: 0.75, amrap: false, role: { ko: "폭발·스피드", en: "Explosive" }, note: "explosive" },
-    { target: "BENCH", name: "Bench Press", sets: 4, reps: 3, coef: 0.85, amrap: true, role: { ko: "고강도·검증", en: "Heavy · Test" }, topSet: ASYMPTOTE_TOP_SET },
-    { target: "OHP", name: "Overhead Press", sets: 4, reps: 5, coef: 0.75, amrap: false, role: { ko: "스트렝스", en: "Strength" } },
+    { target: "SQUAT", name: EXERCISE_NAMES.highBarBackSquat, sets: 6, reps: 3, coef: 0.75, amrap: false, role: { ko: "폭발·스피드", en: "Explosive" }, note: "explosive" },
+    { target: "BENCH", name: EXERCISE_NAMES.benchPress, sets: 4, reps: 3, coef: 0.85, amrap: true, role: { ko: "고강도·검증", en: "Heavy · Test" }, topSet: ASYMPTOTE_TOP_SET },
+    { target: "OHP", name: EXERCISE_NAMES.overheadPress, sets: 4, reps: 5, coef: 0.75, amrap: false, role: { ko: "스트렝스", en: "Strength" } },
   ],
 };
 

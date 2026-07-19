@@ -257,7 +257,14 @@ function targetRecommendationNames(target: OneRmTarget) {
   }
 
   if (key === "SQUAT") {
-    ["back squat", "squat", "스쿼트"].forEach((name) => candidates.add(name));
+    [
+      "high-bar back squat",
+      "high bar back squat",
+      "back squat",
+      "squat",
+      "하이바 스쿼트",
+      "스쿼트",
+    ].forEach((name) => candidates.add(name));
   } else if (key === "BENCH") {
     ["bench press", "bench", "벤치프레스", "벤치"].forEach((name) =>
       candidates.add(name),

@@ -19,6 +19,7 @@ import {
   toManualDefinition,
   type ProgramTemplate,
 } from "./model";
+import { EXERCISE_NAMES } from "../exercise/catalog";
 
 const ref5Template: ProgramTemplate = {
   id: "template-ref5",
@@ -127,9 +128,9 @@ test("inferSessionDraftsFromTemplate returns operator day structure", () => {
       exercises: session.exercises.map((exercise) => exercise.exerciseName),
     })),
     [
-      { key: "D1", exercises: ["Back Squat", "Bench Press", "Pull-Up"] },
-      { key: "D2", exercises: ["Back Squat", "Bench Press", "Pull-Up"] },
-      { key: "D3", exercises: ["Back Squat", "Bench Press", "Deadlift"] },
+      { key: "D1", exercises: [EXERCISE_NAMES.highBarBackSquat, "Bench Press", "Pull-Up"] },
+      { key: "D2", exercises: [EXERCISE_NAMES.highBarBackSquat, "Bench Press", "Pull-Up"] },
+      { key: "D3", exercises: [EXERCISE_NAMES.highBarBackSquat, "Bench Press", "Deadlift"] },
     ],
   );
 });
@@ -345,7 +346,7 @@ test("getProgramDetailInfo returns full asymptote stats, sessions, modules, and 
   const sessionA = info.sessions?.find((s) => s.key === "A");
   assert.deepEqual(
     sessionA?.exercises.map((ex) => ex.name),
-    ["Back Squat", "Bench Press", "Weighted Pull-Up"],
+    [EXERCISE_NAMES.highBarBackSquat, "Bench Press", "Weighted Pull-Up"],
   );
   const benchInC = info.sessions
     ?.find((s) => s.key === "C")
@@ -382,7 +383,7 @@ test("inferSessionDraftsFromTemplate returns canonical asymptote A/B/C drafts", 
       {
         key: "A",
         exercises: [
-          { name: "Back Squat", sets: 4, reps: 3, progressionTarget: "SQUAT" },
+          { name: EXERCISE_NAMES.highBarBackSquat, sets: 4, reps: 3, progressionTarget: "SQUAT" },
           { name: "Bench Press", sets: 4, reps: 5, progressionTarget: "BENCH" },
           { name: "Weighted Pull-Up", sets: 4, reps: 3, progressionTarget: "PULL" },
         ],
@@ -390,7 +391,7 @@ test("inferSessionDraftsFromTemplate returns canonical asymptote A/B/C drafts", 
       {
         key: "B",
         exercises: [
-          { name: "Back Squat", sets: 5, reps: 5, progressionTarget: "SQUAT" },
+          { name: EXERCISE_NAMES.highBarBackSquat, sets: 5, reps: 5, progressionTarget: "SQUAT" },
           { name: "Deadlift", sets: 3, reps: 3, progressionTarget: "DEADLIFT" },
           { name: "Weighted Pull-Up", sets: 3, reps: 8, progressionTarget: "PULL" },
         ],
@@ -398,7 +399,7 @@ test("inferSessionDraftsFromTemplate returns canonical asymptote A/B/C drafts", 
       {
         key: "C",
         exercises: [
-          { name: "Back Squat", sets: 6, reps: 3, progressionTarget: "SQUAT" },
+          { name: EXERCISE_NAMES.highBarBackSquat, sets: 6, reps: 3, progressionTarget: "SQUAT" },
           { name: "Bench Press", sets: 4, reps: 3, progressionTarget: "BENCH" },
           { name: "Overhead Press", sets: 4, reps: 5, progressionTarget: "OHP" },
         ],
@@ -416,9 +417,9 @@ test("getProgramDetailInfo operator returns canonical D1/D2/D3 session breakdown
       names: s.exercises.map((ex) => ex.name),
     })),
     [
-      { key: "D1", names: ["Back Squat", "Bench Press", "Pull-Up"] },
-      { key: "D2", names: ["Back Squat", "Bench Press", "Pull-Up"] },
-      { key: "D3", names: ["Back Squat", "Bench Press", "Deadlift"] },
+      { key: "D1", names: [EXERCISE_NAMES.highBarBackSquat, "Bench Press", "Pull-Up"] },
+      { key: "D2", names: [EXERCISE_NAMES.highBarBackSquat, "Bench Press", "Pull-Up"] },
+      { key: "D3", names: [EXERCISE_NAMES.highBarBackSquat, "Bench Press", "Deadlift"] },
     ],
   );
 });

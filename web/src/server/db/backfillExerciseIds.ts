@@ -1,29 +1,45 @@
-import { sql } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@workout/core/db/client";
+import { exercise, workoutSet } from "@workout/core/db/schema";
+import { resolveExercisesByNames } from "@workout/core/exercise/resolve";
 
 /**
- * Backfill workout_set.exercise_id by exact exercise_name match.
+ * Backfill workout_set.exercise_id through canonical names and aliases.
+ * Unknown custom names become new canonical exercises only after alias lookup.
  * Safe to run multiple times.
  */
 async function main() {
-  const inserted = await db.execute(sql`
-    insert into "exercise" ("name")
-    select distinct ws."exercise_name"
-    from "workout_set" ws
-    where ws."exercise_name" is not null
-    on conflict ("name") do nothing
-  `);
+  const rows = await db
+    .selectDistinct({ exerciseName: workoutSet.exerciseName })
+    .from(workoutSet)
+    .where(isNull(workoutSet.exerciseId));
+  const names = rows.map((row) => row.exerciseName.trim()).filter(Boolean);
+  const initiallyResolved = await resolveExercisesByNames(names);
+  const unresolved = names.filter(
+    (name) => !initiallyResolved.has(name.toLowerCase()),
+  );
 
-  const updated = await db.execute(sql`
-    update "workout_set" ws
-    set "exercise_id" = e."id"
-    from "exercise" e
-    where ws."exercise_id" is null
-      and ws."exercise_name" = e."name"
-  `);
+  if (unresolved.length > 0) {
+    await db
+      .insert(exercise)
+      .values(unresolved.map((name) => ({ name })))
+      .onConflictDoNothing({ target: exercise.name });
+  }
+
+  const resolved = await resolveExercisesByNames(names);
+  let updatedNames = 0;
+  for (const name of names) {
+    const match = resolved.get(name.toLowerCase());
+    if (!match) continue;
+    await db
+      .update(workoutSet)
+      .set({ exerciseId: match.id })
+      .where(and(isNull(workoutSet.exerciseId), eq(workoutSet.exerciseName, name)));
+    updatedNames += 1;
+  }
 
   console.log("exercise backfill complete");
-  console.log({ inserted, updated });
+  console.log({ insertedExercises: unresolved.length, updatedNames });
 }
 
 main().catch((e) => {

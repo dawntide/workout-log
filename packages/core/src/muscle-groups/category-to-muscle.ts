@@ -40,12 +40,15 @@ const CATEGORY_PRIMARY: Record<string, MuscleGroup> = {
 
 const EXERCISE_CONTRIBUTIONS: Record<string, MuscleContribution> = {
   // Seed exercises (web/src/server/db/seed.ts)
+  highbarbacksquat: { Quad: 1.0, Glute: 0.5 },
+  lowbarbacksquat: { Quad: 0.8, Glute: 0.7, Hamstring: 0.3, Back: 0.2 },
   backsquat: { Quad: 1.0, Glute: 0.5 },
   benchpress: { Chest: 1.0, Shoulder: 0.3, Arm: 0.3 },
   deadlift: { Back: 1.0, Hamstring: 0.7, Glute: 0.5 },
   overheadpress: { Shoulder: 1.0, Arm: 0.4 },
   barbellrow: { Back: 1.0, Arm: 0.4 },
   pullup: { Back: 1.0, Arm: 0.4 },
+  weightedpullup: { Back: 1.0, Arm: 0.4 },
   powerclean: { Back: 0.7, Glute: 0.7, Hamstring: 0.5, Quad: 0.5, Shoulder: 0.4 },
   frontsquat: { Quad: 1.0, Glute: 0.4, Core: 0.4 },
   inclinebenchpress: { Chest: 1.0, Shoulder: 0.5, Arm: 0.3 },

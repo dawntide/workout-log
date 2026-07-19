@@ -3,7 +3,12 @@ import { createHash } from "node:crypto";
 import { db } from "@workout/core/db/client";
 import { plan, generatedSession, workoutLog, workoutSet } from "@workout/core/db/schema";
 import { and, asc, eq, gt, lt, ne } from "drizzle-orm";
-import { getExerciseById, resolveExerciseByName } from "@workout/core/exercise/resolve";
+import {
+  getExerciseById,
+  resolveExerciseByName,
+  resolveExercisesByNames,
+} from "@workout/core/exercise/resolve";
+import { LEGACY_EXERCISE_NAME_FALLBACKS } from "@workout/core/exercise/catalog";
 import { applyAutoProgressionFromLog, rebuildAutoProgressionForPlan } from "@workout/core/progression/autoProgression";
 import type { ProgressionTargetDecision } from "@workout/core/progression/autoProgression";
 import { buildProgressionSummary, readProgressEventByLog } from "@workout/core/progression/progress-events";
@@ -339,6 +344,36 @@ async function upsertRef5WorkoutLog(input: {
       }
     }
 
+    const exerciseNames = Array.from(
+      new Set(completion.sets.map((set) => set.exerciseName.trim()).filter(Boolean)),
+    );
+    const resolvedExercises = await resolveExercisesByNames(exerciseNames, tx);
+    const unresolvedBeforeFallback = exerciseNames.filter(
+      (name) => !resolvedExercises.has(name.toLowerCase()),
+    );
+    const fallbackNames = unresolvedBeforeFallback.flatMap((name) => {
+      const fallback = LEGACY_EXERCISE_NAME_FALLBACKS[name];
+      return fallback ? [fallback] : [];
+    });
+    const fallbackExercises = await resolveExercisesByNames(fallbackNames, tx);
+    for (const name of unresolvedBeforeFallback) {
+      const fallback = LEGACY_EXERCISE_NAME_FALLBACKS[name];
+      const resolvedFallback = fallback
+        ? fallbackExercises.get(fallback.toLowerCase())
+        : null;
+      if (resolvedFallback) resolvedExercises.set(name.toLowerCase(), resolvedFallback);
+    }
+    const missingExerciseNames = exerciseNames.filter(
+      (name) => !resolvedExercises.has(name.toLowerCase()),
+    );
+    if (missingExerciseNames.length > 0) {
+      throw new Ref5LogValidationError(
+        missingExerciseNames.map(
+          (name) => `REF5 canonical exercise is missing from the catalog: ${name}`,
+        ),
+      );
+    }
+
     if (!input.logId) {
       const beforeStart = await deriveRef5StateBeforeStart({
         tx,
@@ -395,6 +430,7 @@ async function upsertRef5WorkoutLog(input: {
     await tx.insert(workoutSet).values(
       completion.sets.map((set) => ({
         ...set,
+        exerciseId: resolvedExercises.get(set.exerciseName.trim().toLowerCase())!.id,
         logId: savedLog!.id,
       })),
     );

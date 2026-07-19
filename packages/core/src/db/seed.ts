@@ -21,6 +21,7 @@ import {
   REF5_START_CONFIG_VERSION,
   deriveRef5ControlRefs,
 } from "../program-engine/ref5";
+import { EXERCISE_CATALOG, EXERCISE_NAMES } from "../exercise/catalog";
 
 export type SeedRunOptions = {
   shouldHardReset?: boolean;
@@ -99,7 +100,7 @@ export async function runSeed(options: SeedRunOptions = {}) {
   async function upsertExercise(input: {
     name: string;
     category: string | null;
-    aliases?: string[];
+    aliases?: readonly string[];
   }) {
     const inserted = await db
       .insert(exercise)
@@ -275,7 +276,7 @@ export async function runSeed(options: SeedRunOptions = {}) {
           key: "A",
           items: [
             {
-              exerciseName: "Back Squat",
+              exerciseName: EXERCISE_NAMES.highBarBackSquat,
               sets: [
                 { reps: 5, targetWeightKg: 80 },
                 { reps: 5, targetWeightKg: 80 },
@@ -336,7 +337,7 @@ export async function runSeed(options: SeedRunOptions = {}) {
           key: "A",
           items: [
             {
-              exerciseName: "Back Squat",
+              exerciseName: EXERCISE_NAMES.highBarBackSquat,
               sets: repeatSets(3, { reps: 5, targetWeightKg: 80, note: "work set" }),
             },
             {
@@ -353,7 +354,7 @@ export async function runSeed(options: SeedRunOptions = {}) {
           key: "B",
           items: [
             {
-              exerciseName: "Back Squat",
+              exerciseName: EXERCISE_NAMES.highBarBackSquat,
               sets: repeatSets(3, { reps: 5, targetWeightKg: 82.5, note: "work set" }),
             },
             {
@@ -390,7 +391,7 @@ export async function runSeed(options: SeedRunOptions = {}) {
           key: "A",
           items: [
             {
-              exerciseName: "Back Squat",
+              exerciseName: EXERCISE_NAMES.highBarBackSquat,
               sets: repeatSets(5, { reps: 5, targetWeightKg: 80, note: "5x5 work set" }),
             },
             {
@@ -407,7 +408,7 @@ export async function runSeed(options: SeedRunOptions = {}) {
           key: "B",
           items: [
             {
-              exerciseName: "Back Squat",
+              exerciseName: EXERCISE_NAMES.highBarBackSquat,
               sets: repeatSets(5, { reps: 5, targetWeightKg: 82.5, note: "5x5 work set" }),
             },
             {
@@ -444,7 +445,7 @@ export async function runSeed(options: SeedRunOptions = {}) {
           key: "V",
           items: [
             {
-              exerciseName: "Back Squat",
+              exerciseName: EXERCISE_NAMES.highBarBackSquat,
               sets: repeatSets(5, { reps: 5, targetWeightKg: 120, note: "volume day" }),
             },
             {
@@ -461,7 +462,7 @@ export async function runSeed(options: SeedRunOptions = {}) {
           key: "R",
           items: [
             {
-              exerciseName: "Back Squat",
+              exerciseName: EXERCISE_NAMES.highBarBackSquat,
               sets: repeatSets(2, { reps: 5, targetWeightKg: 95, note: "recovery day" }),
             },
             {
@@ -478,7 +479,7 @@ export async function runSeed(options: SeedRunOptions = {}) {
           key: "I",
           items: [
             {
-              exerciseName: "Back Squat",
+              exerciseName: EXERCISE_NAMES.highBarBackSquat,
               sets: [{ reps: 5, targetWeightKg: 130, note: "intensity top set" }],
             },
             {
@@ -515,7 +516,7 @@ export async function runSeed(options: SeedRunOptions = {}) {
           key: "D1",
           items: [
             {
-              exerciseName: "Back Squat",
+              exerciseName: EXERCISE_NAMES.highBarBackSquat,
               sets: repeatSets(5, { reps: 3, targetWeightKg: 100, percent: 0.85, note: "T1 main" }),
             },
             {
@@ -553,7 +554,7 @@ export async function runSeed(options: SeedRunOptions = {}) {
               sets: repeatSets(5, { reps: 3, targetWeightKg: 75, percent: 0.85, note: "T1 main" }),
             },
             {
-              exerciseName: "Back Squat",
+              exerciseName: EXERCISE_NAMES.highBarBackSquat,
               sets: repeatSets(3, { reps: 10, targetWeightKg: 90, percent: 0.72, note: "T2 volume" }),
             },
             {
@@ -750,7 +751,7 @@ export async function runSeed(options: SeedRunOptions = {}) {
           key: "A",
           items: [
             {
-              exerciseName: "Back Squat",
+              exerciseName: EXERCISE_NAMES.highBarBackSquat,
               sets: repeatSetsWithLastNote(3, { reps: 5, targetWeightKg: 90, note: "work set" }, "AMRAP 5+"),
             },
             {
@@ -767,7 +768,7 @@ export async function runSeed(options: SeedRunOptions = {}) {
           key: "B",
           items: [
             {
-              exerciseName: "Back Squat",
+              exerciseName: EXERCISE_NAMES.highBarBackSquat,
               sets: repeatSetsWithLastNote(3, { reps: 5, targetWeightKg: 92.5, note: "work set" }, "AMRAP 5+"),
             },
             {
@@ -786,23 +787,7 @@ export async function runSeed(options: SeedRunOptions = {}) {
     changelog: "Canonical base A/B 2x5 + 1x5+ structure",
   });
 
-  const seededExercises = [
-    { name: "Back Squat", category: "Legs", aliases: ["Squat", "스쿼트"] },
-    { name: "Bench Press", category: "Chest", aliases: ["Bench", "벤치프레스"] },
-    { name: "Deadlift", category: "Back", aliases: ["DL", "데드리프트"] },
-    { name: "Overhead Press", category: "Shoulder", aliases: ["OHP", "Press", "밀리터리 프레스"] },
-    { name: "Barbell Row", category: "Back", aliases: ["BB Row", "바벨 로우"] },
-    { name: "Pull-Up", category: "Back", aliases: ["풀업", "턱걸이"] },
-    { name: "Power Clean", category: "Olympic Lift", aliases: ["Clean", "파워 클린", "파워클린"] },
-    { name: "Front Squat", category: "Legs", aliases: ["FSQ", "프론트 스쿼트"] },
-    { name: "Incline Bench Press", category: "Chest", aliases: ["인클라인 벤치"] },
-    { name: "Romanian Deadlift", category: "Legs", aliases: ["RDL", "루마니안 데드리프트"] },
-    { name: "Leg Press", category: "Legs", aliases: ["레그 프레스"] },
-    { name: "Lat Pulldown", category: "Back", aliases: ["랫풀다운", "Lat Pull"] },
-    { name: "Dumbbell Shoulder Press", category: "Shoulder", aliases: ["덤벨 숄더 프레스", "DB Shoulder Press"] },
-    { name: "Hip Thrust", category: "Glute", aliases: ["힙 쓰러스트"] },
-  ];
-  for (const item of seededExercises) {
+  for (const item of EXERCISE_CATALOG) {
     await upsertExercise(item);
   }
 
@@ -990,7 +975,7 @@ export async function runSeed(options: SeedRunOptions = {}) {
     includeDemoPlans,
     shouldHardReset,
     baseTemplateCount: 11,
-    baseExerciseCount: seededExercises.length,
+    baseExerciseCount: EXERCISE_CATALOG.length,
   };
 }
 

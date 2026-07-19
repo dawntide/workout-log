@@ -25,6 +25,7 @@ import {
 } from "./asymptote";
 import { roundToNearest2p5 } from "./round";
 import { mapExerciseNameToTarget as inferTargetFromExerciseName } from "@workout/core/strength-engine/target-mapping";
+import { EXERCISE_NAMES } from "@workout/core/exercise/catalog";
 import {
   lookupProgramFamily,
   type ProgramFamilyEntry,
@@ -162,7 +163,7 @@ function normalizeTarget(v: string) {
 
 function defaultExerciseNameForTarget(target: string) {
   const t = normalizeTarget(target);
-  if (t === "SQUAT") return "Back Squat";
+  if (t === "SQUAT") return EXERCISE_NAMES.highBarBackSquat;
   if (t === "BENCH") return "Bench Press";
   if (t === "DEADLIFT") return "Deadlift";
   if (t === "OHP") return "Overhead Press";

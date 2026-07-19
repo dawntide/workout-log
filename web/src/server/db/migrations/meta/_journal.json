@@ -162,6 +162,13 @@
       "when": 1784301058475,
       "tag": "0022_fractional-rpe",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1784446339986,
+      "tag": "0023_squat_exercise_identity",
+      "breakpoints": true
     }
   ]
 }

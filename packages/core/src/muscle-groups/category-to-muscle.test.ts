@@ -49,7 +49,8 @@ test("resolveMuscleContribution normalizes exercise key (spaces, hyphens, case)"
 });
 
 test("resolvePrimaryMuscleGroup picks the highest-weighted group", () => {
-  assert.equal(resolvePrimaryMuscleGroup("Back Squat", "Legs"), "Quad");
+  assert.equal(resolvePrimaryMuscleGroup("High-Bar Back Squat", "Legs"), "Quad");
+  assert.equal(resolvePrimaryMuscleGroup("Low-Bar Back Squat", "Legs"), "Quad");
   assert.equal(resolvePrimaryMuscleGroup("Deadlift", "Back"), "Back");
   assert.equal(resolvePrimaryMuscleGroup("Lateral Raise", null), "Shoulder");
   assert.equal(resolvePrimaryMuscleGroup("Bicep Curl", null), "Arm");
@@ -57,12 +58,14 @@ test("resolvePrimaryMuscleGroup picks the highest-weighted group", () => {
 
 test("seed exercises all resolve to a non-Other primary group", () => {
   const seedExercises: Array<[string, string]> = [
-    ["Back Squat", "Legs"],
+    ["High-Bar Back Squat", "Legs"],
+    ["Low-Bar Back Squat", "Legs"],
     ["Bench Press", "Chest"],
     ["Deadlift", "Back"],
     ["Overhead Press", "Shoulder"],
     ["Barbell Row", "Back"],
     ["Pull-Up", "Back"],
+    ["Weighted Pull-Up", "Back"],
     ["Power Clean", "Olympic Lift"],
     ["Front Squat", "Legs"],
     ["Incline Bench Press", "Chest"],
