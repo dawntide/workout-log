@@ -60,9 +60,17 @@
   - 시트 루트를 safe-area 아래부터 시작
   - body dataset 기반 전역 상태 제거
 
+4. PTR safe-area 합성 분리
+- [`components/pull-to-refresh.tsx`](../src/components/pull-to-refresh.tsx)
+- 인디케이터는 상단 `fixed`가 아니라 `.app-shell` 기준 `absolute`로 렌더
+- 당김 transform은 safe-area를 포함한 `.app-main`이 아니라 `.app-shell__content`에만 적용
+- 임계값 직전 취소 후에도 상태바가 solid tint로 다시 샘플링되지 않도록 상단 레이어를 유지
+
 ## 수정할 때 체크리스트
 
 - 새 `fixed` overlay가 safe-area top까지 덮지 않는지
+- PTR처럼 상단에 잠깐 보이는 요소도 `fixed`/`sticky`로 만들지 않았는지
+- 드래그 transform이 safe-area를 가진 `.app-main`까지 움직이지 않는지
 - 투명 overlay라도 fullscreen 레이어 자체가 추가되지 않는지
 - top bar tint가 변하는 시점이 “첫 렌더 직후”인지, “모달 open/close 후”인지
 - `html/body` 배경과 `data-theme-preference` 적용 순서가 바뀌지 않았는지

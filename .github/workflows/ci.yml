@@ -214,7 +214,7 @@ jobs:
           NEXT_TELEMETRY_DISABLED: "1"
           PLAYWRIGHT_SERVER_MODE: prod
           CI: "true"
-        run: pnpm exec playwright test e2e/smoke.spec.ts e2e/a11y-runtime.spec.ts e2e/stale-session-redirect.spec.ts e2e/color-themes.spec.ts --project chromium
+        run: pnpm exec playwright test e2e/smoke.spec.ts e2e/a11y-runtime.spec.ts e2e/stale-session-redirect.spec.ts e2e/color-themes.spec.ts e2e/pull-to-refresh.spec.ts --project chromium
 
       # 실패 시 trace/screenshot/video를 artifact로 보관
       - name: Upload Playwright artifacts

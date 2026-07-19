@@ -2,7 +2,10 @@
 /* 설치된 PWA(standalone) 당겨서 새로고침 인디케이터. 동적 값은 JS가 --ptr-* 로 주입. */
 
 .ptr {
-  position: fixed;
+  /* iOS PWA는 화면 상단의 fixed/sticky 요소를 감지하면 상태바에 solid tint를
+     확장할 수 있다. 제스처는 문서 최상단에서만 시작하므로 app-shell 기준 absolute면
+     같은 위치를 유지하면서 viewport-constrained 레이어를 만들지 않는다. */
+  position: absolute;
   left: 0;
   right: 0;
   top: env(safe-area-inset-top, 0px);
