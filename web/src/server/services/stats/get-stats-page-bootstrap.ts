@@ -207,7 +207,7 @@ export async function getStatsPageBootstrap(
     };
   }
 
-  // exerciseId/exerciseName 미지정: 스쿼트 → 나머지 3대운동 → 기록 여부 우선순위로
+  // exerciseId/exerciseName 미지정: 기록된 하이바/로우바 → 기록된 벤치/데드 → 기타 기록 순으로
   // 기본 운동 ID를 먼저 조회한 뒤
   // bundle + filterOptions + e1rm + volumeWeekly를 모두 병렬로 실행
   const initialExerciseId = await fetchDefaultStatsExerciseId(userId) ?? "";
