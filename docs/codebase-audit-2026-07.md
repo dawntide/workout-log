@@ -106,9 +106,9 @@ S1은 web에 이미 있는 `@/server/auth/rate-limit` 재장착으로 해결(신
 | # | 문제 | 위치 |
 |---|---|---|
 | F1 | ✅ **해소(2026-07-16)**: 웹 terminal 테마와 조건부 셸을 제거해 `AppShell`이 단일 컴포넌트 트리만 렌더 | `components/app-shell.tsx` · `app/layout.tsx` |
-| F2 | **Pretendard·Material Symbols를 하이드레이션 후 useEffect 주입** → 한글 FOUT + 아이콘 플래시 가능성. terminal 전용 mono 폰트와 자산은 2026-07-16 제거됨 | `components/font-stylesheet-loader.tsx` |
+| F2 | ✅ **해소(2026-07-20)**: useEffect 주입 자체는 의도된 설계(렌더 블로킹 회피)라 유지하고, `ReactDOM.preload`로 **다운로드 시작만 HTML 파싱 시점으로 이동**. preload는 렌더 블로킹이 아니라 FCP 이득은 보존되고, "하이드레이션 이후에야 요청" 지연만 제거. 실측(dev, /login) 요청 시작 236ms→78–104ms. URL은 `lib/fonts.ts` 단일 소스(preload↔stylesheet URL/CORS 불일치 시 이중 다운로드) | `components/font-stylesheet-loader.tsx` · `lib/fonts.ts` · `app/layout.tsx` |
 | F3 | 미가상화 성장 리스트: PR 히스토리·플랜 관리·캘린더 최근 로그 (가상화는 운동 카탈로그만) | `pr-history-screen.tsx:265` · `plans-manage-content.tsx:985` |
-| F4 | i18n `messages.ts` 1,319줄이 클라이언트 `LocaleProvider` 경유로 전 라우트 번들 포함 가능성 — 빌드 분석으로 확인 필요 | `web/src/lib/i18n/messages.ts` |
+| F4 | ✅ **기우로 판명(2026-07-20)**: `analyze:bundle` 산출물 실측 결과 `messages.ts`의 클라이언트 그래프 기여는 **전 라우트 0.0KB**(`/`·`/calendar`·`/program-store`·`/settings`·`/login`). `LocaleShell`이 서버에서 활성 로케일 copy만 prop으로 넘겨 카탈로그가 클라이언트로 넘어가지 않음. 조치 불필요 | `web/src/lib/i18n/messages.ts` · `app/layout.tsx:59-75` |
 
 ### 4.5 P4 — 구조 부채 (방향 관리 대상)
 
@@ -143,11 +143,11 @@ S1은 web에 이미 있는 `@/server/auth/rate-limit` 재장착으로 해결(신
 ### 5.3 3단계 — 그다음 (체감 성능 + 게이트 완성)
 
 1. ~~terminal 테마 첫 렌더 분기 수정~~ — 테마 제거로 해소 (F1, 2026-07-16)
-2. 폰트 로딩 정리: Pretendard·Material Symbols `<link>` 선주입/preload 검토 (F2)
+2. ~~폰트 로딩 정리: Pretendard·Material Symbols `<link>` 선주입/preload 검토~~ ✅ 완료(F2, 2026-07-20)
 3. e2e 13스펙 CI 편입 — 최소 nightly 스케줄 (R3)
 4. Go/TS 파리티 golden fixture (session-key·bodyweight) (§4.5)
 5. TUI 401 → `loggedOutMsg` 발행 + 에러 문구 분리 (R7) · self-update 체크섬 hard-fail (S4)
-6. PR 히스토리 가상화 (F3) · i18n 번들 확인 (F4) · ~~마이그레이션 meta 스냅샷 보수~~ ✅ 완료(D8, 2026-07-20)
+6. PR 히스토리 가상화 (F3) · ~~i18n 번들 확인~~ ✅ 확인 완료·기우(F4) · ~~마이그레이션 meta 스냅샷 보수~~ ✅ 완료(D8, 2026-07-20)
 
 ### 5.4 4단계 — 중기 (상업화/확장 대비)
 

@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Suspense } from "react";
+import { preload } from "react-dom";
 import { Inter } from "next/font/google";
 import "@/styles/index.css";
 import "@/styles/components/bottom-sheet.css";
@@ -14,6 +15,7 @@ import { FontStylesheetLoader } from "@/components/font-stylesheet-loader";
 import { ServiceWorkerRegister } from "@/components/service-worker-register";
 import { WebVitalsReporter } from "@/components/web-vitals-reporter";
 import { WorkoutUxEventSync } from "@/components/workout-ux-event-sync";
+import { FONT_STYLESHEETS } from "@/lib/fonts";
 import { resolveRequestLocale } from "@/lib/i18n/server";
 import { getAppCopy, type AppLocale } from "@/lib/i18n/messages";
 import { createEarlyThemeBootstrapScript } from "@/lib/settings/workout-preferences";
@@ -74,11 +76,26 @@ async function LocaleShell({ children }: { children: React.ReactNode }) {
   );
 }
 
+/**
+ * PERF: 폰트 CSS 다운로드를 HTML 파싱 시점에 시작시킨다. preload는 렌더 블로킹이
+ * 아니므로 FontStylesheetLoader가 지키는 FCP 이득(블로킹 <link> 회피)은 그대로
+ * 두고, "하이드레이션이 끝나야 비로소 요청이 나가던" 지연만 없앤다.
+ *
+ * crossOrigin을 주지 않는 것은 의도적이다 — 나중에 주입되는
+ * <link rel="stylesheet">와 CORS 모드가 어긋나면 preload가 재사용되지 않고 같은
+ * CSS를 두 번 받는다(font-stylesheet-loader.tsx의 Safari 주석 참고).
+ */
+function preloadFontStylesheets(): void {
+  for (const href of FONT_STYLESHEETS) preload(href, { as: "style" });
+}
+
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  preloadFontStylesheets();
+
   return (
     <html lang="ko" suppressHydrationWarning className={inter.variable}>
       <head>
@@ -91,6 +108,9 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         {/* PERF: Pretendard CSS는 동일 도메인 자체 호스팅 → HTTP/2 멀티플렉싱 활용 */}
         <link rel="dns-prefetch" href="https://cdn.jsdelivr.net" />
+        {/* 폰트 CSS preload는 아래 preloadFontStylesheets()가 ReactDOM.preload로
+            방출한다(직접 <link>를 렌더하면 React가 자체 preload를 함께 내보내
+            같은 href가 head에 두 번 실린다). */}
       </head>
       <body>
         <FontStylesheetLoader />

@@ -2,20 +2,21 @@
 
 import { useEffect } from "react";
 
+import { FONT_STYLESHEETS } from "@/lib/fonts";
+
 // layout.tsx의 블로킹 <link rel="stylesheet"> 대신 useEffect로 비동기 주입
 // → FCP/LCP 개선: 렌더링이 폰트 다운로드를 기다리지 않음.
-
-const BASE_FONT_STYLESHEETS = [
-  // PERF: Pretendard Variable (한글) — 자체 호스팅 CSS로 CDN DNS 왕복 제거.
-  // 폰트 파일은 CDN에서 서빙하되, CSS 자체는 동일 도메인 → HTTP/2 멀티플렉싱 활용.
-  "/fonts/pretendard-subset.css",
-  // Material Symbols Outlined — variable 아이콘 폰트 (display=swap 포함).
-  "https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap",
-];
+//
+// 다운로드 자체는 layout.tsx의 <link rel="preload" as="style">가 HTML 파싱 시점에
+// 이미 시작한다(preload는 렌더 블로킹이 아니다). 여기서의 주입은 "받아온 CSS를
+// 적용"하는 단계라 캐시 히트로 끝나고, FOUT 구간이 "하이드레이션 + 다운로드"에서
+// "하이드레이션"으로 줄어든다.
 
 function ensureStylesheet(href: string): void {
-  // 이미 삽입된 경우 중복 추가 방지.
-  if (document.querySelector(`link[href="${href}"]`)) return;
+  // 이미 삽입된 경우 중복 추가 방지. rel까지 봐야 한다 — 같은 href의
+  // <link rel="preload">가 head에 먼저 있으므로(layout.tsx), href만 보면
+  // preload를 "이미 적용됨"으로 오인해 정작 스타일시트를 넣지 않는다.
+  if (document.querySelector(`link[rel="stylesheet"][href="${href}"]`)) return;
   const link = document.createElement("link");
   link.rel = "stylesheet";
   link.href = href;
@@ -35,7 +36,7 @@ function ensureStylesheet(href: string): void {
  */
 export function FontStylesheetLoader() {
   useEffect(() => {
-    for (const href of BASE_FONT_STYLESHEETS) ensureStylesheet(href);
+    for (const href of FONT_STYLESHEETS) ensureStylesheet(href);
   }, []);
 
   return null;
