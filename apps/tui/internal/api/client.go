@@ -20,6 +20,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -37,6 +38,12 @@ type Client struct {
 	tokenMu   sync.RWMutex
 	token     string       // opaque session token; sent as Authorization: Bearer when set
 	requestMu sync.RWMutex // account deletion is exclusive against every in-flight request
+
+	// sessionExpired is set when an authenticated request is rejected with 401 by
+	// an endpoint where that can only mean the session itself is gone. The UI
+	// consumes it to return to the login gate instead of leaving the user on a
+	// buffer whose loads keep failing with a data-shaped error message.
+	sessionExpired atomic.Bool
 }
 
 // New constructs a client for the given base URL (e.g. http://localhost:3000).
@@ -63,6 +70,7 @@ func (c *Client) SetSessionToken(tok string) {
 	c.tokenMu.Lock()
 	c.token = tok
 	c.tokenMu.Unlock()
+	c.sessionExpired.Store(false) // a fresh token invalidates an earlier rejection
 	c.jar.SetCookies(c.baseURL, []*http.Cookie{{
 		Name:  SessionCookieName,
 		Value: tok,
@@ -77,6 +85,7 @@ func (c *Client) ClearSessionToken() {
 	c.tokenMu.Lock()
 	c.token = ""
 	c.tokenMu.Unlock()
+	c.sessionExpired.Store(false) // logged out on purpose — not an expiry to report
 	c.jar.SetCookies(c.baseURL, []*http.Cookie{{
 		Name: SessionCookieName, Value: "", Path: "/", MaxAge: -1,
 	}})
@@ -120,6 +129,28 @@ func (e *APIError) Error() string {
 func IsUnauthorized(err error) bool {
 	var ae *APIError
 	return errors.As(err, &ae) && ae.Status == http.StatusUnauthorized
+}
+
+// ConsumeSessionExpired reports — and clears — whether an authenticated request
+// has been rejected with 401 since the last call. Callers use it to bounce back
+// to the login gate once per expiry.
+func (c *Client) ConsumeSessionExpired() bool {
+	if c == nil {
+		return false
+	}
+	return c.sessionExpired.Swap(false)
+}
+
+// isCredentialCheckPath reports whether a 401 from path means "wrong credentials
+// in this request body" rather than "the session is gone". Those endpoints
+// verify a password the user just typed, so their 401 must stay on the current
+// screen (e.g. "현재 비밀번호가 올바르지 않습니다") instead of forcing a re-login.
+func isCredentialCheckPath(path string) bool {
+	switch path {
+	case "/api/auth/login", "/api/auth/signup", "/api/auth/password", "/api/auth/account":
+		return true
+	}
+	return strings.HasPrefix(path, "/api/auth/password/reset")
 }
 
 // IsRateLimited reports whether err is a 429.
@@ -178,6 +209,10 @@ func (c *Client) doUnlocked(ctx context.Context, method, path string, body, out 
 		ae := &APIError{Status: resp.StatusCode, Message: extractError(data, resp.Status)}
 		if resp.StatusCode == http.StatusTooManyRequests {
 			ae.RetryAfter, _ = strconv.Atoi(resp.Header.Get("Retry-After"))
+		}
+		if resp.StatusCode == http.StatusUnauthorized &&
+			!isCredentialCheckPath(path) && c.SessionToken() != "" {
+			c.sessionExpired.Store(true)
 		}
 		return ae
 	}

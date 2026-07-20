@@ -141,6 +141,14 @@ func (l Login) withError(err error) Login {
 	return l
 }
 
+// withAlert shows a message the user did not cause by submitting this form —
+// currently a session expiry that sent them back here mid-session.
+func (l Login) withAlert(msg string) Login {
+	l.submitting = false
+	l.err, l.notice = msg, ""
+	return l
+}
+
 // serverHost strips the scheme/path from a base URL for a compact display
 // (e.g. "https://api.example.com/" → "api.example.com").
 func serverHost(u string) string {

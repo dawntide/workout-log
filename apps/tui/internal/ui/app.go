@@ -199,6 +199,27 @@ func (a *App) offerLegacyDraftRecovery(userID string) bool {
 	return true
 }
 
+// returnToLogin drops the local session and rebuilds the login gate. notice, when
+// set, tells the user why they are back here (empty for a deliberate logout).
+// The draft is left untouched: it is owner-scoped, so an expiry mid-workout does
+// not cost the user their unsaved sets.
+func (a App) returnToLogin(notice string) (tea.Model, tea.Cmd) {
+	_ = a.cfg.ClearSession()
+	a.client = isolatedClient(a.client, "")
+	a.user = nil
+	a.authGeneration++
+	a.state = stateLogin
+	a.login = NewLogin(a.client)
+	if a.w > 0 && a.h > 0 {
+		a.login, _ = a.login.Update(tea.WindowSizeMsg{Width: a.w, Height: a.h})
+	}
+	if notice != "" {
+		a.login = a.login.withAlert(notice)
+	}
+	a.frame = NewFrame(a.client, a.cfg)
+	return a, a.login.Init()
+}
+
 func (a App) Init() tea.Cmd {
 	switch a.state {
 	case stateLoading:
@@ -218,6 +239,22 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		msg = scoped.msg
 	}
+	// Quit is handled before anything else so no state transition below can eat
+	// the user's ctrl+c.
+	if k, ok := msg.(tea.KeyPressMsg); ok && k.String() == "ctrl+c" {
+		if a.state == stateFrame && (a.frame.deletingAccount || a.frame.loggingOut) {
+			return a, nil
+		}
+		return a, tea.Quit
+	}
+	// A 401 on any authenticated request means the session is gone (expired or
+	// revoked from another device). Bounce to the login gate rather than let the
+	// buffer render the rejection as a data-load error the user cannot act on.
+	// Late 401s from a previous account land on that generation's own client, so
+	// only the live session can trigger this.
+	if a.state == stateFrame && a.client.ConsumeSessionExpired() {
+		return a.returnToLogin("세션이 만료되었습니다 · 다시 로그인해 주세요")
+	}
 	if action, ok := msg.(accountActionMsg); ok && action.err == nil && action.tokenRotated {
 		if a.client != nil {
 			if tok := a.client.SessionToken(); tok != "" {
@@ -226,13 +263,6 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	}
 	switch m := msg.(type) {
-	case tea.KeyPressMsg:
-		if m.String() == "ctrl+c" {
-			if a.state == stateFrame && (a.frame.deletingAccount || a.frame.loggingOut) {
-				return a, nil
-			}
-			return a, tea.Quit
-		}
 	case tea.WindowSizeMsg:
 		a.w, a.h = m.Width, m.Height
 		a.login, _ = a.login.Update(msg)
@@ -294,20 +324,10 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			a.frame.flash = "로그아웃 실패: " + humanizeAuthErr(m.err)
 			return a, nil
 		}
-		_ = a.cfg.ClearSession()
 		if m.accountDeleted && a.user != nil {
 			_ = a.cfg.WithDraftOwner(a.user.ID).ClearDraft()
 		}
-		a.client = isolatedClient(a.client, "")
-		a.user = nil
-		a.authGeneration++
-		a.state = stateLogin
-		a.login = NewLogin(a.client)
-		if a.w > 0 && a.h > 0 {
-			a.login, _ = a.login.Update(tea.WindowSizeMsg{Width: a.w, Height: a.h})
-		}
-		a.frame = NewFrame(a.client, a.cfg)
-		return a, a.login.Init()
+		return a.returnToLogin("")
 	case legacyDraftDecisionMsg:
 		if m.err != nil {
 			a.frame.flash = "이전 초안 처리 실패: " + m.err.Error()

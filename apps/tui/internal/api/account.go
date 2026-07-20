@@ -19,11 +19,17 @@ type Session struct {
 // then rotates the session: all sessions are revoked and a fresh cookie is
 // issued on this response — the client jar absorbs it, so the session stays
 // valid without a re-login.
+// It takes the exclusive request lock (like DeleteAccount) so no other request
+// can still be in flight under the old token: such a request would come back 401
+// after the rotation and read as an expired session, bouncing the user to the
+// login gate right after a password change that actually succeeded.
 func (c *Client) ChangePassword(ctx context.Context, current, next string) error {
+	c.requestMu.Lock()
+	defer c.requestMu.Unlock()
 	var out struct {
 		Token string `json:"token"`
 	}
-	if err := c.do(ctx, "POST", "/api/auth/password", map[string]string{
+	if err := c.doUnlocked(ctx, "POST", "/api/auth/password", map[string]string{
 		"currentPassword": current,
 		"newPassword":     next,
 	}, &out); err != nil {
