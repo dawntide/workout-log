@@ -5,11 +5,12 @@ import {
   type ProgramTemplate,
 } from "@workout/core/program-store/model";
 import {
-  filterProgramListItemsByCategory,
+  filterProgramListItemsByFacets,
   filterProgramListItemsBySearch,
   getProgramStoreDetailVariants,
   groupProgramStoreListItems,
   resolveProgramStoreSelection,
+  type ProgramStoreListItem,
 } from "./view";
 
 function makeTemplate({
@@ -139,15 +140,37 @@ test("FSL·BBB 검색과 자식 태그 카테고리는 통합 카드로 연결�
     "wendler-531-fsl",
   );
 
-  const hypertrophyResults = filterProgramListItemsByCategory(
-    groupedItems,
-    "hypertrophy",
-  );
+  const hypertrophyResults = filterProgramListItemsByFacets(groupedItems, {
+    goal: ["hypertrophy"],
+  });
   assert.ok(
     hypertrophyResults.some(
-      (item) => item.key === "market-family-wendler-531",
+      (item: ProgramStoreListItem) => item.key === "market-family-wendler-531",
     ),
-    "BBB 태그가 통합 카드의 카테고리 검색에도 반영돼야 한다",
+    "BBB 태그가 통합 카드의 필터에도 반영돼야 한다",
+  );
+});
+
+test("빈 선택은 제약이 아니며, 축을 겹치면 모두 만족해야 한다", () => {
+  const groupedItems = groupProgramStoreListItems(
+    toProgramListItems(templates, "ko"),
+    "ko",
+  );
+
+  assert.equal(
+    filterProgramListItemsByFacets(groupedItems, {}).length,
+    groupedItems.length,
+    "선택이 없으면 목록이 그대로 유지돼야 한다",
+  );
+
+  // 세 변형 모두 LOGIC이므로 engine=fixed는 통합 카드를 걸러내야 한다.
+  assert.equal(
+    filterProgramListItemsByFacets(groupedItems, {
+      goal: ["hypertrophy"],
+      engine: ["fixed"],
+    }).length,
+    0,
+    "축이 겹치면 AND로 좁혀져야 한다",
   );
 });
 

@@ -24,6 +24,11 @@ import { StartProgramSheet } from "@/features/program-store/ui/start-program-she
 import { CustomizeProgramSheet } from "@/features/program-store/ui/customize-program-sheet";
 import { CreateProgramSheet } from "@/features/program-store/ui/create-program-sheet";
 import { ProgramStoreBrowseContent } from "@/features/program-store/ui/program-store-browse-content";
+import { ProgramFilterSheet } from "@/features/program-store/ui/program-filter-sheet";
+import {
+  toggleProgramFacet,
+  type ProgramFacetSelection,
+} from "@workout/core/program-store/facets";
 import type { ProgramTemplate } from "@workout/core/program-store/model";
 
 const ProgramDetailSheet = dynamic(
@@ -56,7 +61,8 @@ export function ProgramStoreScreen({
   const [notice, setNotice] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [storeQuery, setStoreQuery] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [facetSelection, setFacetSelection] = useState<ProgramFacetSelection>({});
+  const [filterSheetOpen, setFilterSheetOpen] = useState(false);
 
   const [detailTargetId, setDetailTargetId] = useState<string | null>(null);
   const [customizeDraft, setCustomizeDraft] = useState<CustomizeDraft | null>(null);
@@ -80,11 +86,12 @@ export function ProgramStoreScreen({
   });
 
   const {
-    categoryOptions,
+    facetGroups,
+    selectedFacetCount,
     templateItems,
     listItems,
     filteredListItems,
-    categoryFilteredItems,
+    facetFilteredItems,
     publicTemplates,
     manualPublicTemplate,
     detailTarget,
@@ -97,7 +104,7 @@ export function ProgramStoreScreen({
     templates,
     locale,
     storeQuery,
-    categoryFilter,
+    facetSelection,
     detailTargetId,
     customizeDraft,
   });
@@ -196,21 +203,26 @@ export function ProgramStoreScreen({
           error={error}
           notice={notice}
           storeQuery={storeQuery}
-          categoryFilter={categoryFilter}
           listItems={listItems}
           filteredListItems={filteredListItems}
-          categoryFilteredItems={categoryFilteredItems}
+          facetFilteredItems={facetFilteredItems}
           marketListItems={marketListItems}
           customListItems={customListItems}
           customProgramCount={customProgramCount}
-          categoryOptions={categoryOptions}
+          facetGroups={facetGroups}
+          facetSelection={facetSelection}
+          selectedFacetCount={selectedFacetCount}
           isStoreSettled={isStoreSettled}
           hasStoreQuery={hasStoreQuery}
           onRetry={() => {
             void loadStore();
           }}
           onChangeStoreQuery={setStoreQuery}
-          onChangeCategoryFilter={setCategoryFilter}
+          onOpenFilterSheet={() => setFilterSheetOpen(true)}
+          onToggleFacet={(key, value) =>
+            setFacetSelection((current) => toggleProgramFacet(current, key, value))
+          }
+          onResetFacets={() => setFacetSelection({})}
           onSelectItem={(item) => {
             const selectedItem = resolveProgramStoreSelection(
               item,
@@ -220,6 +232,20 @@ export function ProgramStoreScreen({
             setDetailTargetId(selectedItem.template.id);
           }}
           onOpenCreateSheet={openCreateSheet}
+      />
+
+      <ProgramFilterSheet
+        open={filterSheetOpen}
+        locale={locale}
+        groups={facetGroups}
+        selection={facetSelection}
+        resultCount={facetFilteredItems.length}
+        hasSelection={selectedFacetCount > 0}
+        onToggle={(key, value) =>
+          setFacetSelection((current) => toggleProgramFacet(current, key, value))
+        }
+        onReset={() => setFacetSelection({})}
+        onClose={() => setFilterSheetOpen(false)}
       />
 
       <ProgramDetailSheet

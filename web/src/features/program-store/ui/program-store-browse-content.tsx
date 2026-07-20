@@ -3,8 +3,14 @@
 import { SearchInput } from "@/components/ui/search-input";
 import { V2PrimaryBtn, V2SecondaryBtn, V2SectionHeader } from "@/components/v2/primitives";
 import { AppPage, PageSection, StateBlock } from "@/components/ui/page-layout";
+import type {
+  ProgramFacetGroup,
+  ProgramFacetKey,
+  ProgramFacetSelection,
+} from "@workout/core/program-store/facets";
 import type { ProgramStoreListItem } from "@/features/program-store/model/view";
 import { ProgramListCard } from "./program-list-card";
+import { ProgramFilterBar } from "./program-filter-bar";
 
 type ProgramStoreCopy = {
   eyebrow: string;
@@ -18,30 +24,28 @@ type ProgramStoreCopy = {
   emptySearchDescription: string;
 };
 
-type CategoryOption = {
-  key: string;
-  label: string;
-};
-
 type ProgramStoreBrowseContentProps = {
   locale: "ko" | "en";
   copy: ProgramStoreCopy;
   error: string | null;
   notice: string | null;
   storeQuery: string;
-  categoryFilter: string;
   listItems: ProgramStoreListItem[];
   filteredListItems: ProgramStoreListItem[];
-  categoryFilteredItems: ProgramStoreListItem[];
+  facetFilteredItems: ProgramStoreListItem[];
   marketListItems: ProgramStoreListItem[];
   customListItems: ProgramStoreListItem[];
   customProgramCount: number;
-  categoryOptions: readonly CategoryOption[];
+  facetGroups: ProgramFacetGroup[];
+  facetSelection: ProgramFacetSelection;
+  selectedFacetCount: number;
   isStoreSettled: boolean;
   hasStoreQuery: boolean;
   onRetry: () => void;
   onChangeStoreQuery: (value: string) => void;
-  onChangeCategoryFilter: (key: string) => void;
+  onOpenFilterSheet: () => void;
+  onToggleFacet: (key: ProgramFacetKey, value: string) => void;
+  onResetFacets: () => void;
   onSelectItem: (item: ProgramStoreListItem) => void;
   onOpenCreateSheet: () => void;
 };
@@ -52,19 +56,22 @@ export function ProgramStoreBrowseContent({
   error,
   notice,
   storeQuery,
-  categoryFilter,
   listItems,
   filteredListItems,
-  categoryFilteredItems,
+  facetFilteredItems,
   marketListItems,
   customListItems,
   customProgramCount,
-  categoryOptions,
+  facetGroups,
+  facetSelection,
+  selectedFacetCount,
   isStoreSettled,
   hasStoreQuery,
   onRetry,
   onChangeStoreQuery,
-  onChangeCategoryFilter,
+  onOpenFilterSheet,
+  onToggleFacet,
+  onResetFacets,
   onSelectItem,
   onOpenCreateSheet,
 }: ProgramStoreBrowseContentProps) {
@@ -121,48 +128,14 @@ export function ProgramStoreBrowseContent({
           />
 
           {listItems.length > 0 ? (
-            <div
-              style={{
-                display: "flex",
-                gap: "var(--v2-s-2)",
-                overflowX: "auto",
-                paddingBottom: "var(--v2-s-1)",
-                scrollbarWidth: "none",
-                msOverflowStyle: "none",
-              }}
-            >
-              {categoryOptions.map((category) => (
-                <button
-                  key={category.key}
-                  type="button"
-                  onClick={() => onChangeCategoryFilter(category.key)}
-                  className="v2-eyebrow v2-pressable"
-                  style={{
-                    padding: "var(--v2-s-2) var(--v2-s-5)",
-                    minHeight: "var(--v2-touch)",
-                    border: "none",
-                    borderRadius: "var(--v2-r-pill)",
-                    cursor: "pointer",
-                    whiteSpace: "nowrap",
-                    flexShrink: 0,
-                    background:
-                      categoryFilter === category.key
-                        ? "var(--v2-accent-weak)"
-                        : "var(--v2-paper)",
-                    color:
-                      categoryFilter === category.key
-                        ? "var(--v2-accent-ink)"
-                        : "var(--v2-ink-2)",
-                    boxShadow:
-                      categoryFilter === category.key
-                        ? "0 10px 20px color-mix(in srgb, var(--shadow-color-soft) 68%, transparent)"
-                        : "none",
-                  }}
-                >
-                  {category.label}
-                </button>
-              ))}
-            </div>
+            <ProgramFilterBar
+              locale={locale}
+              groups={facetGroups}
+              selection={facetSelection}
+              selectedCount={selectedFacetCount}
+              onOpenSheet={onOpenFilterSheet}
+              onToggle={onToggleFacet}
+            />
           ) : null}
         </div>
       ) : null}
@@ -179,16 +152,25 @@ export function ProgramStoreBrowseContent({
       {isStoreSettled &&
       !error &&
       filteredListItems.length > 0 &&
-      categoryFilteredItems.length === 0 ? (
+      facetFilteredItems.length === 0 ? (
         <StateBlock
-          title={locale === "ko" ? "해당 카테고리의 프로그램이 없습니다" : "No programs in this category"}
+          title={
+            locale === "ko"
+              ? "조건에 맞는 프로그램이 없습니다"
+              : "No programs match these filters"
+          }
           description={
             locale === "ko"
-              ? "다른 카테고리를 선택하거나 전체를 확인해 보세요."
-              : "Try a different category or browse all programs."
+              ? "조건을 하나씩 빼면 결과가 넓어집니다."
+              : "Removing a filter or two will widen the results."
           }
           tone="neutral"
           icon="playlist_remove"
+          action={(
+            <V2SecondaryBtn onClick={onResetFacets}>
+              {locale === "ko" ? "필터 초기화" : "Clear filters"}
+            </V2SecondaryBtn>
+          )}
         />
       ) : null}
 

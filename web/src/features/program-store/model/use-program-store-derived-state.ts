@@ -5,18 +5,22 @@ import {
   type ProgramTemplate,
 } from "@workout/core/program-store/model";
 import {
+  buildProgramFacetGroups,
+  countSelectedFacets,
+  type ProgramFacetSelection,
+} from "@workout/core/program-store/facets";
+import {
   filterProgramListItemsBySearch,
-  filterProgramListItemsByCategory,
+  filterProgramListItemsByFacets,
   getProgramStoreDetailVariants,
   groupProgramStoreListItems,
-  storeCategories,
 } from "./view";
 
 type UseProgramStoreDerivedStateInput = {
   templates: ProgramTemplate[];
   locale: "ko" | "en";
   storeQuery: string;
-  categoryFilter: string;
+  facetSelection: ProgramFacetSelection;
   detailTargetId: string | null;
   customizeDraft: {
     baseTemplate: ProgramTemplate;
@@ -27,11 +31,21 @@ export function useProgramStoreDerivedState({
   templates,
   locale,
   storeQuery,
-  categoryFilter,
+  facetSelection,
   detailTargetId,
   customizeDraft,
 }: UseProgramStoreDerivedStateInput) {
-  const categoryOptions = useMemo(() => storeCategories(locale), [locale]);
+  // Built from the loaded programs, so the sheet can only offer values that
+  // match something.
+  const facetGroups = useMemo(
+    () => buildProgramFacetGroups(templates, locale),
+    [locale, templates],
+  );
+
+  const selectedFacetCount = useMemo(
+    () => countSelectedFacets(facetSelection),
+    [facetSelection],
+  );
 
   const templateItems = useMemo(
     () => toProgramListItems(templates, locale),
@@ -48,9 +62,9 @@ export function useProgramStoreDerivedState({
     [listItems, locale, storeQuery],
   );
 
-  const categoryFilteredItems = useMemo(
-    () => filterProgramListItemsByCategory(filteredListItems, categoryFilter),
-    [categoryFilter, filteredListItems],
+  const facetFilteredItems = useMemo(
+    () => filterProgramListItemsByFacets(filteredListItems, facetSelection),
+    [facetSelection, filteredListItems],
   );
 
   const publicTemplates = useMemo(
@@ -80,13 +94,13 @@ export function useProgramStoreDerivedState({
   );
 
   const marketListItems = useMemo(
-    () => categoryFilteredItems.filter((entry) => entry.source === "MARKET"),
-    [categoryFilteredItems],
+    () => facetFilteredItems.filter((entry) => entry.source === "MARKET"),
+    [facetFilteredItems],
   );
 
   const customListItems = useMemo(
-    () => categoryFilteredItems.filter((entry) => entry.source === "CUSTOM"),
-    [categoryFilteredItems],
+    () => facetFilteredItems.filter((entry) => entry.source === "CUSTOM"),
+    [facetFilteredItems],
   );
 
   const isOperatorCustomization = useMemo(
@@ -95,11 +109,12 @@ export function useProgramStoreDerivedState({
   );
 
   return {
-    categoryOptions,
+    facetGroups,
+    selectedFacetCount,
     templateItems,
     listItems,
     filteredListItems,
-    categoryFilteredItems,
+    facetFilteredItems,
     publicTemplates,
     manualPublicTemplate,
     detailTarget,
