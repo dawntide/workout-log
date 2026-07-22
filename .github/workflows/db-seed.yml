@@ -49,4 +49,17 @@ jobs:
           DB_SEED_LOCK_ID: ${{ matrix.lock_id }}
           DB_SEED_RUNNER: github-actions-${{ matrix.env }}
           DB_SEED_KEY: ${{ matrix.env }}
+          # 재실행 여부는 이 파일들의 해시로 판단한다. seed.ts 하나만 추적하면, seed 내용을
+          # 실제로 결정하는 import(카탈로그·blueprint·슬롯 키·라운딩)만 바뀐 PR에서 해시가
+          # 그대로라 prod seed가 조용히 스킵된다 — 로그에도 "hash unchanged"만 남아 알아채기 어렵다.
+          # seed는 upsert 기반이라 불필요하게 한 번 더 도는 비용(~1분)보다 누락이 훨씬 비싸다.
+          # web cwd 기준 상대 경로(seed-if-needed.mjs의 parseTrackedFiles가 개행/콤마로 분리).
+          DB_SEED_TRACKED_FILES: |-
+            ../packages/core/src/db/seed.ts
+            ../packages/core/src/exercise/catalog.ts
+            ../packages/core/src/program-store/program-registry.ts
+            ../packages/core/src/program-store/madcow-blueprint.ts
+            ../packages/core/src/program-store/nsuns-blueprint.ts
+            ../packages/core/src/program-engine/ref5.ts
+            ../packages/core/src/program-engine/round.ts
         run: pnpm db:seed:sync

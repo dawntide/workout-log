@@ -87,10 +87,19 @@ PR 열림 / 푸시
 - prod와 dev 두 환경에 병렬 마이그레이션한다. 둘 다 **같은 prod 인스턴스**(`SUPABASE_DIRECT_URL`)를 쓰되, dev는 `DB_SCHEMA=dev` matrix로 prod 인스턴스의 `dev` 스키마에 격리 적용한다(별도 dev 프로젝트는 Supabase free plan의 활성 2개 제한으로 폐기). advisory lock id를 prod/dev로 분리해 같은 인스턴스에서의 충돌을 피한다.
 - dev 스키마용 마이그레이션은 `web/src/server/db/migrations-dev/`에 별도 생성하며, 추적 테이블은 `drizzle_dev` 스키마로 분리된다. 자세한 격리 설계는 [reference 메모리/PR #392·#393] 참고.
 
+### `db-seed.yml` — 시드 동기화 (마이그레이션 후)
+
+- `db-migrate`가 main에서 성공하면 실행된다. prod(`public`)·dev(`dev`) 두 스키마를 각각 다른 advisory lock으로 시드한다.
+- `pnpm db:seed:sync`([`seed-if-needed.mjs`](../scripts/seed-if-needed.mjs))는 **추적 파일들의 해시**를 `seed_run_state` 테이블과 비교해, 달라졌을 때만 실제 시드를 돌린다(그 외에는 NO-OP).
+- **추적 파일은 `DB_SEED_TRACKED_FILES`로 명시한다.** 기본값은 `seed.ts` 하나뿐인데, seed의 내용은 그 파일이 import하는 카탈로그·blueprint·슬롯 키 헬퍼·라운딩이 함께 결정한다. seed.ts를 건드리지 않고 그쪽만 바꾸면 해시가 그대로라 **prod 시드가 조용히 스킵된다**(로그에 `seed skipped (hash unchanged)`만 남는다). 그래서 워크플로가 의존 파일까지 열거한다.
+- seed는 upsert 기반이라 재실행이 안전하다. 목록에 파일을 더 넣어 불필요하게 한 번 더 도는 비용(~1분)보다, 빠뜨려서 반영이 누락되는 쪽이 훨씬 비싸다. **seed.ts에 import를 추가하면 이 목록도 함께 갱신할 것.**
+- 시드 반영 확인은 실행 로그의 `program_template` / `exercise` 카운트로 한다(`counts ... → seed completed ...`).
+
 ### `deploy.yml` — 배포 확인 (마이그레이션 후)
 
 - `db-migrate` 완료 후 실행된다.
 - Vercel API를 폴링해서 해당 commit SHA의 production 배포가 `READY` 상태가 될 때까지 대기한다.
+- ⚠️ `db-seed`와 **순서가 보장되지 않는다**(둘 다 `db-migrate`를 트리거로 삼는 별도 워크플로). 새 시드 데이터에 의존하는 코드를 배포할 때는 잠깐 동안 코드만 먼저 살아 있을 수 있다.
 
 ---
 
