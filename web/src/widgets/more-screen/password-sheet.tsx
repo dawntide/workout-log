@@ -3,10 +3,10 @@ import { errorMessage } from "@/lib/error-message";
 
 import { useEffect, useState } from "react";
 import { useLocale } from "@/components/locale-provider";
-import { V2PrimaryBtn } from "./primitives";
+import { V2PrimaryBtn } from "@/components/v2/primitives";
 import { BottomSheet } from "@/components/ui/bottom-sheet";
 
-export function V2PasswordSheet({
+export function PasswordSheet({
   open,
   onClose,
 }: {
