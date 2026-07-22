@@ -1,4 +1,4 @@
-// plans-manage 순수 모델 — 화면(app/plans/manage/plans-manage-content.tsx)에서 추출.
+// plans-manage 순수 모델 — 화면(widgets/plans-manage-screen)에서 추출.
 // 전부 프레임워크-무관 순수 함수/타입(감사 2026-07 §5.4-4 god-component 분해 1단계:
 // "로직의 features/*/model 이동부터"). 데이터 로딩/뮤테이션 훅 추출은 후속.
 import type { PlanForManage } from "@/server/services/plans/get-plans-for-manage";

@@ -36,7 +36,7 @@
 | **완료 2026-07-16** | 웹 terminal 테마·전용 셸·폰트 자산 제거 | M | `app-shell.tsx` · `font-stylesheet-loader.tsx` |
 | ~~P2 그다음~~ | e2e 스펙 CI 편입(nightly) + Go/TS 파리티 golden fixture | M | ✅ 완료 — `e2e-nightly.yml`이 22스펙 전체 실행 · `packages/core/fixtures` |
 | ~~P3 중기~~ | `packages/core` 추출, PBKDF2 상향, 세션 슬라이딩 만료 | L | ✅ 완료 — #497~#503 · `ITERATIONS = 600_000` · `auth/session-policy.ts` |
-| **남음** | god-component 분해(§5.4-4) — `v2-more-page` 1041줄 · `plans-manage-content` 982줄 · `workout-log-screen` 930줄 | M | 착수 전 |
+| **남음** | god-component 분해(§5.4-4) — `v2-more-page` 1041줄 · `workout-log-screen` 930줄 | M | 진행 중 — `plans-manage`는 ✅ 완료(982줄 1파일 → `widgets/plans-manage-screen` 9파일, 최대 245줄) |
 | **하지 말 것** | 프록시 토폴로지 재설계(수용된 구조적 비용), 레이어 린트 error 강제(선행 부채 존재) | — | §4.5 (레이어 린트는 부채 해소 후 2026-07-06 강제 전환됨) |
 
 ---
@@ -173,7 +173,7 @@ S1은 web에 이미 있는 `@/server/auth/rate-limit` 재장착으로 해결(신
 1. ~~`packages/core` 추출~~ ✅ **완료(2026-07-03, #497~#503)** — 7개 PR 점진 추출: 워크스페이스 인프라 → 순수 lib(+Go/TS golden fixture, Stage 3 잔여 흡수) → db → auth → 도메인 엔진 → 서비스(locale 명시 인자화) → alias 제거/경계 린트. 부수 수정: TUI trimNum 정밀도, getHomeData 쿠키 스냅샷 오용(TUI 홈 설정 미반영).
 2. ~~PBKDF2 600k 상향 + 로그인 시 점진 재해시, 세션 슬라이딩 만료·자동 prune (S3)~~ ✅ 완료 — `auth/password.ts`(`ITERATIONS = 600_000`, 해시 포맷에 iterations 내장 → 검증 시 점진 재해시) · `auth/session-policy.ts`(sliding IDLE_TTL)
 3. ~~`no-explicit-any` warn 승격 · 레이어 린트 error 강제~~ ✅ **완료(2026-07-06, #509·#510)** — any warn 승격(85건 가시화, 점진 감축은 계속), 레이어 부채 3건+승격 중 발견 1건(widgets→app loading) 해소 후 방향 린트 error 강제(type-only·테스트 예외). 상세: [architecture-layers.md](../web/docs/architecture-layers.md) "강제 현황".
-4. god-component 분해: `plans-manage-content` 로직의 `features/*/model` 이동부터
+4. god-component 분해: ~~`plans-manage-content` 로직의 `features/*/model` 이동부터~~ ✅ **plans-manage 완료** — 로직은 `features/plans-manage/model`(순수 모델 + 컨트롤러 훅), 뷰는 `widgets/plans-manage-screen`(화면·시트·섹션 4개·공용 행)으로 분해해 `app/` 레이어에서 뮤테이션+로직+렌더 동거를 해소했다. 남은 대상은 `v2-more-page`(1,041줄)·`workout-log-screen`(930줄).
 
 ---
 

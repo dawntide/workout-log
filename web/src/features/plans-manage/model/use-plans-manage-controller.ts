@@ -1,9 +1,9 @@
 "use client";
 import { errorMessage } from "@/lib/error-message";
 
-// plans-manage 컨트롤러 훅 — 화면 컴포넌트(app/plans/manage/plans-manage-content.tsx)에서
-// 상태·파생·데이터 로딩·뮤테이션 전부를 추출(god-component 분해 2단계, 감사 §5.4-4).
-// 뷰는 이 훅의 반환 bag을 구조분해해 렌더만 담당한다(로직 무변경 이동).
+// plans-manage 컨트롤러 훅 — 화면 컴포넌트에서 상태·파생·데이터 로딩·뮤테이션 전부를
+// 추출(god-component 분해 2단계, 감사 §5.4-4). 뷰(widgets/plans-manage-screen)는 이 훅의
+// 반환 bag을 구조분해해 렌더만 담당한다(로직 무변경 이동).
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { useLocale } from "@/components/locale-provider";

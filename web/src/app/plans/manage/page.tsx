@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { getPlansForManage } from "@/server/services/plans/get-plans-for-manage";
-import { PlansManageContent } from "./plans-manage-content";
+import { PlansManageScreen } from "@/widgets/plans-manage-screen";
 import PlansManageLoading from "./loading";
 
 // 인증·사용자별 데이터 페이지 — 정적 prerender 금지(세션 쿠키 기반 요청별 동적 렌더).
@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 
 async function PlansManagePageContent() {
   const initialPlans = await getPlansForManage();
-  return <PlansManageContent initialPlans={initialPlans} />;
+  return <PlansManageScreen initialPlans={initialPlans} />;
 }
 
 export default function PlansManagePage() {
