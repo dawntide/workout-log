@@ -550,7 +550,11 @@ function defaultStartPlanParamsFromTemplate(template: ProgramTemplate) {
     progressionFamily === "greyskull-lp" ||
     progressionFamily === "starting-strength-lp" ||
     progressionFamily === "stronglifts-5x5" ||
-    progressionFamily === "operator"
+    progressionFamily === "operator" ||
+    // PPL·PHUL도 "처방 reps 미달=실패"라야 한다. PPL은 메인 5회, PHUL은 레인지 상단(5회)을
+    // 전 세트 채워야 증량하는 규칙이라, 검증이 없으면 1회만 해도 증량된다.
+    progressionFamily === "reddit-ppl" ||
+    progressionFamily === "phul"
   ) {
     params.progressionModel = "v2";
   }

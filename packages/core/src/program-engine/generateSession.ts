@@ -28,6 +28,7 @@ import { mapExerciseNameToTarget as inferTargetFromExerciseName } from "@workout
 import { EXERCISE_NAMES } from "@workout/core/exercise/catalog";
 import {
   lookupProgramFamily,
+  usesPercentDerivedSets,
   type ProgramFamilyEntry,
 } from "@workout/core/program-store/program-registry";
 import { buildSlottedLpSlot } from "@workout/core/program-store/model";
@@ -35,6 +36,7 @@ import {
   buildRef5PlanSession,
   isRef5PlanParams,
 } from "./ref5-integration";
+import { tacticalBarbellCluster } from "@workout/core/program-store/tactical-barbell-blueprint";
 import {
   wendler531WeekSets,
   WENDLER_531_FSL_SETS,
@@ -87,6 +89,7 @@ type LogicDefinitionV1 = {
   cluster?: string[]; // legacy support
   progression?: Record<string, any>;
   assistance?: string; // 5/3/1: "FSL" | "BBB" | "NONE"
+  variant?: string; // Tactical Barbell: "operator" | "fighter" | "zulu"
 };
 
 type PlannedSet = {
@@ -530,13 +533,14 @@ function generate531(def: LogicDefinitionV1, ctx: GeneratorCtx): PlannedExercise
 }
 
 function generateOperator(def: LogicDefinitionV1, ctx: GeneratorCtx): PlannedExercise[] {
-  const dayInWeek = ((ctx.day - 1) % 3) + 1;
+  // 템플릿별 요일 클러스터. 6주 파형(70/80/90/75/85/95)과 블록 증량 규칙은 셋이 공유하고,
+  // 차이는 주당 세션 수와 세션별 리프트 구성뿐이다(TB 공식: 같은 파형, 다른 스케줄).
+  const cluster = tacticalBarbellCluster(def.variant);
+  const dayInWeek = ((ctx.day - 1) % cluster.length) + 1;
   const forcedTarget = normalizeProgressionTarget(ctx.forcedTarget);
   const targets: ProgressionTarget[] = forcedTarget
     ? [forcedTarget]
-    : dayInWeek === 3
-      ? ["SQUAT", "BENCH", "DEADLIFT"]
-      : ["SQUAT", "BENCH", "PULL"];
+    : (cluster[dayInWeek - 1] ?? cluster[0]!);
   const weekInCycle = ((ctx.week - 1) % 6) + 1;
   const mainSets = Math.min(
     5,
@@ -841,6 +845,10 @@ export function plannedExercisesFromManualSession(
         options?.enforcePlannedReps === true && role === "MAIN" && Boolean(progressionTarget)
           ? true
           : undefined,
+      // 보조 운동은 진행 판정에서 뺀다. reducer는 plannedRef가 없으면 운동명으로 family를
+      // 되짚으므로(progressionIdentityForSet), 표시만 ASSIST로 두면 PPL의 Seated Row가
+      // Barbell Row(PULL) 판정에, Incline DB Bench가 Bench(BENCH) 판정에 섞인다.
+      skipProgression: role === "ASSIST" ? true : undefined,
     });
   }
 
@@ -1223,8 +1231,8 @@ export function plannedExercisesFromSlottedLpManualSession(
       if (!exerciseName) return null;
 
       // 원본(미-fork) 정의는 slot이 없다 → note/index에서 동적 생성(fork draft와 동일한 인덱스 진행키).
-      let slot: { progressionKey?: string; startWeightKg?: number; tier?: string; texasRole?: string } | null =
-        (item?.slot as { progressionKey?: string; startWeightKg?: number; tier?: string; texasRole?: string } | null) ?? null;
+      let slot: { progressionKey?: string; startWeightKg?: number; tier?: string; texasRole?: string; driver?: boolean } | null =
+        (item?.slot as { progressionKey?: string; startWeightKg?: number; tier?: string; texasRole?: string; driver?: boolean } | null) ?? null;
       if ((!slot || !slot.progressionKey) && family && sessionKey) {
         const firstSet = (Array.isArray(item?.sets) ? item.sets[0] : null) ?? {};
         const note = String(firstSet?.note ?? item?.note ?? "");
@@ -1263,6 +1271,50 @@ export function plannedExercisesFromSlottedLpManualSession(
           ? slot.startWeightKg
           : null;
       const effectiveKg = slotWorkKg !== null && slotWorkKg > 0 ? slotWorkKg : startWeightKg;
+
+      // madcow/nsuns: 세트 무게를 슬롯 workKg(주간 탑세트 / TM)의 퍼센트로 파생한다.
+      // 한 운동의 workKg를 여러 요일이 공유하므로, 진행 판정은 slot.driver 슬롯 하나만 맡고
+      // 나머지 행은 무게만 파생한 뒤 skipProgression으로 reducer에서 빠진다(texas V/R과 동일 전략).
+      if (usesPercentDerivedSets(family)) {
+        const isDriver = slot?.driver === true;
+        // 기준 무게 해석은 reducer와 같은 순서여야 한다(readTrainingMaxForKey: 슬롯 키 → family 키).
+        // 프로그램 시작 화면은 1RM을 운동별이 아니라 family 키(SQUAT/BENCH/…)로 저장하므로,
+        // 슬롯 키만 보면 첫 세션이 유저 입력 대신 seed 데모 무게로 처방된다.
+        const percentBaseKg =
+          pickTrainingMaxKgByKeys(effectiveParams, defaults, [slotKey, progressionTarget]) ??
+          (typeof slot?.startWeightKg === "number" && slot.startWeightKg > 0
+            ? slot.startWeightKg
+            : null);
+        const pctSets = setRows.map((s: any) => {
+          const base = mapManualSet(s);
+          const pct = toNumberOrNull(s?.percent);
+          if (percentBaseKg !== null && percentBaseKg > 0) {
+            base.targetWeightKg =
+              pct !== null && pct > 0
+                ? roundToNearest2p5(percentBaseKg * pct)
+                : roundToNearest2p5(percentBaseKg);
+          }
+          // mapManualSet은 amrap을 보존하지 않는다. nsuns T1의 95% 세트만 판정 세트이므로
+          // seed가 표시한 amrap을 그대로 흘려 reducer가 실측 reps로 TM 증가폭을 정한다.
+          if (s?.amrap === true) base.amrap = true;
+          return base;
+        });
+        return {
+          exerciseId: typeof item?.exerciseId === "string" ? item.exerciseId : null,
+          exerciseName,
+          role: "MAIN" as const,
+          sets: pctSets,
+          sourceBlockTarget: progressionTarget ?? "CUSTOM",
+          order: toNumberOrNull(item?.order) ?? index,
+          rowType: "AUTO" as const,
+          progressionTarget: progressionTarget ?? null,
+          progressionKey: isDriver ? slotKey : null,
+          tier: null,
+          stage: null,
+          texasRole: null,
+          skipProgression: isDriver ? undefined : true,
+        } satisfies PlannedExercise;
+      }
 
       // texas 주간(v2) 표시 역할 게이트.
       const isTexasV2 = family === "texas-method" && effectiveParams?.progressionModel === "v2";
@@ -1577,6 +1629,9 @@ export function applyManualRuntimeWeightOverrides(
   if (Object.keys(runtimeTrainingMax).length < 1) return exercises;
 
   return exercises.map((exercise) => {
+    // 진행에서 제외된 보조 행은 무게도 덮어쓰지 않는다. 운동명으로 family를 되짚는 방식이라
+    // 그냥 두면 Romanian Deadlift가 데드리프트 작업중량을, Seated Row가 바벨로우 중량을 받는다.
+    if (exercise.skipProgression === true) return exercise;
     const target = inferTargetFromExerciseName(exercise.exerciseName);
     if (!target) return exercise;
     const weight = runtimeTrainingMax[target];
@@ -1846,7 +1901,9 @@ async function buildSession(
             (effectivePlanParams as Record<string, unknown>)?.progressionModel === "v2";
           const enforceUniformLpReps =
             (manualEntry?.family === "starting-strength-lp" ||
-              manualEntry?.family === "stronglifts-5x5") &&
+              manualEntry?.family === "stronglifts-5x5" ||
+              manualEntry?.family === "reddit-ppl" ||
+              manualEntry?.family === "phul") &&
             (effectivePlanParams as Record<string, unknown>)?.progressionModel === "v2";
           snapshot.exercises = applyManualRuntimeWeightOverrides(
             manualEntry,
@@ -2047,7 +2104,9 @@ export function previewSessionExercises(
         (effectivePlanParams as Record<string, unknown>)?.progressionModel === "v2";
       const enforceUniformLpReps =
         (manualEntry?.family === "starting-strength-lp" ||
-          manualEntry?.family === "stronglifts-5x5") &&
+          manualEntry?.family === "stronglifts-5x5" ||
+          manualEntry?.family === "reddit-ppl" ||
+          manualEntry?.family === "phul") &&
         (effectivePlanParams as Record<string, unknown>)?.progressionModel === "v2";
       exercises = plannedExercisesFromManualSession(manualSession, {
         injectAmrapLastMainSet: injectGreyskullAmrap,

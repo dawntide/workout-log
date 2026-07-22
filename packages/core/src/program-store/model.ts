@@ -7,7 +7,11 @@ import {
 } from "./asymptote-blueprint";
 
 export { ASYMPTOTE_HYBRID_TM_PERCENT };
-import { lookupProgramFamily } from "./program-registry";
+import { lookupProgramFamily, usesPercentDerivedSets } from "./program-registry";
+import {
+  tacticalBarbellCluster,
+  tacticalBarbellSessionKeys,
+} from "./tactical-barbell-blueprint";
 
 export type ProgramTemplate = {
   id: string;
@@ -57,6 +61,20 @@ export type ProgramSlotMeta = {
   texasRole?: "volume" | "recovery" | "intensity"; // texas 요일 역할
   progressionKey?: string; // 슬롯 독립 진행 키(gzclp/texas per-slot LP). 운동명 교체에 면역.
   startWeightKg?: number; // 슬롯 시작 워킹 무게(reducer workKg가 생기기 전 첫 세션 폴백)
+  // 이 슬롯이 진행 판정을 주도하는지(madcow/nsuns). 한 운동의 workKg를 여러 요일이 공유할 때
+  // 판정은 한 슬롯만 맡아야 중복 증량을 막는다 — 비-driver 행은 무게만 파생하고 reducer에서 제외된다.
+  // 미지정(undefined)은 기존 family(gzclp/texas 등)의 슬롯-독립 LP를 그대로 뜻한다.
+  driver?: boolean;
+};
+
+// 세트별 처방 행. draft는 원래 운동당 (세트 수, reps) 두 숫자만 들고 있어서, 세트마다 퍼센트와
+// reps가 다른 프로그램(Madcow 램프 50/62.5/75/87.5/100%, nSuns T1 75/85/95→65%)을 fork하면
+// 구조가 균일 세트로 뭉개졌다. 그런 프로그램만 이 행을 함께 들고 다닌다.
+export type ProgramSetRowDraft = {
+  reps: number;
+  percent?: number;
+  note?: string;
+  amrap?: boolean;
 };
 
 export type ProgramExerciseDraft = {
@@ -70,6 +88,9 @@ export type ProgramExerciseDraft = {
   reps: number;
   note: string;
   slot?: ProgramSlotMeta | null; // 슬롯형 프로그램에서만 채워진다
+  // 퍼센트 파생 프로그램의 세트별 구조. 편집기에서 세트 수나 reps를 바꾸면 균일 처방으로
+  // 되돌아간다(toManualDefinition의 일치 검사) — 사용자가 명시적으로 손댄 결과이므로 의도된 동작.
+  setRows?: ProgramSetRowDraft[] | null;
 };
 
 export type ProgramSessionDraft = {
@@ -100,6 +121,10 @@ type ManualDefinitionSession = {
       reps: number;
       targetWeightKg: number;
       note?: string;
+      // 퍼센트 파생 프로그램(madcow/nsuns)의 세트별 처방. 무게는 슬롯 기준무게×percent로
+      // 계산되고, amrap은 nSuns T1의 판정 세트를 가리킨다.
+      percent?: number;
+      amrap?: boolean;
     }>;
   }>;
 };
@@ -193,6 +218,18 @@ const PROGRAM_DESCRIPTIONS: Record<ProgramStoreLocale, Partial<Record<string, st
       "메인 운동 뒤에 Boring But Big(BBB) 보조 운동을 더한 5/3/1 변형입니다. 이어지는 5×10 세트가 훨씬 큰 근비대·작업 능력 자극을 만들고, 핵심 진행은 여전히 5/3/1 톱세트에서 나옵니다. 스트렝스와 함께 더 큰 사이즈를 원하는 리프터를 위한 고볼륨 옵션입니다.",
     "greyskull-lp":
       "고전적인 바벨 기본기에 AMRAP 마지막 세트를 더한 초보자 선형 진행 프로그램입니다. 처음 두 작업 세트 뒤, 마지막 세트에서 최대한 많은 횟수를 시도해 그날 컨디션에 따라 볼륨이 자동으로 조절되도록 합니다. 진행은 단순하게 유지하면서도 초보자에게 더 많은 유연성과 선택적 보조 운동을 추가할 명확한 경로를 제공합니다.",
+    "tb-fighter":
+      "주 3~4일을 낼 수 없는 사람을 위한 2일짜리 Tactical Barbell 템플릿입니다. 매 세션에서 4대 리프트를 모두 다루고, 실제 1RM의 90%를 훈련 최대 중량(TM)으로 잡아 70~95% 구간을 Operator와 똑같은 6주 파형으로 돌립니다. 컨디셔닝·교대 근무·생활이 주중 대부분을 가져가는 상황에서도 근력을 계속 밀어올리기 위한 선택지입니다.",
+    "tb-zulu":
+      "두 가지 세션을 번갈아 도는 4일짜리 Tactical Barbell 템플릿입니다. 모든 메인 리프트를 주 2회 훈련하므로 Operator보다 스쿼트·벤치 빈도는 낮지만 데드리프트와 오버헤드 프레스는 훨씬 많아집니다. 주 4일을 낼 수 있고, 강도를 올리지 않으면서 더 여러 종목에 볼륨을 나누고 싶은 리프터에게 맞습니다.",
+    "reddit-ppl-6day":
+      "u/Metallicadpa가 만들어 r/Fitness 위키의 표준 추천이 된 푸시/풀/레그 루틴입니다. 6일 동안 푸시·풀·레그를 두 번 돌고, 각 세션은 바벨 메인 리프트 하나가 중심을 잡으며 단순 선형 증량으로 굴러갑니다. 나머지는 8~15회 구간의 보디빌딩 보조 운동이라, 초보자식 근력 진행을 유지하면서 사이즈를 위한 볼륨을 훨씬 많이 가져가고 싶은 사람에게 맞습니다.",
+    phul:
+      "무거운 훈련과 볼륨 훈련을 분리한 4일 상·하체 분할입니다. 파워데이 이틀은 메인 바벨 리프트를 3~5회 구간에서 밀어 근력을 올리고, 근비대일 이틀은 중간 강도 8~12회로 사이즈를 노립니다. 파워데이에서 쌓은 근력이 근비대일에 다룰 수 있는 무게를 끌어올리기 때문에, 근력과 사이즈를 동시에 원하는 중급자에게 꾸준히 인기 있는 구성입니다.",
+    "madcow-5x5":
+      "초보자 5×5를 졸업한 중급 리프터를 위한 고전적인 후속 프로그램입니다. 각 리프트는 12.5% 간격으로 램프해 5회 탑세트 하나에 도달하고, 한 주 전체가 그 무게 하나에 묶입니다. 월요일은 볼륨을 쌓고, 수요일은 가볍게 넘기며, 금요일은 월요일 탑세트를 넘어서는 새 트리플에 도전합니다. 증량이 세션마다가 아니라 주 1회로 느려지는 것이 바로 세션 단위 선형 증량이 끝난 뒤에도 이 프로그램이 굴러가는 이유입니다.",
+    "nsuns-lp-5day":
+      "5/3/1의 구조 위에 훨씬 많은 볼륨을 얹어 r/Fitness에서 태어난 고볼륨 선형 진행 프로그램입니다. 메인 리프트는 훈련 최대 중량(TM)의 퍼센트로 9세트를 수행하고, 95% AMRAP 세트에서 뽑아낸 횟수가 다음 주 TM 상승폭을 결정합니다 — 많이 할수록 크게 오릅니다. 각 요일마다 보조 리프트 8세트가 따라붙어 세션은 길지만, 후기 초보자와 초기 중급자에게는 그만큼 빠르게 진행됩니다.",
     "asymptote-protocol":
       "회복·영양·수면이 불안정한 중급 리프터를 위한 성과 기반(performance-gated) 스트렝스 프로그램입니다. 3개 세션(A/B/C)이 블록마다 적응·빌드·검증·디로드 네 단계를 순환하며, 훈련 최대 중량(TM)은 자동으로 오르지 않고 사이클 3의 AMRAP 검증을 통과해야만 갱신됩니다. 스쿼트·벤치·중량 풀업·데드리프트·오버헤드 프레스 5개 종목으로 구성되고, 보조 TM은 메인 종목에서 파생되며, 캘린더에 묶이지 않는 세션 기반 로테이션으로 진행됩니다.",
     "ref5-adaptive-strength":
@@ -219,6 +256,18 @@ const PROGRAM_DESCRIPTIONS: Record<ProgramStoreLocale, Partial<Record<string, st
       "A 5/3/1 variant that adds Boring But Big assistance after the main work. The follow-up 5x10 sets create a much larger hypertrophy and work-capacity stimulus while the core progression still comes from the 5/3/1 top sets. It is the volume-heavy option for lifters who want more size alongside strength.",
     "greyskull-lp":
       "A novice LP built on classic barbell basics with an AMRAP final set. After the first two work sets, the last set pushes for extra reps, letting volume auto-regulate based on how the athlete feels that day. It keeps progression simple while giving beginners more flexibility and a clearer path to adding optional assistance work.",
+    "tb-fighter":
+      "The two-day Tactical Barbell template for people whose schedule cannot absorb three or four lifting sessions. Every session covers all four main lifts at 70 to 95 percent of a 90 percent training max, running the same six-week wave as Operator. It is the option that keeps strength moving when conditioning, shift work, or life takes most of the week.",
+    "tb-zulu":
+      "The four-day Tactical Barbell template built on two alternating sessions. Every main lift is trained twice a week, which means less squatting and benching than Operator but considerably more deadlifting and overhead pressing. It suits lifters who can train four days and want the work spread across more lifts without raising the intensity.",
+    "reddit-ppl-6day":
+      "The r/Fitness push/pull/legs routine by u/Metallicadpa, run twice through in a six-day week. One barbell lift anchors each session and moves on plain linear progression, while the rest of the day is bodybuilding accessory work in the 8 to 15 rep range. It is the standard recommendation for lifters who want novice-style strength progress with far more volume for size.",
+    phul:
+      "A four-day upper/lower split that separates heavy work from volume work. Two power days drive the main barbell lifts in the 3 to 5 rep range, and two hypertrophy days chase size with moderate loads in the 8 to 12 range. Strength built on the power days raises what you can handle on the hypertrophy days, which is why it stays popular with intermediates who want both at once.",
+    "madcow-5x5":
+      "The classic intermediate successor to novice 5x5 programs. Each lift ramps in 12.5% steps to a single top set of five, and the whole week is anchored to that one number: Monday builds volume, Wednesday stays light, and Friday pushes past Monday's top set for a new weekly triple. Progression moves once per week instead of every session, which is exactly what makes it survivable once session-to-session linear gains are gone.",
+    "nsuns-lp-5day":
+      "A high-volume linear progression born on r/Fitness that rebuilt 5/3/1 around far more work per session. Every main lift runs nine sets off a 90% training max, and the 95% AMRAP set decides how much the training max moves next week: more reps, bigger jump. Each day pairs that main lift with a second lift for another eight sets, so sessions are long but progress is fast for late novices and early intermediates.",
     "asymptote-protocol":
       "A performance-gated strength program for intermediates whose recovery, nutrition, or sleep is inconsistent. Three rotating sessions (A/B/C) cycle through four phases per block — acclimation, build, validation, deload — and the training max only moves when a cycle-3 AMRAP earns it. Five lifts (Squat, Bench, Weighted Pull-Up, Deadlift, Overhead Press) with auxiliary TMs derived from the mains, on a session-based rotation that ignores the calendar.",
     "ref5-adaptive-strength":
@@ -820,6 +869,11 @@ export function selectDisplayStrengthBaselineKeys(keys: string[]): string[] {
 function oneRmTargetsFromManualDefinition(definition: any): OneRmTarget[] {
   if (definition?.kind !== "manual" || !Array.isArray(definition.sessions)) return [];
   const operatorStyle = definition?.operatorStyle === true || String(definition?.programFamily ?? "").trim().toLowerCase() === "operator";
+  // madcow/nsuns도 운동별 슬롯 프로그램이라 1RM을 family(SQUAT/BENCH/…)로 뭉치면 안 된다.
+  // 뭉치면 nSuns의 프론트 스쿼트가 백스쿼트 TM을, 클로즈그립이 벤치 TM을 그대로 물려받아
+  // 보조 리프트 처방이 과하게 무거워진다(원전 스프레드시트도 리프트별 TM을 따로 받는다).
+  const perExerciseBaselines =
+    operatorStyle || usesPercentDerivedSets(String(definition?.programFamily ?? ""));
   const out: OneRmTarget[] = [];
   for (const session of definition.sessions) {
     const items = Array.isArray(session?.items) ? session.items : [];
@@ -832,7 +886,7 @@ function oneRmTargetsFromManualDefinition(definition: any): OneRmTarget[] {
       if (operatorStyle && !isOperatorAutoRowType(rowType)) continue;
       const exerciseName = String(item?.exerciseName ?? item?.name ?? "").trim();
       if (!exerciseName) continue;
-      if (operatorStyle) {
+      if (perExerciseBaselines) {
         const key = manualExerciseKey(exerciseName);
         if (!out.some((entry) => entry.key === key)) {
           out.push({
@@ -920,6 +974,7 @@ function createFixedExerciseDraft(
   sets = 3,
   reps = 5,
   slot: ProgramSlotMeta | null = null,
+  setRows: ProgramSetRowDraft[] | null = null,
 ): ProgramExerciseDraft {
   return {
     id: uid("exercise"),
@@ -932,6 +987,7 @@ function createFixedExerciseDraft(
     reps,
     note: "",
     slot,
+    setRows,
   };
 }
 
@@ -1012,6 +1068,21 @@ export function buildSlottedLpSlot(
   return { role: { ko: label, en: texasRole ?? sessionKey }, sessionKey, texasRole, progressionKey, startWeightKg: startW };
 }
 
+/** 정의의 세트 배열 → draft 세트 행. 진행에 쓰이는 값(reps·percent·amrap)과 표시 note만 남긴다. */
+function toSetRowDrafts(sets: any[]): ProgramSetRowDraft[] | null {
+  if (!Array.isArray(sets) || sets.length === 0) return null;
+  return sets.map((set: any) => {
+    const percent = Number(set?.percent);
+    const note = typeof set?.note === "string" ? set.note.trim() : "";
+    return {
+      reps: Math.max(1, Math.round(Number(set?.reps) || 5)),
+      ...(Number.isFinite(percent) && percent > 0 ? { percent } : {}),
+      ...(note ? { note } : {}),
+      ...(set?.amrap === true ? { amrap: true } : {}),
+    };
+  });
+}
+
 function slottedLpSessionDrafts(sessions: any[], family: string): ProgramSessionDraft[] {
   return sessions.map((session: any) => {
     const sessionKey = String(session?.key ?? "").trim() || "D1";
@@ -1040,42 +1111,32 @@ function slottedLpSessionDrafts(sessions: any[], family: string): ProgramSession
           Math.max(1, setRows.length || 1),
           Math.max(1, Number(first?.reps) || 5),
           slot,
+          // 퍼센트 파생 family만 세트별 구조를 들고 다닌다. gzclp/texas는 세트가 균일해
+          // (setCount, reps)만으로 왕복이 되므로 굳이 늘리지 않는다.
+          usesPercentDerivedSets(family) ? toSetRowDrafts(setRows) : null,
         );
       }),
     };
   });
 }
 
-function operatorSessionDrafts(): ProgramSessionDraft[] {
-  return [
-    {
-      id: uid("session"),
-      key: "D1",
-      exercises: [
-        createFixedExerciseDraft(EXERCISE_NAMES.highBarBackSquat, "AUTO", "SQUAT"),
-        createFixedExerciseDraft("Bench Press", "AUTO", "BENCH"),
-        createFixedExerciseDraft("Pull-Up", "AUTO", "PULL"),
-      ],
-    },
-    {
-      id: uid("session"),
-      key: "D2",
-      exercises: [
-        createFixedExerciseDraft(EXERCISE_NAMES.highBarBackSquat, "AUTO", "SQUAT"),
-        createFixedExerciseDraft("Bench Press", "AUTO", "BENCH"),
-        createFixedExerciseDraft("Pull-Up", "AUTO", "PULL"),
-      ],
-    },
-    {
-      id: uid("session"),
-      key: "D3",
-      exercises: [
-        createFixedExerciseDraft(EXERCISE_NAMES.highBarBackSquat, "AUTO", "SQUAT"),
-        createFixedExerciseDraft("Bench Press", "AUTO", "BENCH"),
-        createFixedExerciseDraft("Deadlift", "AUTO", "DEADLIFT"),
-      ],
-    },
-  ];
+// Tactical Barbell 세션 draft. Operator/Fighter/Zulu가 같은 엔진을 쓰고 세션 구성만 다르므로,
+// 하드코딩된 3일 대신 정의의 variant 클러스터에서 만든다 — 안 그러면 Fighter를 커스터마이즈할 때
+// 주 2일 구성이 Operator 주 3일로 바뀐다.
+function operatorSessionDrafts(variant?: unknown): ProgramSessionDraft[] {
+  const cluster = tacticalBarbellCluster(variant);
+  const keys = tacticalBarbellSessionKeys(variant);
+  return cluster.map((targets, index) => ({
+    id: uid("session"),
+    key: keys[index] ?? `D${index + 1}`,
+    exercises: targets.map((target) =>
+      createFixedExerciseDraft(
+        defaultExerciseNameForTarget(target),
+        "AUTO",
+        target as ProgramProgressionTarget,
+      ),
+    ),
+  }));
 }
 
 function sessionKeysFromTargets(targets: string[]): string[] {
@@ -1091,7 +1152,10 @@ export function inferSessionDraftsFromTemplate(template: ProgramTemplate): Progr
   // 슬롯 메타(tier·진행키·시작무게)를 주입하는 전용 빌더를 먼저 탄다.
   const slottedLpFamily = resolveProgramFamily(template);
   if (
-    (slottedLpFamily === "gzclp" || slottedLpFamily === "texas-method") &&
+    (slottedLpFamily === "gzclp" ||
+      slottedLpFamily === "texas-method" ||
+      slottedLpFamily === "madcow-5x5" ||
+      slottedLpFamily === "nsuns-lp") &&
     Array.isArray(definition.sessions)
   ) {
     return slottedLpSessionDrafts(definition.sessions, slottedLpFamily);
@@ -1101,7 +1165,7 @@ export function inferSessionDraftsFromTemplate(template: ProgramTemplate): Progr
     if (mapped.length > 0) return mapped;
   }
   if (isOperatorTemplate(template)) {
-    return operatorSessionDrafts();
+    return operatorSessionDrafts((definition as { variant?: unknown })?.variant);
   }
 
   if (definition?.kind === "asymptote") {
@@ -1272,6 +1336,39 @@ export function reorderExercises(
   });
 }
 
+/**
+ * 세트별 구조를 그대로 되살린다 — 단, 편집기에서 손대지 않았을 때만.
+ *
+ * 편집기는 운동당 (세트 수, reps) 두 숫자만 노출하므로, 사용자가 그 값을 바꿨는지는
+ * 보존해 둔 행과 비교해서만 알 수 있다. 세트 수가 달라졌거나 reps가 첫 행과 달라졌으면
+ * 사용자가 명시적으로 바꾼 것이므로 균일 처방으로 되돌린다(편집이 조용히 무시되는 것보다 낫다).
+ */
+function preservedSetRows(exercise: ProgramExerciseDraft) {
+  const rows = exercise.setRows;
+  if (!Array.isArray(rows) || rows.length === 0) return null;
+  if (rows.length !== Math.max(1, exercise.sets)) return null;
+  if (Math.max(1, Math.round(exercise.reps)) !== Math.max(1, Math.round(rows[0]!.reps))) return null;
+
+  return rows.map((row, index) => ({
+    setNumber: index + 1,
+    reps: Math.max(1, Math.round(row.reps)),
+    // 무게는 슬롯 기준무게(startWeightKg/TM)×percent로 처방이 계산하므로 0으로 둔다.
+    targetWeightKg: 0,
+    ...(row.percent !== undefined ? { percent: row.percent } : {}),
+    ...(row.note ? { note: row.note } : {}),
+    ...(row.amrap === true ? { amrap: true } : {}),
+  }));
+}
+
+function uniformSetRows(exercise: ProgramExerciseDraft, note: string | undefined) {
+  return Array.from({ length: Math.max(1, exercise.sets) }, (_, index) => ({
+    setNumber: index + 1,
+    reps: Math.max(1, Math.round(exercise.reps)),
+    targetWeightKg: 0,
+    note,
+  }));
+}
+
 export function toManualDefinition(
   sessions: ProgramSessionDraft[],
   options?: { operatorStyle?: boolean; programFamily?: string | null },
@@ -1279,23 +1376,22 @@ export function toManualDefinition(
   const normalized: ManualDefinitionSession[] = sessions.map((session) => ({
     key: session.key,
     name: `Session ${session.key}`,
-    items: session.exercises.map((exercise) => ({
-      exerciseName: exercise.exerciseName.trim() || "Unnamed Exercise",
-      role: "MAIN",
-      rowType: exercise.rowType ?? undefined,
-      progressionTarget: exercise.progressionTarget ?? undefined,
-      slot: exercise.slot ?? undefined,
-      sets: Array.from({ length: Math.max(1, exercise.sets) }, (_, index) => ({
-        setNumber: index + 1,
-        reps: Math.max(1, Math.round(exercise.reps)),
-        targetWeightKg: 0,
-        note:
-          exercise.note.trim() ||
-          (exercise.mode === "MARKET" && exercise.marketTemplateSlug
-            ? `based-on:${exercise.marketTemplateSlug}`
-            : undefined),
-      })),
-    })),
+    items: session.exercises.map((exercise) => {
+      const fallbackNote =
+        exercise.note.trim() ||
+        (exercise.mode === "MARKET" && exercise.marketTemplateSlug
+          ? `based-on:${exercise.marketTemplateSlug}`
+          : undefined);
+
+      return {
+        exerciseName: exercise.exerciseName.trim() || "Unnamed Exercise",
+        role: "MAIN" as const,
+        rowType: exercise.rowType ?? undefined,
+        progressionTarget: exercise.progressionTarget ?? undefined,
+        slot: exercise.slot ?? undefined,
+        sets: preservedSetRows(exercise) ?? uniformSetRows(exercise, fallbackNote),
+      };
+    }),
   }));
 
   return {

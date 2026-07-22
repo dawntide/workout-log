@@ -4,6 +4,16 @@ import {
   ASYMPTOTE_AMRAP_TARGETS_BY_SESSION,
   deriveAsymptoteAuxTms,
 } from "../program-engine/asymptote";
+import {
+  MADCOW_FAIL_RESET_THRESHOLD,
+  MADCOW_RESET_FACTOR,
+  MADCOW_WEEKLY_INCREASE_KG,
+} from "../program-store/madcow-blueprint";
+import {
+  NSUNS_FAIL_RESET_THRESHOLD,
+  NSUNS_RESET_FACTOR,
+  nsunsTmIncreaseKg,
+} from "../program-store/nsuns-blueprint";
 
 export type ProgressionProgram =
   | "operator"
@@ -13,7 +23,11 @@ export type ProgressionProgram =
   | "texas-method"
   | "gzclp"
   | "wendler-531"
-  | "asymptote";
+  | "asymptote"
+  | "madcow-5x5"
+  | "nsuns-lp"
+  | "reddit-ppl"
+  | "phul";
 
 export type ProgressionEventType = "INCREASE" | "HOLD" | "RESET" | "ADVANCE_WEEK";
 
@@ -206,6 +220,26 @@ export function rulesFor(
       increaseKg: target === "DEADLIFT" ? 5 : 2.5,
       resetFactor: 0.9,
     };
+  } else if (program === "madcow-5x5") {
+    // Madcow 5x5: 주 1회(금요일 PR 트리플, 수요일 OHP/DL 탑세트) 도달 → 전 리프트 +2.5kg 고정.
+    // 원전은 "탑세트 약 2.5%"인데 앱 그리드가 2.5kg라 퍼센트 누적이 경량 리프트에서 반올림에
+    // 흡수된다(45×1.025=46.1→45, 영구 정체). 2.5kg 고정이 스쿼트 원전(주 5lb≈2.27kg)에 가장
+    // 가까운 그리드 근사다. 2주 연속 실패 시 ×0.9 디로드 후 재램프(원전 규칙).
+    defaults = {
+      increaseEverySuccesses: 1,
+      failResetThreshold: MADCOW_FAIL_RESET_THRESHOLD,
+      increaseKg: MADCOW_WEEKLY_INCREASE_KG,
+      resetFactor: MADCOW_RESET_FACTOR,
+    };
+  } else if (program === "nsuns-lp") {
+    // nSuns LP: T1은 95%×1+ AMRAP 실측 reps로 증가폭이 갈리므로(전용 분기) 여기 값은 T2(보조)
+    // 슬롯의 LP에 쓰인다 — 완수 시 하체 +5 / 상체 +2.5.
+    defaults = {
+      increaseEverySuccesses: 1,
+      failResetThreshold: 3,
+      increaseKg: target === "DEADLIFT" || target === "SQUAT" ? 5 : 2.5,
+      resetFactor: NSUNS_RESET_FACTOR,
+    };
   } else if (program === "asymptote") {
     // Asymptote Protocol: 블록 종료 시 AMRAP 결과로만 TM 변동 (±2.5/유지/-5).
     // rulesFor는 override(수동) 경로의 안전 디폴트로만 사용된다.
@@ -216,8 +250,10 @@ export function rulesFor(
       resetFactor: 0.95,
     };
   } else {
-    // greyskull-lp, starting-strength-lp, stronglifts-5x5:
-    // 매 세션 증량, 3회 연속 실패 시 10% 감소
+    // greyskull-lp, starting-strength-lp, stronglifts-5x5, reddit-ppl, phul:
+    // 매 세션 증량, 3회 연속 실패 시 10% 감소.
+    // reddit-ppl 원전(세션당 상체 5lb·데드 10lb, 3연속 실패 시 -10%)과 정확히 같은 규칙이고,
+    // phul은 "레인지 상단 달성 시 증량"이라 처방 reps를 상단(파워데이 5회)으로 두어 같은 규칙에 태운다.
     defaults = {
       increaseEverySuccesses: 1,
       failResetThreshold: 3,
@@ -282,7 +318,12 @@ export function targetsFor(program: ProgressionProgram): ProgressionTarget[] {
 // asymptote/531은 블록 기반이라 고정 family target을 쓴다(여기 포함되지 않음).
 export function usesDynamicProgressionKeys(program: ProgressionProgram): boolean {
   return (
-    program === "operator" || program === "gzclp" || program === "texas-method"
+    program === "operator" ||
+    program === "gzclp" ||
+    program === "texas-method" ||
+    // madcow/nsuns는 운동별(EX_) 슬롯 키를 쓴다 — 고정 family target 집합이 아니다.
+    program === "madcow-5x5" ||
+    program === "nsuns-lp"
   );
 }
 
@@ -297,6 +338,15 @@ function initTargetState(progressionTarget: ProgressionTarget, initialWorkKg: nu
 
 // 정석 stage/주간 모델(v2) 옵트인 플래그. 기존 플랜은 부재로 기존 LP 유지(forward-only) →
 // 진행 중 유저의 rep 스킴이 갑자기 바뀌는 체감 변화·rebuild 과거 오염 방지.
+// Operator 계열(TB Operator/Fighter/Zulu)의 주당 세션 수. 블록(6주) 완주 판정과 요일 롤오버에 쓴다.
+// 미설정/이상값은 3(Operator 기본)으로 떨어져 기존 플랜의 진행이 바뀌지 않는다.
+function readOperatorSessionsPerWeek(planParams: unknown): number {
+  const raw = toFiniteNumber((planParams as { sessionsPerWeek?: unknown } | null)?.sessionsPerWeek);
+  if (raw === null) return 3;
+  const normalized = Math.floor(raw);
+  return normalized >= 1 && normalized <= 7 ? normalized : 3;
+}
+
 function isProgressionModelV2(planParams: unknown): boolean {
   return (planParams as { progressionModel?: unknown } | null | undefined)?.progressionModel === "v2";
 }
@@ -401,6 +451,10 @@ export function resolveAutoProgressionProgram(programSlug: string, definition?: 
   if (slug === "gzclp") return "gzclp";
   if (slug === "wendler-531" || slug === "wendler-531-fsl" || slug === "wendler-531-bbb") return "wendler-531";
   if (slug === "asymptote-protocol" || slug === "asymptote") return "asymptote";
+  if (slug === "madcow-5x5") return "madcow-5x5";
+  if (slug === "nsuns-lp-5day") return "nsuns-lp";
+  if (slug === "reddit-ppl-6day") return "reddit-ppl";
+  if (slug === "phul") return "phul";
   if (kind === "operator" || family === "operator" || def.operatorStyle === true) return "operator";
   if (kind === "greyskull-lp" || family === "greyskull-lp") return "greyskull-lp";
   if (kind === "starting-strength-lp" || family === "starting-strength-lp") return "starting-strength-lp";
@@ -409,6 +463,10 @@ export function resolveAutoProgressionProgram(programSlug: string, definition?: 
   if (kind === "gzclp" || family === "gzclp") return "gzclp";
   if (kind === "531" || family === "wendler-531") return "wendler-531";
   if (kind === "asymptote" || family === "asymptote") return "asymptote";
+  if (kind === "madcow-5x5" || family === "madcow-5x5") return "madcow-5x5";
+  if (kind === "nsuns-lp" || family === "nsuns-lp") return "nsuns-lp";
+  if (kind === "reddit-ppl" || family === "reddit-ppl") return "reddit-ppl";
+  if (kind === "phul" || family === "phul") return "phul";
   return null;
 }
 
@@ -741,6 +799,70 @@ export function reduceProgressionState(input: {
       continue;
     }
 
+    // nSuns LP. 한 운동의 TM을 여러 요일이 공유하므로 처방이 driver 슬롯에만 progressionKey를
+    // 흘린다(비-driver는 skipProgression) — 여기 도달하는 건 리프트당 주 1회다.
+    //  · T1: 95%×1+ 세트의 실측 reps가 TM 증가폭을 정한다(2~3→+2.5, 4~5→+5, 6+→+7.5).
+    //    0~1회는 무게가 과하다는 신호라 증량 없이 홀드하고, 2회 연속이면 ×0.9로 재빌드한다.
+    //  · T2(보조 전용 리프트): AMRAP이 없으므로 전 세트 완수 기준 LP(하체 +5 / 상체 +2.5).
+    if (input.program === "nsuns-lp") {
+      const nsRule = rulesFor(
+        input.program,
+        progressionTarget,
+        readIncrementOverride(input.planParams, key, progressionTarget),
+      );
+      const amrapReps = toFiniteNumber(outcome.amrapReps);
+
+      if (amrapReps !== null) {
+        const increaseKg = nsunsTmIncreaseKg(amrapReps);
+        if (increaseKg > 0) {
+          next.workKg = toPositiveRounded2p5(next.workKg + increaseKg);
+          next.successStreak += 1;
+          next.failureStreak = 0;
+          eventType = "INCREASE";
+          reason = `increase:amrap-${amrapReps}reps:+${increaseKg}kg`;
+        } else {
+          next.failureStreak += 1;
+          next.successStreak = 0;
+          reason = `hold:amrap-${amrapReps}reps`;
+          if (next.failureStreak >= NSUNS_FAIL_RESET_THRESHOLD) {
+            next.workKg = toPositiveRounded2p5(next.workKg * NSUNS_RESET_FACTOR);
+            next.failureStreak = 0;
+            eventType = "RESET";
+            reason = `reset:amrap-stall:*${NSUNS_RESET_FACTOR}`;
+          }
+        }
+      } else if (success) {
+        next.workKg = toPositiveRounded2p5(next.workKg + nsRule.increaseKg);
+        next.successStreak += 1;
+        next.failureStreak = 0;
+        eventType = "INCREASE";
+        reason = `increase:t2:+${nsRule.increaseKg}kg`;
+      } else {
+        next.failureStreak += 1;
+        next.successStreak = 0;
+        reason = "hold:t2-failure";
+        if (next.failureStreak >= nsRule.failResetThreshold) {
+          next.workKg = toPositiveRounded2p5(next.workKg * nsRule.resetFactor);
+          next.failureStreak = 0;
+          eventType = "RESET";
+          reason = `reset:t2-fail:*${nsRule.resetFactor}`;
+        }
+      }
+
+      state.targets[key] = next;
+      decisions.push({
+        key,
+        target: outcome.displayTarget,
+        progressionTarget,
+        outcome: eventType === "INCREASE" ? "SUCCESS" : "FAIL",
+        reason,
+        eventType,
+        before,
+        after: next,
+      });
+      continue;
+    }
+
     // Greyskull LP 정석(v2 옵트인). 메인 리프트 마지막 세트가 AMRAP(5+)이며, 그 실측 reps가
     // 진행을 자기조절한다: ≥10이면 더블 프로그레션(증량 2배, Phrak's), ≥5이면 단일 증량,
     // <5(실패)는 2회 연속 시 디로드(×resetFactor=0.9). 같은 무게의 work set과 AMRAP을 함께 쓰므로
@@ -855,11 +977,17 @@ export function reduceProgressionState(input: {
     input.program === "stronglifts-5x5" ||
     input.program === "greyskull-lp"
       ? 2
-      : input.program === "texas-method"
+      : input.program === "texas-method" || input.program === "madcow-5x5"
         ? 3
         : input.program === "gzclp"
           ? 4
-          : null;
+          : input.program === "nsuns-lp"
+            ? 5
+            : input.program === "reddit-ppl"
+              ? 6
+              : input.program === "phul"
+                ? 4
+                : null;
   const hasLoggedProgramSet = input.sets.some((set) => {
     if (set.isExtra) return false;
     const reps = toFiniteNumber(set.reps);
@@ -877,11 +1005,15 @@ export function reduceProgressionState(input: {
 
   if (input.program === "operator") {
     const loggedTargets = Array.from(outcomes.keys()).filter((key) => outcomes.get(key)?.total);
-    const completedBlock = state.week === 6 && state.day === 3;
+    // Tactical Barbell 템플릿별 주당 세션 수(Operator 3 / Fighter 2 / Zulu 4). reducer는 프로그램
+    // 정의를 못 보므로 시작 시 정의의 schedule.sessionsPerWeek에서 흘러온 planParams 값을 읽는다.
+    // 값이 없으면 3 — 기존 Operator 플랜은 이 필드가 없어도 동작이 그대로다.
+    const sessionsPerWeek = readOperatorSessionsPerWeek(input.planParams);
+    const completedBlock = state.week === 6 && state.day === sessionsPerWeek;
 
     if (loggedTargets.length > 0) {
       state.day += 1;
-      if (state.day > 3) {
+      if (state.day > sessionsPerWeek) {
         state.day = 1;
         state.week += 1;
         if (state.week > 6) {

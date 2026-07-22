@@ -115,7 +115,66 @@ export const PROGRAM_FAMILY_REGISTRY: ProgramFamilyEntry[] = [
     progressionProgram: "texas-method",
     weightOverrideMode: "slotted-internal",
   },
+  {
+    // madcow: 운동별 슬롯 — 월/수/금이 같은 탑세트 workKg를 공유하고 세트는 퍼센트로 파생된다.
+    family: "madcow-5x5",
+    slugs: ["madcow-5x5"],
+    kinds: ["madcow-5x5"],
+    flowStyle: "slotted",
+    manualPlanner: "slotted-lp",
+    progressionProgram: "madcow-5x5",
+    weightOverrideMode: "slotted-internal",
+  },
+  {
+    // reddit-ppl: 메인 리프트만 family LP로 굴리고 보조는 ASSIST(진행 제외)로 둔다.
+    family: "reddit-ppl",
+    slugs: ["reddit-ppl-6day"],
+    kinds: ["reddit-ppl"],
+    flowStyle: "uniform",
+    manualPlanner: "generic",
+    progressionProgram: "reddit-ppl",
+    weightOverrideMode: "family-target",
+  },
+  {
+    // phul: 파워데이 메인만 family LP. 근비대일은 전부 ASSIST라 같은 family를 두 번 굴리지 않는다.
+    family: "phul",
+    slugs: ["phul"],
+    kinds: ["phul"],
+    flowStyle: "uniform",
+    manualPlanner: "generic",
+    progressionProgram: "phul",
+    weightOverrideMode: "family-target",
+  },
+  {
+    // nsuns: 운동별 슬롯(TM) — 같은 리프트가 T1/T2로 여러 날 등장해도 TM 하나를 공유한다.
+    family: "nsuns-lp",
+    slugs: ["nsuns-lp-5day"],
+    kinds: ["nsuns-lp"],
+    flowStyle: "slotted",
+    manualPlanner: "slotted-lp",
+    progressionProgram: "nsuns-lp",
+    weightOverrideMode: "slotted-internal",
+  },
 ];
+
+// 운동별 진행 슬롯 키(`EX_BENCH_PRESS`). operator의 per-exercise 키와 같은 규약으로,
+// madcow/nsuns처럼 여러 요일이 한 운동의 workKg를 공유하는 프로그램이 이 키로 묶인다.
+// model.ts(스토어 draft)·generateSession(처방)·seed가 같은 키를 만들어야 하므로 여기 단일 정의.
+export function exerciseSlotKey(exerciseName: string): string {
+  return `EX_${String(exerciseName)
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, 48)}`;
+}
+
+// 세트 무게를 슬롯 workKg의 퍼센트로 파생하는 family. 나머지 slotted-lp(gzclp/texas)는
+// 전 세트가 동일 workKg라 percent를 무시한다 — 여기 추가하면 그 동작이 바뀌니 주의.
+export function usesPercentDerivedSets(family: string | null | undefined): boolean {
+  const normalized = String(family ?? "").trim().toLowerCase();
+  return normalized === "madcow-5x5" || normalized === "nsuns-lp";
+}
 
 // slug / kind / family 중 하나로 레지스트리 엔트리를 찾는다. fork는 family로, 원본은 slug/kind로 매칭된다.
 // 우선순위: family > slug > kind (fork의 family가 가장 신뢰도 높은 식별자).
