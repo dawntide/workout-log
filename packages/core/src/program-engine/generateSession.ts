@@ -36,6 +36,7 @@ import {
   buildRef5PlanSession,
   isRef5PlanParams,
 } from "./ref5-integration";
+import { tacticalBarbellCluster } from "@workout/core/program-store/tactical-barbell-blueprint";
 import {
   wendler531WeekSets,
   WENDLER_531_FSL_SETS,
@@ -88,6 +89,7 @@ type LogicDefinitionV1 = {
   cluster?: string[]; // legacy support
   progression?: Record<string, any>;
   assistance?: string; // 5/3/1: "FSL" | "BBB" | "NONE"
+  variant?: string; // Tactical Barbell: "operator" | "fighter" | "zulu"
 };
 
 type PlannedSet = {
@@ -531,13 +533,14 @@ function generate531(def: LogicDefinitionV1, ctx: GeneratorCtx): PlannedExercise
 }
 
 function generateOperator(def: LogicDefinitionV1, ctx: GeneratorCtx): PlannedExercise[] {
-  const dayInWeek = ((ctx.day - 1) % 3) + 1;
+  // 템플릿별 요일 클러스터. 6주 파형(70/80/90/75/85/95)과 블록 증량 규칙은 셋이 공유하고,
+  // 차이는 주당 세션 수와 세션별 리프트 구성뿐이다(TB 공식: 같은 파형, 다른 스케줄).
+  const cluster = tacticalBarbellCluster(def.variant);
+  const dayInWeek = ((ctx.day - 1) % cluster.length) + 1;
   const forcedTarget = normalizeProgressionTarget(ctx.forcedTarget);
   const targets: ProgressionTarget[] = forcedTarget
     ? [forcedTarget]
-    : dayInWeek === 3
-      ? ["SQUAT", "BENCH", "DEADLIFT"]
-      : ["SQUAT", "BENCH", "PULL"];
+    : (cluster[dayInWeek - 1] ?? cluster[0]!);
   const weekInCycle = ((ctx.week - 1) % 6) + 1;
   const mainSets = Math.min(
     5,

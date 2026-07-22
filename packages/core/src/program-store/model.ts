@@ -8,6 +8,10 @@ import {
 
 export { ASYMPTOTE_HYBRID_TM_PERCENT };
 import { lookupProgramFamily, usesPercentDerivedSets } from "./program-registry";
+import {
+  tacticalBarbellCluster,
+  tacticalBarbellSessionKeys,
+} from "./tactical-barbell-blueprint";
 
 export type ProgramTemplate = {
   id: string;
@@ -197,6 +201,10 @@ const PROGRAM_DESCRIPTIONS: Record<ProgramStoreLocale, Partial<Record<string, st
       "메인 운동 뒤에 Boring But Big(BBB) 보조 운동을 더한 5/3/1 변형입니다. 이어지는 5×10 세트가 훨씬 큰 근비대·작업 능력 자극을 만들고, 핵심 진행은 여전히 5/3/1 톱세트에서 나옵니다. 스트렝스와 함께 더 큰 사이즈를 원하는 리프터를 위한 고볼륨 옵션입니다.",
     "greyskull-lp":
       "고전적인 바벨 기본기에 AMRAP 마지막 세트를 더한 초보자 선형 진행 프로그램입니다. 처음 두 작업 세트 뒤, 마지막 세트에서 최대한 많은 횟수를 시도해 그날 컨디션에 따라 볼륨이 자동으로 조절되도록 합니다. 진행은 단순하게 유지하면서도 초보자에게 더 많은 유연성과 선택적 보조 운동을 추가할 명확한 경로를 제공합니다.",
+    "tb-fighter":
+      "주 3~4일을 낼 수 없는 사람을 위한 2일짜리 Tactical Barbell 템플릿입니다. 매 세션에서 4대 리프트를 모두 다루고, 실제 1RM의 90%를 훈련 최대 중량(TM)으로 잡아 70~95% 구간을 Operator와 똑같은 6주 파형으로 돌립니다. 컨디셔닝·교대 근무·생활이 주중 대부분을 가져가는 상황에서도 근력을 계속 밀어올리기 위한 선택지입니다.",
+    "tb-zulu":
+      "두 가지 세션을 번갈아 도는 4일짜리 Tactical Barbell 템플릿입니다. 모든 메인 리프트를 주 2회 훈련하므로 Operator보다 스쿼트·벤치 빈도는 낮지만 데드리프트와 오버헤드 프레스는 훨씬 많아집니다. 주 4일을 낼 수 있고, 강도를 올리지 않으면서 더 여러 종목에 볼륨을 나누고 싶은 리프터에게 맞습니다.",
     "reddit-ppl-6day":
       "u/Metallicadpa가 만들어 r/Fitness 위키의 표준 추천이 된 푸시/풀/레그 루틴입니다. 6일 동안 푸시·풀·레그를 두 번 돌고, 각 세션은 바벨 메인 리프트 하나가 중심을 잡으며 단순 선형 증량으로 굴러갑니다. 나머지는 8~15회 구간의 보디빌딩 보조 운동이라, 초보자식 근력 진행을 유지하면서 사이즈를 위한 볼륨을 훨씬 많이 가져가고 싶은 사람에게 맞습니다.",
     phul:
@@ -231,6 +239,10 @@ const PROGRAM_DESCRIPTIONS: Record<ProgramStoreLocale, Partial<Record<string, st
       "A 5/3/1 variant that adds Boring But Big assistance after the main work. The follow-up 5x10 sets create a much larger hypertrophy and work-capacity stimulus while the core progression still comes from the 5/3/1 top sets. It is the volume-heavy option for lifters who want more size alongside strength.",
     "greyskull-lp":
       "A novice LP built on classic barbell basics with an AMRAP final set. After the first two work sets, the last set pushes for extra reps, letting volume auto-regulate based on how the athlete feels that day. It keeps progression simple while giving beginners more flexibility and a clearer path to adding optional assistance work.",
+    "tb-fighter":
+      "The two-day Tactical Barbell template for people whose schedule cannot absorb three or four lifting sessions. Every session covers all four main lifts at 70 to 95 percent of a 90 percent training max, running the same six-week wave as Operator. It is the option that keeps strength moving when conditioning, shift work, or life takes most of the week.",
+    "tb-zulu":
+      "The four-day Tactical Barbell template built on two alternating sessions. Every main lift is trained twice a week, which means less squatting and benching than Operator but considerably more deadlifting and overhead pressing. It suits lifters who can train four days and want the work spread across more lifts without raising the intensity.",
     "reddit-ppl-6day":
       "The r/Fitness push/pull/legs routine by u/Metallicadpa, run twice through in a six-day week. One barbell lift anchors each session and moves on plain linear progression, while the rest of the day is bodybuilding accessory work in the 8 to 15 rep range. It is the standard recommendation for lifters who want novice-style strength progress with far more volume for size.",
     phul:
@@ -1071,36 +1083,23 @@ function slottedLpSessionDrafts(sessions: any[], family: string): ProgramSession
   });
 }
 
-function operatorSessionDrafts(): ProgramSessionDraft[] {
-  return [
-    {
-      id: uid("session"),
-      key: "D1",
-      exercises: [
-        createFixedExerciseDraft(EXERCISE_NAMES.highBarBackSquat, "AUTO", "SQUAT"),
-        createFixedExerciseDraft("Bench Press", "AUTO", "BENCH"),
-        createFixedExerciseDraft("Pull-Up", "AUTO", "PULL"),
-      ],
-    },
-    {
-      id: uid("session"),
-      key: "D2",
-      exercises: [
-        createFixedExerciseDraft(EXERCISE_NAMES.highBarBackSquat, "AUTO", "SQUAT"),
-        createFixedExerciseDraft("Bench Press", "AUTO", "BENCH"),
-        createFixedExerciseDraft("Pull-Up", "AUTO", "PULL"),
-      ],
-    },
-    {
-      id: uid("session"),
-      key: "D3",
-      exercises: [
-        createFixedExerciseDraft(EXERCISE_NAMES.highBarBackSquat, "AUTO", "SQUAT"),
-        createFixedExerciseDraft("Bench Press", "AUTO", "BENCH"),
-        createFixedExerciseDraft("Deadlift", "AUTO", "DEADLIFT"),
-      ],
-    },
-  ];
+// Tactical Barbell 세션 draft. Operator/Fighter/Zulu가 같은 엔진을 쓰고 세션 구성만 다르므로,
+// 하드코딩된 3일 대신 정의의 variant 클러스터에서 만든다 — 안 그러면 Fighter를 커스터마이즈할 때
+// 주 2일 구성이 Operator 주 3일로 바뀐다.
+function operatorSessionDrafts(variant?: unknown): ProgramSessionDraft[] {
+  const cluster = tacticalBarbellCluster(variant);
+  const keys = tacticalBarbellSessionKeys(variant);
+  return cluster.map((targets, index) => ({
+    id: uid("session"),
+    key: keys[index] ?? `D${index + 1}`,
+    exercises: targets.map((target) =>
+      createFixedExerciseDraft(
+        defaultExerciseNameForTarget(target),
+        "AUTO",
+        target as ProgramProgressionTarget,
+      ),
+    ),
+  }));
 }
 
 function sessionKeysFromTargets(targets: string[]): string[] {
@@ -1129,7 +1128,7 @@ export function inferSessionDraftsFromTemplate(template: ProgramTemplate): Progr
     if (mapped.length > 0) return mapped;
   }
   if (isOperatorTemplate(template)) {
-    return operatorSessionDrafts();
+    return operatorSessionDrafts((definition as { variant?: unknown })?.variant);
   }
 
   if (definition?.kind === "asymptote") {

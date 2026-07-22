@@ -268,6 +268,55 @@ export async function runSeed(options: SeedRunOptions = {}) {
     },
   });
 
+  // 1b) Tactical Barbell Fighter / Zulu — Operator와 같은 엔진(kind: "operator").
+  // 6주 파형과 블록 증량 규칙은 공유하고 주당 세션 수·세션 구성만 다르다(variant).
+  // schedule.sessionsPerWeek는 시작 시 planParams로 흘러가 reducer의 블록 완주 판정 기준이 된다.
+  const templateFighter = await upsertTemplate("tb-fighter", {
+    slug: "tb-fighter",
+    name: "Tactical Barbell Fighter",
+    type: "LOGIC",
+    visibility: "PUBLIC",
+    description:
+      "The two-day Tactical Barbell template for people whose schedule cannot absorb three or four lifting sessions. Every session covers all four main lifts at 70 to 95 percent of a 90 percent training max, running the same six-week wave as Operator. It is the option that keeps strength moving when conditioning, shift work, or life takes most of the week.",
+    tags: ["strength", "barbell", "tactical-barbell", "fighter", "low-frequency", "block-periodization"],
+  });
+
+  const templateFighterV1 = await upsertVersion(templateFighter.id, 1, {
+    definition: {
+      dslVersion: 1,
+      kind: "operator",
+      variant: "fighter",
+      schedule: { weeks: 6, sessionsPerWeek: 2 },
+      modules: ["SQUAT", "BENCH", "OHP", "DEADLIFT"],
+      progression: { profile: "fighter", mainSets: 3, deadliftSets: 3 },
+    },
+    defaults: { tmPercent: 0.9 },
+    changelog: "Canonical 2-day Fighter cluster on the shared 6-week wave",
+  });
+
+  const templateZulu = await upsertTemplate("tb-zulu", {
+    slug: "tb-zulu",
+    name: "Tactical Barbell Zulu",
+    type: "LOGIC",
+    visibility: "PUBLIC",
+    description:
+      "The four-day Tactical Barbell template built on two alternating sessions. Every main lift is trained twice a week, which means less squatting and benching than Operator but considerably more deadlifting and overhead pressing. It suits lifters who can train four days and want the work spread across more lifts without raising the intensity.",
+    tags: ["strength", "barbell", "tactical-barbell", "zulu", "intermediate", "block-periodization"],
+  });
+
+  const templateZuluV1 = await upsertVersion(templateZulu.id, 1, {
+    definition: {
+      dslVersion: 1,
+      kind: "operator",
+      variant: "zulu",
+      schedule: { weeks: 6, sessionsPerWeek: 4 },
+      modules: ["SQUAT", "BENCH", "PULL", "DEADLIFT", "OHP"],
+      progression: { profile: "zulu", mainSets: 3, deadliftSets: 3 },
+    },
+    defaults: { tmPercent: 0.9 },
+    changelog: "Canonical 4-day A/B Zulu cluster on the shared 6-week wave",
+  });
+
   // 2) Manual template (MANUAL)
   const templateManual = await upsertTemplate("manual", {
     slug: "manual",
@@ -1290,6 +1339,38 @@ export async function runSeed(options: SeedRunOptions = {}) {
             [exerciseSlotKey(EXERCISE_NAMES.inclineBenchPress)]: NSUNS_TM_KG.incline,
             [exerciseSlotKey(EXERCISE_NAMES.closeGripBenchPress)]: NSUNS_TM_KG.closeGrip,
           },
+        },
+      });
+    }
+
+    if (templateFighterV1?.id) {
+      await upsertPlanForUser(devUserId, "Program Tactical Barbell Fighter", {
+        type: "SINGLE",
+        rootProgramVersionId: templateFighterV1.id,
+        params: {
+          timezone: "Asia/Seoul",
+          startDate: "2026-01-05",
+          schedule: ["D1", "D2"],
+          sessionsPerWeek: 2,
+          sessionKeyMode: "DATE",
+          autoProgression: true,
+          trainingMaxKg: { SQUAT: 150, BENCH: 110, DEADLIFT: 190, OHP: 65 },
+        },
+      });
+    }
+
+    if (templateZuluV1?.id) {
+      await upsertPlanForUser(devUserId, "Program Tactical Barbell Zulu", {
+        type: "SINGLE",
+        rootProgramVersionId: templateZuluV1.id,
+        params: {
+          timezone: "Asia/Seoul",
+          startDate: "2026-01-05",
+          schedule: ["D1", "D2", "D3", "D4"],
+          sessionsPerWeek: 4,
+          sessionKeyMode: "DATE",
+          autoProgression: true,
+          trainingMaxKg: { SQUAT: 150, BENCH: 110, DEADLIFT: 190, OHP: 65, PULL: 57.5 },
         },
       });
     }

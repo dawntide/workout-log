@@ -338,6 +338,15 @@ function initTargetState(progressionTarget: ProgressionTarget, initialWorkKg: nu
 
 // 정석 stage/주간 모델(v2) 옵트인 플래그. 기존 플랜은 부재로 기존 LP 유지(forward-only) →
 // 진행 중 유저의 rep 스킴이 갑자기 바뀌는 체감 변화·rebuild 과거 오염 방지.
+// Operator 계열(TB Operator/Fighter/Zulu)의 주당 세션 수. 블록(6주) 완주 판정과 요일 롤오버에 쓴다.
+// 미설정/이상값은 3(Operator 기본)으로 떨어져 기존 플랜의 진행이 바뀌지 않는다.
+function readOperatorSessionsPerWeek(planParams: unknown): number {
+  const raw = toFiniteNumber((planParams as { sessionsPerWeek?: unknown } | null)?.sessionsPerWeek);
+  if (raw === null) return 3;
+  const normalized = Math.floor(raw);
+  return normalized >= 1 && normalized <= 7 ? normalized : 3;
+}
+
 function isProgressionModelV2(planParams: unknown): boolean {
   return (planParams as { progressionModel?: unknown } | null | undefined)?.progressionModel === "v2";
 }
@@ -996,11 +1005,15 @@ export function reduceProgressionState(input: {
 
   if (input.program === "operator") {
     const loggedTargets = Array.from(outcomes.keys()).filter((key) => outcomes.get(key)?.total);
-    const completedBlock = state.week === 6 && state.day === 3;
+    // Tactical Barbell 템플릿별 주당 세션 수(Operator 3 / Fighter 2 / Zulu 4). reducer는 프로그램
+    // 정의를 못 보므로 시작 시 정의의 schedule.sessionsPerWeek에서 흘러온 planParams 값을 읽는다.
+    // 값이 없으면 3 — 기존 Operator 플랜은 이 필드가 없어도 동작이 그대로다.
+    const sessionsPerWeek = readOperatorSessionsPerWeek(input.planParams);
+    const completedBlock = state.week === 6 && state.day === sessionsPerWeek;
 
     if (loggedTargets.length > 0) {
       state.day += 1;
-      if (state.day > 3) {
+      if (state.day > sessionsPerWeek) {
         state.day = 1;
         state.week += 1;
         if (state.week > 6) {
