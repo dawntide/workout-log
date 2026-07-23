@@ -75,7 +75,7 @@ dev 스키마(app_user 190행, 대부분 seed 테스트 계정)에 read-only 스
 ## 5. 마이그레이션 단계 (스키마별 · dev 먼저 → prod 승인 후)
 
 - **Phase 0 (코드, DB 무변경):** `schema.ts`에서 대상 컬럼 `text`→`uuid` + `.references(() => appUser.id, { onDelete: "cascade" })`. canonical `app_user` seed. fallback uuid 표준화(§4.1). *(`uuid()`도 TS에선 string이라 런타임 코드 무변경 — non-uuid 값만 DB에서 거부됨.)*
-- **Phase 1 (read-only 사전점검):** non-uuid·고아 스캔(§2의 쿼리). **prod는 이 시점에 별도 승인.**
+- **Phase 1 (read-only 사전점검):** `node web/scripts/preflight-userid.mjs`(public) / `DB_SCHEMA=dev …`(dev) — non-uuid·고아 스캔, blocker 0이면 exit 0. **prod는 이 시점에 별도 승인.**
 - **Phase 2 (데이터 정합, 마이그레이션 내 DML, 가드):**
   1. canonical `app_user` 존재 보장(`insert … on conflict do nothing`).
   2. 알려진 fallback 문자열 재할당: `update <t> set user_id = '<canonical-uuid>' where user_id in ('local-user','dev')` (8개 테이블).
