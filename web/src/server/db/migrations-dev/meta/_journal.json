@@ -71,6 +71,13 @@
       "when": 1784776293449,
       "tag": "0009_auth_user_fk",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1784788811483,
+      "tag": "0010_ux_event_nullable_user",
+      "breakpoints": true
     }
   ]
 }

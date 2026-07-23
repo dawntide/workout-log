@@ -11,7 +11,7 @@
 > - ✅ `.env.local`·docs(CLAUDE/AGENTS/README/local-dev/qa)·`verifyProgramWorkflows` fallback을 canonical uuid로 표준화.
 > - ✅ **prod 게이트 통과**: public 사전점검 blocker 0 확인 → 머지 → Vercel prod 빌드가 `migrations/0025` 적용(`migration_run_log` SUCCESS). CI 검증 스크립트(idempotency·account-lifecycle)는 자체 app_user 생성 패턴이라 FK 호환.
 > - ✅ **auth 2차 배치 완료**(§3): `auth_session`·`password_reset_token`·`email_verification_token`·`auth_oauth_account` → uuid+FK(cascade). `auth_event_log`는 **제외**(계정삭제 후 ACCOUNT_DELETE 이벤트를 삭제된 userId로 기록 → 존재하지 않는 유저 참조 필요). dev(0009)·prod(0026), dev 검증 통과.
-> - ⏭️ **남은 후속**: `ux_event_log`·`auth_event_log` nullable-user 재설계(선택).
+> - ✅ **`ux_event_log` nullable-user 재설계 완료**(dev 0010 / prod 0027): `user_id` → **nullable uuid** + FK(cascade). 익명 web-vitals는 sentinel 대신 **NULL** 저장, 유니크는 `NULLS NOT DISTINCT`로 익명 dedup 보존. sentinel 상수 제거, `persistUxEvents`가 null 전달. **`auth_event_log`는 설계상 FK-free 유지**(감사 로그 — FK는 삭제 유저 이력을 지우거나 익명화, schema.ts 주석 명시).
 
 ## 1. 문제
 
@@ -55,7 +55,7 @@ dev 스키마(app_user 190행, 대부분 seed 테스트 계정)에 read-only 스
 
 **FK 적용 (nullable):** `program_template.owner_user_id text` → `uuid NULL REFERENCES app_user(id) ON DELETE CASCADE` (PUBLIC 템플릿은 owner=null로 무영향, fork는 owner 삭제 시 함께 삭제).
 
-**제외:** `ux_event_log` — 익명 sentinel 때문에 `text` 유지. (후속 옵션: user 컬럼을 nullable로 재설계해 익명은 NULL 저장 — 별도 과제.)
+**~~제외~~ → ✅ 재설계 완료(dev 0010 / prod 0027):** `ux_event_log.user_id`를 **nullable uuid + FK(cascade)**로. 익명 web-vitals는 `__anonymous_web_vitals__` sentinel 대신 **NULL** 저장, 유니크 `(user_id, client_event_id)`는 `NULLS NOT DISTINCT`로 익명 dedup 보존. **`auth_event_log`만 최종 제외** — 감사 로그라 FK 시 삭제 유저 이력이 소실(SET NULL=익명화, CASCADE=삭제)되고 ACCOUNT_DELETE는 삭제 후 기록됨.
 
 **2차 배치(✅ 완료 — dev 0009 / prod 0026):** auth 계열 4개 `user_id` → `uuid` + `FK app_user(id) ON DELETE CASCADE` — `auth_session` · `password_reset_token` · `email_verification_token` · `auth_oauth_account`. 계정 삭제 tx가 이 4개를 app_user보다 먼저 지우므로 cascade는 no-op(안전망). **`auth_event_log`는 제외**: 계정 삭제 흐름이 tx 커밋(=app_user 삭제) **후** `logAuthEvent(ACCOUNT_DELETE, userId)`로 삭제된 userId를 INSERT하므로 FK를 걸 수 없다(삭제된 유저 참조 = 감사 로그 본질, `ux_event_log`와 동형). dev 스캔에서 auth_event_log는 orphan 47(prod 21)로 이 성질을 실증.
 

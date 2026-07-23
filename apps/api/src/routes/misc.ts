@@ -17,7 +17,6 @@ import { invalidateStatsCacheForUser } from "@workout/core/stats/cache";
 import { rateLimit } from "@workout/core/auth/rate-limit";
 import { REF5_IDENTIFIERS } from "@workout/core/program-engine/ref5";
 import {
-  ANONYMOUS_WEB_VITAL_USER_ID,
   normalizePublicWebVitalEvent,
   type PublicWebVitalEvent,
 } from "@workout/core/observability/web-vital-event";
@@ -763,7 +762,7 @@ uxEventsRoutes.use("*", async (c, next) => {
 });
 
 async function persistUxEvents(
-  userId: string,
+  userId: string | null,
   events: Array<IncomingUxEvent | PublicWebVitalEvent>,
 ) {
   await db
@@ -834,7 +833,9 @@ uxEventsRoutes.post("/public", async (c) => {
   }
   const accepted = Array.from(acceptedById.values());
   if (accepted.length > 0) {
-    await persistUxEvents(ANONYMOUS_WEB_VITAL_USER_ID, accepted);
+    // Anonymous public web-vitals have no account → NULL user_id (dedup preserved
+    // by the NULLS NOT DISTINCT unique on (user_id, client_event_id)).
+    await persistUxEvents(null, accepted);
   }
 
   c.header("Cache-Control", "no-store");

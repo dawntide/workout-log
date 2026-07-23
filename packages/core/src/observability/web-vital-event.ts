@@ -1,5 +1,3 @@
-export const ANONYMOUS_WEB_VITAL_USER_ID = "__anonymous_web_vitals__";
-
 const WEB_VITAL_NAMES = new Set(["CLS", "FCP", "INP", "LCP", "TTFB"]);
 const WEB_VITAL_RATINGS = new Set(["good", "needs-improvement", "poor"]);
 const NAVIGATION_TYPES = new Set([

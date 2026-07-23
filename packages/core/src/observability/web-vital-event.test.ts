@@ -1,10 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import {
-  ANONYMOUS_WEB_VITAL_USER_ID,
-  normalizePublicWebVitalEvent,
-} from "./web-vital-event";
+import { normalizePublicWebVitalEvent } from "./web-vital-event";
 
 const now = new Date("2026-07-13T03:00:00.000Z");
 
@@ -40,7 +37,6 @@ test("normalizes a privacy-minimized anonymous Web Vital event", () => {
       route: "/login",
     },
   });
-  assert.equal(ANONYMOUS_WEB_VITAL_USER_ID, "__anonymous_web_vitals__");
 });
 
 test("rejects business events and routes containing query data", () => {

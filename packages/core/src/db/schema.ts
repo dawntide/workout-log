@@ -10,6 +10,7 @@ import {
   pgTable,
   text,
   timestamp,
+  unique,
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
@@ -507,7 +508,10 @@ export const uxEventLog = table(
   "ux_event_log",
   {
     id: uuid("id").defaultRandom().primaryKey(),
-    userId: text("user_id").notNull(),
+    // Nullable: anonymous public web-vitals store NULL (no account). Authenticated
+    // events reference app_user; the unique below uses NULLS NOT DISTINCT so anonymous
+    // rows still dedup on client_event_id.
+    userId: uuid("user_id").references(() => appUser.id, { onDelete: "cascade" }),
     clientEventId: text("client_event_id").notNull(),
     name: text("name").notNull(),
     recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull(),
@@ -515,10 +519,9 @@ export const uxEventLog = table(
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => [
-    uniqueIndex("ux_event_log_user_client_event_uq").on(
-      t.userId,
-      t.clientEventId,
-    ),
+    unique("ux_event_log_user_client_event_uq")
+      .on(t.userId, t.clientEventId)
+      .nullsNotDistinct(),
     index("ux_event_log_user_recorded_idx").on(t.userId, t.recordedAt),
     index("ux_event_log_user_name_recorded_idx").on(
       t.userId,
@@ -652,6 +655,13 @@ export const emailVerificationToken = table(
   ],
 );
 
+/**
+ * auth_event_log: security audit trail. Deliberately has NO FK on user_id — an
+ * audit log must retain events about users who no longer exist (the ACCOUNT_DELETE
+ * event is written AFTER the app_user row is gone, and LOGIN_FAIL for an unknown
+ * email has no user). Keep user_id as nullable text; referential integrity would
+ * either erase (CASCADE) or anonymize (SET NULL) forensic history.
+ */
 export const authEventLog = table(
   "auth_event_log",
   {
