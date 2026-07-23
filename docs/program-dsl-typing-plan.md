@@ -1,6 +1,8 @@
 # 프로그램 정의 DSL 타입 모델링 계획
 
-> 상태: **Phase 2c 완료** (2026-07-23) — program-store/model.ts READ 소비자 타이핑(11→3 any). generateSession any 56→45. 다음: (선택) 남은 슬라이스는 확연히 줄어든 잔여만 — params/defaults(별도 plan-params DSL 30), snapshot(Phase 4 13), nsuns 세트빌더 3, normalizeTargets(크로스-kind 느슨).
+> 상태: **Phase 2d-1 완료** (2026-07-23) — plan-params zod 스키마 + conformance(소비자 무변경). 다음: 2d-2(params/defaults 소비자 ~30 any 타이핑).
+>
+> **Phase 2d-1**(`program-dsl/plan-params.ts`): `plan.params`/`program_version.defaults`는 program-definition과 **별개의 저장 JSON** — 자체 `planParamsSchema`(timezone·startDate·autoProgression·sessionKeyMode·sessionsPerWeek·schedule·trainingMaxKg·oneRepMaxKg·programFamily·protocolVersion·progressionModel·lightBlockMode·ref5) + `programDefaultsSchema`(tmPercent·ref5) + `parsePlanParams`/`parseProgramDefaults`(fallback {}). dev 실 params 26개·defaults 6개 dump(`fixtures/dsl/plan-params.json`)로 conformance 첫 시도 통과(protocolVersion 문자열·TM맵 union이 흡수). 소비자 미연결.
 >
 > **Phase 2c**(`program-store/model.ts`): draft 빌더 `sessionDraftFromManual(→ManualSession)`·`toSetRowDrafts(→ManualSet[])`·`slottedLpSessionDrafts(→ManualSession[])` + `oneRmTargetsFromManualDefinition(unknown+cast ManualDefinition)` 타이핑. 로컬 `ManualDefinitionSession`(WRITE 직렬화용)은 미변경. model·view 테스트 통과. `normalizeTargets`는 `lifts`/`mainLifts` 등 크로스-kind 느슨한 리더라 제외.
 >

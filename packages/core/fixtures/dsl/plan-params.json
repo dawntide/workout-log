@@ -1,0 +1,588 @@
+{
+  "params": [
+    {
+      "ref5": {
+        "controlRefsKg": {
+          "bpKg": 101,
+          "sqKg": 104,
+          "ohpKg": 50,
+          "deadliftKg": 100,
+          "pullTotalKg": 108
+        },
+        "schemaVersion": 2,
+        "protocolVersion": "1.2",
+        "startingValuesKg": {
+          "ohpKg": 32.5,
+          "sqH3Kg": 82.5,
+          "bpFocusKg": 82.5,
+          "deadliftKg": 72.5,
+          "pullFocusTotalKg": 87.5
+        }
+      },
+      "timezone": "Asia/Seoul",
+      "programFamily": "ref5",
+      "autoProgression": true,
+      "protocolVersion": "1.2"
+    },
+    {
+      "schedule": [
+        "D1",
+        "D2",
+        "D3"
+      ],
+      "timezone": "Asia/Seoul",
+      "startDate": "2026-06-09",
+      "oneRepMaxKg": {
+        "PULL": 100,
+        "BENCH": 100,
+        "SQUAT": 100,
+        "DEADLIFT": 100
+      },
+      "trainingMaxKg": {
+        "PULL": 90,
+        "BENCH": 90,
+        "SQUAT": 90,
+        "DEADLIFT": 90
+      },
+      "sessionKeyMode": "DATE",
+      "autoProgression": true,
+      "sessionsPerWeek": 3
+    },
+    {
+      "schedule": [
+        "A",
+        "B"
+      ],
+      "timezone": "Asia/Seoul",
+      "startDate": "2026-01-05",
+      "sessionKeyMode": "DATE"
+    },
+    {
+      "schedule": [
+        "A",
+        "B"
+      ],
+      "timezone": "Asia/Seoul",
+      "startDate": "2026-07-17",
+      "oneRepMaxKg": {
+        "OHP": 100,
+        "PULL": 100,
+        "BENCH": 100,
+        "SQUAT": 100,
+        "DEADLIFT": 100
+      },
+      "trainingMaxKg": {
+        "OHP": 100,
+        "PULL": 100,
+        "BENCH": 100,
+        "SQUAT": 100,
+        "DEADLIFT": 100
+      },
+      "sessionKeyMode": "DATE",
+      "autoProgression": true,
+      "sessionsPerWeek": 2,
+      "progressionModel": "v2"
+    },
+    {
+      "schedule": [
+        "A",
+        "B"
+      ],
+      "timezone": "Asia/Seoul",
+      "startDate": "2026-07-17",
+      "oneRepMaxKg": {
+        "OHP": 100,
+        "BENCH": 100,
+        "SQUAT": 100,
+        "DEADLIFT": 100
+      },
+      "trainingMaxKg": {
+        "OHP": 100,
+        "BENCH": 100,
+        "SQUAT": 100,
+        "DEADLIFT": 100
+      },
+      "sessionKeyMode": "DATE",
+      "autoProgression": true,
+      "sessionsPerWeek": 2
+    },
+    {
+      "schedule": [
+        "D1",
+        "D2",
+        "D3"
+      ],
+      "timezone": "Asia/Seoul",
+      "startDate": "2026-07-17",
+      "oneRepMaxKg": {
+        "PULL": 100,
+        "BENCH": 100,
+        "SQUAT": 100,
+        "DEADLIFT": 100
+      },
+      "trainingMaxKg": {
+        "PULL": 90,
+        "BENCH": 90,
+        "SQUAT": 90,
+        "DEADLIFT": 90
+      },
+      "sessionKeyMode": "DATE",
+      "autoProgression": true,
+      "sessionsPerWeek": 3,
+      "progressionModel": "v2"
+    },
+    {
+      "schedule": [
+        "A",
+        "B"
+      ],
+      "timezone": "Asia/Seoul",
+      "startDate": "2026-07-17",
+      "oneRepMaxKg": {
+        "OHP": 100,
+        "BENCH": 100,
+        "SQUAT": 100,
+        "DEADLIFT": 100,
+        "EX_POWER_CLEAN": 100
+      },
+      "trainingMaxKg": {
+        "OHP": 100,
+        "BENCH": 100,
+        "SQUAT": 100,
+        "DEADLIFT": 100,
+        "EX_POWER_CLEAN": 100
+      },
+      "sessionKeyMode": "DATE",
+      "autoProgression": true,
+      "sessionsPerWeek": 2,
+      "progressionModel": "v2"
+    },
+    {
+      "schedule": [
+        "V",
+        "R",
+        "I"
+      ],
+      "timezone": "Asia/Seoul",
+      "startDate": "2026-07-17",
+      "oneRepMaxKg": {
+        "OHP": 100,
+        "PULL": 100,
+        "BENCH": 100,
+        "SQUAT": 100,
+        "DEADLIFT": 100
+      },
+      "trainingMaxKg": {
+        "OHP": 100,
+        "PULL": 100,
+        "BENCH": 100,
+        "SQUAT": 100,
+        "DEADLIFT": 100
+      },
+      "sessionKeyMode": "DATE",
+      "autoProgression": true,
+      "sessionsPerWeek": 3,
+      "progressionModel": "v2"
+    },
+    {
+      "timezone": "Asia/Seoul",
+      "startDate": "2026-07-17",
+      "oneRepMaxKg": {
+        "OHP": 100,
+        "BENCH": 100,
+        "SQUAT": 100,
+        "DEADLIFT": 100
+      },
+      "trainingMaxKg": {
+        "OHP": 90,
+        "BENCH": 90,
+        "SQUAT": 90,
+        "DEADLIFT": 90
+      },
+      "sessionKeyMode": "DATE",
+      "autoProgression": true,
+      "sessionsPerWeek": 4
+    },
+    {
+      "schedule": [
+        "D1",
+        "D2",
+        "D3",
+        "D4"
+      ],
+      "timezone": "Asia/Seoul",
+      "startDate": "2026-07-17",
+      "oneRepMaxKg": {
+        "OHP": 100,
+        "PULL": 100,
+        "BENCH": 100,
+        "SQUAT": 100,
+        "DEADLIFT": 100,
+        "EX_LEG_PRESS": 100
+      },
+      "trainingMaxKg": {
+        "OHP": 100,
+        "PULL": 100,
+        "BENCH": 100,
+        "SQUAT": 100,
+        "DEADLIFT": 100,
+        "EX_LEG_PRESS": 100
+      },
+      "sessionKeyMode": "DATE",
+      "autoProgression": true,
+      "sessionsPerWeek": 4,
+      "progressionModel": "v2"
+    },
+    {
+      "timezone": "Asia/Seoul",
+      "startDate": "2026-07-17",
+      "oneRepMaxKg": {
+        "OHP": 100,
+        "PULL": 100,
+        "BENCH": 100,
+        "SQUAT": 100,
+        "DEADLIFT": 100
+      },
+      "trainingMaxKg": {
+        "OHP": 87.5,
+        "PULL": 87.5,
+        "BENCH": 87.5,
+        "SQUAT": 87.5,
+        "DEADLIFT": 87.5
+      },
+      "sessionKeyMode": "DATE",
+      "autoProgression": true,
+      "sessionsPerWeek": 3
+    },
+    {
+      "timezone": "Asia/Seoul",
+      "startDate": "2026-01-05",
+      "trainingMaxKg": {
+        "OHP": 55,
+        "BENCH": 85,
+        "SQUAT": 120,
+        "DEADLIFT": 150
+      },
+      "sessionKeyMode": "PROGRESSION",
+      "autoProgression": true
+    },
+    {
+      "timezone": "Asia/Seoul",
+      "startDate": "2026-07-18",
+      "oneRepMaxKg": {
+        "OHP": 100,
+        "BENCH": 100,
+        "SQUAT": 100,
+        "DEADLIFT": 100
+      },
+      "trainingMaxKg": {
+        "OHP": 90,
+        "BENCH": 90,
+        "SQUAT": 90,
+        "DEADLIFT": 90
+      },
+      "sessionKeyMode": "DATE",
+      "autoProgression": true,
+      "sessionsPerWeek": 4
+    },
+    {
+      "ref5": {
+        "controlRefsKg": {
+          "bpKg": 101,
+          "sqKg": 104,
+          "ohpKg": 50,
+          "deadliftKg": 100,
+          "pullTotalKg": 108
+        },
+        "schemaVersion": 2,
+        "protocolVersion": "1.2",
+        "startingValuesKg": {
+          "ohpKg": 32.5,
+          "sqH3Kg": 82.5,
+          "bpFocusKg": 82.5,
+          "deadliftKg": 72.5,
+          "pullFocusTotalKg": 87.5
+        },
+        "initializationVersion": 1
+      },
+      "timezone": "Asia/Seoul",
+      "programFamily": "ref5",
+      "autoProgression": true,
+      "protocolVersion": "1.2"
+    },
+    {
+      "timezone": "Asia/Seoul",
+      "startDate": "2026-01-05",
+      "trainingMaxKg": {
+        "OHP": 35,
+        "PULL": 97.5,
+        "BENCH": 75,
+        "SQUAT": 95,
+        "DEADLIFT": 95
+      },
+      "sessionKeyMode": "PROGRESSION",
+      "autoProgression": true
+    },
+    {
+      "schedule": [
+        "D1",
+        "D2",
+        "D3"
+      ],
+      "timezone": "Asia/Seoul",
+      "startDate": "2026-01-05",
+      "trainingMaxKg": {
+        "PULL": 57.5,
+        "BENCH": 110,
+        "SQUAT": 150,
+        "DEADLIFT": 190
+      },
+      "sessionKeyMode": "DATE",
+      "autoProgression": true
+    },
+    {
+      "schedule": [
+        "V",
+        "R",
+        "I"
+      ],
+      "timezone": "Asia/Seoul",
+      "startDate": "2026-01-05",
+      "sessionKeyMode": "DATE",
+      "autoProgression": true
+    },
+    {
+      "schedule": [
+        "D1",
+        "D2",
+        "D3",
+        "D4"
+      ],
+      "timezone": "Asia/Seoul",
+      "startDate": "2026-01-05",
+      "sessionKeyMode": "DATE",
+      "autoProgression": true
+    },
+    {
+      "schedule": [
+        "A",
+        "B"
+      ],
+      "timezone": "Asia/Seoul",
+      "startDate": "2026-01-05",
+      "trainingMaxKg": {
+        "OHP": 42.5,
+        "PULL": 57.5,
+        "BENCH": 62.5,
+        "SQUAT": 90,
+        "DEADLIFT": 110
+      },
+      "sessionKeyMode": "DATE",
+      "autoProgression": true
+    },
+    {
+      "schedule": [
+        "D1",
+        "D2",
+        "D3",
+        "D4",
+        "D5",
+        "D6"
+      ],
+      "timezone": "Asia/Seoul",
+      "startDate": "2026-01-05",
+      "trainingMaxKg": {
+        "OHP": 40,
+        "PULL": 50,
+        "BENCH": 60,
+        "SQUAT": 80,
+        "DEADLIFT": 100
+      },
+      "sessionKeyMode": "DATE",
+      "autoProgression": true,
+      "progressionModel": "v2"
+    },
+    {
+      "ref5": {
+        "controlRefsKg": {
+          "bpKg": 101,
+          "sqKg": 104,
+          "ohpKg": 50,
+          "deadliftKg": 100,
+          "pullTotalKg": 108
+        },
+        "schemaVersion": 2,
+        "protocolUpgrade": {
+          "stableKey": "ref5-protocol-upgrade:e406cacb-cc19-456e-95d8-2d1729fddfdd:1.1:1.2",
+          "transitionedAt": "2026-07-14T05:42:51.332Z",
+          "toProtocolVersion": "1.2",
+          "fromProtocolVersion": "1.1"
+        },
+        "protocolVersion": "1.2",
+        "startingValuesKg": {
+          "ohpKg": 32.5,
+          "sqH3Kg": 82.5,
+          "bpFocusKg": 82.5,
+          "deadliftKg": 72.5,
+          "pullFocusTotalKg": 87.5
+        }
+      },
+      "timezone": "Asia/Seoul",
+      "startDate": "2026-01-05",
+      "programFamily": "ref5",
+      "autoProgression": true,
+      "protocolVersion": "1.2"
+    },
+    {
+      "schedule": [
+        "M",
+        "W",
+        "F"
+      ],
+      "timezone": "Asia/Seoul",
+      "startDate": "2026-01-05",
+      "trainingMaxKg": {
+        "EX_DEADLIFT": 130,
+        "EX_BARBELL_ROW": 70,
+        "EX_BENCH_PRESS": 75,
+        "EX_OVERHEAD_PRESS": 45,
+        "EX_HIGH_BAR_BACK_SQUAT": 100
+      },
+      "sessionKeyMode": "DATE",
+      "autoProgression": true
+    },
+    {
+      "schedule": [
+        "D1",
+        "D2",
+        "D3",
+        "D4",
+        "D5"
+      ],
+      "timezone": "Asia/Seoul",
+      "startDate": "2026-01-05",
+      "trainingMaxKg": {
+        "EX_DEADLIFT": 150,
+        "EX_BENCH_PRESS": 90,
+        "EX_FRONT_SQUAT": 90,
+        "EX_SUMO_DEADLIFT": 140,
+        "EX_OVERHEAD_PRESS": 60,
+        "EX_HIGH_BAR_BACK_SQUAT": 120,
+        "EX_INCLINE_BENCH_PRESS": 70,
+        "EX_CLOSE_GRIP_BENCH_PRESS": 72.5
+      },
+      "sessionKeyMode": "DATE",
+      "autoProgression": true
+    },
+    {
+      "schedule": [
+        "D1",
+        "D2"
+      ],
+      "timezone": "Asia/Seoul",
+      "startDate": "2026-01-05",
+      "trainingMaxKg": {
+        "OHP": 65,
+        "BENCH": 110,
+        "SQUAT": 150,
+        "DEADLIFT": 190
+      },
+      "sessionKeyMode": "DATE",
+      "autoProgression": true,
+      "sessionsPerWeek": 2
+    },
+    {
+      "schedule": [
+        "UP",
+        "LP",
+        "UH",
+        "LH"
+      ],
+      "timezone": "Asia/Seoul",
+      "startDate": "2026-01-05",
+      "trainingMaxKg": {
+        "OHP": 42.5,
+        "PULL": 60,
+        "BENCH": 70,
+        "SQUAT": 90,
+        "DEADLIFT": 110
+      },
+      "sessionKeyMode": "DATE",
+      "autoProgression": true,
+      "progressionModel": "v2"
+    },
+    {
+      "schedule": [
+        "D1",
+        "D2",
+        "D3",
+        "D4"
+      ],
+      "timezone": "Asia/Seoul",
+      "startDate": "2026-01-05",
+      "trainingMaxKg": {
+        "OHP": 65,
+        "PULL": 57.5,
+        "BENCH": 110,
+        "SQUAT": 150,
+        "DEADLIFT": 190
+      },
+      "sessionKeyMode": "DATE",
+      "autoProgression": true,
+      "sessionsPerWeek": 4
+    }
+  ],
+  "defaults": [
+    {},
+    {
+      "tmPercent": 0.9
+    },
+    {
+      "tmPercent": 0.83
+    },
+    {
+      "ref5": {
+        "controlRefsKg": {
+          "bpKg": 101,
+          "sqKg": 104,
+          "ohpKg": 50,
+          "deadliftKg": 100,
+          "pullTotalKg": 108
+        },
+        "schemaVersion": 1,
+        "protocolVersion": "1.1",
+        "startingValuesKg": {
+          "ohpKg": 32.5,
+          "sqH3Kg": 82.5,
+          "bpFocusKg": 82.5,
+          "deadliftKg": 72.5,
+          "pullFocusTotalKg": 87.5
+        }
+      }
+    },
+    {
+      "ref5": {
+        "controlRefsKg": {
+          "bpKg": 101,
+          "sqKg": 104,
+          "ohpKg": 50,
+          "deadliftKg": 100,
+          "pullTotalKg": 108
+        },
+        "schemaVersion": 2,
+        "protocolVersion": "1.2",
+        "startingValuesKg": {
+          "ohpKg": 32.5,
+          "sqH3Kg": 82.5,
+          "bpFocusKg": 82.5,
+          "deadliftKg": 72.5,
+          "pullFocusTotalKg": 87.5
+        },
+        "initializationVersion": 1
+      }
+    },
+    {
+      "tmPercent": 0.8
+    }
+  ]
+}
