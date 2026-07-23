@@ -24,7 +24,7 @@ import {
   type AsymptoteTopSetSpec,
 } from "./asymptote";
 import { roundToNearest2p5 } from "./round";
-import type { ManualSet, ManualSession, ManualDefinition } from "../program-dsl/schema";
+import type { ManualSet, ManualItem, ManualSession, ManualDefinition } from "../program-dsl/schema";
 import { mapExerciseNameToTarget as inferTargetFromExerciseName } from "@workout/core/strength-engine/target-mapping";
 import { EXERCISE_NAMES } from "@workout/core/exercise/catalog";
 import {
@@ -799,10 +799,11 @@ function mapManualSet(s: ManualSet): PlannedSet {
 }
 
 export function plannedExercisesFromManualSession(
-  manualSession: any,
+  manualSession: ManualSession | null,
   options?: { injectAmrapLastMainSet?: boolean; enforcePlannedReps?: boolean },
 ): PlannedExercise[] {
-  const items = Array.isArray(manualSession?.items) ? manualSession.items : [];
+  const items: ManualItem[] =
+    manualSession && Array.isArray(manualSession.items) ? manualSession.items : [];
   const out: PlannedExercise[] = [];
 
   for (let i = 0; i < items.length; i += 1) {

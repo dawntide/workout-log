@@ -1,6 +1,8 @@
 # 프로그램 정의 DSL 타입 모델링 계획
 
-> 상태: **Phase 2a 완료** (2026-07-23) — 소비자 연결 시작(manual 헬퍼 2개 타이핑, 출력 불변). Phase 2는 엔진의 미세·검증 슬라이스 다수로 진행.
+> 상태: **Phase 2b-1 완료** (2026-07-23) — ManualItem 스키마 확장 + base manual 생성기 타이핑. 다음: 2b-2(slotted 생성기 4개).
+>
+> **Phase 2b-1**: `ManualItem` 스키마에 `meta`·`exerciseId`·`order`·`slotRole`·`note` + `manualSlotSchema`(tier·coef·progressionKey·startWeightKg·sessionKey·texasRole·driver·assistance·amrap·role) 추가 → slotted 생성기 groundwork. `plannedExercisesFromManualSession(manualSession: ManualSession|null)` 타이핑(item-as-set은 passthrough로 호환). **실데이터가 또 교정**: seed slot의 `driver`는 boolean(→`z.unknown()`). 출력 불변(골든·엔진 16테스트), conformance 4/4. slotted 생성기 4개(`Operator/Asymptote/531/SlottedLp`, slot 서브필드 접근)는 **Phase 2b-2**.
 >
 > **Phase 2a**(`generateSession.ts`): `mapManualSet(s: any→ManualSet)` + `pickManualSession(definition: any→unknown, 반환 ManualSession|null)` — 스키마 추가 없이 깨끗(읽는 필드가 전부 스키마에 존재). **타입 전용(런타임 무변경)**, 골든(LOGIC)·엔진 행위 테스트 16파일이 출력 불변 보증. generateSession any 56→53. 생성기(`plannedExercisesFromXxxManualSession`)는 `meta`·`exerciseId`·`order`·`slotRole` 스키마 추가 + item-as-set 이중성 얽힘 → **Phase 2b**.
 >

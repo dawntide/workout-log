@@ -33,14 +33,36 @@ export const manualSetSchema = z
   })
   .passthrough();
 
+// Slotted programs (531/gzclp/texas/nsuns forks) attach a `slot` describing how the
+// engine derives weight for the row. Lenient — every field optional, passthrough on.
+export const manualSlotSchema = z
+  .object({
+    role: z.unknown().optional(), // {ko,en} label object on forks
+    sessionKey: str.optional(),
+    assistance: str.optional(),
+    tier: z.union([str, num]).optional(),
+    texasRole: str.optional(),
+    driver: z.unknown().optional(), // seed uses a boolean flag; keep tolerant
+    progressionKey: str.optional(),
+    startWeightKg: num.optional(),
+    coef: num.optional(),
+    amrap: z.boolean().optional(),
+  })
+  .passthrough();
+
 export const manualItemSchema = z
   .object({
     exerciseName: str.optional(),
     name: str.optional(), // engine synonym: exerciseName ?? name
+    exerciseId: str.optional(),
     role: str.optional(),
     rowType: str.optional(),
+    slotRole: str.optional(),
     progressionTarget: str.optional(),
-    slot: z.unknown().optional(),
+    order: num.optional(),
+    note: str.optional(),
+    meta: z.record(z.unknown()).optional(),
+    slot: manualSlotSchema.optional(),
     // Absent `sets` = the item itself is a single set (engine: item.sets ?? [item]).
     sets: z.array(manualSetSchema).optional(),
   })
