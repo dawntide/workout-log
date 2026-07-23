@@ -1,6 +1,8 @@
 # 프로그램 정의 DSL 타입 모델링 계획
 
-> 상태: **Phase 2b-1 완료** (2026-07-23) — ManualItem 스키마 확장 + base manual 생성기 타이핑. 다음: 2b-2(slotted 생성기 4개).
+> 상태: **Phase 2b-2 완료** (2026-07-23) — slotted 생성기 4개 타이핑. generateSession any 56→45. 다음: LOGIC 소비자 / program-store 수렴.
+>
+> **Phase 2b-2**: `plannedExercisesFrom{Operator,Asymptote,531,SlottedLp}ManualSession(manualSession: ManualSession|null)` + 내부 item 반복 타이핑. `ManualSession.key`를 optional로(테스트가 items만으로 세션 구성) · `.map` 콜백에 `: PlannedExercise|null` 반환 주석(리터럴 유니온→PlannedExercise 위장). 출력 불변(골든·엔진 16테스트·conformance). 남은 `(s: any)` 3개는 nsuns 세트 빌더(setRows가 ManualSet|ManualItem 유니온) — 후속.
 >
 > **Phase 2b-1**: `ManualItem` 스키마에 `meta`·`exerciseId`·`order`·`slotRole`·`note` + `manualSlotSchema`(tier·coef·progressionKey·startWeightKg·sessionKey·texasRole·driver·assistance·amrap·role) 추가 → slotted 생성기 groundwork. `plannedExercisesFromManualSession(manualSession: ManualSession|null)` 타이핑(item-as-set은 passthrough로 호환). **실데이터가 또 교정**: seed slot의 `driver`는 boolean(→`z.unknown()`). 출력 불변(골든·엔진 16테스트), conformance 4/4. slotted 생성기 4개(`Operator/Asymptote/531/SlottedLp`, slot 서브필드 접근)는 **Phase 2b-2**.
 >

@@ -70,7 +70,9 @@ export const manualItemSchema = z
 
 export const manualSessionSchema = z
   .object({
-    key: str,
+    // Real definitions always carry `key`; keep it optional so callers/tests that
+    // build a session from items alone still satisfy the type (the engine reads items).
+    key: str.optional(),
     items: z.array(manualItemSchema).default([]),
   })
   .passthrough();

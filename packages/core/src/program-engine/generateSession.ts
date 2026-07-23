@@ -921,13 +921,14 @@ function applyDerivedMainLifts(
 }
 
 export function plannedExercisesFromOperatorManualSession(
-  manualSession: any,
+  manualSession: ManualSession | null,
   week: number,
   effectiveParams: any,
   baseParams: any,
   defaults: any,
 ): PlannedExercise[] {
-  const items = Array.isArray(manualSession?.items) ? manualSession.items : [];
+  const items: ManualItem[] =
+    manualSession && Array.isArray(manualSession.items) ? manualSession.items : [];
   const scheme = operatorSchemeByWeek(week);
   const mainSets = 3;
   const deadliftSets = 3;
@@ -937,7 +938,7 @@ export function plannedExercisesFromOperatorManualSession(
   const enforceReps = (effectiveParams as Record<string, unknown>)?.progressionModel === "v2";
 
   const planned = items
-    .map((item: any, index: number) => {
+    .map((item, index: number): PlannedExercise | null => {
       const exerciseName = String(item?.exerciseName ?? item?.name ?? "").trim();
       if (!exerciseName) return null;
 
@@ -996,12 +997,13 @@ export function plannedExercisesFromOperatorManualSession(
 // amrap·sessionKey)를 사용한다. 따라서 유저가 슬롯의 운동명을 바꿔도 흐름은 슬롯에 종속되어 유지된다.
 // progressionKey는 family(target)로 둬 reducer의 asymptote AMRAP 게이팅과 호환된다.
 export function plannedExercisesFromAsymptoteManualSession(
-  manualSession: any,
+  manualSession: ManualSession | null,
   week: number,
   effectiveParams: any,
   defaults: any,
 ): PlannedExercise[] {
-  const items = Array.isArray(manualSession?.items) ? manualSession.items : [];
+  const items: ManualItem[] =
+    manualSession && Array.isArray(manualSession.items) ? manualSession.items : [];
   const cycleInBlock = ((week - 1) % 4) + 1;
   const lightBlockMode =
     (effectiveParams as Record<string, unknown> | undefined)?.lightBlockMode === true;
@@ -1014,7 +1016,7 @@ export function plannedExercisesFromAsymptoteManualSession(
   const restDayGap = toNumberOrNull((effectiveParams as Record<string, unknown> | undefined)?.restDayGap);
 
   return items
-    .map((item: any, index: number) => {
+    .map((item, index: number): PlannedExercise | null => {
       const exerciseName = String(item?.exerciseName ?? item?.name ?? "").trim();
       if (!exerciseName) return null;
 
@@ -1110,17 +1112,18 @@ export function plannedExercisesFromAsymptoteManualSession(
 // 동일한 주차 메인 테이블(wendler531WeekSets)·보조 규칙을 입혀 처방한다. progressionKey=target(메인)으로
 // reducer의 wendler-531 진행과 호환된다. 보조(ASSIST)는 진행 추적하지 않는다(progressionKey=null).
 export function plannedExercisesFrom531ManualSession(
-  manualSession: any,
+  manualSession: ManualSession | null,
   week: number,
   effectiveParams: any,
   defaults: any,
 ): PlannedExercise[] {
-  const items = Array.isArray(manualSession?.items) ? manualSession.items : [];
+  const items: ManualItem[] =
+    manualSession && Array.isArray(manualSession.items) ? manualSession.items : [];
   const weekSets = wendler531WeekSets(week);
   const firstSetPercent = weekSets[0]?.percent ?? 0.65;
 
   return items
-    .map((item: any, index: number) => {
+    .map((item, index: number): PlannedExercise | null => {
       const exerciseName = String(item?.exerciseName ?? item?.name ?? "").trim();
       if (!exerciseName) return null;
 
@@ -1228,10 +1231,11 @@ export function plannedExercisesFromSlottedLpManualSession(
   defaults: any,
   family?: string | null,
 ): PlannedExercise[] {
-  const items = Array.isArray(manualSession?.items) ? manualSession.items : [];
+  const items: ManualItem[] =
+    manualSession && Array.isArray(manualSession.items) ? manualSession.items : [];
   const sessionKey = String(manualSession?.key ?? "").trim();
   return items
-    .map((item: any, index: number) => {
+    .map((item, index: number): PlannedExercise | null => {
       const exerciseName = String(item?.exerciseName ?? item?.name ?? "").trim();
       if (!exerciseName) return null;
 
