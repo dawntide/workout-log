@@ -600,7 +600,9 @@ export const authSession = table(
   "auth_session",
   {
     token: text("token").primaryKey(),
-    userId: text("user_id").notNull(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => appUser.id, { onDelete: "cascade" }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .defaultNow()
       .notNull(),
@@ -616,7 +618,9 @@ export const passwordResetToken = table(
   "password_reset_token",
   {
     tokenHash: text("token_hash").primaryKey(),
-    userId: text("user_id").notNull(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => appUser.id, { onDelete: "cascade" }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .defaultNow()
       .notNull(),
@@ -633,7 +637,9 @@ export const emailVerificationToken = table(
   "email_verification_token",
   {
     tokenHash: text("token_hash").primaryKey(),
-    userId: text("user_id").notNull(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => appUser.id, { onDelete: "cascade" }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .defaultNow()
       .notNull(),
@@ -677,7 +683,9 @@ export const authOauthAccount = table(
   "auth_oauth_account",
   {
     id: uuid("id").defaultRandom().primaryKey(),
-    userId: text("user_id").notNull(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => appUser.id, { onDelete: "cascade" }),
     provider: text("provider").notNull(),
     providerSubject: text("provider_subject").notNull(),
     email: text("email"),

@@ -1206,18 +1206,21 @@ export async function runSeed(options: SeedRunOptions = {}) {
     (process.env.WORKOUT_AUTH_USER_ID ?? "").trim() ||
     DEV_FALLBACK_USER_ID;
 
-  if (includeDemoPlans) {
-    // Ensure the fallback account exists before any user-owned row references it (FK to app_user).
-    await db
-      .insert(appUser)
-      .values({
-        id: devUserId,
-        email: `local-dev-fallback+${devUserId}@localhost`,
-        passwordHash: "local-dev-no-login",
-        displayName: "Local Dev Fallback",
-      })
-      .onConflictDoNothing({ target: appUser.id });
+  // Ensure the fallback account exists before any user-owned row references it. Runs
+  // unconditionally (not just with demo plans): CI's `db:seed` seeds no demo plans yet the
+  // WORKOUT_AUTH_USER_ID fallback path writes data, and every domain/auth user_id now FKs
+  // app_user(id). onConflictDoNothing keeps it a no-op when the id is a real account.
+  await db
+    .insert(appUser)
+    .values({
+      id: devUserId,
+      email: `local-dev-fallback+${devUserId}@localhost`,
+      passwordHash: "local-dev-no-login",
+      displayName: "Local Dev Fallback",
+    })
+    .onConflictDoNothing({ target: appUser.id });
 
+  if (includeDemoPlans) {
     if (templateOperatorV1?.id) {
       await upsertPlanForUser(devUserId, "Program Tactical Barbell Operator", {
         type: "SINGLE",

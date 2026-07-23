@@ -64,6 +64,13 @@
       "when": 1784770654902,
       "tag": "0008_multiuser_isolation_fk",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1784776293449,
+      "tag": "0009_auth_user_fk",
+      "breakpoints": true
     }
   ]
 }

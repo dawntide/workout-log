@@ -1,4 +1,4 @@
-import { and, eq, gt, sql } from "drizzle-orm";
+import { and, eq, gt } from "drizzle-orm";
 import { db } from "@workout/core/db/client";
 import { authSession, appUser } from "@workout/core/db/schema";
 import { acquireActiveAccountMutationLock } from "./account-lifecycle";
@@ -59,10 +59,8 @@ export async function findActiveSession(
       createdAt: authSession.createdAt,
     })
     .from(authSession)
-    // Domain/auth owner ids are intentionally stored as text while app_user.id
-    // is uuid. Cast the uuid side explicitly; PostgreSQL cannot compare the two
-    // column types implicitly (text = uuid).
-    .innerJoin(appUser, sql`${authSession.userId} = ${appUser.id}::text`)
+    // auth_session.user_id and app_user.id are both uuid — join directly.
+    .innerJoin(appUser, eq(authSession.userId, appUser.id))
     .where(and(eq(authSession.token, token), gt(authSession.expiresAt, now)))
     .limit(1);
   const r = rows[0];
