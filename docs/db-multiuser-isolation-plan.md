@@ -10,7 +10,8 @@
 > - ✅ `seed.ts`: fallback 기본값 canonical uuid + 해당 app_user seed. 코어 테스트 472/472, web typecheck 통과.
 > - ✅ `.env.local`·docs(CLAUDE/AGENTS/README/local-dev/qa)·`verifyProgramWorkflows` fallback을 canonical uuid로 표준화.
 > - ✅ **prod 게이트 통과**: public 사전점검 blocker 0 확인 → 머지 → Vercel prod 빌드가 `migrations/0025` 적용(`migration_run_log` SUCCESS). CI 검증 스크립트(idempotency·account-lifecycle)는 자체 app_user 생성 패턴이라 FK 호환.
-> - ⏭️ **후속 PR**: auth 계열 FK(§3 2차 배치), `ux_event_log` nullable-user 재설계(선택).
+> - ✅ **auth 2차 배치 완료**(§3): `auth_session`·`password_reset_token`·`email_verification_token`·`auth_oauth_account` → uuid+FK(cascade). `auth_event_log`는 **제외**(계정삭제 후 ACCOUNT_DELETE 이벤트를 삭제된 userId로 기록 → 존재하지 않는 유저 참조 필요). dev(0009)·prod(0026), dev 검증 통과.
+> - ⏭️ **남은 후속**: `ux_event_log`·`auth_event_log` nullable-user 재설계(선택).
 
 ## 1. 문제
 
@@ -56,7 +57,7 @@ dev 스키마(app_user 190행, 대부분 seed 테스트 계정)에 read-only 스
 
 **제외:** `ux_event_log` — 익명 sentinel 때문에 `text` 유지. (후속 옵션: user 컬럼을 nullable로 재설계해 익명은 NULL 저장 — 별도 과제.)
 
-**2차 배치(선택, 같은 마이그레이션 또는 후속):** auth 계열 `user_id`도 개념상 `app_user.id` 참조 — `auth_session` · `password_reset_token` · `email_verification_token` · `auth_oauth_account` · `auth_event_log`(nullable). 모두 `ON DELETE CASCADE`로 계정 삭제 시 세션/토큰 자동 정리. 로그인마다 쓰는 테이블이라 리허설로 성능 영향 확인 후 결정.
+**2차 배치(✅ 완료 — dev 0009 / prod 0026):** auth 계열 4개 `user_id` → `uuid` + `FK app_user(id) ON DELETE CASCADE` — `auth_session` · `password_reset_token` · `email_verification_token` · `auth_oauth_account`. 계정 삭제 tx가 이 4개를 app_user보다 먼저 지우므로 cascade는 no-op(안전망). **`auth_event_log`는 제외**: 계정 삭제 흐름이 tx 커밋(=app_user 삭제) **후** `logAuthEvent(ACCOUNT_DELETE, userId)`로 삭제된 userId를 INSERT하므로 FK를 걸 수 없다(삭제된 유저 참조 = 감사 로그 본질, `ux_event_log`와 동형). dev 스캔에서 auth_event_log는 orphan 47(prod 21)로 이 성질을 실증.
 
 ## 4. 선결 과제 & 해결
 
@@ -102,7 +103,7 @@ dev 스키마는 **별도 마이그레이션 폴더**(`web/src/server/db/migrati
 - `ux_event_log` 제외로 익명 텔레메트리 무영향.
 - `ON DELETE CASCADE` 도입: `app_user` 삭제가 도메인 데이터로 전파됨 — 데이터 보존 의도로 `app_user`를 드롭하는 경로가 없음을 재확인(§4.3).
 
-## 8. 결정 필요 (진행 전)
+## 8. 결정 (해결됨)
 
-1. **§4.1 fallback uuid 표준화** — 로컬 dev `.env`/문서의 `WORKOUT_AUTH_USER_ID=local-user`를 canonical uuid로 바꾸는 워크플로 변경. 승인 시 Phase 0 착수.
-2. **auth 2차 배치(§3)** 포함 여부 — 같은 마이그레이션 vs 후속 PR.
+1. **§4.1 fallback uuid 표준화** — ✅ 승인·적용(PR #593). 로컬 dev `.env`/문서를 canonical uuid로 전환.
+2. **auth 2차 배치(§3)** — ✅ 후속 PR로 분리 진행(dev 0009 / prod 0026). `auth_event_log`는 제외.
