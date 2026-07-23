@@ -1,0 +1,2470 @@
+{
+  "asymptote-protocol": {
+    "w1-d1": [
+      {
+        "exerciseName": "High-Bar Back Squat",
+        "role": "MAIN",
+        "sourceBlockTarget": "SQUAT",
+        "order": 0,
+        "rowType": "AUTO",
+        "progressionTarget": "SQUAT",
+        "progressionKey": "SQUAT",
+        "sets": [
+          {
+            "reps": 3,
+            "percent": 0.8093750000000001,
+            "amrap": false,
+            "note": "Asymptote C1A · 그라인딩 정지",
+            "targetWeightKg": 160,
+            "rpe": 6,
+            "stopOnGrind": true
+          },
+          {
+            "reps": 3,
+            "percent": 0.8093750000000001,
+            "amrap": false,
+            "note": "Asymptote C1A · 그라인딩 정지",
+            "targetWeightKg": 160,
+            "rpe": 6,
+            "stopOnGrind": true
+          },
+          {
+            "reps": 3,
+            "percent": 0.8093750000000001,
+            "amrap": false,
+            "note": "Asymptote C1A · 그라인딩 정지",
+            "targetWeightKg": 160,
+            "rpe": 6,
+            "stopOnGrind": true
+          },
+          {
+            "reps": 3,
+            "percent": 0.8093750000000001,
+            "amrap": false,
+            "note": "Asymptote C1A · 그라인딩 정지",
+            "targetWeightKg": 160,
+            "rpe": 6,
+            "stopOnGrind": true
+          }
+        ]
+      },
+      {
+        "exerciseName": "Bench Press",
+        "role": "MAIN",
+        "sourceBlockTarget": "BENCH",
+        "order": 1,
+        "rowType": "AUTO",
+        "progressionTarget": "BENCH",
+        "progressionKey": "BENCH",
+        "sets": [
+          {
+            "reps": 5,
+            "percent": 0.716875,
+            "amrap": false,
+            "note": "Asymptote C1A · 그라인딩 정지",
+            "targetWeightKg": 100,
+            "rpe": 6,
+            "stopOnGrind": true
+          },
+          {
+            "reps": 5,
+            "percent": 0.716875,
+            "amrap": false,
+            "note": "Asymptote C1A · 그라인딩 정지",
+            "targetWeightKg": 100,
+            "rpe": 6,
+            "stopOnGrind": true
+          },
+          {
+            "reps": 5,
+            "percent": 0.716875,
+            "amrap": false,
+            "note": "Asymptote C1A · 그라인딩 정지",
+            "targetWeightKg": 100,
+            "rpe": 6,
+            "stopOnGrind": true
+          },
+          {
+            "reps": 5,
+            "percent": 0.716875,
+            "amrap": false,
+            "note": "Asymptote C1A · 그라인딩 정지",
+            "targetWeightKg": 100,
+            "rpe": 6,
+            "stopOnGrind": true
+          }
+        ]
+      },
+      {
+        "exerciseName": "Weighted Pull-Up",
+        "role": "MAIN",
+        "sourceBlockTarget": "PULL",
+        "order": 2,
+        "rowType": "AUTO",
+        "progressionTarget": "PULL",
+        "progressionKey": "PULL",
+        "sets": [
+          {
+            "reps": 3,
+            "percent": 0.78625,
+            "amrap": false,
+            "note": "Asymptote C1A · 그라인딩 정지",
+            "targetWeightKg": 45,
+            "rpe": 6,
+            "stopOnGrind": true
+          },
+          {
+            "reps": 3,
+            "percent": 0.78625,
+            "amrap": false,
+            "note": "Asymptote C1A · 그라인딩 정지",
+            "targetWeightKg": 45,
+            "rpe": 6,
+            "stopOnGrind": true
+          },
+          {
+            "reps": 3,
+            "percent": 0.78625,
+            "amrap": false,
+            "note": "Asymptote C1A · 그라인딩 정지",
+            "targetWeightKg": 45,
+            "rpe": 6,
+            "stopOnGrind": true
+          },
+          {
+            "reps": 3,
+            "percent": 0.78625,
+            "amrap": false,
+            "note": "Asymptote C1A · 그라인딩 정지",
+            "targetWeightKg": 45,
+            "rpe": 6,
+            "stopOnGrind": true
+          }
+        ]
+      }
+    ],
+    "w2-d1": [
+      {
+        "exerciseName": "High-Bar Back Squat",
+        "role": "MAIN",
+        "sourceBlockTarget": "SQUAT",
+        "order": 0,
+        "rowType": "AUTO",
+        "progressionTarget": "SQUAT",
+        "progressionKey": "SQUAT",
+        "sets": [
+          {
+            "reps": 3,
+            "percent": 0.95,
+            "amrap": false,
+            "stopOnGrind": true,
+            "note": "Asymptote C2A · 프라이밍 탑세트 · 그라인딩 정지",
+            "meta": {
+              "topSet": true
+            },
+            "targetWeightKg": 190
+          },
+          {
+            "reps": 3,
+            "percent": 0.8312499999999999,
+            "amrap": false,
+            "note": "Asymptote C2A · 그라인딩 정지",
+            "targetWeightKg": 165,
+            "rpe": 7,
+            "stopOnGrind": true
+          },
+          {
+            "reps": 3,
+            "percent": 0.8312499999999999,
+            "amrap": false,
+            "note": "Asymptote C2A · 그라인딩 정지",
+            "targetWeightKg": 165,
+            "rpe": 7,
+            "stopOnGrind": true
+          },
+          {
+            "reps": 3,
+            "percent": 0.8312499999999999,
+            "amrap": false,
+            "note": "Asymptote C2A · 그라인딩 정지",
+            "targetWeightKg": 165,
+            "rpe": 7,
+            "stopOnGrind": true
+          },
+          {
+            "reps": 3,
+            "percent": 0.8312499999999999,
+            "amrap": false,
+            "note": "Asymptote C2A · 그라인딩 정지",
+            "targetWeightKg": 165,
+            "rpe": 7,
+            "stopOnGrind": true
+          }
+        ]
+      },
+      {
+        "exerciseName": "Bench Press",
+        "role": "MAIN",
+        "sourceBlockTarget": "BENCH",
+        "order": 1,
+        "rowType": "AUTO",
+        "progressionTarget": "BENCH",
+        "progressionKey": "BENCH",
+        "sets": [
+          {
+            "reps": 5,
+            "percent": 0.73625,
+            "amrap": false,
+            "note": "Asymptote C2A · 그라인딩 정지",
+            "targetWeightKg": 102.5,
+            "rpe": 7,
+            "stopOnGrind": true
+          },
+          {
+            "reps": 5,
+            "percent": 0.73625,
+            "amrap": false,
+            "note": "Asymptote C2A · 그라인딩 정지",
+            "targetWeightKg": 102.5,
+            "rpe": 7,
+            "stopOnGrind": true
+          },
+          {
+            "reps": 5,
+            "percent": 0.73625,
+            "amrap": false,
+            "note": "Asymptote C2A · 그라인딩 정지",
+            "targetWeightKg": 102.5,
+            "rpe": 7,
+            "stopOnGrind": true
+          },
+          {
+            "reps": 5,
+            "percent": 0.73625,
+            "amrap": false,
+            "note": "Asymptote C2A · 그라인딩 정지",
+            "targetWeightKg": 102.5,
+            "rpe": 7,
+            "stopOnGrind": true
+          }
+        ]
+      },
+      {
+        "exerciseName": "Weighted Pull-Up",
+        "role": "MAIN",
+        "sourceBlockTarget": "PULL",
+        "order": 2,
+        "rowType": "AUTO",
+        "progressionTarget": "PULL",
+        "progressionKey": "PULL",
+        "sets": [
+          {
+            "reps": 3,
+            "percent": 0.95,
+            "amrap": false,
+            "stopOnGrind": true,
+            "note": "Asymptote C2A · 프라이밍 탑세트 · 그라인딩 정지",
+            "meta": {
+              "topSet": true
+            },
+            "targetWeightKg": 55
+          },
+          {
+            "reps": 3,
+            "percent": 0.8075,
+            "amrap": false,
+            "note": "Asymptote C2A · 그라인딩 정지",
+            "targetWeightKg": 47.5,
+            "rpe": 7,
+            "stopOnGrind": true
+          },
+          {
+            "reps": 3,
+            "percent": 0.8075,
+            "amrap": false,
+            "note": "Asymptote C2A · 그라인딩 정지",
+            "targetWeightKg": 47.5,
+            "rpe": 7,
+            "stopOnGrind": true
+          },
+          {
+            "reps": 3,
+            "percent": 0.8075,
+            "amrap": false,
+            "note": "Asymptote C2A · 그라인딩 정지",
+            "targetWeightKg": 47.5,
+            "rpe": 7,
+            "stopOnGrind": true
+          },
+          {
+            "reps": 3,
+            "percent": 0.8075,
+            "amrap": false,
+            "note": "Asymptote C2A · 그라인딩 정지",
+            "targetWeightKg": 47.5,
+            "rpe": 7,
+            "stopOnGrind": true
+          }
+        ]
+      }
+    ],
+    "w3-d1": [
+      {
+        "exerciseName": "High-Bar Back Squat",
+        "role": "MAIN",
+        "sourceBlockTarget": "SQUAT",
+        "order": 0,
+        "rowType": "AUTO",
+        "progressionTarget": "SQUAT",
+        "progressionKey": "SQUAT",
+        "sets": [
+          {
+            "reps": 3,
+            "percent": 0.975,
+            "amrap": false,
+            "stopOnGrind": true,
+            "note": "Asymptote C3A · 프라이밍 탑세트 · 그라인딩 정지",
+            "meta": {
+              "topSet": true
+            },
+            "targetWeightKg": 195
+          },
+          {
+            "reps": 3,
+            "percent": 0.853125,
+            "amrap": false,
+            "note": "Asymptote C3A · 그라인딩 정지",
+            "targetWeightKg": 170,
+            "rpe": 8,
+            "stopOnGrind": true
+          },
+          {
+            "reps": 3,
+            "percent": 0.853125,
+            "amrap": false,
+            "note": "Asymptote C3A · 그라인딩 정지",
+            "targetWeightKg": 170,
+            "rpe": 8,
+            "stopOnGrind": true
+          },
+          {
+            "reps": 3,
+            "percent": 0.853125,
+            "amrap": false,
+            "note": "Asymptote C3A · 그라인딩 정지",
+            "targetWeightKg": 170,
+            "rpe": 8,
+            "stopOnGrind": true
+          },
+          {
+            "reps": 3,
+            "percent": 0.853125,
+            "amrap": true,
+            "note": "Asymptote C3A · AMRAP 3+",
+            "targetWeightKg": 170
+          }
+        ]
+      },
+      {
+        "exerciseName": "Bench Press",
+        "role": "MAIN",
+        "sourceBlockTarget": "BENCH",
+        "order": 1,
+        "rowType": "AUTO",
+        "progressionTarget": "BENCH",
+        "progressionKey": "BENCH",
+        "sets": [
+          {
+            "reps": 5,
+            "percent": 0.755625,
+            "amrap": false,
+            "note": "Asymptote C3A · 그라인딩 정지",
+            "targetWeightKg": 105,
+            "rpe": 8,
+            "stopOnGrind": true
+          },
+          {
+            "reps": 5,
+            "percent": 0.755625,
+            "amrap": false,
+            "note": "Asymptote C3A · 그라인딩 정지",
+            "targetWeightKg": 105,
+            "rpe": 8,
+            "stopOnGrind": true
+          },
+          {
+            "reps": 5,
+            "percent": 0.755625,
+            "amrap": false,
+            "note": "Asymptote C3A · 그라인딩 정지",
+            "targetWeightKg": 105,
+            "rpe": 8,
+            "stopOnGrind": true
+          },
+          {
+            "reps": 5,
+            "percent": 0.755625,
+            "amrap": false,
+            "note": "Asymptote C3A · 그라인딩 정지",
+            "targetWeightKg": 105,
+            "rpe": 8,
+            "stopOnGrind": true
+          }
+        ]
+      },
+      {
+        "exerciseName": "Weighted Pull-Up",
+        "role": "MAIN",
+        "sourceBlockTarget": "PULL",
+        "order": 2,
+        "rowType": "AUTO",
+        "progressionTarget": "PULL",
+        "progressionKey": "PULL",
+        "sets": [
+          {
+            "reps": 3,
+            "percent": 0.975,
+            "amrap": false,
+            "stopOnGrind": true,
+            "note": "Asymptote C3A · 프라이밍 탑세트 · 그라인딩 정지",
+            "meta": {
+              "topSet": true
+            },
+            "targetWeightKg": 57.5
+          },
+          {
+            "reps": 3,
+            "percent": 0.82875,
+            "amrap": false,
+            "note": "Asymptote C3A · 그라인딩 정지",
+            "targetWeightKg": 47.5,
+            "rpe": 8,
+            "stopOnGrind": true
+          },
+          {
+            "reps": 3,
+            "percent": 0.82875,
+            "amrap": false,
+            "note": "Asymptote C3A · 그라인딩 정지",
+            "targetWeightKg": 47.5,
+            "rpe": 8,
+            "stopOnGrind": true
+          },
+          {
+            "reps": 3,
+            "percent": 0.82875,
+            "amrap": false,
+            "note": "Asymptote C3A · 그라인딩 정지",
+            "targetWeightKg": 47.5,
+            "rpe": 8,
+            "stopOnGrind": true
+          },
+          {
+            "reps": 3,
+            "percent": 0.82875,
+            "amrap": true,
+            "note": "Asymptote C3A · AMRAP 3+",
+            "targetWeightKg": 47.5
+          }
+        ]
+      }
+    ],
+    "w1-d2": [
+      {
+        "exerciseName": "High-Bar Back Squat",
+        "role": "MAIN",
+        "sourceBlockTarget": "SQUAT",
+        "order": 0,
+        "rowType": "AUTO",
+        "progressionTarget": "SQUAT",
+        "progressionKey": "SQUAT",
+        "sets": [
+          {
+            "reps": 5,
+            "percent": 0.6475,
+            "amrap": false,
+            "note": "Asymptote C1B · 그라인딩 정지",
+            "targetWeightKg": 127.5,
+            "rpe": 6,
+            "stopOnGrind": true
+          },
+          {
+            "reps": 5,
+            "percent": 0.6475,
+            "amrap": false,
+            "note": "Asymptote C1B · 그라인딩 정지",
+            "targetWeightKg": 127.5,
+            "rpe": 6,
+            "stopOnGrind": true
+          },
+          {
+            "reps": 5,
+            "percent": 0.6475,
+            "amrap": false,
+            "note": "Asymptote C1B · 그라인딩 정지",
+            "targetWeightKg": 127.5,
+            "rpe": 6,
+            "stopOnGrind": true
+          },
+          {
+            "reps": 5,
+            "percent": 0.6475,
+            "amrap": false,
+            "note": "Asymptote C1B · 그라인딩 정지",
+            "targetWeightKg": 127.5,
+            "rpe": 6,
+            "stopOnGrind": true
+          },
+          {
+            "reps": 5,
+            "percent": 0.6475,
+            "amrap": false,
+            "note": "Asymptote C1B · 그라인딩 정지",
+            "targetWeightKg": 127.5,
+            "rpe": 6,
+            "stopOnGrind": true
+          }
+        ]
+      },
+      {
+        "exerciseName": "Deadlift",
+        "role": "MAIN",
+        "sourceBlockTarget": "DEADLIFT",
+        "order": 1,
+        "rowType": "AUTO",
+        "progressionTarget": "DEADLIFT",
+        "progressionKey": "DEADLIFT",
+        "sets": [
+          {
+            "reps": 3,
+            "percent": 0.7400000000000001,
+            "amrap": false,
+            "note": "Asymptote C1B · 그라인딩 정지",
+            "targetWeightKg": 177.5,
+            "rpe": 6,
+            "stopOnGrind": true
+          },
+          {
+            "reps": 3,
+            "percent": 0.7400000000000001,
+            "amrap": false,
+            "note": "Asymptote C1B · 그라인딩 정지",
+            "targetWeightKg": 177.5,
+            "rpe": 6,
+            "stopOnGrind": true
+          },
+          {
+            "reps": 3,
+            "percent": 0.7400000000000001,
+            "amrap": false,
+            "note": "Asymptote C1B · 그라인딩 정지",
+            "targetWeightKg": 177.5,
+            "rpe": 6,
+            "stopOnGrind": true
+          }
+        ]
+      },
+      {
+        "exerciseName": "Weighted Pull-Up",
+        "role": "MAIN",
+        "sourceBlockTarget": "PULL",
+        "order": 2,
+        "rowType": "AUTO",
+        "progressionTarget": "PULL",
+        "progressionKey": "PULL",
+        "sets": [
+          {
+            "reps": 8,
+            "percent": 0.6012500000000001,
+            "amrap": false,
+            "note": "Asymptote C1B · 그라인딩 정지",
+            "targetWeightKg": 35,
+            "rpe": 6,
+            "stopOnGrind": true
+          },
+          {
+            "reps": 8,
+            "percent": 0.6012500000000001,
+            "amrap": false,
+            "note": "Asymptote C1B · 그라인딩 정지",
+            "targetWeightKg": 35,
+            "rpe": 6,
+            "stopOnGrind": true
+          },
+          {
+            "reps": 8,
+            "percent": 0.6012500000000001,
+            "amrap": false,
+            "note": "Asymptote C1B · 그라인딩 정지",
+            "targetWeightKg": 35,
+            "rpe": 6,
+            "stopOnGrind": true
+          }
+        ]
+      }
+    ]
+  },
+  "operator": {
+    "w1-d1": [
+      {
+        "exerciseName": "High-Bar Back Squat",
+        "role": "MAIN",
+        "sourceBlockTarget": "SQUAT",
+        "order": 0,
+        "rowType": "AUTO",
+        "progressionTarget": "SQUAT",
+        "progressionKey": "SQUAT",
+        "sets": [
+          {
+            "reps": 5,
+            "percent": 0.7,
+            "targetWeightKg": 140,
+            "note": "Operator W1"
+          },
+          {
+            "reps": 5,
+            "percent": 0.7,
+            "targetWeightKg": 140,
+            "note": "Operator W1"
+          },
+          {
+            "reps": 5,
+            "percent": 0.7,
+            "targetWeightKg": 140,
+            "note": "Operator W1"
+          }
+        ]
+      },
+      {
+        "exerciseName": "Bench Press",
+        "role": "MAIN",
+        "sourceBlockTarget": "BENCH",
+        "order": 1,
+        "rowType": "AUTO",
+        "progressionTarget": "BENCH",
+        "progressionKey": "BENCH",
+        "sets": [
+          {
+            "reps": 5,
+            "percent": 0.7,
+            "targetWeightKg": 97.5,
+            "note": "Operator W1"
+          },
+          {
+            "reps": 5,
+            "percent": 0.7,
+            "targetWeightKg": 97.5,
+            "note": "Operator W1"
+          },
+          {
+            "reps": 5,
+            "percent": 0.7,
+            "targetWeightKg": 97.5,
+            "note": "Operator W1"
+          }
+        ]
+      },
+      {
+        "exerciseName": "Pull-Up",
+        "role": "MAIN",
+        "sourceBlockTarget": "PULL",
+        "order": 2,
+        "rowType": "AUTO",
+        "progressionTarget": "PULL",
+        "progressionKey": "PULL",
+        "sets": [
+          {
+            "reps": 5,
+            "percent": 0.7,
+            "targetWeightKg": 42.5,
+            "note": "Operator W1"
+          },
+          {
+            "reps": 5,
+            "percent": 0.7,
+            "targetWeightKg": 42.5,
+            "note": "Operator W1"
+          },
+          {
+            "reps": 5,
+            "percent": 0.7,
+            "targetWeightKg": 42.5,
+            "note": "Operator W1"
+          }
+        ]
+      }
+    ],
+    "w2-d1": [
+      {
+        "exerciseName": "High-Bar Back Squat",
+        "role": "MAIN",
+        "sourceBlockTarget": "SQUAT",
+        "order": 0,
+        "rowType": "AUTO",
+        "progressionTarget": "SQUAT",
+        "progressionKey": "SQUAT",
+        "sets": [
+          {
+            "reps": 5,
+            "percent": 0.8,
+            "targetWeightKg": 160,
+            "note": "Operator W2"
+          },
+          {
+            "reps": 5,
+            "percent": 0.8,
+            "targetWeightKg": 160,
+            "note": "Operator W2"
+          },
+          {
+            "reps": 5,
+            "percent": 0.8,
+            "targetWeightKg": 160,
+            "note": "Operator W2"
+          }
+        ]
+      },
+      {
+        "exerciseName": "Bench Press",
+        "role": "MAIN",
+        "sourceBlockTarget": "BENCH",
+        "order": 1,
+        "rowType": "AUTO",
+        "progressionTarget": "BENCH",
+        "progressionKey": "BENCH",
+        "sets": [
+          {
+            "reps": 5,
+            "percent": 0.8,
+            "targetWeightKg": 112.5,
+            "note": "Operator W2"
+          },
+          {
+            "reps": 5,
+            "percent": 0.8,
+            "targetWeightKg": 112.5,
+            "note": "Operator W2"
+          },
+          {
+            "reps": 5,
+            "percent": 0.8,
+            "targetWeightKg": 112.5,
+            "note": "Operator W2"
+          }
+        ]
+      },
+      {
+        "exerciseName": "Pull-Up",
+        "role": "MAIN",
+        "sourceBlockTarget": "PULL",
+        "order": 2,
+        "rowType": "AUTO",
+        "progressionTarget": "PULL",
+        "progressionKey": "PULL",
+        "sets": [
+          {
+            "reps": 5,
+            "percent": 0.8,
+            "targetWeightKg": 47.5,
+            "note": "Operator W2"
+          },
+          {
+            "reps": 5,
+            "percent": 0.8,
+            "targetWeightKg": 47.5,
+            "note": "Operator W2"
+          },
+          {
+            "reps": 5,
+            "percent": 0.8,
+            "targetWeightKg": 47.5,
+            "note": "Operator W2"
+          }
+        ]
+      }
+    ],
+    "w3-d1": [
+      {
+        "exerciseName": "High-Bar Back Squat",
+        "role": "MAIN",
+        "sourceBlockTarget": "SQUAT",
+        "order": 0,
+        "rowType": "AUTO",
+        "progressionTarget": "SQUAT",
+        "progressionKey": "SQUAT",
+        "sets": [
+          {
+            "reps": 3,
+            "percent": 0.9,
+            "targetWeightKg": 180,
+            "note": "Operator W3"
+          },
+          {
+            "reps": 3,
+            "percent": 0.9,
+            "targetWeightKg": 180,
+            "note": "Operator W3"
+          },
+          {
+            "reps": 3,
+            "percent": 0.9,
+            "targetWeightKg": 180,
+            "note": "Operator W3"
+          }
+        ]
+      },
+      {
+        "exerciseName": "Bench Press",
+        "role": "MAIN",
+        "sourceBlockTarget": "BENCH",
+        "order": 1,
+        "rowType": "AUTO",
+        "progressionTarget": "BENCH",
+        "progressionKey": "BENCH",
+        "sets": [
+          {
+            "reps": 3,
+            "percent": 0.9,
+            "targetWeightKg": 125,
+            "note": "Operator W3"
+          },
+          {
+            "reps": 3,
+            "percent": 0.9,
+            "targetWeightKg": 125,
+            "note": "Operator W3"
+          },
+          {
+            "reps": 3,
+            "percent": 0.9,
+            "targetWeightKg": 125,
+            "note": "Operator W3"
+          }
+        ]
+      },
+      {
+        "exerciseName": "Pull-Up",
+        "role": "MAIN",
+        "sourceBlockTarget": "PULL",
+        "order": 2,
+        "rowType": "AUTO",
+        "progressionTarget": "PULL",
+        "progressionKey": "PULL",
+        "sets": [
+          {
+            "reps": 3,
+            "percent": 0.9,
+            "targetWeightKg": 55,
+            "note": "Operator W3"
+          },
+          {
+            "reps": 3,
+            "percent": 0.9,
+            "targetWeightKg": 55,
+            "note": "Operator W3"
+          },
+          {
+            "reps": 3,
+            "percent": 0.9,
+            "targetWeightKg": 55,
+            "note": "Operator W3"
+          }
+        ]
+      }
+    ],
+    "w1-d2": [
+      {
+        "exerciseName": "High-Bar Back Squat",
+        "role": "MAIN",
+        "sourceBlockTarget": "SQUAT",
+        "order": 0,
+        "rowType": "AUTO",
+        "progressionTarget": "SQUAT",
+        "progressionKey": "SQUAT",
+        "sets": [
+          {
+            "reps": 5,
+            "percent": 0.7,
+            "targetWeightKg": 140,
+            "note": "Operator W1"
+          },
+          {
+            "reps": 5,
+            "percent": 0.7,
+            "targetWeightKg": 140,
+            "note": "Operator W1"
+          },
+          {
+            "reps": 5,
+            "percent": 0.7,
+            "targetWeightKg": 140,
+            "note": "Operator W1"
+          }
+        ]
+      },
+      {
+        "exerciseName": "Bench Press",
+        "role": "MAIN",
+        "sourceBlockTarget": "BENCH",
+        "order": 1,
+        "rowType": "AUTO",
+        "progressionTarget": "BENCH",
+        "progressionKey": "BENCH",
+        "sets": [
+          {
+            "reps": 5,
+            "percent": 0.7,
+            "targetWeightKg": 97.5,
+            "note": "Operator W1"
+          },
+          {
+            "reps": 5,
+            "percent": 0.7,
+            "targetWeightKg": 97.5,
+            "note": "Operator W1"
+          },
+          {
+            "reps": 5,
+            "percent": 0.7,
+            "targetWeightKg": 97.5,
+            "note": "Operator W1"
+          }
+        ]
+      },
+      {
+        "exerciseName": "Pull-Up",
+        "role": "MAIN",
+        "sourceBlockTarget": "PULL",
+        "order": 2,
+        "rowType": "AUTO",
+        "progressionTarget": "PULL",
+        "progressionKey": "PULL",
+        "sets": [
+          {
+            "reps": 5,
+            "percent": 0.7,
+            "targetWeightKg": 42.5,
+            "note": "Operator W1"
+          },
+          {
+            "reps": 5,
+            "percent": 0.7,
+            "targetWeightKg": 42.5,
+            "note": "Operator W1"
+          },
+          {
+            "reps": 5,
+            "percent": 0.7,
+            "targetWeightKg": 42.5,
+            "note": "Operator W1"
+          }
+        ]
+      }
+    ]
+  },
+  "tb-fighter": {
+    "w1-d1": [
+      {
+        "exerciseName": "High-Bar Back Squat",
+        "role": "MAIN",
+        "sourceBlockTarget": "SQUAT",
+        "order": 0,
+        "rowType": "AUTO",
+        "progressionTarget": "SQUAT",
+        "progressionKey": "SQUAT",
+        "sets": [
+          {
+            "reps": 5,
+            "percent": 0.7,
+            "targetWeightKg": 140,
+            "note": "Operator W1"
+          },
+          {
+            "reps": 5,
+            "percent": 0.7,
+            "targetWeightKg": 140,
+            "note": "Operator W1"
+          },
+          {
+            "reps": 5,
+            "percent": 0.7,
+            "targetWeightKg": 140,
+            "note": "Operator W1"
+          }
+        ]
+      },
+      {
+        "exerciseName": "Bench Press",
+        "role": "MAIN",
+        "sourceBlockTarget": "BENCH",
+        "order": 1,
+        "rowType": "AUTO",
+        "progressionTarget": "BENCH",
+        "progressionKey": "BENCH",
+        "sets": [
+          {
+            "reps": 5,
+            "percent": 0.7,
+            "targetWeightKg": 97.5,
+            "note": "Operator W1"
+          },
+          {
+            "reps": 5,
+            "percent": 0.7,
+            "targetWeightKg": 97.5,
+            "note": "Operator W1"
+          },
+          {
+            "reps": 5,
+            "percent": 0.7,
+            "targetWeightKg": 97.5,
+            "note": "Operator W1"
+          }
+        ]
+      },
+      {
+        "exerciseName": "Overhead Press",
+        "role": "MAIN",
+        "sourceBlockTarget": "OHP",
+        "order": 2,
+        "rowType": "AUTO",
+        "progressionTarget": "OHP",
+        "progressionKey": "OHP",
+        "sets": [
+          {
+            "reps": 5,
+            "percent": 0.7,
+            "targetWeightKg": 70,
+            "note": "Operator W1"
+          },
+          {
+            "reps": 5,
+            "percent": 0.7,
+            "targetWeightKg": 70,
+            "note": "Operator W1"
+          },
+          {
+            "reps": 5,
+            "percent": 0.7,
+            "targetWeightKg": 70,
+            "note": "Operator W1"
+          }
+        ]
+      },
+      {
+        "exerciseName": "Deadlift",
+        "role": "MAIN",
+        "sourceBlockTarget": "DEADLIFT",
+        "order": 3,
+        "rowType": "AUTO",
+        "progressionTarget": "DEADLIFT",
+        "progressionKey": "DEADLIFT",
+        "sets": [
+          {
+            "reps": 5,
+            "percent": 0.7,
+            "targetWeightKg": 167.5,
+            "note": "Operator W1"
+          },
+          {
+            "reps": 5,
+            "percent": 0.7,
+            "targetWeightKg": 167.5,
+            "note": "Operator W1"
+          },
+          {
+            "reps": 5,
+            "percent": 0.7,
+            "targetWeightKg": 167.5,
+            "note": "Operator W1"
+          }
+        ]
+      }
+    ],
+    "w2-d1": [
+      {
+        "exerciseName": "High-Bar Back Squat",
+        "role": "MAIN",
+        "sourceBlockTarget": "SQUAT",
+        "order": 0,
+        "rowType": "AUTO",
+        "progressionTarget": "SQUAT",
+        "progressionKey": "SQUAT",
+        "sets": [
+          {
+            "reps": 5,
+            "percent": 0.8,
+            "targetWeightKg": 160,
+            "note": "Operator W2"
+          },
+          {
+            "reps": 5,
+            "percent": 0.8,
+            "targetWeightKg": 160,
+            "note": "Operator W2"
+          },
+          {
+            "reps": 5,
+            "percent": 0.8,
+            "targetWeightKg": 160,
+            "note": "Operator W2"
+          }
+        ]
+      },
+      {
+        "exerciseName": "Bench Press",
+        "role": "MAIN",
+        "sourceBlockTarget": "BENCH",
+        "order": 1,
+        "rowType": "AUTO",
+        "progressionTarget": "BENCH",
+        "progressionKey": "BENCH",
+        "sets": [
+          {
+            "reps": 5,
+            "percent": 0.8,
+            "targetWeightKg": 112.5,
+            "note": "Operator W2"
+          },
+          {
+            "reps": 5,
+            "percent": 0.8,
+            "targetWeightKg": 112.5,
+            "note": "Operator W2"
+          },
+          {
+            "reps": 5,
+            "percent": 0.8,
+            "targetWeightKg": 112.5,
+            "note": "Operator W2"
+          }
+        ]
+      },
+      {
+        "exerciseName": "Overhead Press",
+        "role": "MAIN",
+        "sourceBlockTarget": "OHP",
+        "order": 2,
+        "rowType": "AUTO",
+        "progressionTarget": "OHP",
+        "progressionKey": "OHP",
+        "sets": [
+          {
+            "reps": 5,
+            "percent": 0.8,
+            "targetWeightKg": 80,
+            "note": "Operator W2"
+          },
+          {
+            "reps": 5,
+            "percent": 0.8,
+            "targetWeightKg": 80,
+            "note": "Operator W2"
+          },
+          {
+            "reps": 5,
+            "percent": 0.8,
+            "targetWeightKg": 80,
+            "note": "Operator W2"
+          }
+        ]
+      },
+      {
+        "exerciseName": "Deadlift",
+        "role": "MAIN",
+        "sourceBlockTarget": "DEADLIFT",
+        "order": 3,
+        "rowType": "AUTO",
+        "progressionTarget": "DEADLIFT",
+        "progressionKey": "DEADLIFT",
+        "sets": [
+          {
+            "reps": 5,
+            "percent": 0.8,
+            "targetWeightKg": 192.5,
+            "note": "Operator W2"
+          },
+          {
+            "reps": 5,
+            "percent": 0.8,
+            "targetWeightKg": 192.5,
+            "note": "Operator W2"
+          },
+          {
+            "reps": 5,
+            "percent": 0.8,
+            "targetWeightKg": 192.5,
+            "note": "Operator W2"
+          }
+        ]
+      }
+    ],
+    "w3-d1": [
+      {
+        "exerciseName": "High-Bar Back Squat",
+        "role": "MAIN",
+        "sourceBlockTarget": "SQUAT",
+        "order": 0,
+        "rowType": "AUTO",
+        "progressionTarget": "SQUAT",
+        "progressionKey": "SQUAT",
+        "sets": [
+          {
+            "reps": 3,
+            "percent": 0.9,
+            "targetWeightKg": 180,
+            "note": "Operator W3"
+          },
+          {
+            "reps": 3,
+            "percent": 0.9,
+            "targetWeightKg": 180,
+            "note": "Operator W3"
+          },
+          {
+            "reps": 3,
+            "percent": 0.9,
+            "targetWeightKg": 180,
+            "note": "Operator W3"
+          }
+        ]
+      },
+      {
+        "exerciseName": "Bench Press",
+        "role": "MAIN",
+        "sourceBlockTarget": "BENCH",
+        "order": 1,
+        "rowType": "AUTO",
+        "progressionTarget": "BENCH",
+        "progressionKey": "BENCH",
+        "sets": [
+          {
+            "reps": 3,
+            "percent": 0.9,
+            "targetWeightKg": 125,
+            "note": "Operator W3"
+          },
+          {
+            "reps": 3,
+            "percent": 0.9,
+            "targetWeightKg": 125,
+            "note": "Operator W3"
+          },
+          {
+            "reps": 3,
+            "percent": 0.9,
+            "targetWeightKg": 125,
+            "note": "Operator W3"
+          }
+        ]
+      },
+      {
+        "exerciseName": "Overhead Press",
+        "role": "MAIN",
+        "sourceBlockTarget": "OHP",
+        "order": 2,
+        "rowType": "AUTO",
+        "progressionTarget": "OHP",
+        "progressionKey": "OHP",
+        "sets": [
+          {
+            "reps": 3,
+            "percent": 0.9,
+            "targetWeightKg": 90,
+            "note": "Operator W3"
+          },
+          {
+            "reps": 3,
+            "percent": 0.9,
+            "targetWeightKg": 90,
+            "note": "Operator W3"
+          },
+          {
+            "reps": 3,
+            "percent": 0.9,
+            "targetWeightKg": 90,
+            "note": "Operator W3"
+          }
+        ]
+      },
+      {
+        "exerciseName": "Deadlift",
+        "role": "MAIN",
+        "sourceBlockTarget": "DEADLIFT",
+        "order": 3,
+        "rowType": "AUTO",
+        "progressionTarget": "DEADLIFT",
+        "progressionKey": "DEADLIFT",
+        "sets": [
+          {
+            "reps": 3,
+            "percent": 0.9,
+            "targetWeightKg": 215,
+            "note": "Operator W3"
+          },
+          {
+            "reps": 3,
+            "percent": 0.9,
+            "targetWeightKg": 215,
+            "note": "Operator W3"
+          },
+          {
+            "reps": 3,
+            "percent": 0.9,
+            "targetWeightKg": 215,
+            "note": "Operator W3"
+          }
+        ]
+      }
+    ],
+    "w1-d2": [
+      {
+        "exerciseName": "High-Bar Back Squat",
+        "role": "MAIN",
+        "sourceBlockTarget": "SQUAT",
+        "order": 0,
+        "rowType": "AUTO",
+        "progressionTarget": "SQUAT",
+        "progressionKey": "SQUAT",
+        "sets": [
+          {
+            "reps": 5,
+            "percent": 0.7,
+            "targetWeightKg": 140,
+            "note": "Operator W1"
+          },
+          {
+            "reps": 5,
+            "percent": 0.7,
+            "targetWeightKg": 140,
+            "note": "Operator W1"
+          },
+          {
+            "reps": 5,
+            "percent": 0.7,
+            "targetWeightKg": 140,
+            "note": "Operator W1"
+          }
+        ]
+      },
+      {
+        "exerciseName": "Bench Press",
+        "role": "MAIN",
+        "sourceBlockTarget": "BENCH",
+        "order": 1,
+        "rowType": "AUTO",
+        "progressionTarget": "BENCH",
+        "progressionKey": "BENCH",
+        "sets": [
+          {
+            "reps": 5,
+            "percent": 0.7,
+            "targetWeightKg": 97.5,
+            "note": "Operator W1"
+          },
+          {
+            "reps": 5,
+            "percent": 0.7,
+            "targetWeightKg": 97.5,
+            "note": "Operator W1"
+          },
+          {
+            "reps": 5,
+            "percent": 0.7,
+            "targetWeightKg": 97.5,
+            "note": "Operator W1"
+          }
+        ]
+      },
+      {
+        "exerciseName": "Overhead Press",
+        "role": "MAIN",
+        "sourceBlockTarget": "OHP",
+        "order": 2,
+        "rowType": "AUTO",
+        "progressionTarget": "OHP",
+        "progressionKey": "OHP",
+        "sets": [
+          {
+            "reps": 5,
+            "percent": 0.7,
+            "targetWeightKg": 70,
+            "note": "Operator W1"
+          },
+          {
+            "reps": 5,
+            "percent": 0.7,
+            "targetWeightKg": 70,
+            "note": "Operator W1"
+          },
+          {
+            "reps": 5,
+            "percent": 0.7,
+            "targetWeightKg": 70,
+            "note": "Operator W1"
+          }
+        ]
+      },
+      {
+        "exerciseName": "Deadlift",
+        "role": "MAIN",
+        "sourceBlockTarget": "DEADLIFT",
+        "order": 3,
+        "rowType": "AUTO",
+        "progressionTarget": "DEADLIFT",
+        "progressionKey": "DEADLIFT",
+        "sets": [
+          {
+            "reps": 5,
+            "percent": 0.7,
+            "targetWeightKg": 167.5,
+            "note": "Operator W1"
+          },
+          {
+            "reps": 5,
+            "percent": 0.7,
+            "targetWeightKg": 167.5,
+            "note": "Operator W1"
+          },
+          {
+            "reps": 5,
+            "percent": 0.7,
+            "targetWeightKg": 167.5,
+            "note": "Operator W1"
+          }
+        ]
+      }
+    ]
+  },
+  "tb-zulu": {
+    "w1-d1": [
+      {
+        "exerciseName": "High-Bar Back Squat",
+        "role": "MAIN",
+        "sourceBlockTarget": "SQUAT",
+        "order": 0,
+        "rowType": "AUTO",
+        "progressionTarget": "SQUAT",
+        "progressionKey": "SQUAT",
+        "sets": [
+          {
+            "reps": 5,
+            "percent": 0.7,
+            "targetWeightKg": 140,
+            "note": "Operator W1"
+          },
+          {
+            "reps": 5,
+            "percent": 0.7,
+            "targetWeightKg": 140,
+            "note": "Operator W1"
+          },
+          {
+            "reps": 5,
+            "percent": 0.7,
+            "targetWeightKg": 140,
+            "note": "Operator W1"
+          }
+        ]
+      },
+      {
+        "exerciseName": "Bench Press",
+        "role": "MAIN",
+        "sourceBlockTarget": "BENCH",
+        "order": 1,
+        "rowType": "AUTO",
+        "progressionTarget": "BENCH",
+        "progressionKey": "BENCH",
+        "sets": [
+          {
+            "reps": 5,
+            "percent": 0.7,
+            "targetWeightKg": 97.5,
+            "note": "Operator W1"
+          },
+          {
+            "reps": 5,
+            "percent": 0.7,
+            "targetWeightKg": 97.5,
+            "note": "Operator W1"
+          },
+          {
+            "reps": 5,
+            "percent": 0.7,
+            "targetWeightKg": 97.5,
+            "note": "Operator W1"
+          }
+        ]
+      },
+      {
+        "exerciseName": "Pull-Up",
+        "role": "MAIN",
+        "sourceBlockTarget": "PULL",
+        "order": 2,
+        "rowType": "AUTO",
+        "progressionTarget": "PULL",
+        "progressionKey": "PULL",
+        "sets": [
+          {
+            "reps": 5,
+            "percent": 0.7,
+            "targetWeightKg": 42.5,
+            "note": "Operator W1"
+          },
+          {
+            "reps": 5,
+            "percent": 0.7,
+            "targetWeightKg": 42.5,
+            "note": "Operator W1"
+          },
+          {
+            "reps": 5,
+            "percent": 0.7,
+            "targetWeightKg": 42.5,
+            "note": "Operator W1"
+          }
+        ]
+      }
+    ],
+    "w2-d1": [
+      {
+        "exerciseName": "High-Bar Back Squat",
+        "role": "MAIN",
+        "sourceBlockTarget": "SQUAT",
+        "order": 0,
+        "rowType": "AUTO",
+        "progressionTarget": "SQUAT",
+        "progressionKey": "SQUAT",
+        "sets": [
+          {
+            "reps": 5,
+            "percent": 0.8,
+            "targetWeightKg": 160,
+            "note": "Operator W2"
+          },
+          {
+            "reps": 5,
+            "percent": 0.8,
+            "targetWeightKg": 160,
+            "note": "Operator W2"
+          },
+          {
+            "reps": 5,
+            "percent": 0.8,
+            "targetWeightKg": 160,
+            "note": "Operator W2"
+          }
+        ]
+      },
+      {
+        "exerciseName": "Bench Press",
+        "role": "MAIN",
+        "sourceBlockTarget": "BENCH",
+        "order": 1,
+        "rowType": "AUTO",
+        "progressionTarget": "BENCH",
+        "progressionKey": "BENCH",
+        "sets": [
+          {
+            "reps": 5,
+            "percent": 0.8,
+            "targetWeightKg": 112.5,
+            "note": "Operator W2"
+          },
+          {
+            "reps": 5,
+            "percent": 0.8,
+            "targetWeightKg": 112.5,
+            "note": "Operator W2"
+          },
+          {
+            "reps": 5,
+            "percent": 0.8,
+            "targetWeightKg": 112.5,
+            "note": "Operator W2"
+          }
+        ]
+      },
+      {
+        "exerciseName": "Pull-Up",
+        "role": "MAIN",
+        "sourceBlockTarget": "PULL",
+        "order": 2,
+        "rowType": "AUTO",
+        "progressionTarget": "PULL",
+        "progressionKey": "PULL",
+        "sets": [
+          {
+            "reps": 5,
+            "percent": 0.8,
+            "targetWeightKg": 47.5,
+            "note": "Operator W2"
+          },
+          {
+            "reps": 5,
+            "percent": 0.8,
+            "targetWeightKg": 47.5,
+            "note": "Operator W2"
+          },
+          {
+            "reps": 5,
+            "percent": 0.8,
+            "targetWeightKg": 47.5,
+            "note": "Operator W2"
+          }
+        ]
+      }
+    ],
+    "w3-d1": [
+      {
+        "exerciseName": "High-Bar Back Squat",
+        "role": "MAIN",
+        "sourceBlockTarget": "SQUAT",
+        "order": 0,
+        "rowType": "AUTO",
+        "progressionTarget": "SQUAT",
+        "progressionKey": "SQUAT",
+        "sets": [
+          {
+            "reps": 3,
+            "percent": 0.9,
+            "targetWeightKg": 180,
+            "note": "Operator W3"
+          },
+          {
+            "reps": 3,
+            "percent": 0.9,
+            "targetWeightKg": 180,
+            "note": "Operator W3"
+          },
+          {
+            "reps": 3,
+            "percent": 0.9,
+            "targetWeightKg": 180,
+            "note": "Operator W3"
+          }
+        ]
+      },
+      {
+        "exerciseName": "Bench Press",
+        "role": "MAIN",
+        "sourceBlockTarget": "BENCH",
+        "order": 1,
+        "rowType": "AUTO",
+        "progressionTarget": "BENCH",
+        "progressionKey": "BENCH",
+        "sets": [
+          {
+            "reps": 3,
+            "percent": 0.9,
+            "targetWeightKg": 125,
+            "note": "Operator W3"
+          },
+          {
+            "reps": 3,
+            "percent": 0.9,
+            "targetWeightKg": 125,
+            "note": "Operator W3"
+          },
+          {
+            "reps": 3,
+            "percent": 0.9,
+            "targetWeightKg": 125,
+            "note": "Operator W3"
+          }
+        ]
+      },
+      {
+        "exerciseName": "Pull-Up",
+        "role": "MAIN",
+        "sourceBlockTarget": "PULL",
+        "order": 2,
+        "rowType": "AUTO",
+        "progressionTarget": "PULL",
+        "progressionKey": "PULL",
+        "sets": [
+          {
+            "reps": 3,
+            "percent": 0.9,
+            "targetWeightKg": 55,
+            "note": "Operator W3"
+          },
+          {
+            "reps": 3,
+            "percent": 0.9,
+            "targetWeightKg": 55,
+            "note": "Operator W3"
+          },
+          {
+            "reps": 3,
+            "percent": 0.9,
+            "targetWeightKg": 55,
+            "note": "Operator W3"
+          }
+        ]
+      }
+    ],
+    "w1-d2": [
+      {
+        "exerciseName": "Deadlift",
+        "role": "MAIN",
+        "sourceBlockTarget": "DEADLIFT",
+        "order": 0,
+        "rowType": "AUTO",
+        "progressionTarget": "DEADLIFT",
+        "progressionKey": "DEADLIFT",
+        "sets": [
+          {
+            "reps": 5,
+            "percent": 0.7,
+            "targetWeightKg": 167.5,
+            "note": "Operator W1"
+          },
+          {
+            "reps": 5,
+            "percent": 0.7,
+            "targetWeightKg": 167.5,
+            "note": "Operator W1"
+          },
+          {
+            "reps": 5,
+            "percent": 0.7,
+            "targetWeightKg": 167.5,
+            "note": "Operator W1"
+          }
+        ]
+      },
+      {
+        "exerciseName": "Overhead Press",
+        "role": "MAIN",
+        "sourceBlockTarget": "OHP",
+        "order": 1,
+        "rowType": "AUTO",
+        "progressionTarget": "OHP",
+        "progressionKey": "OHP",
+        "sets": [
+          {
+            "reps": 5,
+            "percent": 0.7,
+            "targetWeightKg": 70,
+            "note": "Operator W1"
+          },
+          {
+            "reps": 5,
+            "percent": 0.7,
+            "targetWeightKg": 70,
+            "note": "Operator W1"
+          },
+          {
+            "reps": 5,
+            "percent": 0.7,
+            "targetWeightKg": 70,
+            "note": "Operator W1"
+          }
+        ]
+      }
+    ]
+  },
+  "wendler-531": {
+    "w1-d1": [
+      {
+        "exerciseName": "High-Bar Back Squat",
+        "role": "MAIN",
+        "rowType": "AUTO",
+        "sourceBlockTarget": "SQUAT",
+        "order": 0,
+        "progressionTarget": "SQUAT",
+        "progressionKey": "SQUAT",
+        "sets": [
+          {
+            "reps": 5,
+            "percent": 0.65,
+            "targetWeightKg": 130,
+            "amrap": false
+          },
+          {
+            "reps": 5,
+            "percent": 0.75,
+            "targetWeightKg": 150,
+            "amrap": false
+          },
+          {
+            "reps": 5,
+            "percent": 0.85,
+            "targetWeightKg": 170,
+            "amrap": true,
+            "note": "5+"
+          }
+        ]
+      }
+    ],
+    "w2-d1": [
+      {
+        "exerciseName": "High-Bar Back Squat",
+        "role": "MAIN",
+        "rowType": "AUTO",
+        "sourceBlockTarget": "SQUAT",
+        "order": 0,
+        "progressionTarget": "SQUAT",
+        "progressionKey": "SQUAT",
+        "sets": [
+          {
+            "reps": 3,
+            "percent": 0.7,
+            "targetWeightKg": 140,
+            "amrap": false
+          },
+          {
+            "reps": 3,
+            "percent": 0.8,
+            "targetWeightKg": 160,
+            "amrap": false
+          },
+          {
+            "reps": 3,
+            "percent": 0.9,
+            "targetWeightKg": 180,
+            "amrap": true,
+            "note": "3+"
+          }
+        ]
+      }
+    ],
+    "w3-d1": [
+      {
+        "exerciseName": "High-Bar Back Squat",
+        "role": "MAIN",
+        "rowType": "AUTO",
+        "sourceBlockTarget": "SQUAT",
+        "order": 0,
+        "progressionTarget": "SQUAT",
+        "progressionKey": "SQUAT",
+        "sets": [
+          {
+            "reps": 5,
+            "percent": 0.75,
+            "targetWeightKg": 150,
+            "amrap": false
+          },
+          {
+            "reps": 3,
+            "percent": 0.85,
+            "targetWeightKg": 170,
+            "amrap": false
+          },
+          {
+            "reps": 1,
+            "percent": 0.95,
+            "targetWeightKg": 190,
+            "amrap": true,
+            "note": "1+"
+          }
+        ]
+      }
+    ],
+    "w1-d2": [
+      {
+        "exerciseName": "Bench Press",
+        "role": "MAIN",
+        "rowType": "AUTO",
+        "sourceBlockTarget": "BENCH",
+        "order": 0,
+        "progressionTarget": "BENCH",
+        "progressionKey": "BENCH",
+        "sets": [
+          {
+            "reps": 5,
+            "percent": 0.65,
+            "targetWeightKg": 90,
+            "amrap": false
+          },
+          {
+            "reps": 5,
+            "percent": 0.75,
+            "targetWeightKg": 105,
+            "amrap": false
+          },
+          {
+            "reps": 5,
+            "percent": 0.85,
+            "targetWeightKg": 120,
+            "amrap": true,
+            "note": "5+"
+          }
+        ]
+      }
+    ]
+  },
+  "wendler-531-bbb": {
+    "w1-d1": [
+      {
+        "exerciseName": "High-Bar Back Squat",
+        "role": "MAIN",
+        "rowType": "AUTO",
+        "sourceBlockTarget": "SQUAT",
+        "order": 0,
+        "progressionTarget": "SQUAT",
+        "progressionKey": "SQUAT",
+        "sets": [
+          {
+            "reps": 5,
+            "percent": 0.65,
+            "targetWeightKg": 130,
+            "amrap": false
+          },
+          {
+            "reps": 5,
+            "percent": 0.75,
+            "targetWeightKg": 150,
+            "amrap": false
+          },
+          {
+            "reps": 5,
+            "percent": 0.85,
+            "targetWeightKg": 170,
+            "amrap": true,
+            "note": "5+"
+          }
+        ]
+      },
+      {
+        "exerciseName": "High-Bar Back Squat",
+        "role": "ASSIST",
+        "skipProgression": true,
+        "sourceBlockTarget": "SQUAT_BBB",
+        "order": 1,
+        "sets": [
+          {
+            "reps": 10,
+            "percent": 0.5,
+            "targetWeightKg": 100,
+            "note": "BBB"
+          },
+          {
+            "reps": 10,
+            "percent": 0.5,
+            "targetWeightKg": 100,
+            "note": "BBB"
+          },
+          {
+            "reps": 10,
+            "percent": 0.5,
+            "targetWeightKg": 100,
+            "note": "BBB"
+          },
+          {
+            "reps": 10,
+            "percent": 0.5,
+            "targetWeightKg": 100,
+            "note": "BBB"
+          },
+          {
+            "reps": 10,
+            "percent": 0.5,
+            "targetWeightKg": 100,
+            "note": "BBB"
+          }
+        ]
+      }
+    ],
+    "w2-d1": [
+      {
+        "exerciseName": "High-Bar Back Squat",
+        "role": "MAIN",
+        "rowType": "AUTO",
+        "sourceBlockTarget": "SQUAT",
+        "order": 0,
+        "progressionTarget": "SQUAT",
+        "progressionKey": "SQUAT",
+        "sets": [
+          {
+            "reps": 3,
+            "percent": 0.7,
+            "targetWeightKg": 140,
+            "amrap": false
+          },
+          {
+            "reps": 3,
+            "percent": 0.8,
+            "targetWeightKg": 160,
+            "amrap": false
+          },
+          {
+            "reps": 3,
+            "percent": 0.9,
+            "targetWeightKg": 180,
+            "amrap": true,
+            "note": "3+"
+          }
+        ]
+      },
+      {
+        "exerciseName": "High-Bar Back Squat",
+        "role": "ASSIST",
+        "skipProgression": true,
+        "sourceBlockTarget": "SQUAT_BBB",
+        "order": 1,
+        "sets": [
+          {
+            "reps": 10,
+            "percent": 0.5,
+            "targetWeightKg": 100,
+            "note": "BBB"
+          },
+          {
+            "reps": 10,
+            "percent": 0.5,
+            "targetWeightKg": 100,
+            "note": "BBB"
+          },
+          {
+            "reps": 10,
+            "percent": 0.5,
+            "targetWeightKg": 100,
+            "note": "BBB"
+          },
+          {
+            "reps": 10,
+            "percent": 0.5,
+            "targetWeightKg": 100,
+            "note": "BBB"
+          },
+          {
+            "reps": 10,
+            "percent": 0.5,
+            "targetWeightKg": 100,
+            "note": "BBB"
+          }
+        ]
+      }
+    ],
+    "w3-d1": [
+      {
+        "exerciseName": "High-Bar Back Squat",
+        "role": "MAIN",
+        "rowType": "AUTO",
+        "sourceBlockTarget": "SQUAT",
+        "order": 0,
+        "progressionTarget": "SQUAT",
+        "progressionKey": "SQUAT",
+        "sets": [
+          {
+            "reps": 5,
+            "percent": 0.75,
+            "targetWeightKg": 150,
+            "amrap": false
+          },
+          {
+            "reps": 3,
+            "percent": 0.85,
+            "targetWeightKg": 170,
+            "amrap": false
+          },
+          {
+            "reps": 1,
+            "percent": 0.95,
+            "targetWeightKg": 190,
+            "amrap": true,
+            "note": "1+"
+          }
+        ]
+      },
+      {
+        "exerciseName": "High-Bar Back Squat",
+        "role": "ASSIST",
+        "skipProgression": true,
+        "sourceBlockTarget": "SQUAT_BBB",
+        "order": 1,
+        "sets": [
+          {
+            "reps": 10,
+            "percent": 0.5,
+            "targetWeightKg": 100,
+            "note": "BBB"
+          },
+          {
+            "reps": 10,
+            "percent": 0.5,
+            "targetWeightKg": 100,
+            "note": "BBB"
+          },
+          {
+            "reps": 10,
+            "percent": 0.5,
+            "targetWeightKg": 100,
+            "note": "BBB"
+          },
+          {
+            "reps": 10,
+            "percent": 0.5,
+            "targetWeightKg": 100,
+            "note": "BBB"
+          },
+          {
+            "reps": 10,
+            "percent": 0.5,
+            "targetWeightKg": 100,
+            "note": "BBB"
+          }
+        ]
+      }
+    ],
+    "w1-d2": [
+      {
+        "exerciseName": "Bench Press",
+        "role": "MAIN",
+        "rowType": "AUTO",
+        "sourceBlockTarget": "BENCH",
+        "order": 0,
+        "progressionTarget": "BENCH",
+        "progressionKey": "BENCH",
+        "sets": [
+          {
+            "reps": 5,
+            "percent": 0.65,
+            "targetWeightKg": 90,
+            "amrap": false
+          },
+          {
+            "reps": 5,
+            "percent": 0.75,
+            "targetWeightKg": 105,
+            "amrap": false
+          },
+          {
+            "reps": 5,
+            "percent": 0.85,
+            "targetWeightKg": 120,
+            "amrap": true,
+            "note": "5+"
+          }
+        ]
+      },
+      {
+        "exerciseName": "Bench Press",
+        "role": "ASSIST",
+        "skipProgression": true,
+        "sourceBlockTarget": "BENCH_BBB",
+        "order": 1,
+        "sets": [
+          {
+            "reps": 10,
+            "percent": 0.5,
+            "targetWeightKg": 70,
+            "note": "BBB"
+          },
+          {
+            "reps": 10,
+            "percent": 0.5,
+            "targetWeightKg": 70,
+            "note": "BBB"
+          },
+          {
+            "reps": 10,
+            "percent": 0.5,
+            "targetWeightKg": 70,
+            "note": "BBB"
+          },
+          {
+            "reps": 10,
+            "percent": 0.5,
+            "targetWeightKg": 70,
+            "note": "BBB"
+          },
+          {
+            "reps": 10,
+            "percent": 0.5,
+            "targetWeightKg": 70,
+            "note": "BBB"
+          }
+        ]
+      }
+    ]
+  },
+  "wendler-531-fsl": {
+    "w1-d1": [
+      {
+        "exerciseName": "High-Bar Back Squat",
+        "role": "MAIN",
+        "rowType": "AUTO",
+        "sourceBlockTarget": "SQUAT",
+        "order": 0,
+        "progressionTarget": "SQUAT",
+        "progressionKey": "SQUAT",
+        "sets": [
+          {
+            "reps": 5,
+            "percent": 0.65,
+            "targetWeightKg": 130,
+            "amrap": false
+          },
+          {
+            "reps": 5,
+            "percent": 0.75,
+            "targetWeightKg": 150,
+            "amrap": false
+          },
+          {
+            "reps": 5,
+            "percent": 0.85,
+            "targetWeightKg": 170,
+            "amrap": true,
+            "note": "5+"
+          }
+        ]
+      },
+      {
+        "exerciseName": "High-Bar Back Squat",
+        "role": "ASSIST",
+        "skipProgression": true,
+        "sourceBlockTarget": "SQUAT_FSL",
+        "order": 1,
+        "sets": [
+          {
+            "reps": 5,
+            "percent": 0.65,
+            "targetWeightKg": 130,
+            "note": "FSL"
+          },
+          {
+            "reps": 5,
+            "percent": 0.65,
+            "targetWeightKg": 130,
+            "note": "FSL"
+          },
+          {
+            "reps": 5,
+            "percent": 0.65,
+            "targetWeightKg": 130,
+            "note": "FSL"
+          },
+          {
+            "reps": 5,
+            "percent": 0.65,
+            "targetWeightKg": 130,
+            "note": "FSL"
+          },
+          {
+            "reps": 5,
+            "percent": 0.65,
+            "targetWeightKg": 130,
+            "note": "FSL"
+          }
+        ]
+      }
+    ],
+    "w2-d1": [
+      {
+        "exerciseName": "High-Bar Back Squat",
+        "role": "MAIN",
+        "rowType": "AUTO",
+        "sourceBlockTarget": "SQUAT",
+        "order": 0,
+        "progressionTarget": "SQUAT",
+        "progressionKey": "SQUAT",
+        "sets": [
+          {
+            "reps": 3,
+            "percent": 0.7,
+            "targetWeightKg": 140,
+            "amrap": false
+          },
+          {
+            "reps": 3,
+            "percent": 0.8,
+            "targetWeightKg": 160,
+            "amrap": false
+          },
+          {
+            "reps": 3,
+            "percent": 0.9,
+            "targetWeightKg": 180,
+            "amrap": true,
+            "note": "3+"
+          }
+        ]
+      },
+      {
+        "exerciseName": "High-Bar Back Squat",
+        "role": "ASSIST",
+        "skipProgression": true,
+        "sourceBlockTarget": "SQUAT_FSL",
+        "order": 1,
+        "sets": [
+          {
+            "reps": 5,
+            "percent": 0.7,
+            "targetWeightKg": 140,
+            "note": "FSL"
+          },
+          {
+            "reps": 5,
+            "percent": 0.7,
+            "targetWeightKg": 140,
+            "note": "FSL"
+          },
+          {
+            "reps": 5,
+            "percent": 0.7,
+            "targetWeightKg": 140,
+            "note": "FSL"
+          },
+          {
+            "reps": 5,
+            "percent": 0.7,
+            "targetWeightKg": 140,
+            "note": "FSL"
+          },
+          {
+            "reps": 5,
+            "percent": 0.7,
+            "targetWeightKg": 140,
+            "note": "FSL"
+          }
+        ]
+      }
+    ],
+    "w3-d1": [
+      {
+        "exerciseName": "High-Bar Back Squat",
+        "role": "MAIN",
+        "rowType": "AUTO",
+        "sourceBlockTarget": "SQUAT",
+        "order": 0,
+        "progressionTarget": "SQUAT",
+        "progressionKey": "SQUAT",
+        "sets": [
+          {
+            "reps": 5,
+            "percent": 0.75,
+            "targetWeightKg": 150,
+            "amrap": false
+          },
+          {
+            "reps": 3,
+            "percent": 0.85,
+            "targetWeightKg": 170,
+            "amrap": false
+          },
+          {
+            "reps": 1,
+            "percent": 0.95,
+            "targetWeightKg": 190,
+            "amrap": true,
+            "note": "1+"
+          }
+        ]
+      },
+      {
+        "exerciseName": "High-Bar Back Squat",
+        "role": "ASSIST",
+        "skipProgression": true,
+        "sourceBlockTarget": "SQUAT_FSL",
+        "order": 1,
+        "sets": [
+          {
+            "reps": 5,
+            "percent": 0.75,
+            "targetWeightKg": 150,
+            "note": "FSL"
+          },
+          {
+            "reps": 5,
+            "percent": 0.75,
+            "targetWeightKg": 150,
+            "note": "FSL"
+          },
+          {
+            "reps": 5,
+            "percent": 0.75,
+            "targetWeightKg": 150,
+            "note": "FSL"
+          },
+          {
+            "reps": 5,
+            "percent": 0.75,
+            "targetWeightKg": 150,
+            "note": "FSL"
+          },
+          {
+            "reps": 5,
+            "percent": 0.75,
+            "targetWeightKg": 150,
+            "note": "FSL"
+          }
+        ]
+      }
+    ],
+    "w1-d2": [
+      {
+        "exerciseName": "Bench Press",
+        "role": "MAIN",
+        "rowType": "AUTO",
+        "sourceBlockTarget": "BENCH",
+        "order": 0,
+        "progressionTarget": "BENCH",
+        "progressionKey": "BENCH",
+        "sets": [
+          {
+            "reps": 5,
+            "percent": 0.65,
+            "targetWeightKg": 90,
+            "amrap": false
+          },
+          {
+            "reps": 5,
+            "percent": 0.75,
+            "targetWeightKg": 105,
+            "amrap": false
+          },
+          {
+            "reps": 5,
+            "percent": 0.85,
+            "targetWeightKg": 120,
+            "amrap": true,
+            "note": "5+"
+          }
+        ]
+      },
+      {
+        "exerciseName": "Bench Press",
+        "role": "ASSIST",
+        "skipProgression": true,
+        "sourceBlockTarget": "BENCH_FSL",
+        "order": 1,
+        "sets": [
+          {
+            "reps": 5,
+            "percent": 0.65,
+            "targetWeightKg": 90,
+            "note": "FSL"
+          },
+          {
+            "reps": 5,
+            "percent": 0.65,
+            "targetWeightKg": 90,
+            "note": "FSL"
+          },
+          {
+            "reps": 5,
+            "percent": 0.65,
+            "targetWeightKg": 90,
+            "note": "FSL"
+          },
+          {
+            "reps": 5,
+            "percent": 0.65,
+            "targetWeightKg": 90,
+            "note": "FSL"
+          },
+          {
+            "reps": 5,
+            "percent": 0.65,
+            "targetWeightKg": 90,
+            "note": "FSL"
+          }
+        ]
+      }
+    ]
+  }
+}

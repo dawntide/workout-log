@@ -1,0 +1,3784 @@
+[
+  {
+    "slug": "asymptote-protocol",
+    "type": "LOGIC",
+    "kind": "asymptote",
+    "definition": {
+      "kind": "asymptote",
+      "modules": [
+        "SQUAT",
+        "BENCH",
+        "DEADLIFT",
+        "OHP",
+        "PULL"
+      ],
+      "schedule": {
+        "weeks": 4,
+        "sessionsPerWeek": 3
+      },
+      "dslVersion": 1,
+      "progression": {
+        "profile": "asymptote-v1"
+      }
+    },
+    "defaults": {
+      "tmPercent": 0.83
+    }
+  },
+  {
+    "slug": "greyskull-lp",
+    "type": "MANUAL",
+    "kind": "manual",
+    "definition": {
+      "kind": "manual",
+      "sessions": [
+        {
+          "key": "A",
+          "items": [
+            {
+              "sets": [
+                {
+                  "note": "work set",
+                  "reps": 5,
+                  "targetWeightKg": 90
+                },
+                {
+                  "note": "work set",
+                  "reps": 5,
+                  "targetWeightKg": 90
+                },
+                {
+                  "note": "AMRAP 5+",
+                  "reps": 5,
+                  "targetWeightKg": 90
+                }
+              ],
+              "exerciseName": "High-Bar Back Squat"
+            },
+            {
+              "sets": [
+                {
+                  "note": "work set",
+                  "reps": 5,
+                  "targetWeightKg": 62.5
+                },
+                {
+                  "note": "work set",
+                  "reps": 5,
+                  "targetWeightKg": 62.5
+                },
+                {
+                  "note": "AMRAP 5+",
+                  "reps": 5,
+                  "targetWeightKg": 62.5
+                }
+              ],
+              "exerciseName": "Bench Press"
+            },
+            {
+              "sets": [
+                {
+                  "note": "work set",
+                  "reps": 5,
+                  "targetWeightKg": 57.5
+                },
+                {
+                  "note": "work set",
+                  "reps": 5,
+                  "targetWeightKg": 57.5
+                },
+                {
+                  "note": "AMRAP 5+",
+                  "reps": 5,
+                  "targetWeightKg": 57.5
+                }
+              ],
+              "exerciseName": "Barbell Row"
+            }
+          ]
+        },
+        {
+          "key": "B",
+          "items": [
+            {
+              "sets": [
+                {
+                  "note": "work set",
+                  "reps": 5,
+                  "targetWeightKg": 92.5
+                },
+                {
+                  "note": "work set",
+                  "reps": 5,
+                  "targetWeightKg": 92.5
+                },
+                {
+                  "note": "AMRAP 5+",
+                  "reps": 5,
+                  "targetWeightKg": 92.5
+                }
+              ],
+              "exerciseName": "High-Bar Back Squat"
+            },
+            {
+              "sets": [
+                {
+                  "note": "work set",
+                  "reps": 5,
+                  "targetWeightKg": 42.5
+                },
+                {
+                  "note": "work set",
+                  "reps": 5,
+                  "targetWeightKg": 42.5
+                },
+                {
+                  "note": "AMRAP 5+",
+                  "reps": 5,
+                  "targetWeightKg": 42.5
+                }
+              ],
+              "exerciseName": "Overhead Press"
+            },
+            {
+              "sets": [
+                {
+                  "note": "AMRAP 5+",
+                  "reps": 5,
+                  "targetWeightKg": 110
+                }
+              ],
+              "exerciseName": "Deadlift"
+            }
+          ]
+        }
+      ]
+    },
+    "defaults": {}
+  },
+  {
+    "slug": "gzclp",
+    "type": "MANUAL",
+    "kind": "manual",
+    "definition": {
+      "kind": "manual",
+      "sessions": [
+        {
+          "key": "D1",
+          "items": [
+            {
+              "sets": [
+                {
+                  "note": "T1 main",
+                  "reps": 3,
+                  "percent": 0.85,
+                  "targetWeightKg": 100
+                },
+                {
+                  "note": "T1 main",
+                  "reps": 3,
+                  "percent": 0.85,
+                  "targetWeightKg": 100
+                },
+                {
+                  "note": "T1 main",
+                  "reps": 3,
+                  "percent": 0.85,
+                  "targetWeightKg": 100
+                },
+                {
+                  "note": "T1 main",
+                  "reps": 3,
+                  "percent": 0.85,
+                  "targetWeightKg": 100
+                },
+                {
+                  "note": "T1 main",
+                  "reps": 3,
+                  "percent": 0.85,
+                  "targetWeightKg": 100
+                }
+              ],
+              "exerciseName": "High-Bar Back Squat"
+            },
+            {
+              "sets": [
+                {
+                  "note": "T2 volume",
+                  "reps": 10,
+                  "percent": 0.7,
+                  "targetWeightKg": 60
+                },
+                {
+                  "note": "T2 volume",
+                  "reps": 10,
+                  "percent": 0.7,
+                  "targetWeightKg": 60
+                },
+                {
+                  "note": "T2 volume",
+                  "reps": 10,
+                  "percent": 0.7,
+                  "targetWeightKg": 60
+                }
+              ],
+              "exerciseName": "Bench Press"
+            },
+            {
+              "sets": [
+                {
+                  "note": "T3",
+                  "reps": 15,
+                  "targetWeightKg": 45
+                },
+                {
+                  "note": "T3",
+                  "reps": 15,
+                  "targetWeightKg": 45
+                },
+                {
+                  "note": "T3 AMRAP",
+                  "reps": 15,
+                  "targetWeightKg": 45
+                }
+              ],
+              "exerciseName": "Lat Pulldown"
+            }
+          ]
+        },
+        {
+          "key": "D2",
+          "items": [
+            {
+              "sets": [
+                {
+                  "note": "T1 main",
+                  "reps": 3,
+                  "percent": 0.85,
+                  "targetWeightKg": 52.5
+                },
+                {
+                  "note": "T1 main",
+                  "reps": 3,
+                  "percent": 0.85,
+                  "targetWeightKg": 52.5
+                },
+                {
+                  "note": "T1 main",
+                  "reps": 3,
+                  "percent": 0.85,
+                  "targetWeightKg": 52.5
+                },
+                {
+                  "note": "T1 main",
+                  "reps": 3,
+                  "percent": 0.85,
+                  "targetWeightKg": 52.5
+                },
+                {
+                  "note": "T1 main",
+                  "reps": 3,
+                  "percent": 0.85,
+                  "targetWeightKg": 52.5
+                }
+              ],
+              "exerciseName": "Overhead Press"
+            },
+            {
+              "sets": [
+                {
+                  "note": "T2 volume",
+                  "reps": 8,
+                  "percent": 0.75,
+                  "targetWeightKg": 110
+                },
+                {
+                  "note": "T2 volume",
+                  "reps": 8,
+                  "percent": 0.75,
+                  "targetWeightKg": 110
+                },
+                {
+                  "note": "T2 volume",
+                  "reps": 8,
+                  "percent": 0.75,
+                  "targetWeightKg": 110
+                }
+              ],
+              "exerciseName": "Deadlift"
+            },
+            {
+              "sets": [
+                {
+                  "note": "T3",
+                  "reps": 15,
+                  "targetWeightKg": 50
+                },
+                {
+                  "note": "T3",
+                  "reps": 15,
+                  "targetWeightKg": 50
+                },
+                {
+                  "note": "T3 AMRAP",
+                  "reps": 15,
+                  "targetWeightKg": 50
+                }
+              ],
+              "exerciseName": "Barbell Row"
+            }
+          ]
+        },
+        {
+          "key": "D3",
+          "items": [
+            {
+              "sets": [
+                {
+                  "note": "T1 main",
+                  "reps": 3,
+                  "percent": 0.85,
+                  "targetWeightKg": 75
+                },
+                {
+                  "note": "T1 main",
+                  "reps": 3,
+                  "percent": 0.85,
+                  "targetWeightKg": 75
+                },
+                {
+                  "note": "T1 main",
+                  "reps": 3,
+                  "percent": 0.85,
+                  "targetWeightKg": 75
+                },
+                {
+                  "note": "T1 main",
+                  "reps": 3,
+                  "percent": 0.85,
+                  "targetWeightKg": 75
+                },
+                {
+                  "note": "T1 main",
+                  "reps": 3,
+                  "percent": 0.85,
+                  "targetWeightKg": 75
+                }
+              ],
+              "exerciseName": "Bench Press"
+            },
+            {
+              "sets": [
+                {
+                  "note": "T2 volume",
+                  "reps": 10,
+                  "percent": 0.72,
+                  "targetWeightKg": 90
+                },
+                {
+                  "note": "T2 volume",
+                  "reps": 10,
+                  "percent": 0.72,
+                  "targetWeightKg": 90
+                },
+                {
+                  "note": "T2 volume",
+                  "reps": 10,
+                  "percent": 0.72,
+                  "targetWeightKg": 90
+                }
+              ],
+              "exerciseName": "High-Bar Back Squat"
+            },
+            {
+              "sets": [
+                {
+                  "note": "T3",
+                  "reps": 10
+                },
+                {
+                  "note": "T3",
+                  "reps": 10
+                },
+                {
+                  "note": "T3 AMRAP",
+                  "reps": 10
+                }
+              ],
+              "exerciseName": "Pull-Up"
+            }
+          ]
+        },
+        {
+          "key": "D4",
+          "items": [
+            {
+              "sets": [
+                {
+                  "note": "T1 main",
+                  "reps": 3,
+                  "percent": 0.85,
+                  "targetWeightKg": 140
+                },
+                {
+                  "note": "T1 main",
+                  "reps": 3,
+                  "percent": 0.85,
+                  "targetWeightKg": 140
+                },
+                {
+                  "note": "T1 main",
+                  "reps": 3,
+                  "percent": 0.85,
+                  "targetWeightKg": 140
+                },
+                {
+                  "note": "T1 main",
+                  "reps": 3,
+                  "percent": 0.85,
+                  "targetWeightKg": 140
+                },
+                {
+                  "note": "T1 main",
+                  "reps": 3,
+                  "percent": 0.85,
+                  "targetWeightKg": 140
+                }
+              ],
+              "exerciseName": "Deadlift"
+            },
+            {
+              "sets": [
+                {
+                  "note": "T2 volume",
+                  "reps": 10,
+                  "percent": 0.72,
+                  "targetWeightKg": 42.5
+                },
+                {
+                  "note": "T2 volume",
+                  "reps": 10,
+                  "percent": 0.72,
+                  "targetWeightKg": 42.5
+                },
+                {
+                  "note": "T2 volume",
+                  "reps": 10,
+                  "percent": 0.72,
+                  "targetWeightKg": 42.5
+                }
+              ],
+              "exerciseName": "Overhead Press"
+            },
+            {
+              "sets": [
+                {
+                  "note": "T3",
+                  "reps": 15,
+                  "targetWeightKg": 140
+                },
+                {
+                  "note": "T3",
+                  "reps": 15,
+                  "targetWeightKg": 140
+                },
+                {
+                  "note": "T3 AMRAP",
+                  "reps": 15,
+                  "targetWeightKg": 140
+                }
+              ],
+              "exerciseName": "Leg Press"
+            }
+          ]
+        }
+      ]
+    },
+    "defaults": {}
+  },
+  {
+    "slug": "madcow-5x5",
+    "type": "MANUAL",
+    "kind": "manual",
+    "definition": {
+      "kind": "manual",
+      "sessions": [
+        {
+          "key": "M",
+          "items": [
+            {
+              "sets": [
+                {
+                  "note": "volume ramp",
+                  "reps": 5,
+                  "percent": 0.5,
+                  "targetWeightKg": 50
+                },
+                {
+                  "note": "volume ramp",
+                  "reps": 5,
+                  "percent": 0.625,
+                  "targetWeightKg": 62.5
+                },
+                {
+                  "note": "volume ramp",
+                  "reps": 5,
+                  "percent": 0.75,
+                  "targetWeightKg": 75
+                },
+                {
+                  "note": "volume ramp",
+                  "reps": 5,
+                  "percent": 0.875,
+                  "targetWeightKg": 87.5
+                },
+                {
+                  "note": "volume ramp · top set",
+                  "reps": 5,
+                  "percent": 1,
+                  "targetWeightKg": 100
+                }
+              ],
+              "slot": {
+                "role": {
+                  "en": "volume",
+                  "ko": "볼륨일"
+                },
+                "driver": false,
+                "sessionKey": "M",
+                "startWeightKg": 100,
+                "progressionKey": "EX_HIGH_BAR_BACK_SQUAT"
+              },
+              "exerciseName": "High-Bar Back Squat"
+            },
+            {
+              "sets": [
+                {
+                  "note": "volume ramp",
+                  "reps": 5,
+                  "percent": 0.5,
+                  "targetWeightKg": 37.5
+                },
+                {
+                  "note": "volume ramp",
+                  "reps": 5,
+                  "percent": 0.625,
+                  "targetWeightKg": 47.5
+                },
+                {
+                  "note": "volume ramp",
+                  "reps": 5,
+                  "percent": 0.75,
+                  "targetWeightKg": 57.5
+                },
+                {
+                  "note": "volume ramp",
+                  "reps": 5,
+                  "percent": 0.875,
+                  "targetWeightKg": 65
+                },
+                {
+                  "note": "volume ramp · top set",
+                  "reps": 5,
+                  "percent": 1,
+                  "targetWeightKg": 75
+                }
+              ],
+              "slot": {
+                "role": {
+                  "en": "volume",
+                  "ko": "볼륨일"
+                },
+                "driver": false,
+                "sessionKey": "M",
+                "startWeightKg": 75,
+                "progressionKey": "EX_BENCH_PRESS"
+              },
+              "exerciseName": "Bench Press"
+            },
+            {
+              "sets": [
+                {
+                  "note": "volume ramp",
+                  "reps": 5,
+                  "percent": 0.5,
+                  "targetWeightKg": 35
+                },
+                {
+                  "note": "volume ramp",
+                  "reps": 5,
+                  "percent": 0.625,
+                  "targetWeightKg": 45
+                },
+                {
+                  "note": "volume ramp",
+                  "reps": 5,
+                  "percent": 0.75,
+                  "targetWeightKg": 52.5
+                },
+                {
+                  "note": "volume ramp",
+                  "reps": 5,
+                  "percent": 0.875,
+                  "targetWeightKg": 62.5
+                },
+                {
+                  "note": "volume ramp · top set",
+                  "reps": 5,
+                  "percent": 1,
+                  "targetWeightKg": 70
+                }
+              ],
+              "slot": {
+                "role": {
+                  "en": "volume",
+                  "ko": "볼륨일"
+                },
+                "driver": false,
+                "sessionKey": "M",
+                "startWeightKg": 70,
+                "progressionKey": "EX_BARBELL_ROW"
+              },
+              "exerciseName": "Barbell Row"
+            }
+          ]
+        },
+        {
+          "key": "W",
+          "items": [
+            {
+              "sets": [
+                {
+                  "note": "light ramp",
+                  "reps": 5,
+                  "percent": 0.5,
+                  "targetWeightKg": 50
+                },
+                {
+                  "note": "light ramp",
+                  "reps": 5,
+                  "percent": 0.625,
+                  "targetWeightKg": 62.5
+                },
+                {
+                  "note": "light ramp",
+                  "reps": 5,
+                  "percent": 0.75,
+                  "targetWeightKg": 75
+                },
+                {
+                  "note": "light ramp",
+                  "reps": 5,
+                  "percent": 0.75,
+                  "targetWeightKg": 75
+                }
+              ],
+              "slot": {
+                "role": {
+                  "en": "light",
+                  "ko": "라이트일"
+                },
+                "driver": false,
+                "sessionKey": "W",
+                "startWeightKg": 100,
+                "progressionKey": "EX_HIGH_BAR_BACK_SQUAT"
+              },
+              "exerciseName": "High-Bar Back Squat"
+            },
+            {
+              "sets": [
+                {
+                  "note": "ramp",
+                  "reps": 5,
+                  "percent": 0.625,
+                  "targetWeightKg": 27.5
+                },
+                {
+                  "note": "ramp",
+                  "reps": 5,
+                  "percent": 0.75,
+                  "targetWeightKg": 35
+                },
+                {
+                  "note": "ramp",
+                  "reps": 5,
+                  "percent": 0.875,
+                  "targetWeightKg": 40
+                },
+                {
+                  "note": "ramp · top set",
+                  "reps": 5,
+                  "percent": 1,
+                  "targetWeightKg": 45
+                }
+              ],
+              "slot": {
+                "role": {
+                  "en": "top set",
+                  "ko": "탑세트"
+                },
+                "driver": true,
+                "sessionKey": "W",
+                "startWeightKg": 45,
+                "progressionKey": "EX_OVERHEAD_PRESS"
+              },
+              "exerciseName": "Overhead Press"
+            },
+            {
+              "sets": [
+                {
+                  "note": "ramp",
+                  "reps": 5,
+                  "percent": 0.625,
+                  "targetWeightKg": 82.5
+                },
+                {
+                  "note": "ramp",
+                  "reps": 5,
+                  "percent": 0.75,
+                  "targetWeightKg": 97.5
+                },
+                {
+                  "note": "ramp",
+                  "reps": 5,
+                  "percent": 0.875,
+                  "targetWeightKg": 115
+                },
+                {
+                  "note": "ramp · top set",
+                  "reps": 5,
+                  "percent": 1,
+                  "targetWeightKg": 130
+                }
+              ],
+              "slot": {
+                "role": {
+                  "en": "top set",
+                  "ko": "탑세트"
+                },
+                "driver": true,
+                "sessionKey": "W",
+                "startWeightKg": 130,
+                "progressionKey": "EX_DEADLIFT"
+              },
+              "exerciseName": "Deadlift"
+            }
+          ]
+        },
+        {
+          "key": "F",
+          "items": [
+            {
+              "sets": [
+                {
+                  "note": "ramp",
+                  "reps": 5,
+                  "percent": 0.5,
+                  "targetWeightKg": 50
+                },
+                {
+                  "note": "ramp",
+                  "reps": 5,
+                  "percent": 0.625,
+                  "targetWeightKg": 62.5
+                },
+                {
+                  "note": "ramp",
+                  "reps": 5,
+                  "percent": 0.75,
+                  "targetWeightKg": 75
+                },
+                {
+                  "note": "ramp",
+                  "reps": 5,
+                  "percent": 0.875,
+                  "targetWeightKg": 87.5
+                },
+                {
+                  "note": "PR triple",
+                  "reps": 3,
+                  "percent": 1.025,
+                  "targetWeightKg": 102.5
+                },
+                {
+                  "note": "back-off",
+                  "reps": 8,
+                  "percent": 0.75,
+                  "targetWeightKg": 75
+                }
+              ],
+              "slot": {
+                "role": {
+                  "en": "intensity",
+                  "ko": "강도일"
+                },
+                "driver": true,
+                "sessionKey": "F",
+                "startWeightKg": 100,
+                "progressionKey": "EX_HIGH_BAR_BACK_SQUAT"
+              },
+              "exerciseName": "High-Bar Back Squat"
+            },
+            {
+              "sets": [
+                {
+                  "note": "ramp",
+                  "reps": 5,
+                  "percent": 0.5,
+                  "targetWeightKg": 37.5
+                },
+                {
+                  "note": "ramp",
+                  "reps": 5,
+                  "percent": 0.625,
+                  "targetWeightKg": 47.5
+                },
+                {
+                  "note": "ramp",
+                  "reps": 5,
+                  "percent": 0.75,
+                  "targetWeightKg": 57.5
+                },
+                {
+                  "note": "ramp",
+                  "reps": 5,
+                  "percent": 0.875,
+                  "targetWeightKg": 65
+                },
+                {
+                  "note": "PR triple",
+                  "reps": 3,
+                  "percent": 1.025,
+                  "targetWeightKg": 77.5
+                },
+                {
+                  "note": "back-off",
+                  "reps": 8,
+                  "percent": 0.75,
+                  "targetWeightKg": 57.5
+                }
+              ],
+              "slot": {
+                "role": {
+                  "en": "intensity",
+                  "ko": "강도일"
+                },
+                "driver": true,
+                "sessionKey": "F",
+                "startWeightKg": 75,
+                "progressionKey": "EX_BENCH_PRESS"
+              },
+              "exerciseName": "Bench Press"
+            },
+            {
+              "sets": [
+                {
+                  "note": "ramp",
+                  "reps": 5,
+                  "percent": 0.5,
+                  "targetWeightKg": 35
+                },
+                {
+                  "note": "ramp",
+                  "reps": 5,
+                  "percent": 0.625,
+                  "targetWeightKg": 45
+                },
+                {
+                  "note": "ramp",
+                  "reps": 5,
+                  "percent": 0.75,
+                  "targetWeightKg": 52.5
+                },
+                {
+                  "note": "ramp",
+                  "reps": 5,
+                  "percent": 0.875,
+                  "targetWeightKg": 62.5
+                },
+                {
+                  "note": "PR triple",
+                  "reps": 3,
+                  "percent": 1.025,
+                  "targetWeightKg": 72.5
+                },
+                {
+                  "note": "back-off",
+                  "reps": 8,
+                  "percent": 0.75,
+                  "targetWeightKg": 52.5
+                }
+              ],
+              "slot": {
+                "role": {
+                  "en": "intensity",
+                  "ko": "강도일"
+                },
+                "driver": true,
+                "sessionKey": "F",
+                "startWeightKg": 70,
+                "progressionKey": "EX_BARBELL_ROW"
+              },
+              "exerciseName": "Barbell Row"
+            }
+          ]
+        }
+      ],
+      "programFamily": "madcow-5x5"
+    },
+    "defaults": {
+      "tmPercent": 0.8
+    }
+  },
+  {
+    "slug": "manual",
+    "type": "MANUAL",
+    "kind": "manual",
+    "definition": {
+      "kind": "manual",
+      "sessions": []
+    },
+    "defaults": {}
+  },
+  {
+    "slug": "nsuns-lp-5day",
+    "type": "MANUAL",
+    "kind": "manual",
+    "definition": {
+      "kind": "manual",
+      "sessions": [
+        {
+          "key": "D1",
+          "items": [
+            {
+              "sets": [
+                {
+                  "note": "T1 volume",
+                  "reps": 8,
+                  "percent": 0.65,
+                  "targetWeightKg": 57.5
+                },
+                {
+                  "note": "T1 volume",
+                  "reps": 6,
+                  "percent": 0.75,
+                  "targetWeightKg": 67.5
+                },
+                {
+                  "note": "T1 volume",
+                  "reps": 4,
+                  "percent": 0.85,
+                  "targetWeightKg": 77.5
+                },
+                {
+                  "note": "T1 volume",
+                  "reps": 4,
+                  "percent": 0.85,
+                  "targetWeightKg": 77.5
+                },
+                {
+                  "note": "T1 volume",
+                  "reps": 4,
+                  "percent": 0.85,
+                  "targetWeightKg": 77.5
+                },
+                {
+                  "note": "T1 volume",
+                  "reps": 5,
+                  "percent": 0.8,
+                  "targetWeightKg": 72.5
+                },
+                {
+                  "note": "T1 volume",
+                  "reps": 6,
+                  "percent": 0.75,
+                  "targetWeightKg": 67.5
+                },
+                {
+                  "note": "T1 volume",
+                  "reps": 7,
+                  "percent": 0.7,
+                  "targetWeightKg": 62.5
+                },
+                {
+                  "note": "T1 volume · 8+",
+                  "reps": 8,
+                  "percent": 0.65,
+                  "targetWeightKg": 57.5
+                }
+              ],
+              "slot": {
+                "role": {
+                  "en": "T1 volume",
+                  "ko": "T1 · 볼륨"
+                },
+                "driver": false,
+                "sessionKey": "D1",
+                "startWeightKg": 90,
+                "progressionKey": "EX_BENCH_PRESS"
+              },
+              "exerciseName": "Bench Press"
+            },
+            {
+              "sets": [
+                {
+                  "note": "T2",
+                  "reps": 5,
+                  "percent": 0.5,
+                  "targetWeightKg": 30
+                },
+                {
+                  "note": "T2",
+                  "reps": 5,
+                  "percent": 0.6,
+                  "targetWeightKg": 35
+                },
+                {
+                  "note": "T2",
+                  "reps": 3,
+                  "percent": 0.7,
+                  "targetWeightKg": 42.5
+                },
+                {
+                  "note": "T2",
+                  "reps": 5,
+                  "percent": 0.7,
+                  "targetWeightKg": 42.5
+                },
+                {
+                  "note": "T2",
+                  "reps": 7,
+                  "percent": 0.7,
+                  "targetWeightKg": 42.5
+                },
+                {
+                  "note": "T2",
+                  "reps": 4,
+                  "percent": 0.7,
+                  "targetWeightKg": 42.5
+                },
+                {
+                  "note": "T2",
+                  "reps": 6,
+                  "percent": 0.7,
+                  "targetWeightKg": 42.5
+                },
+                {
+                  "note": "T2",
+                  "reps": 8,
+                  "percent": 0.7,
+                  "targetWeightKg": 42.5
+                }
+              ],
+              "slot": {
+                "role": {
+                  "en": "T2",
+                  "ko": "T2 · 보조"
+                },
+                "driver": false,
+                "sessionKey": "D1",
+                "startWeightKg": 60,
+                "progressionKey": "EX_OVERHEAD_PRESS"
+              },
+              "exerciseName": "Overhead Press"
+            }
+          ]
+        },
+        {
+          "key": "D2",
+          "items": [
+            {
+              "sets": [
+                {
+                  "note": "T1",
+                  "reps": 5,
+                  "percent": 0.75,
+                  "targetWeightKg": 90
+                },
+                {
+                  "note": "T1",
+                  "reps": 3,
+                  "percent": 0.85,
+                  "targetWeightKg": 102.5
+                },
+                {
+                  "note": "T1 · 1+ AMRAP",
+                  "reps": 1,
+                  "amrap": true,
+                  "percent": 0.95,
+                  "targetWeightKg": 115
+                },
+                {
+                  "note": "T1",
+                  "reps": 3,
+                  "percent": 0.9,
+                  "targetWeightKg": 107.5
+                },
+                {
+                  "note": "T1",
+                  "reps": 3,
+                  "percent": 0.85,
+                  "targetWeightKg": 102.5
+                },
+                {
+                  "note": "T1",
+                  "reps": 3,
+                  "percent": 0.8,
+                  "targetWeightKg": 95
+                },
+                {
+                  "note": "T1",
+                  "reps": 5,
+                  "percent": 0.75,
+                  "targetWeightKg": 90
+                },
+                {
+                  "note": "T1",
+                  "reps": 5,
+                  "percent": 0.7,
+                  "targetWeightKg": 85
+                },
+                {
+                  "note": "T1 · 5+",
+                  "reps": 5,
+                  "percent": 0.65,
+                  "targetWeightKg": 77.5
+                }
+              ],
+              "slot": {
+                "role": {
+                  "en": "T1",
+                  "ko": "T1 · 메인"
+                },
+                "driver": true,
+                "sessionKey": "D2",
+                "startWeightKg": 120,
+                "progressionKey": "EX_HIGH_BAR_BACK_SQUAT"
+              },
+              "exerciseName": "High-Bar Back Squat"
+            },
+            {
+              "sets": [
+                {
+                  "note": "T2",
+                  "reps": 5,
+                  "percent": 0.5,
+                  "targetWeightKg": 70
+                },
+                {
+                  "note": "T2",
+                  "reps": 5,
+                  "percent": 0.6,
+                  "targetWeightKg": 85
+                },
+                {
+                  "note": "T2",
+                  "reps": 3,
+                  "percent": 0.7,
+                  "targetWeightKg": 97.5
+                },
+                {
+                  "note": "T2",
+                  "reps": 5,
+                  "percent": 0.7,
+                  "targetWeightKg": 97.5
+                },
+                {
+                  "note": "T2",
+                  "reps": 7,
+                  "percent": 0.7,
+                  "targetWeightKg": 97.5
+                },
+                {
+                  "note": "T2",
+                  "reps": 4,
+                  "percent": 0.7,
+                  "targetWeightKg": 97.5
+                },
+                {
+                  "note": "T2",
+                  "reps": 6,
+                  "percent": 0.7,
+                  "targetWeightKg": 97.5
+                },
+                {
+                  "note": "T2",
+                  "reps": 8,
+                  "percent": 0.7,
+                  "targetWeightKg": 97.5
+                }
+              ],
+              "slot": {
+                "role": {
+                  "en": "T2",
+                  "ko": "T2 · 보조"
+                },
+                "driver": true,
+                "sessionKey": "D2",
+                "startWeightKg": 140,
+                "progressionKey": "EX_SUMO_DEADLIFT"
+              },
+              "exerciseName": "Sumo Deadlift"
+            }
+          ]
+        },
+        {
+          "key": "D3",
+          "items": [
+            {
+              "sets": [
+                {
+                  "note": "T1",
+                  "reps": 5,
+                  "percent": 0.75,
+                  "targetWeightKg": 45
+                },
+                {
+                  "note": "T1",
+                  "reps": 3,
+                  "percent": 0.85,
+                  "targetWeightKg": 50
+                },
+                {
+                  "note": "T1 · 1+ AMRAP",
+                  "reps": 1,
+                  "amrap": true,
+                  "percent": 0.95,
+                  "targetWeightKg": 57.5
+                },
+                {
+                  "note": "T1",
+                  "reps": 3,
+                  "percent": 0.9,
+                  "targetWeightKg": 55
+                },
+                {
+                  "note": "T1",
+                  "reps": 3,
+                  "percent": 0.85,
+                  "targetWeightKg": 50
+                },
+                {
+                  "note": "T1",
+                  "reps": 3,
+                  "percent": 0.8,
+                  "targetWeightKg": 47.5
+                },
+                {
+                  "note": "T1",
+                  "reps": 5,
+                  "percent": 0.75,
+                  "targetWeightKg": 45
+                },
+                {
+                  "note": "T1",
+                  "reps": 5,
+                  "percent": 0.7,
+                  "targetWeightKg": 42.5
+                },
+                {
+                  "note": "T1 · 5+",
+                  "reps": 5,
+                  "percent": 0.65,
+                  "targetWeightKg": 40
+                }
+              ],
+              "slot": {
+                "role": {
+                  "en": "T1",
+                  "ko": "T1 · 메인"
+                },
+                "driver": true,
+                "sessionKey": "D3",
+                "startWeightKg": 60,
+                "progressionKey": "EX_OVERHEAD_PRESS"
+              },
+              "exerciseName": "Overhead Press"
+            },
+            {
+              "sets": [
+                {
+                  "note": "T2",
+                  "reps": 5,
+                  "percent": 0.5,
+                  "targetWeightKg": 35
+                },
+                {
+                  "note": "T2",
+                  "reps": 5,
+                  "percent": 0.6,
+                  "targetWeightKg": 42.5
+                },
+                {
+                  "note": "T2",
+                  "reps": 3,
+                  "percent": 0.7,
+                  "targetWeightKg": 50
+                },
+                {
+                  "note": "T2",
+                  "reps": 5,
+                  "percent": 0.7,
+                  "targetWeightKg": 50
+                },
+                {
+                  "note": "T2",
+                  "reps": 7,
+                  "percent": 0.7,
+                  "targetWeightKg": 50
+                },
+                {
+                  "note": "T2",
+                  "reps": 4,
+                  "percent": 0.7,
+                  "targetWeightKg": 50
+                },
+                {
+                  "note": "T2",
+                  "reps": 6,
+                  "percent": 0.7,
+                  "targetWeightKg": 50
+                },
+                {
+                  "note": "T2",
+                  "reps": 8,
+                  "percent": 0.7,
+                  "targetWeightKg": 50
+                }
+              ],
+              "slot": {
+                "role": {
+                  "en": "T2",
+                  "ko": "T2 · 보조"
+                },
+                "driver": true,
+                "sessionKey": "D3",
+                "startWeightKg": 70,
+                "progressionKey": "EX_INCLINE_BENCH_PRESS"
+              },
+              "exerciseName": "Incline Bench Press"
+            }
+          ]
+        },
+        {
+          "key": "D4",
+          "items": [
+            {
+              "sets": [
+                {
+                  "note": "T1",
+                  "reps": 5,
+                  "percent": 0.75,
+                  "targetWeightKg": 112.5
+                },
+                {
+                  "note": "T1",
+                  "reps": 3,
+                  "percent": 0.85,
+                  "targetWeightKg": 127.5
+                },
+                {
+                  "note": "T1 · 1+ AMRAP",
+                  "reps": 1,
+                  "amrap": true,
+                  "percent": 0.95,
+                  "targetWeightKg": 142.5
+                },
+                {
+                  "note": "T1",
+                  "reps": 3,
+                  "percent": 0.9,
+                  "targetWeightKg": 135
+                },
+                {
+                  "note": "T1",
+                  "reps": 3,
+                  "percent": 0.85,
+                  "targetWeightKg": 127.5
+                },
+                {
+                  "note": "T1",
+                  "reps": 3,
+                  "percent": 0.8,
+                  "targetWeightKg": 120
+                },
+                {
+                  "note": "T1",
+                  "reps": 3,
+                  "percent": 0.75,
+                  "targetWeightKg": 112.5
+                },
+                {
+                  "note": "T1",
+                  "reps": 3,
+                  "percent": 0.7,
+                  "targetWeightKg": 105
+                },
+                {
+                  "note": "T1 · 3+",
+                  "reps": 3,
+                  "percent": 0.65,
+                  "targetWeightKg": 97.5
+                }
+              ],
+              "slot": {
+                "role": {
+                  "en": "T1",
+                  "ko": "T1 · 메인"
+                },
+                "driver": true,
+                "sessionKey": "D4",
+                "startWeightKg": 150,
+                "progressionKey": "EX_DEADLIFT"
+              },
+              "exerciseName": "Deadlift"
+            },
+            {
+              "sets": [
+                {
+                  "note": "T2",
+                  "reps": 5,
+                  "percent": 0.5,
+                  "targetWeightKg": 45
+                },
+                {
+                  "note": "T2",
+                  "reps": 5,
+                  "percent": 0.6,
+                  "targetWeightKg": 55
+                },
+                {
+                  "note": "T2",
+                  "reps": 3,
+                  "percent": 0.7,
+                  "targetWeightKg": 62.5
+                },
+                {
+                  "note": "T2",
+                  "reps": 5,
+                  "percent": 0.7,
+                  "targetWeightKg": 62.5
+                },
+                {
+                  "note": "T2",
+                  "reps": 7,
+                  "percent": 0.7,
+                  "targetWeightKg": 62.5
+                },
+                {
+                  "note": "T2",
+                  "reps": 4,
+                  "percent": 0.7,
+                  "targetWeightKg": 62.5
+                },
+                {
+                  "note": "T2",
+                  "reps": 6,
+                  "percent": 0.7,
+                  "targetWeightKg": 62.5
+                },
+                {
+                  "note": "T2",
+                  "reps": 8,
+                  "percent": 0.7,
+                  "targetWeightKg": 62.5
+                }
+              ],
+              "slot": {
+                "role": {
+                  "en": "T2",
+                  "ko": "T2 · 보조"
+                },
+                "driver": true,
+                "sessionKey": "D4",
+                "startWeightKg": 90,
+                "progressionKey": "EX_FRONT_SQUAT"
+              },
+              "exerciseName": "Front Squat"
+            }
+          ]
+        },
+        {
+          "key": "D5",
+          "items": [
+            {
+              "sets": [
+                {
+                  "note": "T1",
+                  "reps": 5,
+                  "percent": 0.75,
+                  "targetWeightKg": 67.5
+                },
+                {
+                  "note": "T1",
+                  "reps": 3,
+                  "percent": 0.85,
+                  "targetWeightKg": 77.5
+                },
+                {
+                  "note": "T1 · 1+ AMRAP",
+                  "reps": 1,
+                  "amrap": true,
+                  "percent": 0.95,
+                  "targetWeightKg": 85
+                },
+                {
+                  "note": "T1",
+                  "reps": 3,
+                  "percent": 0.9,
+                  "targetWeightKg": 80
+                },
+                {
+                  "note": "T1",
+                  "reps": 5,
+                  "percent": 0.85,
+                  "targetWeightKg": 77.5
+                },
+                {
+                  "note": "T1",
+                  "reps": 3,
+                  "percent": 0.8,
+                  "targetWeightKg": 72.5
+                },
+                {
+                  "note": "T1",
+                  "reps": 5,
+                  "percent": 0.75,
+                  "targetWeightKg": 67.5
+                },
+                {
+                  "note": "T1",
+                  "reps": 3,
+                  "percent": 0.7,
+                  "targetWeightKg": 62.5
+                },
+                {
+                  "note": "T1 · 5+",
+                  "reps": 5,
+                  "percent": 0.65,
+                  "targetWeightKg": 57.5
+                }
+              ],
+              "slot": {
+                "role": {
+                  "en": "T1",
+                  "ko": "T1 · 메인"
+                },
+                "driver": true,
+                "sessionKey": "D5",
+                "startWeightKg": 90,
+                "progressionKey": "EX_BENCH_PRESS"
+              },
+              "exerciseName": "Bench Press"
+            },
+            {
+              "sets": [
+                {
+                  "note": "T2",
+                  "reps": 5,
+                  "percent": 0.5,
+                  "targetWeightKg": 37.5
+                },
+                {
+                  "note": "T2",
+                  "reps": 5,
+                  "percent": 0.6,
+                  "targetWeightKg": 42.5
+                },
+                {
+                  "note": "T2",
+                  "reps": 3,
+                  "percent": 0.7,
+                  "targetWeightKg": 50
+                },
+                {
+                  "note": "T2",
+                  "reps": 5,
+                  "percent": 0.7,
+                  "targetWeightKg": 50
+                },
+                {
+                  "note": "T2",
+                  "reps": 7,
+                  "percent": 0.7,
+                  "targetWeightKg": 50
+                },
+                {
+                  "note": "T2",
+                  "reps": 4,
+                  "percent": 0.7,
+                  "targetWeightKg": 50
+                },
+                {
+                  "note": "T2",
+                  "reps": 6,
+                  "percent": 0.7,
+                  "targetWeightKg": 50
+                },
+                {
+                  "note": "T2",
+                  "reps": 8,
+                  "percent": 0.7,
+                  "targetWeightKg": 50
+                }
+              ],
+              "slot": {
+                "role": {
+                  "en": "T2",
+                  "ko": "T2 · 보조"
+                },
+                "driver": true,
+                "sessionKey": "D5",
+                "startWeightKg": 72.5,
+                "progressionKey": "EX_CLOSE_GRIP_BENCH_PRESS"
+              },
+              "exerciseName": "Close-Grip Bench Press"
+            }
+          ]
+        }
+      ],
+      "programFamily": "nsuns-lp"
+    },
+    "defaults": {
+      "tmPercent": 0.9
+    }
+  },
+  {
+    "slug": "operator",
+    "type": "LOGIC",
+    "kind": "operator",
+    "definition": {
+      "kind": "operator",
+      "modules": [
+        "SQUAT",
+        "BENCH",
+        "DEADLIFT"
+      ],
+      "schedule": {
+        "weeks": 6,
+        "sessionsPerWeek": 3
+      },
+      "dslVersion": 1,
+      "progression": {
+        "profile": "operator-base",
+        "mainSets": 3,
+        "deadliftSets": 3
+      }
+    },
+    "defaults": {
+      "tmPercent": 0.9
+    }
+  },
+  {
+    "slug": "phul",
+    "type": "MANUAL",
+    "kind": "manual",
+    "definition": {
+      "kind": "manual",
+      "sessions": [
+        {
+          "key": "UP",
+          "items": [
+            {
+              "role": "MAIN",
+              "sets": [
+                {
+                  "note": "work set",
+                  "reps": 5,
+                  "targetWeightKg": 70
+                },
+                {
+                  "note": "work set",
+                  "reps": 5,
+                  "targetWeightKg": 70
+                },
+                {
+                  "note": "AMRAP 5+",
+                  "reps": 5,
+                  "targetWeightKg": 70
+                }
+              ],
+              "rowType": "AUTO",
+              "exerciseName": "Bench Press",
+              "progressionTarget": "BENCH"
+            },
+            {
+              "role": "MAIN",
+              "sets": [
+                {
+                  "note": "work set",
+                  "reps": 5,
+                  "targetWeightKg": 60
+                },
+                {
+                  "note": "work set",
+                  "reps": 5,
+                  "targetWeightKg": 60
+                },
+                {
+                  "note": "AMRAP 5+",
+                  "reps": 5,
+                  "targetWeightKg": 60
+                }
+              ],
+              "rowType": "AUTO",
+              "exerciseName": "Barbell Row",
+              "progressionTarget": "PULL"
+            },
+            {
+              "role": "MAIN",
+              "sets": [
+                {
+                  "note": "work set",
+                  "reps": 5,
+                  "targetWeightKg": 42.5
+                },
+                {
+                  "note": "work set",
+                  "reps": 5,
+                  "targetWeightKg": 42.5
+                },
+                {
+                  "note": "AMRAP 5+",
+                  "reps": 5,
+                  "targetWeightKg": 42.5
+                }
+              ],
+              "rowType": "AUTO",
+              "exerciseName": "Overhead Press",
+              "progressionTarget": "OHP"
+            },
+            {
+              "role": "ASSIST",
+              "sets": [
+                {
+                  "note": "accessory",
+                  "reps": 6,
+                  "targetWeightKg": 22.5
+                },
+                {
+                  "note": "accessory",
+                  "reps": 6,
+                  "targetWeightKg": 22.5
+                },
+                {
+                  "note": "accessory",
+                  "reps": 6,
+                  "targetWeightKg": 22.5
+                }
+              ],
+              "exerciseName": "Incline Dumbbell Bench Press"
+            },
+            {
+              "role": "ASSIST",
+              "sets": [
+                {
+                  "note": "accessory",
+                  "reps": 6,
+                  "targetWeightKg": 50
+                },
+                {
+                  "note": "accessory",
+                  "reps": 6,
+                  "targetWeightKg": 50
+                },
+                {
+                  "note": "accessory",
+                  "reps": 6,
+                  "targetWeightKg": 50
+                }
+              ],
+              "exerciseName": "Lat Pulldown"
+            },
+            {
+              "role": "ASSIST",
+              "sets": [
+                {
+                  "note": "accessory",
+                  "reps": 6,
+                  "targetWeightKg": 25
+                },
+                {
+                  "note": "accessory",
+                  "reps": 6,
+                  "targetWeightKg": 25
+                }
+              ],
+              "exerciseName": "Bicep Curl"
+            },
+            {
+              "role": "ASSIST",
+              "sets": [
+                {
+                  "note": "accessory",
+                  "reps": 6,
+                  "targetWeightKg": 20
+                },
+                {
+                  "note": "accessory",
+                  "reps": 6,
+                  "targetWeightKg": 20
+                }
+              ],
+              "exerciseName": "Skullcrusher"
+            }
+          ]
+        },
+        {
+          "key": "LP",
+          "items": [
+            {
+              "role": "MAIN",
+              "sets": [
+                {
+                  "note": "work set",
+                  "reps": 5,
+                  "targetWeightKg": 90
+                },
+                {
+                  "note": "work set",
+                  "reps": 5,
+                  "targetWeightKg": 90
+                },
+                {
+                  "note": "AMRAP 5+",
+                  "reps": 5,
+                  "targetWeightKg": 90
+                }
+              ],
+              "rowType": "AUTO",
+              "exerciseName": "High-Bar Back Squat",
+              "progressionTarget": "SQUAT"
+            },
+            {
+              "role": "MAIN",
+              "sets": [
+                {
+                  "note": "work set",
+                  "reps": 5,
+                  "targetWeightKg": 110
+                },
+                {
+                  "note": "work set",
+                  "reps": 5,
+                  "targetWeightKg": 110
+                },
+                {
+                  "note": "AMRAP 5+",
+                  "reps": 5,
+                  "targetWeightKg": 110
+                }
+              ],
+              "rowType": "AUTO",
+              "exerciseName": "Deadlift",
+              "progressionTarget": "DEADLIFT"
+            },
+            {
+              "role": "ASSIST",
+              "sets": [
+                {
+                  "note": "accessory",
+                  "reps": 10,
+                  "targetWeightKg": 130
+                },
+                {
+                  "note": "accessory",
+                  "reps": 10,
+                  "targetWeightKg": 130
+                },
+                {
+                  "note": "accessory",
+                  "reps": 10,
+                  "targetWeightKg": 130
+                },
+                {
+                  "note": "accessory",
+                  "reps": 10,
+                  "targetWeightKg": 130
+                }
+              ],
+              "exerciseName": "Leg Press"
+            },
+            {
+              "role": "ASSIST",
+              "sets": [
+                {
+                  "note": "accessory",
+                  "reps": 6,
+                  "targetWeightKg": 35
+                },
+                {
+                  "note": "accessory",
+                  "reps": 6,
+                  "targetWeightKg": 35
+                },
+                {
+                  "note": "accessory",
+                  "reps": 6,
+                  "targetWeightKg": 35
+                }
+              ],
+              "exerciseName": "Leg Curl"
+            },
+            {
+              "role": "ASSIST",
+              "sets": [
+                {
+                  "note": "accessory",
+                  "reps": 6,
+                  "targetWeightKg": 60
+                },
+                {
+                  "note": "accessory",
+                  "reps": 6,
+                  "targetWeightKg": 60
+                },
+                {
+                  "note": "accessory",
+                  "reps": 6,
+                  "targetWeightKg": 60
+                },
+                {
+                  "note": "accessory",
+                  "reps": 6,
+                  "targetWeightKg": 60
+                }
+              ],
+              "exerciseName": "Calf Raise"
+            }
+          ]
+        },
+        {
+          "key": "UH",
+          "items": [
+            {
+              "role": "ASSIST",
+              "sets": [
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 45
+                },
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 45
+                },
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 45
+                }
+              ],
+              "exerciseName": "Incline Bench Press"
+            },
+            {
+              "role": "ASSIST",
+              "sets": [
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 15
+                },
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 15
+                },
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 15
+                }
+              ],
+              "exerciseName": "Chest Fly"
+            },
+            {
+              "role": "ASSIST",
+              "sets": [
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 45
+                },
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 45
+                },
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 45
+                }
+              ],
+              "exerciseName": "Seated Row"
+            },
+            {
+              "role": "ASSIST",
+              "sets": [
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 22.5
+                },
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 22.5
+                },
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 22.5
+                }
+              ],
+              "exerciseName": "Dumbbell Row"
+            },
+            {
+              "role": "ASSIST",
+              "sets": [
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 10
+                },
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 10
+                },
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 10
+                }
+              ],
+              "exerciseName": "Lateral Raise"
+            },
+            {
+              "role": "ASSIST",
+              "sets": [
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 20
+                },
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 20
+                },
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 20
+                }
+              ],
+              "exerciseName": "Bicep Curl"
+            },
+            {
+              "role": "ASSIST",
+              "sets": [
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 20
+                },
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 20
+                },
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 20
+                }
+              ],
+              "exerciseName": "Triceps Extension"
+            }
+          ]
+        },
+        {
+          "key": "LH",
+          "items": [
+            {
+              "role": "ASSIST",
+              "sets": [
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 50
+                },
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 50
+                },
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 50
+                }
+              ],
+              "exerciseName": "Front Squat"
+            },
+            {
+              "role": "ASSIST",
+              "sets": [
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 30
+                },
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 30
+                },
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 30
+                }
+              ],
+              "exerciseName": "Lunge"
+            },
+            {
+              "role": "ASSIST",
+              "sets": [
+                {
+                  "note": "accessory",
+                  "reps": 10,
+                  "targetWeightKg": 40
+                },
+                {
+                  "note": "accessory",
+                  "reps": 10,
+                  "targetWeightKg": 40
+                },
+                {
+                  "note": "accessory",
+                  "reps": 10,
+                  "targetWeightKg": 40
+                }
+              ],
+              "exerciseName": "Leg Extension"
+            },
+            {
+              "role": "ASSIST",
+              "sets": [
+                {
+                  "note": "accessory",
+                  "reps": 10,
+                  "targetWeightKg": 30
+                },
+                {
+                  "note": "accessory",
+                  "reps": 10,
+                  "targetWeightKg": 30
+                },
+                {
+                  "note": "accessory",
+                  "reps": 10,
+                  "targetWeightKg": 30
+                }
+              ],
+              "exerciseName": "Leg Curl"
+            },
+            {
+              "role": "ASSIST",
+              "sets": [
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 50
+                },
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 50
+                },
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 50
+                }
+              ],
+              "exerciseName": "Calf Raise"
+            }
+          ]
+        }
+      ],
+      "programFamily": "phul"
+    },
+    "defaults": {}
+  },
+  {
+    "slug": "reddit-ppl-6day",
+    "type": "MANUAL",
+    "kind": "manual",
+    "definition": {
+      "kind": "manual",
+      "sessions": [
+        {
+          "key": "D1",
+          "items": [
+            {
+              "role": "MAIN",
+              "sets": [
+                {
+                  "note": "AMRAP 5+",
+                  "reps": 5,
+                  "targetWeightKg": 100
+                }
+              ],
+              "rowType": "AUTO",
+              "exerciseName": "Deadlift",
+              "progressionTarget": "DEADLIFT"
+            },
+            {
+              "role": "ASSIST",
+              "sets": [
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 45
+                },
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 45
+                },
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 45
+                }
+              ],
+              "exerciseName": "Lat Pulldown"
+            },
+            {
+              "role": "ASSIST",
+              "sets": [
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 45
+                },
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 45
+                },
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 45
+                }
+              ],
+              "exerciseName": "Seated Row"
+            },
+            {
+              "role": "ASSIST",
+              "sets": [
+                {
+                  "note": "accessory",
+                  "reps": 15,
+                  "targetWeightKg": 20
+                },
+                {
+                  "note": "accessory",
+                  "reps": 15,
+                  "targetWeightKg": 20
+                },
+                {
+                  "note": "accessory",
+                  "reps": 15,
+                  "targetWeightKg": 20
+                },
+                {
+                  "note": "accessory",
+                  "reps": 15,
+                  "targetWeightKg": 20
+                },
+                {
+                  "note": "accessory",
+                  "reps": 15,
+                  "targetWeightKg": 20
+                }
+              ],
+              "exerciseName": "Face Pull"
+            },
+            {
+              "role": "ASSIST",
+              "sets": [
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 12
+                },
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 12
+                },
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 12
+                },
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 12
+                }
+              ],
+              "exerciseName": "Hammer Curl"
+            },
+            {
+              "role": "ASSIST",
+              "sets": [
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 20
+                },
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 20
+                },
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 20
+                },
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 20
+                }
+              ],
+              "exerciseName": "Bicep Curl"
+            }
+          ]
+        },
+        {
+          "key": "D2",
+          "items": [
+            {
+              "role": "MAIN",
+              "sets": [
+                {
+                  "note": "work set",
+                  "reps": 5,
+                  "targetWeightKg": 60
+                },
+                {
+                  "note": "work set",
+                  "reps": 5,
+                  "targetWeightKg": 60
+                },
+                {
+                  "note": "work set",
+                  "reps": 5,
+                  "targetWeightKg": 60
+                },
+                {
+                  "note": "work set",
+                  "reps": 5,
+                  "targetWeightKg": 60
+                },
+                {
+                  "note": "AMRAP 5+",
+                  "reps": 5,
+                  "targetWeightKg": 60
+                }
+              ],
+              "rowType": "AUTO",
+              "exerciseName": "Bench Press",
+              "progressionTarget": "BENCH"
+            },
+            {
+              "role": "ASSIST",
+              "sets": [
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 30
+                },
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 30
+                },
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 30
+                }
+              ],
+              "exerciseName": "Overhead Press"
+            },
+            {
+              "role": "ASSIST",
+              "sets": [
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 20
+                },
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 20
+                },
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 20
+                }
+              ],
+              "exerciseName": "Incline Dumbbell Bench Press"
+            },
+            {
+              "role": "ASSIST",
+              "sets": [
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 25
+                },
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 25
+                },
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 25
+                }
+              ],
+              "exerciseName": "Triceps Pushdown"
+            },
+            {
+              "role": "ASSIST",
+              "sets": [
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 20
+                },
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 20
+                },
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 20
+                }
+              ],
+              "exerciseName": "Triceps Extension"
+            },
+            {
+              "role": "ASSIST",
+              "sets": [
+                {
+                  "note": "accessory",
+                  "reps": 15,
+                  "targetWeightKg": 7.5
+                },
+                {
+                  "note": "accessory",
+                  "reps": 15,
+                  "targetWeightKg": 7.5
+                },
+                {
+                  "note": "accessory",
+                  "reps": 15,
+                  "targetWeightKg": 7.5
+                },
+                {
+                  "note": "accessory",
+                  "reps": 15,
+                  "targetWeightKg": 7.5
+                },
+                {
+                  "note": "accessory",
+                  "reps": 15,
+                  "targetWeightKg": 7.5
+                },
+                {
+                  "note": "accessory",
+                  "reps": 15,
+                  "targetWeightKg": 7.5
+                }
+              ],
+              "exerciseName": "Lateral Raise"
+            }
+          ]
+        },
+        {
+          "key": "D3",
+          "items": [
+            {
+              "role": "MAIN",
+              "sets": [
+                {
+                  "note": "work set",
+                  "reps": 5,
+                  "targetWeightKg": 80
+                },
+                {
+                  "note": "work set",
+                  "reps": 5,
+                  "targetWeightKg": 80
+                },
+                {
+                  "note": "AMRAP 5+",
+                  "reps": 5,
+                  "targetWeightKg": 80
+                }
+              ],
+              "rowType": "AUTO",
+              "exerciseName": "High-Bar Back Squat",
+              "progressionTarget": "SQUAT"
+            },
+            {
+              "role": "ASSIST",
+              "sets": [
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 60
+                },
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 60
+                },
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 60
+                }
+              ],
+              "exerciseName": "Romanian Deadlift"
+            },
+            {
+              "role": "ASSIST",
+              "sets": [
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 120
+                },
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 120
+                },
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 120
+                }
+              ],
+              "exerciseName": "Leg Press"
+            },
+            {
+              "role": "ASSIST",
+              "sets": [
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 35
+                },
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 35
+                },
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 35
+                }
+              ],
+              "exerciseName": "Leg Curl"
+            },
+            {
+              "role": "ASSIST",
+              "sets": [
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 60
+                },
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 60
+                },
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 60
+                },
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 60
+                },
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 60
+                }
+              ],
+              "exerciseName": "Calf Raise"
+            }
+          ]
+        },
+        {
+          "key": "D4",
+          "items": [
+            {
+              "role": "MAIN",
+              "sets": [
+                {
+                  "note": "work set",
+                  "reps": 5,
+                  "targetWeightKg": 50
+                },
+                {
+                  "note": "work set",
+                  "reps": 5,
+                  "targetWeightKg": 50
+                },
+                {
+                  "note": "work set",
+                  "reps": 5,
+                  "targetWeightKg": 50
+                },
+                {
+                  "note": "work set",
+                  "reps": 5,
+                  "targetWeightKg": 50
+                },
+                {
+                  "note": "AMRAP 5+",
+                  "reps": 5,
+                  "targetWeightKg": 50
+                }
+              ],
+              "rowType": "AUTO",
+              "exerciseName": "Barbell Row",
+              "progressionTarget": "PULL"
+            },
+            {
+              "role": "ASSIST",
+              "sets": [
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 45
+                },
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 45
+                },
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 45
+                }
+              ],
+              "exerciseName": "Lat Pulldown"
+            },
+            {
+              "role": "ASSIST",
+              "sets": [
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 45
+                },
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 45
+                },
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 45
+                }
+              ],
+              "exerciseName": "Seated Row"
+            },
+            {
+              "role": "ASSIST",
+              "sets": [
+                {
+                  "note": "accessory",
+                  "reps": 15,
+                  "targetWeightKg": 20
+                },
+                {
+                  "note": "accessory",
+                  "reps": 15,
+                  "targetWeightKg": 20
+                },
+                {
+                  "note": "accessory",
+                  "reps": 15,
+                  "targetWeightKg": 20
+                },
+                {
+                  "note": "accessory",
+                  "reps": 15,
+                  "targetWeightKg": 20
+                },
+                {
+                  "note": "accessory",
+                  "reps": 15,
+                  "targetWeightKg": 20
+                }
+              ],
+              "exerciseName": "Face Pull"
+            },
+            {
+              "role": "ASSIST",
+              "sets": [
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 12
+                },
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 12
+                },
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 12
+                },
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 12
+                }
+              ],
+              "exerciseName": "Hammer Curl"
+            },
+            {
+              "role": "ASSIST",
+              "sets": [
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 20
+                },
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 20
+                },
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 20
+                },
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 20
+                }
+              ],
+              "exerciseName": "Bicep Curl"
+            }
+          ]
+        },
+        {
+          "key": "D5",
+          "items": [
+            {
+              "role": "MAIN",
+              "sets": [
+                {
+                  "note": "work set",
+                  "reps": 5,
+                  "targetWeightKg": 40
+                },
+                {
+                  "note": "work set",
+                  "reps": 5,
+                  "targetWeightKg": 40
+                },
+                {
+                  "note": "work set",
+                  "reps": 5,
+                  "targetWeightKg": 40
+                },
+                {
+                  "note": "work set",
+                  "reps": 5,
+                  "targetWeightKg": 40
+                },
+                {
+                  "note": "AMRAP 5+",
+                  "reps": 5,
+                  "targetWeightKg": 40
+                }
+              ],
+              "rowType": "AUTO",
+              "exerciseName": "Overhead Press",
+              "progressionTarget": "OHP"
+            },
+            {
+              "role": "ASSIST",
+              "sets": [
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 45
+                },
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 45
+                },
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 45
+                }
+              ],
+              "exerciseName": "Bench Press"
+            },
+            {
+              "role": "ASSIST",
+              "sets": [
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 20
+                },
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 20
+                },
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 20
+                }
+              ],
+              "exerciseName": "Incline Dumbbell Bench Press"
+            },
+            {
+              "role": "ASSIST",
+              "sets": [
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 25
+                },
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 25
+                },
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 25
+                }
+              ],
+              "exerciseName": "Triceps Pushdown"
+            },
+            {
+              "role": "ASSIST",
+              "sets": [
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 20
+                },
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 20
+                },
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 20
+                }
+              ],
+              "exerciseName": "Triceps Extension"
+            },
+            {
+              "role": "ASSIST",
+              "sets": [
+                {
+                  "note": "accessory",
+                  "reps": 15,
+                  "targetWeightKg": 7.5
+                },
+                {
+                  "note": "accessory",
+                  "reps": 15,
+                  "targetWeightKg": 7.5
+                },
+                {
+                  "note": "accessory",
+                  "reps": 15,
+                  "targetWeightKg": 7.5
+                },
+                {
+                  "note": "accessory",
+                  "reps": 15,
+                  "targetWeightKg": 7.5
+                },
+                {
+                  "note": "accessory",
+                  "reps": 15,
+                  "targetWeightKg": 7.5
+                },
+                {
+                  "note": "accessory",
+                  "reps": 15,
+                  "targetWeightKg": 7.5
+                }
+              ],
+              "exerciseName": "Lateral Raise"
+            }
+          ]
+        },
+        {
+          "key": "D6",
+          "items": [
+            {
+              "role": "MAIN",
+              "sets": [
+                {
+                  "note": "work set",
+                  "reps": 5,
+                  "targetWeightKg": 80
+                },
+                {
+                  "note": "work set",
+                  "reps": 5,
+                  "targetWeightKg": 80
+                },
+                {
+                  "note": "AMRAP 5+",
+                  "reps": 5,
+                  "targetWeightKg": 80
+                }
+              ],
+              "rowType": "AUTO",
+              "exerciseName": "High-Bar Back Squat",
+              "progressionTarget": "SQUAT"
+            },
+            {
+              "role": "ASSIST",
+              "sets": [
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 60
+                },
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 60
+                },
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 60
+                }
+              ],
+              "exerciseName": "Romanian Deadlift"
+            },
+            {
+              "role": "ASSIST",
+              "sets": [
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 120
+                },
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 120
+                },
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 120
+                }
+              ],
+              "exerciseName": "Leg Press"
+            },
+            {
+              "role": "ASSIST",
+              "sets": [
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 35
+                },
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 35
+                },
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 35
+                }
+              ],
+              "exerciseName": "Leg Curl"
+            },
+            {
+              "role": "ASSIST",
+              "sets": [
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 60
+                },
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 60
+                },
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 60
+                },
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 60
+                },
+                {
+                  "note": "accessory",
+                  "reps": 8,
+                  "targetWeightKg": 60
+                }
+              ],
+              "exerciseName": "Calf Raise"
+            }
+          ]
+        }
+      ],
+      "programFamily": "reddit-ppl"
+    },
+    "defaults": {}
+  },
+  {
+    "slug": "ref5-adaptive-strength",
+    "type": "LOGIC",
+    "kind": "ref5",
+    "definition": {
+      "id": "ref5-adaptive-strength",
+      "kind": "ref5",
+      "family": "ref5",
+      "modules": [
+        "SQUAT",
+        "PULL",
+        "BENCH",
+        "DEADLIFT",
+        "OHP"
+      ],
+      "dslVersion": 1,
+      "progression": {
+        "profile": "ref5-v1.1"
+      },
+      "protocolVersion": "1.1"
+    },
+    "defaults": {
+      "ref5": {
+        "controlRefsKg": {
+          "bpKg": 101,
+          "sqKg": 104,
+          "ohpKg": 50,
+          "deadliftKg": 100,
+          "pullTotalKg": 108
+        },
+        "schemaVersion": 1,
+        "protocolVersion": "1.1",
+        "startingValuesKg": {
+          "ohpKg": 32.5,
+          "sqH3Kg": 82.5,
+          "bpFocusKg": 82.5,
+          "deadliftKg": 72.5,
+          "pullFocusTotalKg": 87.5
+        }
+      }
+    }
+  },
+  {
+    "slug": "starting-strength-lp",
+    "type": "MANUAL",
+    "kind": "manual",
+    "definition": {
+      "kind": "manual",
+      "sessions": [
+        {
+          "key": "A",
+          "items": [
+            {
+              "sets": [
+                {
+                  "note": "work set",
+                  "reps": 5,
+                  "targetWeightKg": 80
+                },
+                {
+                  "note": "work set",
+                  "reps": 5,
+                  "targetWeightKg": 80
+                },
+                {
+                  "note": "work set",
+                  "reps": 5,
+                  "targetWeightKg": 80
+                }
+              ],
+              "exerciseName": "High-Bar Back Squat"
+            },
+            {
+              "sets": [
+                {
+                  "note": "work set",
+                  "reps": 5,
+                  "targetWeightKg": 60
+                },
+                {
+                  "note": "work set",
+                  "reps": 5,
+                  "targetWeightKg": 60
+                },
+                {
+                  "note": "work set",
+                  "reps": 5,
+                  "targetWeightKg": 60
+                }
+              ],
+              "exerciseName": "Bench Press"
+            },
+            {
+              "sets": [
+                {
+                  "note": "top set",
+                  "reps": 5,
+                  "targetWeightKg": 100
+                }
+              ],
+              "exerciseName": "Deadlift"
+            }
+          ]
+        },
+        {
+          "key": "B",
+          "items": [
+            {
+              "sets": [
+                {
+                  "note": "work set",
+                  "reps": 5,
+                  "targetWeightKg": 82.5
+                },
+                {
+                  "note": "work set",
+                  "reps": 5,
+                  "targetWeightKg": 82.5
+                },
+                {
+                  "note": "work set",
+                  "reps": 5,
+                  "targetWeightKg": 82.5
+                }
+              ],
+              "exerciseName": "High-Bar Back Squat"
+            },
+            {
+              "sets": [
+                {
+                  "note": "work set",
+                  "reps": 5,
+                  "targetWeightKg": 42.5
+                },
+                {
+                  "note": "work set",
+                  "reps": 5,
+                  "targetWeightKg": 42.5
+                },
+                {
+                  "note": "work set",
+                  "reps": 5,
+                  "targetWeightKg": 42.5
+                }
+              ],
+              "exerciseName": "Overhead Press"
+            },
+            {
+              "sets": [
+                {
+                  "note": "work set",
+                  "reps": 3,
+                  "targetWeightKg": 60
+                },
+                {
+                  "note": "work set",
+                  "reps": 3,
+                  "targetWeightKg": 60
+                },
+                {
+                  "note": "work set",
+                  "reps": 3,
+                  "targetWeightKg": 60
+                },
+                {
+                  "note": "work set",
+                  "reps": 3,
+                  "targetWeightKg": 60
+                },
+                {
+                  "note": "work set",
+                  "reps": 3,
+                  "targetWeightKg": 60
+                }
+              ],
+              "exerciseName": "Power Clean"
+            }
+          ]
+        }
+      ]
+    },
+    "defaults": {}
+  },
+  {
+    "slug": "stronglifts-5x5",
+    "type": "MANUAL",
+    "kind": "manual",
+    "definition": {
+      "kind": "manual",
+      "sessions": [
+        {
+          "key": "A",
+          "items": [
+            {
+              "sets": [
+                {
+                  "note": "5x5 work set",
+                  "reps": 5,
+                  "targetWeightKg": 80
+                },
+                {
+                  "note": "5x5 work set",
+                  "reps": 5,
+                  "targetWeightKg": 80
+                },
+                {
+                  "note": "5x5 work set",
+                  "reps": 5,
+                  "targetWeightKg": 80
+                },
+                {
+                  "note": "5x5 work set",
+                  "reps": 5,
+                  "targetWeightKg": 80
+                },
+                {
+                  "note": "5x5 work set",
+                  "reps": 5,
+                  "targetWeightKg": 80
+                }
+              ],
+              "exerciseName": "High-Bar Back Squat"
+            },
+            {
+              "sets": [
+                {
+                  "note": "5x5 work set",
+                  "reps": 5,
+                  "targetWeightKg": 57.5
+                },
+                {
+                  "note": "5x5 work set",
+                  "reps": 5,
+                  "targetWeightKg": 57.5
+                },
+                {
+                  "note": "5x5 work set",
+                  "reps": 5,
+                  "targetWeightKg": 57.5
+                },
+                {
+                  "note": "5x5 work set",
+                  "reps": 5,
+                  "targetWeightKg": 57.5
+                },
+                {
+                  "note": "5x5 work set",
+                  "reps": 5,
+                  "targetWeightKg": 57.5
+                }
+              ],
+              "exerciseName": "Bench Press"
+            },
+            {
+              "sets": [
+                {
+                  "note": "5x5 work set",
+                  "reps": 5,
+                  "targetWeightKg": 55
+                },
+                {
+                  "note": "5x5 work set",
+                  "reps": 5,
+                  "targetWeightKg": 55
+                },
+                {
+                  "note": "5x5 work set",
+                  "reps": 5,
+                  "targetWeightKg": 55
+                },
+                {
+                  "note": "5x5 work set",
+                  "reps": 5,
+                  "targetWeightKg": 55
+                },
+                {
+                  "note": "5x5 work set",
+                  "reps": 5,
+                  "targetWeightKg": 55
+                }
+              ],
+              "exerciseName": "Barbell Row"
+            }
+          ]
+        },
+        {
+          "key": "B",
+          "items": [
+            {
+              "sets": [
+                {
+                  "note": "5x5 work set",
+                  "reps": 5,
+                  "targetWeightKg": 82.5
+                },
+                {
+                  "note": "5x5 work set",
+                  "reps": 5,
+                  "targetWeightKg": 82.5
+                },
+                {
+                  "note": "5x5 work set",
+                  "reps": 5,
+                  "targetWeightKg": 82.5
+                },
+                {
+                  "note": "5x5 work set",
+                  "reps": 5,
+                  "targetWeightKg": 82.5
+                },
+                {
+                  "note": "5x5 work set",
+                  "reps": 5,
+                  "targetWeightKg": 82.5
+                }
+              ],
+              "exerciseName": "High-Bar Back Squat"
+            },
+            {
+              "sets": [
+                {
+                  "note": "5x5 work set",
+                  "reps": 5,
+                  "targetWeightKg": 40
+                },
+                {
+                  "note": "5x5 work set",
+                  "reps": 5,
+                  "targetWeightKg": 40
+                },
+                {
+                  "note": "5x5 work set",
+                  "reps": 5,
+                  "targetWeightKg": 40
+                },
+                {
+                  "note": "5x5 work set",
+                  "reps": 5,
+                  "targetWeightKg": 40
+                },
+                {
+                  "note": "5x5 work set",
+                  "reps": 5,
+                  "targetWeightKg": 40
+                }
+              ],
+              "exerciseName": "Overhead Press"
+            },
+            {
+              "sets": [
+                {
+                  "note": "1x5 top set",
+                  "reps": 5,
+                  "targetWeightKg": 105
+                }
+              ],
+              "exerciseName": "Deadlift"
+            }
+          ]
+        }
+      ]
+    },
+    "defaults": {}
+  },
+  {
+    "slug": "tb-fighter",
+    "type": "LOGIC",
+    "kind": "operator",
+    "definition": {
+      "kind": "operator",
+      "modules": [
+        "SQUAT",
+        "BENCH",
+        "OHP",
+        "DEADLIFT"
+      ],
+      "variant": "fighter",
+      "schedule": {
+        "weeks": 6,
+        "sessionsPerWeek": 2
+      },
+      "dslVersion": 1,
+      "progression": {
+        "profile": "fighter",
+        "mainSets": 3,
+        "deadliftSets": 3
+      }
+    },
+    "defaults": {
+      "tmPercent": 0.9
+    }
+  },
+  {
+    "slug": "tb-zulu",
+    "type": "LOGIC",
+    "kind": "operator",
+    "definition": {
+      "kind": "operator",
+      "modules": [
+        "SQUAT",
+        "BENCH",
+        "PULL",
+        "DEADLIFT",
+        "OHP"
+      ],
+      "variant": "zulu",
+      "schedule": {
+        "weeks": 6,
+        "sessionsPerWeek": 4
+      },
+      "dslVersion": 1,
+      "progression": {
+        "profile": "zulu",
+        "mainSets": 3,
+        "deadliftSets": 3
+      }
+    },
+    "defaults": {
+      "tmPercent": 0.9
+    }
+  },
+  {
+    "slug": "texas-method",
+    "type": "MANUAL",
+    "kind": "manual",
+    "definition": {
+      "kind": "manual",
+      "sessions": [
+        {
+          "key": "V",
+          "items": [
+            {
+              "sets": [
+                {
+                  "note": "volume day",
+                  "reps": 5,
+                  "targetWeightKg": 120
+                },
+                {
+                  "note": "volume day",
+                  "reps": 5,
+                  "targetWeightKg": 120
+                },
+                {
+                  "note": "volume day",
+                  "reps": 5,
+                  "targetWeightKg": 120
+                },
+                {
+                  "note": "volume day",
+                  "reps": 5,
+                  "targetWeightKg": 120
+                },
+                {
+                  "note": "volume day",
+                  "reps": 5,
+                  "targetWeightKg": 120
+                }
+              ],
+              "exerciseName": "High-Bar Back Squat"
+            },
+            {
+              "sets": [
+                {
+                  "note": "volume day",
+                  "reps": 5,
+                  "targetWeightKg": 85
+                },
+                {
+                  "note": "volume day",
+                  "reps": 5,
+                  "targetWeightKg": 85
+                },
+                {
+                  "note": "volume day",
+                  "reps": 5,
+                  "targetWeightKg": 85
+                },
+                {
+                  "note": "volume day",
+                  "reps": 5,
+                  "targetWeightKg": 85
+                },
+                {
+                  "note": "volume day",
+                  "reps": 5,
+                  "targetWeightKg": 85
+                }
+              ],
+              "exerciseName": "Bench Press"
+            },
+            {
+              "sets": [
+                {
+                  "note": "volume day",
+                  "reps": 5,
+                  "targetWeightKg": 75
+                },
+                {
+                  "note": "volume day",
+                  "reps": 5,
+                  "targetWeightKg": 75
+                },
+                {
+                  "note": "volume day",
+                  "reps": 5,
+                  "targetWeightKg": 75
+                },
+                {
+                  "note": "volume day",
+                  "reps": 5,
+                  "targetWeightKg": 75
+                },
+                {
+                  "note": "volume day",
+                  "reps": 5,
+                  "targetWeightKg": 75
+                }
+              ],
+              "exerciseName": "Barbell Row"
+            }
+          ]
+        },
+        {
+          "key": "R",
+          "items": [
+            {
+              "sets": [
+                {
+                  "note": "recovery day",
+                  "reps": 5,
+                  "targetWeightKg": 95
+                },
+                {
+                  "note": "recovery day",
+                  "reps": 5,
+                  "targetWeightKg": 95
+                }
+              ],
+              "exerciseName": "High-Bar Back Squat"
+            },
+            {
+              "sets": [
+                {
+                  "note": "recovery day",
+                  "reps": 5,
+                  "targetWeightKg": 55
+                },
+                {
+                  "note": "recovery day",
+                  "reps": 5,
+                  "targetWeightKg": 55
+                },
+                {
+                  "note": "recovery day",
+                  "reps": 5,
+                  "targetWeightKg": 55
+                }
+              ],
+              "exerciseName": "Overhead Press"
+            },
+            {
+              "sets": [
+                {
+                  "note": "recovery day",
+                  "reps": 8
+                },
+                {
+                  "note": "recovery day",
+                  "reps": 8
+                },
+                {
+                  "note": "recovery day",
+                  "reps": 8
+                }
+              ],
+              "exerciseName": "Pull-Up"
+            }
+          ]
+        },
+        {
+          "key": "I",
+          "items": [
+            {
+              "sets": [
+                {
+                  "note": "intensity top set",
+                  "reps": 5,
+                  "targetWeightKg": 130
+                }
+              ],
+              "exerciseName": "High-Bar Back Squat"
+            },
+            {
+              "sets": [
+                {
+                  "note": "intensity top set",
+                  "reps": 5,
+                  "targetWeightKg": 92.5
+                }
+              ],
+              "exerciseName": "Bench Press"
+            },
+            {
+              "sets": [
+                {
+                  "note": "intensity top set",
+                  "reps": 5,
+                  "targetWeightKg": 150
+                }
+              ],
+              "exerciseName": "Deadlift"
+            }
+          ]
+        }
+      ]
+    },
+    "defaults": {}
+  },
+  {
+    "slug": "wendler-531",
+    "type": "LOGIC",
+    "kind": "531",
+    "definition": {
+      "kind": "531",
+      "modules": [
+        "SQUAT",
+        "BENCH",
+        "DEADLIFT",
+        "OHP"
+      ],
+      "schedule": {
+        "weeks": 4,
+        "sessionsPerWeek": 4
+      },
+      "assistance": "NONE",
+      "dslVersion": 1
+    },
+    "defaults": {
+      "tmPercent": 0.9
+    }
+  },
+  {
+    "slug": "wendler-531-bbb",
+    "type": "LOGIC",
+    "kind": "531",
+    "definition": {
+      "kind": "531",
+      "modules": [
+        "SQUAT",
+        "BENCH",
+        "DEADLIFT",
+        "OHP"
+      ],
+      "schedule": {
+        "weeks": 4,
+        "sessionsPerWeek": 4
+      },
+      "assistance": "BBB",
+      "dslVersion": 1
+    },
+    "defaults": {
+      "tmPercent": 0.9
+    }
+  },
+  {
+    "slug": "wendler-531-fsl",
+    "type": "LOGIC",
+    "kind": "531",
+    "definition": {
+      "kind": "531",
+      "modules": [
+        "SQUAT",
+        "BENCH",
+        "DEADLIFT",
+        "OHP"
+      ],
+      "schedule": {
+        "weeks": 4,
+        "sessionsPerWeek": 4
+      },
+      "assistance": "FSL",
+      "dslVersion": 1
+    },
+    "defaults": {
+      "tmPercent": 0.9
+    }
+  }
+]

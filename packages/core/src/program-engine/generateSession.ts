@@ -761,7 +761,10 @@ function generateCanditoLinear(def: LogicDefinitionV1, ctx: GeneratorCtx): Plann
   ];
 }
 
-function generateFromLogicDefinition(
+// Exported for the DSL golden-master harness (docs/program-dsl-typing-plan.md, Phase 0).
+// This is the real dispatch the DB session path uses for LOGIC-type definitions
+// (531/operator/asymptote); pinning its output guards the upcoming DSL retyping.
+export function generateFromLogicDefinition(
   definition: unknown,
   ctx: GeneratorCtx,
 ): PlannedExercise[] {
