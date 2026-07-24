@@ -24,7 +24,7 @@ import {
   type AsymptoteTopSetSpec,
 } from "./asymptote";
 import { roundToNearest2p5 } from "./round";
-import type { ManualSet, ManualItem, ManualSession, ManualDefinition, OperatorDefinition, AsymptoteDefinition } from "../program-dsl/schema";
+import type { ManualSet, ManualItem, ManualSession, ManualDefinition, OperatorDefinition, AsymptoteDefinition, Wendler531Definition } from "../program-dsl/schema";
 import type { PlanParams, ProgramDefaults } from "../program-dsl/plan-params";
 import type { SnapshotV3, SnapshotBlock, LogicBlockSource } from "./snapshot";
 import { mapExerciseNameToTarget as inferTargetFromExerciseName } from "@workout/core/strength-engine/target-mapping";
@@ -72,27 +72,16 @@ type ReorderBlocksPatch = {
 type Patch = AccessoryPatch | ReplaceExercisePatch | ReorderBlocksPatch;
 
 /**
- * DSL v1 contract (minimal):
- * {
- *   dslVersion?: 1,
- *   kind: "531" | "operator" | "asymptote",
- *   schedule: { weeks: number, sessionsPerWeek: number },
- *   lifts?: string[],          // generic targets
- *   modules?: string[],        // generic targets
- *   progression?: object       // template-specific parameters
- * }
+ * LOGIC kind 정의(kind: "531" | "operator" | "asymptote")는 program-dsl의 zod-inferred
+ * 판별 유니온(Wendler531Definition/OperatorDefinition/AsymptoteDefinition)으로 타이핑된다.
+ * 아래는 normalizeTargets가 세션 타깃을 복원할 때 읽는 필드만 담은 입력 계약 — `modules`는
+ * 실 데이터, `lifts`/`mainLifts`/`cluster`는 legacy 방어 리더(zod 스키마엔 없음)라 unknown으로 둔다.
  */
-type LogicDefinitionV1 = {
-  dslVersion?: number;
-  kind: string;
-  schedule?: { weeks?: number; sessionsPerWeek?: number };
-  lifts?: string[];
-  modules?: string[];
-  mainLifts?: string[]; // legacy support
-  cluster?: string[]; // legacy support
-  progression?: Record<string, any>;
-  assistance?: string; // 5/3/1: "FSL" | "BBB" | "NONE"
-  variant?: string; // Tactical Barbell: "operator" | "fighter" | "zulu"
+type LiftTargetSource = {
+  lifts?: unknown;
+  modules?: unknown;
+  mainLifts?: unknown;
+  cluster?: unknown;
 };
 
 type PlannedSet = {
@@ -390,7 +379,7 @@ function requireTrainingMaxKg(params: PlanParams, defaults: ProgramDefaults, tar
   return tm;
 }
 
-function normalizeTargets(def: LogicDefinitionV1, fallback: string[]) {
+function normalizeTargets(def: LiftTargetSource, fallback: string[]) {
   const raw = [
     ...(Array.isArray(def.lifts) ? def.lifts : []),
     ...(Array.isArray(def.modules) ? def.modules : []),
@@ -473,7 +462,7 @@ function operatorSchemeByWeek(week: number) {
   return scheme[((week - 1) % 6) + 1] ?? scheme[1];
 }
 
-function generate531(def: LogicDefinitionV1, ctx: GeneratorCtx): PlannedExercise[] {
+function generate531(def: Wendler531Definition, ctx: GeneratorCtx): PlannedExercise[] {
   const targets = ctx.forcedTarget
     ? [normalizeTarget(ctx.forcedTarget)]
     : normalizeTargets(def, ["SQUAT", "BENCH", "DEADLIFT", "OHP"]);
@@ -739,12 +728,12 @@ export function generateFromLogicDefinition(
   definition: unknown,
   ctx: GeneratorCtx,
 ): PlannedExercise[] {
-  const def = (definition ?? {}) as LogicDefinitionV1;
+  const def = (definition ?? {}) as { kind?: unknown };
   const kind = String(def.kind ?? "").toLowerCase();
 
-  if (kind === "531") return generate531(def, ctx);
   // kind 문자열 매칭으로 이미 판별됨 → 해당 kind의 zod-inferred 타입으로 경계 캐스트.
   // (raw는 unknown 계열이라 판별 유니온 멤버로의 단일 캐스트가 안전; 런타임 무변경.)
+  if (kind === "531") return generate531(def as unknown as Wendler531Definition, ctx);
   if (kind === "operator") return generateOperator(def as unknown as OperatorDefinition, ctx);
   if (kind === "asymptote") return generateAsymptote(def as unknown as AsymptoteDefinition, ctx);
 
