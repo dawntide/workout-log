@@ -337,6 +337,19 @@ export function buildRef5StartPlanParams(input: {
   };
 }
 
+/**
+ * Carries the plan-level ohpMicroloading choice onto a start config recomputed
+ * from e1RM/recommendations. Without this, a toggle set before the async
+ * recommendation lands (or before an e1RM edit) is silently reset, because the
+ * recomputed config always starts from the 2.5 kg default (§5.1).
+ */
+export function preserveRef5OhpMicroloading(
+  next: Ref5StartConfig,
+  previous: Ref5StartConfig | null,
+): Ref5StartConfig {
+  return { ...next, ohpMicroloading: previous?.ohpMicroloading ?? next.ohpMicroloading };
+}
+
 function normalizeExerciseLookupKey(value: string) {
   return String(value)
     .trim()
@@ -724,7 +737,7 @@ export function useProgramStoreStartProgramController({
             ref5Calibration: calibration.ok ? calibration.value : null,
             ref5Config:
               calibration.ok && prev.ref5SetupMode === "E1RM"
-                ? calibration.value.startConfig
+                ? preserveRef5OhpMicroloading(calibration.value.startConfig, prev.ref5Config)
                 : prev.ref5Config,
             recommendationStatus: "ready",
             recommendationMessage:
@@ -1010,7 +1023,7 @@ export function useProgramStoreStartProgramController({
         ref5Calibration: calibration.ok ? calibration.value : null,
         // ohpMicroloading is a plan-level choice, preserved when e1RM recomputes starts.
         ref5Config: calibration.ok
-          ? { ...calibration.value.startConfig, ohpMicroloading: prev.ref5Config?.ohpMicroloading ?? false }
+          ? preserveRef5OhpMicroloading(calibration.value.startConfig, prev.ref5Config)
           : prev.ref5Config,
       };
     });
@@ -1029,7 +1042,7 @@ export function useProgramStoreStartProgramController({
         ref5E1rmInputs,
         ref5Calibration: calibration.ok ? calibration.value : null,
         ref5Config: calibration.ok
-          ? { ...calibration.value.startConfig, ohpMicroloading: prev.ref5Config?.ohpMicroloading ?? false }
+          ? preserveRef5OhpMicroloading(calibration.value.startConfig, prev.ref5Config)
           : prev.ref5Config,
       };
     });

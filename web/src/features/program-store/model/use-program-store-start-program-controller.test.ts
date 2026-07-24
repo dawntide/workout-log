@@ -3,6 +3,7 @@ import test from "node:test";
 import type { ProgramTemplate } from "@workout/core/program-store/model";
 import {
   buildRef5StartPlanParams,
+  preserveRef5OhpMicroloading,
   readCurrentWorkKgTargets,
   readRef5StartConfigFromTemplate,
   ref5E1rmValidationMessage,
@@ -201,6 +202,27 @@ test("REF5 plan params carry ohpMicroloading, gating the 1.25 kg OHP start (§5.
   // A plain 2.5-grid config still resolves ohpMicroloading false.
   const defaultParams = buildRef5StartPlanParams({ timezone: "Asia/Seoul", today: "2026-07-13", config: ref5Config });
   assert.equal(defaultParams.ref5.ohpMicroloading, false);
+});
+
+test("ohpMicroloading survives an e1RM/recommendation recompute of the start config", () => {
+  const toggledOn = { ...ref5Config, ohpMicroloading: true };
+  // e1RM/recommendation recomputes starts from the 2.5 kg default (ohpMicroloading false).
+  const recomputed = { ...ref5Config, ohpMicroloading: false };
+  assert.equal(
+    preserveRef5OhpMicroloading(recomputed, toggledOn).ohpMicroloading,
+    true,
+    "a toggle set before the async recompute is not silently reset",
+  );
+  assert.equal(
+    preserveRef5OhpMicroloading(toggledOn, ref5Config).ohpMicroloading,
+    false,
+    "an off toggle stays off across recompute",
+  );
+  assert.equal(
+    preserveRef5OhpMicroloading(toggledOn, null).ohpMicroloading,
+    true,
+    "with no prior config, the recomputed value is kept",
+  );
 });
 
 test("REF5 start validation reports the active auxiliary cap", () => {
