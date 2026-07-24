@@ -26,8 +26,9 @@ export type WorkoutLogRecentLogItem = {
 };
 
 export type WorkoutLogDetailedLogItem = ExistingWorkoutLogLike & {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- generated-session jsonb: 프로그램별 가변 구조, 방어적 optional chain으로만 소비
-  generatedSession: (ExistingWorkoutLogLike["generatedSession"] & { sessionKey: string; snapshot: any }) | null;
+  // generated-session jsonb: 프로그램별 가변 구조. GeneratedSessionLike.snapshot(unknown)을
+  // 그대로 이어받아 소비처(toRecord 관용 파싱)에서 좁힌다.
+  generatedSession: (ExistingWorkoutLogLike["generatedSession"] & { sessionKey: string; snapshot: unknown }) | null;
 };
 
 export type WorkoutLogExerciseOption = {
