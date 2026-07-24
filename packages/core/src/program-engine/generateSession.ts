@@ -24,7 +24,7 @@ import {
   type AsymptoteTopSetSpec,
 } from "./asymptote";
 import { roundToNearest2p5 } from "./round";
-import type { ManualSet, ManualItem, ManualSession, ManualDefinition } from "../program-dsl/schema";
+import type { ManualSet, ManualItem, ManualSession, ManualDefinition, OperatorDefinition, AsymptoteDefinition } from "../program-dsl/schema";
 import type { PlanParams, ProgramDefaults } from "../program-dsl/plan-params";
 import type { SnapshotV3, SnapshotBlock, LogicBlockSource } from "./snapshot";
 import { mapExerciseNameToTarget as inferTargetFromExerciseName } from "@workout/core/strength-engine/target-mapping";
@@ -535,7 +535,7 @@ function generate531(def: LogicDefinitionV1, ctx: GeneratorCtx): PlannedExercise
   return exercises;
 }
 
-function generateOperator(def: LogicDefinitionV1, ctx: GeneratorCtx): PlannedExercise[] {
+function generateOperator(def: OperatorDefinition, ctx: GeneratorCtx): PlannedExercise[] {
   // 템플릿별 요일 클러스터. 6주 파형(70/80/90/75/85/95)과 블록 증량 규칙은 셋이 공유하고,
   // 차이는 주당 세션 수와 세션별 리프트 구성뿐이다(TB 공식: 같은 파형, 다른 스케줄).
   const cluster = tacticalBarbellCluster(def.variant);
@@ -654,7 +654,7 @@ export function plannedExercisesHaveDeferredAmrap(exercises: unknown): boolean {
   );
 }
 
-function generateAsymptote(_def: LogicDefinitionV1, ctx: GeneratorCtx): PlannedExercise[] {
+function generateAsymptote(_def: AsymptoteDefinition, ctx: GeneratorCtx): PlannedExercise[] {
   // Asymptote Protocol: ctx.week ∈ {1..4} = 블록 내 사이클, ctx.day ∈ {1..3} = 세션 A/B/C.
   // ctx.params.lightBlockMode === true 면 light 계수 사용 (이전 블록 AMRAP ≤2 트리거).
   const cycleInBlock = ((ctx.week - 1) % 4) + 1;
@@ -743,8 +743,10 @@ export function generateFromLogicDefinition(
   const kind = String(def.kind ?? "").toLowerCase();
 
   if (kind === "531") return generate531(def, ctx);
-  if (kind === "operator") return generateOperator(def, ctx);
-  if (kind === "asymptote") return generateAsymptote(def, ctx);
+  // kind 문자열 매칭으로 이미 판별됨 → 해당 kind의 zod-inferred 타입으로 경계 캐스트.
+  // (raw는 unknown 계열이라 판별 유니온 멤버로의 단일 캐스트가 안전; 런타임 무변경.)
+  if (kind === "operator") return generateOperator(def as unknown as OperatorDefinition, ctx);
+  if (kind === "asymptote") return generateAsymptote(def as unknown as AsymptoteDefinition, ctx);
 
   const target = ctx.forcedTarget ? normalizeTarget(ctx.forcedTarget) : "CUSTOM";
   return [
