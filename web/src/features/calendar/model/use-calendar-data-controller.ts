@@ -155,6 +155,10 @@ export function useCalendarDataController({
       return;
     }
     if (initialSessions != null && planId === initialPlanId && refreshTick === 0) {
+      // Returning to the initial plan after visiting another must restore the
+      // initial plan's sessions — not leave the previously fetched plan's data
+      // (which otherwise sticks and staled the calendar + session labels).
+      setRecentSessions(initialSessions);
       return;
     }
     let cancelled = false;
@@ -244,6 +248,9 @@ export function useCalendarDataController({
       return;
     }
     if (initialLogs != null && planId === initialPlanId && refreshTick === 0) {
+      // Same as the sessions effect: restore the initial plan's logs on return
+      // so switching back does not leave another plan's logs stuck on screen.
+      setAllPlanLogs(initialLogs);
       return;
     }
     let cancelled = false;

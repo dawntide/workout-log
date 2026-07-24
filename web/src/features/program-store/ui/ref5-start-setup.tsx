@@ -102,15 +102,18 @@ export function Ref5StartSetup({
       />
 
       <V2Card padding="var(--v2-s-3)" tone="inset">
-        <div
+        {/* V2Switch hides its input behind the track, so the whole row must be a
+            <label> for taps to reach the checkbox (a bare <div> never toggles). */}
+        <label
           style={{
             display: "flex",
             alignItems: "flex-start",
             justifyContent: "space-between",
             gap: "var(--v2-s-3)",
+            cursor: "pointer",
           }}
         >
-          <div style={{ display: "flex", flexDirection: "column", gap: "var(--v2-s-1)", minWidth: 0 }}>
+          <span style={{ display: "flex", flexDirection: "column", gap: "var(--v2-s-1)", minWidth: 0 }}>
             <span className="v2-small" style={{ color: "var(--v2-ink)", fontWeight: 600 }}>
               {locale === "ko" ? "OHP 마이크로로딩" : "OHP microloading"}
             </span>
@@ -119,13 +122,13 @@ export function Ref5StartSetup({
                 ? "1.25kg 마이크로플레이트가 있을 때만 켜세요. OHP의 격자·증감 단위가 1.25kg가 됩니다(다른 종목은 2.5kg 유지). 생성 후에는 바꿀 수 없습니다."
                 : "Enable only with 1.25 kg microplates. OHP's grid and steps become 1.25 kg (others stay 2.5 kg). Immutable after the plan is created."}
             </span>
-          </div>
+          </span>
           <V2Switch
             checked={config.ohpMicroloading}
             onCheckedChange={onToggleOhpMicroloading}
             aria-label={locale === "ko" ? "OHP 마이크로로딩" : "OHP microloading"}
           />
-        </div>
+        </label>
       </V2Card>
 
       {draft.ref5SetupMode === "E1RM" ? (
