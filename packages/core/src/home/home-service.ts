@@ -14,6 +14,7 @@ import {
   workoutSet,
 } from "@workout/core/db/schema";
 import { generateSessionSnapshot } from "@workout/core/program-engine/generateSession";
+import type { PlannedExercise } from "@workout/core/program-engine/generateSession";
 import { isRef5PlanParams } from "@workout/core/program-engine/ref5-integration";
 import { readRef5PlanStartConfig } from "@workout/core/program-engine/ref5";
 import {
@@ -749,7 +750,9 @@ function buildHomeData(params: {
   logs: HomeLogRow[];
   prs: HomePrItem[];
   volumeSeries: HomeVolumePoint[];
-  snapshot: any;
+  // 갓 생성된 세션 스냅샷(SnapshotV3 또는 REF5 스냅샷) 또는 타임아웃 시 null.
+  // generateSessionSnapshot이 unknown을 반환하므로 여기서도 unknown으로 받고 소비처에서 좁힌다.
+  snapshot: unknown;
   recentLimit: number;
   locale: AppLocale;
   timezone: string;
@@ -797,7 +800,7 @@ function resolveHighlightedPlan(
   return resolveActivePlan(plans, activePlanId);
 }
 
-function buildTodaySummary(plans: HomePlanRecord[], logs: HomeLogRow[], plannedExercises: any[], totalPlannedSets: number, locale: AppLocale, todayKey: string, bodyweightKg: number | null, activePlanId: string | null): HomeTodaySummary {
+function buildTodaySummary(plans: HomePlanRecord[], logs: HomeLogRow[], plannedExercises: HomeTodayExercise[], totalPlannedSets: number, locale: AppLocale, todayKey: string, bodyweightKg: number | null, activePlanId: string | null): HomeTodaySummary {
   const copy = HOME_TEXT[locale];
   const plansById = new Map(plans.map((p) => [p.id, p.name]));
   const todayLogs = logs.filter((l) => toLocalDateKey(l.performedAt) === todayKey);
@@ -967,11 +970,19 @@ function buildQuickStats(logs: HomeLogRow[], todayKey: string): HomeQuickStats {
   return { totalSessions: logs.length, totalVolume: Math.round(totalVolume), currentStreak: streak, thisMonthSessions };
 }
 
-function buildPlannedExercises(snapshot: any, bodyweightKg: number | null, locale: AppLocale) {
-  if (!snapshot?.exercises) return { exercises: [], totalSets: 0, plannedWeightByExercise: new Map<string, number>() };
+function buildPlannedExercises(
+  snapshot: unknown,
+  bodyweightKg: number | null,
+  locale: AppLocale,
+): { exercises: HomeTodayExercise[]; totalSets: number; plannedWeightByExercise: Map<string, number> } {
+  // 스냅샷의 planned exercises는 SnapshotV3.exercises(PlannedExercise[]) 형태다. REF5 스냅샷의
+  // exercises도 exerciseName/role/sets(reps·targetWeightKg)를 공유해 같은 읽기 경로를 탄다.
+  // generateSessionSnapshot이 unknown을 반환하므로 갓 생성된 이 스냅샷을 경계에서 좁힌다.
+  const snap = snapshot as { exercises?: PlannedExercise[] } | null | undefined;
+  if (!snap?.exercises) return { exercises: [], totalSets: 0, plannedWeightByExercise: new Map<string, number>() };
   let totalSets = 0;
   const plannedWeightByExercise = new Map<string, number>();
-  const exercises = snapshot.exercises.map((ex: any) => {
+  const exercises = snap.exercises.map((ex) => {
     const sets = ex.sets ?? [];
     totalSets += sets.length;
     let maxW = 0;
@@ -982,7 +993,7 @@ function buildPlannedExercises(snapshot: any, bodyweightKg: number | null, local
   return { exercises, totalSets, plannedWeightByExercise };
 }
 
-function summarizeSets(sets: any[], exerciseName?: string, bodyweightKg?: number | null, locale: AppLocale = "ko"): string {
+function summarizeSets(sets: PlannedExercise["sets"], exerciseName?: string, bodyweightKg?: number | null, locale: AppLocale = "ko"): string {
   if (sets.length === 0) return "";
   const groups: Array<{ count: number; reps: number; weightKg: number }> = [];
   for (const s of sets) {
