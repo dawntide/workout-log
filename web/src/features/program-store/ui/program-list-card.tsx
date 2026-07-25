@@ -114,9 +114,14 @@ export function ProgramListCard({
   );
 
   return (
+    // The whole card opens the detail view. The trailing Start/Edit button
+    // triggers the same action and stays the keyboard/AT path, so the card
+    // itself takes no role/tabIndex — that would only add a duplicate tab stop
+    // wrapping an interactive child.
     <article
       aria-label={item.name}
-      className="program-list-card"
+      className="program-list-card v2-pressable"
+      onClick={onPress}
       style={{
         background: "var(--v2-paper)",
         borderRadius: "var(--v2-r-3)",
@@ -125,6 +130,7 @@ export function ProgramListCard({
         boxShadow: "var(--v2-elev-1)",
         contentVisibility: "auto",
         containIntrinsicSize: "0 230px",
+        cursor: "pointer",
       }}
     >
       <div
