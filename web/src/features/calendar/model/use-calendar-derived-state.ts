@@ -1,8 +1,13 @@
 "use client";
 
 import { useMemo } from "react";
-import { dateOnlyInTimezone, sessionKeyToWDLabel } from "@/features/calendar/lib/format";
-import { extractSessionDate, parseSessionKey } from "@workout/core/session-key";
+import {
+  dateOnlyInTimezone,
+  extractSessionDateInTimezone,
+  sessionKeyToWDLabel,
+} from "@/features/calendar/lib/format";
+import { isRef5PlanParams } from "@/lib/workout-record/ref5-plan";
+import { parseSessionKey } from "@workout/core/session-key";
 import {
   formatPerformedHistoryCompact,
   formatPlannedGroups,
@@ -216,7 +221,7 @@ export function useCalendarDerivedState({
   const generatedByDate = useMemo(() => {
     const map = new Map<string, CalendarRecentGeneratedSession>();
     for (const session of recentSessions) {
-      const dateOnly = extractSessionDate(session.sessionKey);
+      const dateOnly = extractSessionDateInTimezone(session.sessionKey, timezone);
       if (!dateOnly) continue;
       const current = map.get(dateOnly);
       if (
@@ -227,7 +232,7 @@ export function useCalendarDerivedState({
       }
     }
     return map;
-  }, [recentSessions]);
+  }, [recentSessions, timezone]);
 
   const generatedByKey = useMemo(() => {
     const map = new Map<string, CalendarRecentGeneratedSession>();
@@ -291,12 +296,18 @@ export function useCalendarDerivedState({
     [selectedDate, selectedPlan],
   );
 
+  const isRef5Plan = isRef5PlanParams(selectedPlan?.params);
+
   const selectedSession = useMemo(() => {
     const mode = String(selectedPlan?.params?.sessionKeyMode ?? "").toUpperCase();
     const isAutoProgression = selectedPlan?.params?.autoProgression === true;
 
     let session: CalendarRecentGeneratedSession | null = null;
-    if (mode === "DATE" && !isAutoProgression) {
+    if (isRef5Plan) {
+      // REF5 sessions are anchored to the actual start instant, not a logical
+      // week/day key, so they map by calendar date.
+      session = generatedByDate.get(selectedDate) ?? null;
+    } else if (mode === "DATE" && !isAutoProgression) {
       // 순수 DATE 모드: sessionKey == 날짜 → 날짜로 매핑 (회귀 없음)
       session = generatedByDate.get(selectedDate) ?? null;
     } else if (mode !== "DATE") {
@@ -323,6 +334,7 @@ export function useCalendarDerivedState({
   }, [
     generatedByDate,
     generatedByKey,
+    isRef5Plan,
     nextPlannedSession,
     logDates,
     selectedCtx,
@@ -350,6 +362,10 @@ export function useCalendarDerivedState({
 
   const selectedDayLabel = useMemo(() => {
     if (!selectedCtx) return null;
+    // REF5 has no week/day position and must never be shown as one (§18). Its
+    // params also carry no startDate/sessionsPerWeek, so the generic context
+    // would otherwise pin every date to a meaningless "W1D1".
+    if (isRef5Plan) return null;
     if (selectedPlan?.type === "MANUAL" && selectedCtx.scheduleKey) {
       return selectedCtx.scheduleKey;
     }
@@ -358,7 +374,7 @@ export function useCalendarDerivedState({
       return `C${lastCycle}W${selectedCtx.week}D${selectedCtx.day}`;
     }
     return `W${selectedCtx.week}D${selectedCtx.day}`;
-  }, [selectedCtx, selectedPlan?.type, lastLogSessionKey]);
+  }, [isRef5Plan, selectedCtx, selectedPlan?.type, lastLogSessionKey]);
 
   const nextSessionLabel = useMemo(() => {
     if (!lastLogSessionKey || !selectedPlan) return null;
