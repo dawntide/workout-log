@@ -51,6 +51,37 @@ export function sessionKeyToWDLabel(sessionKey: string): string | null {
   return `W${parsed.week}D${parsed.day}`;
 }
 
+// REF5 has no week/day coordinate (§18) — its session identity is the decision
+// (session mode · squat prescription · focus) stored in the generated snapshot.
+// Same composition as the start-panel chips and the TUI resume label.
+export function ref5SessionLabelFromSnapshot(snapshot: unknown): string | null {
+  if (snapshot === null || typeof snapshot !== "object" || Array.isArray(snapshot)) {
+    return null;
+  }
+  const root = snapshot as Record<string, unknown>;
+  const ref5 =
+    root.ref5 !== null && typeof root.ref5 === "object" && !Array.isArray(root.ref5)
+      ? (root.ref5 as Record<string, unknown>)
+      : null;
+  const decisionRaw = ref5?.decision ?? root.decision;
+  const decision =
+    decisionRaw !== null && typeof decisionRaw === "object" && !Array.isArray(decisionRaw)
+      ? (decisionRaw as Record<string, unknown>)
+      : null;
+
+  const readString = (value: unknown) =>
+    typeof value === "string" && value.trim() ? value.trim() : null;
+
+  const mode = readString(root.sessionType) ?? readString(decision?.sessionType);
+  const squat = readString(decision?.squatPrescription);
+  const focus = readString(decision?.focus);
+
+  const parts = [mode, squat ? `SQ ${squat}` : null, focus].filter(
+    (part): part is string => part !== null,
+  );
+  return parts.length > 0 ? parts.join(" · ") : null;
+}
+
 // REF5 session keys are `REF5:<actualStartAt ISO>:<startEventId>`. They carry no
 // week/day position (REF5 has none — §18), so the generic parser rejects them;
 // their calendar day is the plan-timezone date of the actual start instant.

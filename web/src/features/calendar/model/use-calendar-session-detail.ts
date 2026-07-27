@@ -8,40 +8,42 @@ import type { CalendarGeneratedSessionDetail } from "./types";
 type UseCalendarSessionDetailInput = {
   locale: "ko" | "en";
   planId: string;
-  selectedSessionId: string | null;
-  currentSelectedLogId: string | null;
+  /** Session to fetch the snapshot for — planned preview or a logged REF5 session. */
+  sessionId: string | null;
   setError: (message: string) => void;
 };
 
 export function useCalendarSessionDetail({
   locale,
   planId,
-  selectedSessionId,
-  currentSelectedLogId,
+  sessionId,
   setError,
 }: UseCalendarSessionDetailInput) {
   const [selectedSessionDetail, setSelectedSessionDetail] = useState<CalendarGeneratedSessionDetail | null>(null);
   const sessionDetailCacheRef = useRef<Map<string, CalendarGeneratedSessionDetail | null>>(new Map());
 
   useEffect(() => {
-    if (!selectedSessionId || currentSelectedLogId) {
+    if (!sessionId) {
       setSelectedSessionDetail(null);
       return;
     }
 
-    const cacheKey = `${planId}:${selectedSessionId}`;
+    const cacheKey = `${planId}:${sessionId}`;
     const cachedDetail = sessionDetailCacheRef.current.get(cacheKey);
     if (cachedDetail !== undefined) {
       setSelectedSessionDetail(cachedDetail);
       return;
     }
 
+    // A stale detail from the previous selection must not label the new one
+    // while the fetch is in flight.
+    setSelectedSessionDetail(null);
     let cancelled = false;
 
     (async () => {
       try {
         const sp = new URLSearchParams();
-        sp.set("id", selectedSessionId);
+        sp.set("id", sessionId);
         sp.set("includeSnapshot", "1");
         sp.set("limit", "1");
         if (planId) sp.set("planId", planId);
@@ -69,7 +71,7 @@ export function useCalendarSessionDetail({
     return () => {
       cancelled = true;
     };
-  }, [currentSelectedLogId, locale, planId, selectedSessionId, setError]);
+  }, [locale, planId, sessionId, setError]);
 
   return {
     selectedSessionDetail,
