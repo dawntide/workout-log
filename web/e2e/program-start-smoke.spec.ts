@@ -42,7 +42,8 @@ test.describe("smoke — program start flow", () => {
       exact: true,
     });
     await expect(card).toBeVisible({ timeout: 20_000 });
-    await card.getByRole("button", { name: "시작하기" }).click();
+    // 카드 본문 클릭 = 상세 진입(트레일링 '시작하기'는 시작 시트로 직행).
+    await card.click();
 
     const detail = page.getByRole("dialog", { name: "프로그램 상세" });
     await expect(detail).toBeVisible();

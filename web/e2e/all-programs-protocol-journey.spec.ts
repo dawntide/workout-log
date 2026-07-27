@@ -182,7 +182,9 @@ async function activateProgram(
   await search.fill(program.search);
   const card = page.getByRole("article", { name: program.inventoryName, exact: true });
   await expect(card).toBeVisible();
-  await card.getByRole("button", { name: "시작하기" }).click();
+  // 카드 본문(스트레치 링크) = 상세 진입. 트레일링 '시작하기'는 상세를 건너뛰고
+  // 곧바로 시작 시트를 여는 별도 동작이다.
+  await card.click();
   const detail = page.getByRole("dialog", { name: "프로그램 상세" });
   await expect(detail).toBeVisible();
   if (program.variantLabel) {
