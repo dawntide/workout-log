@@ -10,6 +10,7 @@ import {
   useProgramStoreBootstrapController,
 } from "@/features/program-store/model/use-program-store-bootstrap-controller";
 import { useProgramStoreDerivedState } from "@/features/program-store/model/use-program-store-derived-state";
+import { useProgramStoreDetailHistory } from "@/features/program-store/model/use-program-store-detail-history";
 import { resolveProgramStoreSelection } from "@/features/program-store/model/view";
 import {
   useProgramStoreSheetEntryController,
@@ -124,6 +125,23 @@ export function ProgramStoreScreen({
     setCreateDraft,
   });
 
+  // Detail behaves like a page: opening pushes ?detail=<slug> so back closes it.
+  const { openDetail, replaceDetail, closeDetail } = useProgramStoreDetailHistory({
+    listItems: templateItems,
+    setDetailTargetId,
+  });
+
+  const setDetailTargetIdWithHistory = useCallback(
+    (value: string | null) => {
+      if (value === null) {
+        closeDetail();
+        return;
+      }
+      setDetailTargetId(value);
+    },
+    [closeDetail],
+  );
+
   const {
     recentlyAddedCustomizeExerciseId,
     registerCustomizeExerciseRef,
@@ -196,7 +214,9 @@ export function ProgramStoreScreen({
     setError,
     setNotice,
     setTemplates,
-    setDetailTargetId,
+    // Mutations (delete/customize) close the sheet by clearing the target; route
+    // that through the history hook so the ?detail= param goes with it.
+    setDetailTargetId: setDetailTargetIdWithHistory,
     setCustomizeDraft,
     setCreateDraft,
   });
@@ -259,7 +279,21 @@ export function ProgramStoreScreen({
               storeQuery,
               locale,
             );
-            setDetailTargetId(selectedItem.template.id);
+            openDetail(selectedItem);
+          }}
+          onPrimaryAction={(item) => {
+            // The card's trailing button is labelled with its action, so it runs
+            // that action directly instead of routing through the detail sheet.
+            const selectedItem = resolveProgramStoreSelection(
+              item,
+              storeQuery,
+              locale,
+            );
+            if (selectedItem.source === "CUSTOM") {
+              openCustomizeDraftFromTemplate(selectedItem.template);
+              return;
+            }
+            openStartProgramDraft(selectedItem.template);
           }}
           onOpenCreateSheet={openCreateSheet}
       />
@@ -280,12 +314,13 @@ export function ProgramStoreScreen({
 
       <ProgramDetailSheet
         open={Boolean(detailTarget)}
-        onClose={() => setDetailTargetId(null)}
+        onClose={closeDetail}
         item={detailTarget}
         variants={detailVariants}
         saving={saving}
         onSelectVariant={(variant) => {
-          setDetailTargetId(variant.template.id);
+          // Same history entry — back should close the sheet, not walk variants.
+          replaceDetail(variant);
         }}
         onStart={() => {
           if (detailTarget) openStartProgramDraft(detailTarget.template);

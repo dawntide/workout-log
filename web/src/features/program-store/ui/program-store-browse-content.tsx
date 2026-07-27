@@ -47,6 +47,8 @@ type ProgramStoreBrowseContentProps = {
   onToggleFacet: (key: ProgramFacetKey, value: string) => void;
   onResetFacets: () => void;
   onSelectItem: (item: ProgramStoreListItem) => void;
+  /** Card's trailing button: start (market) / edit (custom), skipping the detail. */
+  onPrimaryAction: (item: ProgramStoreListItem) => void;
   onOpenCreateSheet: () => void;
 };
 
@@ -73,6 +75,7 @@ export function ProgramStoreBrowseContent({
   onToggleFacet,
   onResetFacets,
   onSelectItem,
+  onPrimaryAction,
   onOpenCreateSheet,
 }: ProgramStoreBrowseContentProps) {
   return (
@@ -194,7 +197,8 @@ export function ProgramStoreBrowseContent({
                   key={item.key}
                   item={item}
                   locale={locale}
-                  onPress={() => onSelectItem(item)}
+                  onOpenDetail={() => onSelectItem(item)}
+                  onPrimaryAction={() => onPrimaryAction(item)}
                 />
               ))}
             </div>
@@ -210,7 +214,8 @@ export function ProgramStoreBrowseContent({
                 key={item.key}
                 item={item}
                 locale={locale}
-                onPress={() => onSelectItem(item)}
+                onOpenDetail={() => onSelectItem(item)}
+                onPrimaryAction={() => onPrimaryAction(item)}
               />
             ))}
           </div>

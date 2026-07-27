@@ -103,7 +103,9 @@ type UseProgramStoreTemplateMutationControllerInput = {
   setError: React.Dispatch<React.SetStateAction<string | null>>;
   setNotice: React.Dispatch<React.SetStateAction<string | null>>;
   setTemplates: React.Dispatch<React.SetStateAction<ProgramTemplate[]>>;
-  setDetailTargetId: React.Dispatch<React.SetStateAction<string | null>>;
+  // Mutations only ever clear (or re-point) the detail target, so a plain setter
+  // is enough — and it lets the screen pass a history-aware wrapper.
+  setDetailTargetId: (value: string | null) => void;
   setCustomizeDraft: React.Dispatch<
     React.SetStateAction<ProgramStoreCustomizeDraft | null>
   >;

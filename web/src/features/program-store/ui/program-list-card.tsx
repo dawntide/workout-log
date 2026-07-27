@@ -45,13 +45,17 @@ function programCardBadge(item: ProgramListItem, locale: "ko" | "en") {
 type ProgramListCardProps = {
   item: ProgramListItem;
   locale: "ko" | "en";
-  onPress: () => void;
+  /** Card body — opens the program detail. */
+  onOpenDetail: () => void;
+  /** Trailing button — runs the labelled action directly (start / edit). */
+  onPrimaryAction: () => void;
 };
 
 export function ProgramListCard({
   item,
   locale,
-  onPress,
+  onOpenDetail,
+  onPrimaryAction,
 }: ProgramListCardProps) {
   const info = getProgramDetailInfo(item.template, locale);
   // The card used to chip the first two raw tags, which is "strength barbell"
@@ -114,14 +118,14 @@ export function ProgramListCard({
   );
 
   return (
-    // The whole card opens the detail view. The trailing Start/Edit button
-    // triggers the same action and stays the keyboard/AT path, so the card
-    // itself takes no role/tabIndex — that would only add a duplicate tab stop
-    // wrapping an interactive child.
+    // Stretched-link card: the title is the real control for the detail view and
+    // its ::after overlay covers the card, so a press anywhere on the body opens
+    // the detail while the trailing button keeps its own action. Making the
+    // <article> itself the button would nest an interactive child inside a button
+    // and add a duplicate tab stop.
     <article
       aria-label={item.name}
-      className="program-list-card v2-pressable"
-      onClick={onPress}
+      className="program-list-card"
       style={{
         background: "var(--v2-paper)",
         borderRadius: "var(--v2-r-3)",
@@ -166,7 +170,13 @@ export function ProgramListCard({
               lineHeight: 1.2,
             }}
           >
-            {formatProgramDisplayName(item.name)}
+            <button
+              type="button"
+              className="program-card-title-btn"
+              onClick={onOpenDetail}
+            >
+              {formatProgramDisplayName(item.name)}
+            </button>
           </h2>
           {item.subtitle ? (
             <p
@@ -287,12 +297,13 @@ export function ProgramListCard({
           </div>
         </div>
         <span
+          className="program-card-action"
           onClick={(event) => event.stopPropagation()}
           style={{ flexShrink: 0 }}
         >
           {isMarket ? (
             <V2PrimaryBtn
-              onClick={onPress}
+              onClick={onPrimaryAction}
               style={{
                 padding: "var(--v2-s-3) var(--v2-s-5)",
                 minHeight: "var(--v2-s-8)",
@@ -303,7 +314,7 @@ export function ProgramListCard({
             </V2PrimaryBtn>
           ) : (
             <V2SecondaryBtn
-              onClick={onPress}
+              onClick={onPrimaryAction}
               style={{
                 padding: "var(--v2-s-3) var(--v2-s-5)",
                 minHeight: "var(--v2-s-8)",

@@ -90,3 +90,51 @@
   display: flex;
   flex-direction: column;
 }
+
+/*
+  Program store card — "stretched link" pattern.
+  The card body opens the detail sheet while the trailing button runs its own
+  action (start / edit). Rather than making the whole <article> a role="button"
+  (which would nest an interactive child inside a button and add a duplicate tab
+  stop), the title is the real control and its ::after overlay stretches across
+  the card so any pointer press on the body activates it. The trailing action
+  sits on its own stacking context above that overlay.
+*/
+.program-list-card {
+  position: relative;
+}
+
+.program-card-title-btn {
+  appearance: none;
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.program-card-title-btn::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+}
+
+.program-card-title-btn:focus-visible {
+  outline: none;
+}
+
+.program-card-title-btn:focus-visible::after {
+  outline: 2px solid var(--v2-focus);
+  outline-offset: -2px;
+  border-radius: var(--v2-r-3);
+}
+
+/* Keeps the trailing action clickable above the stretched title overlay. */
+.program-card-action {
+  position: relative;
+  z-index: 1;
+}
