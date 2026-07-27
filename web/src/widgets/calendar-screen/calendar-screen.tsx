@@ -5,7 +5,9 @@ import { useRouter } from "next/navigation";
 import { useLocale } from "@/components/locale-provider";
 import {
   dateOnlyInTimezone,
+  ref5SessionLabelFromSnapshot,
 } from "@/features/calendar/lib/format";
+import { isRef5PlanParams } from "@/lib/workout-record/ref5-plan";
 import {
   useCalendarNavigationController,
 } from "@/features/calendar/model/use-calendar-navigation-controller";
@@ -158,13 +160,24 @@ export function CalendarScreen({
     bodyweightKg,
     locale: localeKey,
   });
+  const isRef5Plan = isRef5PlanParams(selectedPlan?.params);
+  // Planned days need the snapshot for the exercise preview; logged REF5 days
+  // need it too — the session identity (mode · SQ prescription · focus) lives in
+  // the snapshot decision, not in the session key.
+  const detailSessionId = currentSelectedLog
+    ? isRef5Plan
+      ? currentSelectedLog.generatedSessionId
+      : null
+    : (selectedSession?.id ?? null);
   const { selectedSessionDetail } = useCalendarSessionDetail({
     locale,
     planId,
-    selectedSessionId: selectedSession?.id ?? null,
-    currentSelectedLogId: currentSelectedLog?.id ?? null,
+    sessionId: detailSessionId,
     setError,
   });
+  const ref5SessionLabel = isRef5Plan
+    ? ref5SessionLabelFromSnapshot(selectedSessionDetail?.snapshot ?? null)
+    : null;
   const plannedExercises = useMemo(
     () =>
       buildPlannedExercisePreview(
@@ -311,6 +324,7 @@ export function CalendarScreen({
             workoutHref={workoutHref}
             selectedSession={selectedSession}
             selectedSessionWDLabel={selectedSessionWDLabel}
+            ref5SessionLabel={ref5SessionLabel}
             plannedExercises={plannedExercises}
             isPastDateCreationBlocked={isPastDateCreationBlocked}
             selectedCtx={selectedCtx}

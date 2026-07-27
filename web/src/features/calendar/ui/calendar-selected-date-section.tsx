@@ -57,6 +57,8 @@ type CalendarSelectedDateSectionProps = {
   workoutHref: string;
   selectedSession: CalendarRecentGeneratedSession | null;
   selectedSessionWDLabel: string | null;
+  /** REF5 decision identity (mode · SQ prescription · focus) — REF5 has no W/D label. */
+  ref5SessionLabel: string | null;
   plannedExercises: CalendarExercisePreviewItem[];
   isPastDateCreationBlocked: boolean;
   selectedCtx: { planned: boolean } | null;
@@ -80,6 +82,7 @@ export const CalendarSelectedDateSection = memo(
     workoutHref,
     selectedSession,
     selectedSessionWDLabel,
+    ref5SessionLabel,
     plannedExercises,
     isPastDateCreationBlocked,
     selectedCtx,
@@ -226,7 +229,7 @@ export const CalendarSelectedDateSection = memo(
                     className="v2-h3"
                     style={{ fontSize: "var(--v2-t-body)", fontWeight: 700 }}
                   >
-                    {loggedDayLabel ?? copy.completed}
+                    {loggedDayLabel ?? ref5SessionLabel ?? copy.completed}
                   </p>
                   <p className="v2-eyebrow" style={{ marginTop: 2 }}>
                     {copy.completed}
@@ -420,7 +423,7 @@ export const CalendarSelectedDateSection = memo(
                         whiteSpace: "nowrap",
                       }}
                     >
-                      {selectedSessionWDLabel ?? copy.beforeStart}
+                      {selectedSessionWDLabel ?? ref5SessionLabel ?? copy.beforeStart}
                     </p>
                     <p className="v2-eyebrow" style={{ marginTop: 2 }}>
                       {copy.beforeStart}
