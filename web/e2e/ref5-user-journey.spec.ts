@@ -76,7 +76,8 @@ async function activateRef5ProgramThroughUi(
     await page.screenshot({ path: testInfo.outputPath("program-store-mobile.png"), fullPage: true });
   }
 
-  await ref5Card.getByRole("button", { name: "시작하기" }).click();
+  // 카드 본문 클릭 = 상세 진입(트레일링 '시작하기'는 시작 시트로 직행).
+  await ref5Card.click();
   await expect(page.getByRole("dialog", { name: "프로그램 상세" })).toBeVisible();
   await page.getByRole("button", { name: "이 프로그램으로 시작하기" }).click();
   await expect(page.getByRole("heading", { name: "REF5 시작 기준 설정" })).toBeVisible({
@@ -124,7 +125,8 @@ async function activateOneRmProgramThroughUi(
   await page.getByPlaceholder(/프로그램명, 설명, 태그 검색/).fill(programName);
   const programCard = page.locator(".program-list-card").filter({ hasText: programName }).first();
   await expect(programCard).toBeVisible({ timeout: 20_000 });
-  await programCard.getByRole("button", { name: "시작하기" }).click();
+  // 카드 본문 클릭 = 상세 진입(트레일링 '시작하기'는 시작 시트로 직행).
+  await programCard.click();
   await expect(page.getByRole("dialog", { name: "프로그램 상세" })).toBeVisible();
   await page.getByRole("button", { name: "이 프로그램으로 시작하기" }).click();
   await expect(page.getByRole("heading", { name: "시작 전 1RM 입력" })).toBeVisible({
