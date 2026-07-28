@@ -78,6 +78,25 @@
   box-shadow: inset 0 0 0 0 transparent;
 }
 
+/* ── Tap target ───────────────────────────────────────────
+   시각 크기는 그대로 두고 탭 영역만 44×44(--v2-touch)로 넓힌다.
+   디자인 가이드의 "최소 44×44 터치 영역"은 보이는 크기가 아니라 누를 수
+   있는 영역 기준이므로, 아이콘 버튼의 작은 원형 실루엣을 키우지 않고
+   투명 ::after로 히트 영역만 확장한다(.program-card-title-btn과 같은 기법).
+
+   호스트가 이미 positioned여야 한다. position을 여기서 잡으면 나중에
+   로드되는 컴포넌트 규칙(예: 시트의 --floating absolute)을 덮어써
+   레이아웃이 깨지므로, 각 컴포넌트가 자기 position을 소유한다. */
+.v2-tap-44::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  translate: -50% -50%;
+  width: max(100%, var(--v2-touch));
+  height: max(100%, var(--v2-touch));
+}
+
 .v2-textfield-shell:focus-within {
   background: var(--v2-paper);
   box-shadow: inset 0 0 0 2px var(--v2-accent);

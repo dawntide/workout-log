@@ -33,7 +33,7 @@ export function BottomSheetActionHeader({
     <header className="mobile-bottom-sheet-header" onPointerDown={onPointerDown}>
       <button
         type="button"
-        className="mobile-bottom-sheet-btn"
+        className="mobile-bottom-sheet-btn v2-tap-44"
         onClick={onClose}
         aria-label={closeLabel}
       >
@@ -45,7 +45,7 @@ export function BottomSheetActionHeader({
       </div>
       <button
         type="button"
-        className="mobile-bottom-sheet-btn mobile-bottom-sheet-btn--action"
+        className="mobile-bottom-sheet-btn mobile-bottom-sheet-btn--action v2-tap-44"
         onClick={action.onPress}
         aria-label={action.ariaLabel}
         disabled={action.disabled}
