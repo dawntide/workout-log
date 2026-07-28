@@ -541,7 +541,7 @@ export function BottomSheet({
             {headless || header != null ? (
               <button
                 type="button"
-                className="mobile-bottom-sheet-btn mobile-bottom-sheet-btn--floating"
+                className="mobile-bottom-sheet-btn mobile-bottom-sheet-btn--floating v2-tap-44"
                 onClick={handleClose}
                 onPointerDown={(e) => e.stopPropagation()}
                 aria-label={closeLabel}
@@ -569,7 +569,7 @@ export function BottomSheet({
                 <h2>{title}</h2>
                 {hasDescription ? <p>{description}</p> : null}
               </div>
-              <button type="button" className="mobile-bottom-sheet-btn" onClick={handleClose} aria-label={closeLabel}>
+              <button type="button" className="mobile-bottom-sheet-btn v2-tap-44" onClick={handleClose} aria-label={closeLabel}>
                 <V2Icon name="close" weight={500} style={{ fontSize: "var(--v2-t-20)" }} />
               </button>
             </header>

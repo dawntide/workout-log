@@ -145,6 +145,9 @@
 /* ── Action buttons ───────────────────────────────────── */
 
 .mobile-bottom-sheet-btn {
+  /* 원형 실루엣은 32px 유지. 탭 영역 44×44는 .v2-tap-44의 ::after가 담당하므로
+     여기서 positioned 컨테이닝 블록만 제공한다(--floating은 아래서 absolute로 덮는다). */
+  position: relative;
   width: var(--v2-s-7);
   height: var(--v2-s-7);
   border-radius: var(--v2-r-pill);

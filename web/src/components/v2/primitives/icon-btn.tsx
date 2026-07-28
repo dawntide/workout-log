@@ -51,6 +51,9 @@ export function V2IconBtn(props: ButtonProps | AnchorProps) {
   const baseStyle: CSSProperties = {
     width: size,
     height: size,
+    // v2-tap-44의 ::after 히트 영역이 기준으로 삼을 컨테이닝 블록.
+    // 기본 size(40)는 44 미만이라 시각 크기와 별개로 탭 영역을 넓혀야 한다.
+    position: "relative",
     borderRadius: "var(--v2-r-pill)",
     background: TONE_BG[tone],
     border: "none",
@@ -73,7 +76,7 @@ export function V2IconBtn(props: ButtonProps | AnchorProps) {
       style={{ fontSize: Math.round(size * 0.55) }}
     />
   );
-  const cls = ["v2-pressable", "v2-icon-btn", className]
+  const cls = ["v2-pressable", "v2-icon-btn", "v2-tap-44", className]
     .filter(Boolean)
     .join(" ");
 
