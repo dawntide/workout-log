@@ -37,6 +37,27 @@ const PROGRAMS: readonly ProgramScenario[] = [
     startMode: "ONE_RM",
   },
   {
+    // Operator와 같은 operator 엔진. 클러스터만 다르다(주 2일 · 매 세션 4대 리프트).
+    // 1RM 입력은 modules 4종 + operator kind가 강제하는 PULL = 5.
+    slug: "tb-fighter",
+    inventoryName: "Tactical Barbell Fighter",
+    search: "Tactical Barbell Fighter",
+    expectedOneRmInputs: 5,
+    expectedExerciseCards: 4,
+    expectedSetCount: 12,
+    startMode: "ONE_RM",
+  },
+  {
+    // 주 4일 A/B 교대. 첫 세션(D1)은 Operator와 같은 SQUAT/BENCH/PULL 구성이다.
+    slug: "tb-zulu",
+    inventoryName: "Tactical Barbell Zulu",
+    search: "Tactical Barbell Zulu",
+    expectedOneRmInputs: 5,
+    expectedExerciseCards: 3,
+    expectedSetCount: 9,
+    startMode: "ONE_RM",
+  },
+  {
     slug: "manual",
     inventoryName: "Manual Sessions",
     search: "Manual Sessions",
@@ -126,7 +147,9 @@ const PROGRAMS: readonly ProgramScenario[] = [
     search: "REF5 Adaptive Strength",
     expectedOneRmInputs: 0,
     expectedExerciseCards: 4,
-    expectedSetCount: 9,
+    // v1.3(§7.3): 정상 세션 상체 볼륨 슬롯이 1→2세트로 늘어 총 9→10세트
+    // (core ref5.test.ts의 totalWorkingSets 단정과 같은 값). 마이크로는 4세트 유지(§7.4).
+    expectedSetCount: 10,
     startMode: "REF5",
   },
   {
@@ -136,6 +159,46 @@ const PROGRAMS: readonly ProgramScenario[] = [
     expectedOneRmInputs: 5,
     expectedExerciseCards: 3,
     expectedSetCount: 9,
+    startMode: "ONE_RM",
+  },
+  {
+    // madcow-5x5·nsuns-lp는 per-exercise 기준선(usesPercentDerivedSets)이라 1RM을
+    // SQUAT/BENCH 같은 family로 뭉치지 않는다 — 등장 운동 수만큼 입력이 뜬다.
+    slug: "madcow-5x5",
+    inventoryName: "Madcow 5x5 (Intermediate)",
+    search: "Madcow 5x5",
+    expectedOneRmInputs: 5,
+    expectedExerciseCards: 3,
+    expectedSetCount: 15,
+    startMode: "ONE_RM",
+  },
+  {
+    slug: "nsuns-lp-5day",
+    inventoryName: "nSuns LP (5-Day)",
+    search: "nSuns LP",
+    expectedOneRmInputs: 8,
+    expectedExerciseCards: 2,
+    expectedSetCount: 17,
+    startMode: "ONE_RM",
+  },
+  {
+    // 보디빌딩 계열은 family 매핑이 안 되는 보조 운동(컬·레이즈 등)이 많아
+    // 1RM 입력이 5대 리프트 + 운동별 키로 늘어난다.
+    slug: "reddit-ppl-6day",
+    inventoryName: "Reddit PPL (6-Day)",
+    search: "Reddit PPL",
+    expectedOneRmInputs: 14,
+    expectedExerciseCards: 6,
+    expectedSetCount: 20,
+    startMode: "ONE_RM",
+  },
+  {
+    slug: "phul",
+    inventoryName: "PHUL (Power Hypertrophy Upper Lower)",
+    search: "PHUL",
+    expectedOneRmInputs: 15,
+    expectedExerciseCards: 7,
+    expectedSetCount: 19,
     startMode: "ONE_RM",
   },
 ] as const;

@@ -258,7 +258,8 @@ async function openAndPreviewRef5Session(
     mode: "NORMAL" | "MICRO";
     squat: "H3" | "H2" | "V";
     focus?: "PULL" | "BP";
-    setCount: 9 | 4;
+    // v1.3(§7.3): 정상 세션 상체 볼륨이 1→2세트로 늘어 총 10세트. 마이크로는 4세트 유지(§7.4).
+    setCount: 10 | 4;
   },
 ) {
   await page.goto(`/workout/log?planId=${encodeURIComponent(planId)}&context=today`);
@@ -328,7 +329,7 @@ test("REF5 실제 사용자 기본 진입", async ({ page }, testInfo) => {
   await expect(page.getByText("NORMAL", { exact: true })).toBeVisible({ timeout: 20_000 });
   await expect(page.getByText("SQ H3", { exact: true })).toBeVisible();
   await expect(page.getByText("PULL", { exact: true })).toBeVisible();
-  await expect(page.getByText("9 sets", { exact: true })).toBeVisible();
+  await expect(page.getByText("10 sets", { exact: true })).toBeVisible();
   await expect(page.getByText("0/6", { exact: true })).toBeVisible();
   await page.screenshot({ path: testInfo.outputPath("ref5-first-preview.png"), fullPage: true });
 
@@ -339,7 +340,7 @@ test("REF5 실제 사용자 기본 진입", async ({ page }, testInfo) => {
   await fillCurrentRef5Session(page);
   await expect(page.getByRole("progressbar", { name: /세트 진행률/ })).toHaveAttribute(
     "aria-valuenow",
-    "9",
+    "10",
   );
   await page.screenshot({ path: testInfo.outputPath("ref5-first-pass-ready.png"), fullPage: true });
 
@@ -354,7 +355,7 @@ test("REF5 실제 사용자 기본 진입", async ({ page }, testInfo) => {
     body: JSON.stringify(persisted, null, 2),
     contentType: "application/json",
   });
-  expect(persisted.item.sets).toHaveLength(9);
+  expect(persisted.item.sets).toHaveLength(10);
 
   await page.goto(`/workout/log?planId=${encodeURIComponent(planId)}&context=today`);
   await expect(page.getByRole("heading", { name: "REF5 세션 결정" })).toBeVisible({
@@ -390,7 +391,7 @@ test("REF5 판정 조합·INVALID 큐 유지·강제 및 수동 마이크로", a
     mode: "NORMAL",
     squat: "H3",
     focus: "PULL",
-    setCount: 9,
+    setCount: 10,
   });
   await startPreviewedRef5Session(page);
   await fillCurrentRef5Session(page, {
@@ -423,7 +424,7 @@ test("REF5 판정 조합·INVALID 큐 유지·강제 및 수동 마이크로", a
       mode: "NORMAL",
       squat: "H2",
       focus: "PULL",
-      setCount: 9,
+      setCount: 10,
     },
     {
       "High-Bar Back Squat": "FAIL",
@@ -492,7 +493,7 @@ test("REF5 전체 판정창 증가·보조 상한·PULL 체중 잠금", async ({
       mode: "NORMAL",
       squat: squatSequence[index],
       focus: focusSequence[index],
-      setCount: 9,
+      setCount: 10,
     });
     if (index === 2) {
       await expect(page.getByText(/12\.5 kg \(86\.5 kg total\)/)).toBeVisible();
@@ -530,7 +531,7 @@ test("REF5 전체 판정창 증가·보조 상한·PULL 체중 잠금", async ({
     mode: "NORMAL",
     squat: "V",
     focus: "PULL",
-    setCount: 9,
+    setCount: 10,
   });
   await expect(page.getByText(/15 kg \(90 kg total\)/)).toBeVisible();
   await expect(page.getByRole("progressbar", { name: "SQ 하드 0/6" })).toBeVisible();
@@ -565,7 +566,7 @@ test("REF5 보조 볼륨 FAIL은 주운동 판정창 증량을 거부", async ({
         mode: "NORMAL",
         squat: squatSequence[index],
         focus: focusSequence[index],
-        setCount: 9,
+        setCount: 10,
       },
       index === 0 ? { "Bench Press": "FAIL" } : undefined,
     );
@@ -593,7 +594,7 @@ test("REF5 보조 볼륨 FAIL은 주운동 판정창 증량을 거부", async ({
     mode: "NORMAL",
     squat: "V",
     focus: "PULL",
-    setCount: 9,
+    setCount: 10,
   });
   await startPreviewedRef5Session(page);
   await fillCurrentRef5Session(page);
@@ -603,7 +604,7 @@ test("REF5 보조 볼륨 FAIL은 주운동 판정창 증량을 거부", async ({
     mode: "NORMAL",
     squat: "H3",
     focus: "BP",
-    setCount: 9,
+    setCount: 10,
   });
   await expect(page.getByText("3 × 3 · 82.5 kg", { exact: true })).toBeVisible();
   await page.screenshot({ path: testInfo.outputPath("ref5-volume-veto-next-session.png"), fullPage: true });
@@ -633,7 +634,7 @@ test("REF5 정체 2창 이후 마이크로와 재평가 감소", async ({ page }
         mode: "NORMAL",
         squat: index % 2 === 0 ? "H3" : "H2",
         focus: index % 2 === 0 ? "PULL" : "BP",
-        setCount: 9,
+        setCount: 10,
       },
       { "High-Bar Back Squat": index % 6 < 2 ? "HOLD_SLOW" : "PASS" },
     );
@@ -670,7 +671,7 @@ test("REF5 정체 2창 이후 마이크로와 재평가 감소", async ({ page }
         mode: "NORMAL",
         squat: index % 2 === 0 ? "H3" : "H2",
         focus: index % 2 === 0 ? "PULL" : "BP",
-        setCount: 9,
+        setCount: 10,
       },
       { "High-Bar Back Squat": index < 2 ? "HOLD_SLOW" : "PASS" },
     );
@@ -697,7 +698,7 @@ test("REF5 정체 2창 이후 마이크로와 재평가 감소", async ({ page }
     mode: "NORMAL",
     squat: "H3",
     focus: "PULL",
-    setCount: 9,
+    setCount: 10,
   });
   await expect(page.getByText("3 × 3 · 80 kg", { exact: true })).toBeVisible();
   await page.screenshot({ path: testInfo.outputPath("ref5-stagnation-decreased-squat.png"), fullPage: true });
@@ -726,7 +727,7 @@ test("REF5 같은 흐름 2연속 FAIL 즉시 감소", async ({ page }, testInfo)
       mode: "NORMAL",
       squat: "H3",
       focus: "PULL",
-      setCount: 9,
+      setCount: 10,
     },
     { "Weighted Pull-Up": "FAIL" },
   );
@@ -735,7 +736,7 @@ test("REF5 같은 흐름 2연속 FAIL 즉시 감소", async ({ page }, testInfo)
     mode: "NORMAL",
     squat: "H2",
     focus: "BP",
-    setCount: 9,
+    setCount: 10,
   });
   await runRef5Session(
     page,
@@ -745,7 +746,7 @@ test("REF5 같은 흐름 2연속 FAIL 즉시 감소", async ({ page }, testInfo)
       mode: "NORMAL",
       squat: "V",
       focus: "PULL",
-      setCount: 9,
+      setCount: 10,
     },
     { "Weighted Pull-Up": "FAIL" },
   );
@@ -772,14 +773,14 @@ test("REF5 같은 흐름 2연속 FAIL 즉시 감소", async ({ page }, testInfo)
     mode: "NORMAL",
     squat: "H3",
     focus: "BP",
-    setCount: 9,
+    setCount: 10,
   });
   await openAndPreviewRef5Session(page, planId, {
     startAt: localDateTimeDaysAgo(168),
     mode: "NORMAL",
     squat: "H2",
     focus: "PULL",
-    setCount: 9,
+    setCount: 10,
   });
   await expect(page.getByText(/10 kg \(85 kg total\)/)).toBeVisible();
   await page.screenshot({ path: testInfo.outputPath("ref5-immediate-decrease-next-focus.png"), fullPage: true });
@@ -802,7 +803,7 @@ test("REF5 시작 세션 부분 입력 새로고침 복구", async ({ page }, te
     mode: "NORMAL",
     squat: "H3",
     focus: "PULL",
-    setCount: 9,
+    setCount: 10,
   });
   await startPreviewedRef5Session(page);
   const startedUrl = page.url();
@@ -836,7 +837,7 @@ test("REF5 미완료 세션은 새 시작 대신 기존 세션을 자동 재개"
     mode: "NORMAL",
     squat: "H3",
     focus: "PULL",
-    setCount: 9,
+    setCount: 10,
   });
   await startPreviewedRef5Session(page);
   const firstSessionId = new URL(page.url()).searchParams.get("sessionId");
@@ -915,7 +916,7 @@ test("REF5 시작 세션 새로고침 재개와 멀티탭 중복 저장", async 
     mode: "NORMAL",
     squat: "H3",
     focus: "PULL",
-    setCount: 9,
+    setCount: 10,
   });
   await startPreviewedRef5Session(page);
   const startedUrl = page.url();
@@ -964,14 +965,14 @@ test("REF5 하드 세션 48시간·168시간 경계", async ({ page }, testInfo)
     mode: "NORMAL",
     squat: "H3",
     focus: "PULL",
-    setCount: 9,
+    setCount: 10,
   });
   await openAndPreviewRef5Session(page, planId, {
     startAt: offsetLocalDateTime(firstStartAt, 48 * 60 - 1),
     mode: "NORMAL",
     squat: "V",
     focus: "BP",
-    setCount: 9,
+    setCount: 10,
   });
   await page.screenshot({ path: testInfo.outputPath("ref5-47h59-volume.png"), fullPage: true });
 
@@ -980,14 +981,14 @@ test("REF5 하드 세션 48시간·168시간 경계", async ({ page }, testInfo)
     mode: "NORMAL",
     squat: "H2",
     focus: "BP",
-    setCount: 9,
+    setCount: 10,
   });
   await openAndPreviewRef5Session(page, planId, {
     startAt: offsetLocalDateTime(firstStartAt, 168 * 60 - 1),
     mode: "NORMAL",
     squat: "V",
     focus: "PULL",
-    setCount: 9,
+    setCount: 10,
   });
   await page.screenshot({ path: testInfo.outputPath("ref5-167h59-volume.png"), fullPage: true });
 
@@ -996,7 +997,7 @@ test("REF5 하드 세션 48시간·168시간 경계", async ({ page }, testInfo)
     mode: "NORMAL",
     squat: "H3",
     focus: "PULL",
-    setCount: 9,
+    setCount: 10,
   });
   await page.screenshot({ path: testInfo.outputPath("ref5-168h-hard.png"), fullPage: true });
 
@@ -1023,7 +1024,7 @@ test("REF5 과거 로그 수정·삭제 후 정방향 재계산", async ({ page 
       mode: "NORMAL",
       squat: "H3",
       focus: "PULL",
-      setCount: 9,
+      setCount: 10,
     },
     { "Weighted Pull-Up": "FAIL" },
   );
@@ -1032,7 +1033,7 @@ test("REF5 과거 로그 수정·삭제 후 정방향 재계산", async ({ page 
     mode: "NORMAL",
     squat: "H2",
     focus: "BP",
-    setCount: 9,
+    setCount: 10,
   });
   const thirdLogId = await runRef5Session(
     page,
@@ -1042,7 +1043,7 @@ test("REF5 과거 로그 수정·삭제 후 정방향 재계산", async ({ page 
       mode: "NORMAL",
       squat: "H3",
       focus: "PULL",
-      setCount: 9,
+      setCount: 10,
     },
     { "Weighted Pull-Up": "FAIL" },
   );
