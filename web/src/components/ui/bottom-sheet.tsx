@@ -532,16 +532,19 @@ export function BottomSheet({
           style={panelStyle}
         >
           <div
-            className="mobile-bottom-sheet-drag-handle"
+            className={`mobile-bottom-sheet-drag-handle${
+              headless || header != null ? " mobile-bottom-sheet-drag-handle--with-close" : ""
+            }`}
             onPointerDown={(e) => onHandlePointerDown(e, true)}
           >
-            <div aria-hidden="true" className="mobile-bottom-sheet-drag-handle-pill" />
             {/* 닫기 버튼 불변식: 기본/액션 헤더는 자체 X를 그리고, 그 헤더를 잃는
-                headless·커스텀 헤더 경로는 여기서 플로팅 X를 보장한다. */}
+                headless·커스텀 헤더 경로는 여기서 X를 보장한다. 절대 배치가 아니라
+                핸들 행의 좌측 칸을 차지해, 다른 변형과 같은 x좌표에 놓이면서
+                본문이 버튼 밑으로 파고들지 않는다. */}
             {headless || header != null ? (
               <button
                 type="button"
-                className="mobile-bottom-sheet-btn mobile-bottom-sheet-btn--floating v2-tap-44"
+                className="mobile-bottom-sheet-btn mobile-bottom-sheet-btn--lead v2-tap-44"
                 onClick={handleClose}
                 onPointerDown={(e) => e.stopPropagation()}
                 aria-label={closeLabel}
@@ -549,6 +552,7 @@ export function BottomSheet({
                 <V2Icon name="close" weight={500} style={{ fontSize: "var(--v2-t-20)" }} />
               </button>
             ) : null}
+            <div aria-hidden="true" className="mobile-bottom-sheet-drag-handle-pill" />
           </div>
           {headless ? null : header ?? (primaryAction ? (
             <BottomSheetActionHeader
@@ -564,14 +568,16 @@ export function BottomSheet({
               className="mobile-bottom-sheet-header"
               onPointerDown={onHandlePointerDown}
             >
-              <span aria-hidden="true" className="mobile-bottom-sheet-btn mobile-bottom-sheet-btn-spacer" />
+              {/* 닫기는 항상 좌상단이다 — 액션 헤더의 ✓가 우측을 차지하므로,
+                  모든 변형에서 같은 자리를 지키려면 X가 좌측이어야 한다. */}
+              <button type="button" className="mobile-bottom-sheet-btn v2-tap-44" onClick={handleClose} aria-label={closeLabel}>
+                <V2Icon name="close" weight={500} style={{ fontSize: "var(--v2-t-20)" }} />
+              </button>
               <div className="mobile-bottom-sheet-title">
                 <h2>{title}</h2>
                 {hasDescription ? <p>{description}</p> : null}
               </div>
-              <button type="button" className="mobile-bottom-sheet-btn v2-tap-44" onClick={handleClose} aria-label={closeLabel}>
-                <V2Icon name="close" weight={500} style={{ fontSize: "var(--v2-t-20)" }} />
-              </button>
+              <span aria-hidden="true" className="mobile-bottom-sheet-btn mobile-bottom-sheet-btn-spacer" />
             </header>
           ))}
           <div ref={contentRef} className="mobile-bottom-sheet-content">{children}</div>
