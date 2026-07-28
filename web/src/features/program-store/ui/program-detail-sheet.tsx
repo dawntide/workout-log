@@ -448,13 +448,10 @@ export function ProgramDetailSheet({
   const logbookStats = info.stats.filter((s) => s.key !== "difficulty");
   const hasSessions = Boolean(info.sessions && info.sessions.length > 0);
 
-  const header = (
-    <div
-      style={{
-        padding: "var(--v2-s-1) 0 var(--v2-s-4)",
-        marginBottom: "var(--v2-s-4)",
-      }}
-    >
+  // 제목·태그·난이도는 시트 헤더가 아니라 본문 첫 블록이다. 헤더를 통째로
+  // 대체하면 닫기 버튼이 다른 시트와 다른 자리로 밀려 습관이 깨진다.
+  const titleBlock = (
+    <div style={{ marginBottom: "var(--v2-s-2)" }}>
       <div
         style={{
           display: "flex",
@@ -462,8 +459,6 @@ export function ProgramDetailSheet({
           alignItems: "flex-start",
           gap: "var(--v2-s-2)",
           marginBottom: "var(--v2-s-1)",
-          // 커스텀 헤더는 패널의 플로팅 닫기 버튼(우상단)과 겹치지 않게 비워 둔다.
-          paddingRight: "var(--v2-s-8)",
         }}
       >
         <div style={{ display: "flex", gap: "var(--v2-s-1)", flexWrap: "wrap" }}>
@@ -571,7 +566,6 @@ export function ProgramDetailSheet({
       title={locale === "ko" ? "프로그램 상세" : "Program Details"}
       onClose={onClose}
       closeLabel={locale === "ko" ? "닫기" : "Close"}
-      header={header}
       footer={footer}
     >
       <div
@@ -581,6 +575,7 @@ export function ProgramDetailSheet({
           gap: "var(--v2-s-7)",
         }}
       >
+        {titleBlock}
         {hasVariants && onSelectVariant ? (
           <div>
             <span className="v2-eyebrow" style={sectionEyebrowStyle}>

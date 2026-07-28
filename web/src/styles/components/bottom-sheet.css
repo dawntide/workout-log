@@ -242,10 +242,25 @@
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
-/* X 버튼: 핸들 영역 우측에 absolute로 배치 */
-.mobile-bottom-sheet-btn--floating {
-  position: absolute;
-  top: var(--v2-s-2);
-  right: var(--v2-s-3);
-  z-index: 2;
+/* 헤더가 없는 변형(headless·커스텀 header)의 X.
+   좌상단 고정 = 다른 모든 시트 변형과 같은 자리. absolute로 띄우면 본문이 그
+   밑으로 파고들어(긴 eyebrow가 실제로 겹쳤다) 읽기·터치가 모두 망가지므로,
+   핸들 행의 좌측 칸을 실제로 차지하게 둔다. pill은 가운데를 유지한다. */
+/* headless 규칙(.mobile-bottom-sheet-panel--headless .mobile-bottom-sheet-drag-handle)이
+   같은 padding을 잡고 있어 specificity를 맞춰 덮는다. 좌우 padding은 패널 padding과
+   같은 --v2-s-4라, X가 다른 변형의 헤더 버튼과 정확히 같은 x(16px)에 선다. */
+.mobile-bottom-sheet-panel .mobile-bottom-sheet-drag-handle--with-close {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  padding: var(--v2-s-2) var(--v2-s-4);
+}
+
+.mobile-bottom-sheet-btn--lead {
+  justify-self: start;
+  grid-column: 1;
+}
+
+.mobile-bottom-sheet-drag-handle--with-close .mobile-bottom-sheet-drag-handle-pill {
+  grid-column: 2;
 }
