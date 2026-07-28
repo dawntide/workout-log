@@ -3,7 +3,6 @@ import { AppTextInput } from "@/components/ui/form-controls";
 import {
   V2EmptyState,
   V2Hairline,
-  V2PrimaryBtn,
   V2SecondaryBtn,
   V2Stack,
 } from "@/components/v2/primitives";
@@ -74,6 +73,20 @@ export function PlanManageSheet({
       title={copy.plansManage.detailTitle}
       description={copy.plansManage.detailDescription}
       closeLabel={copy.plansManage.close}
+      // 편집 시트 공통 패턴: 저장은 헤더 ✓ (edit-meta·customize·설정 모달과 동일).
+      primaryAction={
+        managedPlan
+          ? {
+              ariaLabel: saving
+                ? copy.plansManage.saveInProgress
+                : copy.plansManage.saveChanges,
+              onPress: () => {
+                void savePlanChanges();
+              },
+              disabled: saving || deleting,
+            }
+          : null
+      }
     >
       {managedPlan ? (
         <V2Stack gap={5}>
@@ -189,19 +202,8 @@ export function PlanManageSheet({
             />
           ) : null}
 
-          {/* ── Actions ── */}
+          {/* ── Actions ── (저장은 헤더 ✓ — 여기는 파괴적/상태 전환 동작만) */}
           <V2Stack gap={2}>
-            <V2PrimaryBtn
-              full
-              disabled={saving || deleting}
-              onClick={() => {
-                void savePlanChanges();
-              }}
-            >
-              {saving
-                ? copy.plansManage.saveInProgress
-                : copy.plansManage.saveChanges}
-            </V2PrimaryBtn>
             <V2SecondaryBtn
               full
               icon={managedPlan.isArchived ? "unarchive" : "inventory_2"}

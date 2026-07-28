@@ -71,6 +71,11 @@ type BottomSheetProps = {
   className?: string;
   panelClassName?: string;
   closeLabel?: string;
+  /**
+   * 기본 헤더를 통째로 대체하는 커스텀 헤더. 닫기 버튼은 콘텐츠가 아니라 패널의
+   * 책임이므로, 이 경우에도 headless와 같은 플로팅 X가 우상단에 항상 표시된다 —
+   * 커스텀 헤더는 우상단 영역(--v2-s-8 폭)을 비워 두어야 한다.
+   */
   header?: ReactNode;
   primaryAction?: BottomSheetPrimaryAction | null;
   footer?: ReactNode;
@@ -531,7 +536,9 @@ export function BottomSheet({
             onPointerDown={(e) => onHandlePointerDown(e, true)}
           >
             <div aria-hidden="true" className="mobile-bottom-sheet-drag-handle-pill" />
-            {headless ? (
+            {/* 닫기 버튼 불변식: 기본/액션 헤더는 자체 X를 그리고, 그 헤더를 잃는
+                headless·커스텀 헤더 경로는 여기서 플로팅 X를 보장한다. */}
+            {headless || header != null ? (
               <button
                 type="button"
                 className="mobile-bottom-sheet-btn mobile-bottom-sheet-btn--floating"
