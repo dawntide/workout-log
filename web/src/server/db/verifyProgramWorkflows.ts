@@ -22,6 +22,7 @@ import {
 import {
   REF5_IDENTIFIERS,
 } from "@workout/core/program-engine/ref5";
+import { REF5_PROTOCOL_VERSION } from "@workout/core/program-engine/ref5-protocol-version";
 import {
   acquireRef5PlanLock,
   rebuildRef5ProgressionForPlan,
@@ -306,7 +307,7 @@ async function verifyRef5Workflow(input: {
     planId: input.planId,
     timezone: input.timezone,
     ref5: {
-      protocolVersion: "1.3" as const,
+      protocolVersion: REF5_PROTOCOL_VERSION,
       actualStartAt,
       todayBodyweightKg: 75,
       manualMicro: false,
@@ -352,7 +353,7 @@ async function verifyRef5Workflow(input: {
     assert.equal(currentA.id, currentB.id, "concurrent REF5 start was not idempotent");
     generatedIds.add(currentA.id);
     const currentSnapshot = asRecord(currentA.snapshot);
-    assert.equal(currentSnapshot.protocolVersion, "1.3");
+    assert.equal(currentSnapshot.protocolVersion, REF5_PROTOCOL_VERSION);
     assert.equal(asRecord(currentSnapshot.ref5).actualStartAt, currentRequest.ref5.actualStartAt);
     assert.equal(
       asRecords(currentSnapshot.exercises).reduce(

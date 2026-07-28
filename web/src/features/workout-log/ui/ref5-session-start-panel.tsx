@@ -12,9 +12,10 @@ import {
 import { errorMessage } from "@/lib/error-message";
 import { apiPost, isAbortError } from "@/shared/api";
 import type { GeneratedSessionLike } from "@/entities/workout-record";
+import { REF5_PROTOCOL_VERSION } from "@workout/core/program-engine/ref5-protocol-version";
 
 export type Ref5SessionStartValues = {
-  protocolVersion: "1.3";
+  protocolVersion: typeof REF5_PROTOCOL_VERSION;
   actualStartAt: string;
   bodyweightKg: number;
   manualMicro: boolean;
@@ -228,7 +229,7 @@ function toStartValues(input: {
     return null;
   }
   return {
-    protocolVersion: "1.3",
+    protocolVersion: REF5_PROTOCOL_VERSION,
     actualStartAt: start.toISOString(),
     bodyweightKg,
     manualMicro: input.manualMicro,

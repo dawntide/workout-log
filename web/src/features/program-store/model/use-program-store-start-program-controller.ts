@@ -22,6 +22,7 @@ import {
   type Ref5Lift,
   type Ref5StartConfig,
 } from "@workout/core/program-engine/ref5";
+import { REF5_PROTOCOL_VERSION } from "@workout/core/program-engine/ref5-protocol-version";
 import {
   deriveRef5StartCalibration,
   REF5_START_CALIBRATION_LIFTS,
@@ -211,7 +212,7 @@ export function readRef5StartConfigFromTemplate(
   const starts = raw?.startingValuesKg;
   if (
     raw?.schemaVersion !== 3 ||
-    raw?.protocolVersion !== "1.3" ||
+    raw?.protocolVersion !== REF5_PROTOCOL_VERSION ||
     !starts
   ) {
     return null;

@@ -7,10 +7,17 @@
  * shared with this module.
  */
 
-export const REF5_PROTOCOL_VERSION = "1.3" as const;
-export const REF5_LEGACY_PROTOCOL_VERSION = "1.1" as const;
-/** The immediately preceding protocol. v1.3 decoders reject it (§24.3). */
-export const REF5_PRIOR_PROTOCOL_VERSION = "1.2" as const;
+// 버전 리터럴의 정본은 ref5-protocol-version.ts다(클라이언트가 엔진을 끌지 않고
+// 참조할 수 있게 분리). 기존 소비자가 쓰던 import 경로를 유지하려고 여기서 재export한다.
+export {
+  REF5_LEGACY_PROTOCOL_VERSION,
+  REF5_PRIOR_PROTOCOL_VERSION,
+  REF5_PROTOCOL_VERSION,
+} from "./ref5-protocol-version";
+import {
+  REF5_LEGACY_PROTOCOL_VERSION,
+  REF5_PROTOCOL_VERSION,
+} from "./ref5-protocol-version";
 export const REF5_RUNTIME_SCHEMA_VERSION = 3 as const;
 export const REF5_LEGACY_RUNTIME_SCHEMA_VERSION = 1 as const;
 export const REF5_SNAPSHOT_SCHEMA_VERSION = 3 as const;
