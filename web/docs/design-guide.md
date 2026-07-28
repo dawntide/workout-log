@@ -816,6 +816,7 @@ footer: V2PrimaryBtn(주 행동) + V2SecondaryBtn(취소) 세로 스택
 
 - 버튼 라벨은 **행동**("기록 삭제")이다. 질문문("…삭제하시겠습니까?")은 본문 메시지지 버튼 라벨이 아니다.
 - 파괴적 주 버튼은 `<V2PrimaryBtn tone="danger">` — inline `style={{ background: "var(--v2-c-danger)" }}`로 덮지 말 것.
+- `tone="danger"`는 **"이 버튼을 누르면 파괴적 동작이 일어난다"** 는 경고다. 따라서 `confirm`의 주 버튼에만 붙인다. 오류를 닫기만 하는 `alert`의 버튼은 accent로 두고, 위험 신호는 본문 카드(`V2Card tone="danger"`)가 전달한다 — 닫기 버튼까지 빨갛게 하면 경고가 희석된다.
 - 버튼을 `children`에 넣어 footer를 대신하지 말 것(스크롤 영역에 들어가 접근성·고정 위치가 깨진다).
 
 ### 4-9. 하단 네비게이션 바

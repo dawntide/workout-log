@@ -221,7 +221,20 @@ export function AppDialogProvider({ children }: { children: ReactNode }) {
                 width: "100%",
               }}
             >
-              <V2PrimaryBtn full onClick={closeActiveAsAccept}>
+              {/*
+                danger tone은 "이 버튼을 누르면 파괴적 동작이 일어난다"는 경고다.
+                confirm의 주 버튼(삭제·초기화 등)에만 붙인다 — alert의 버튼은 오류를
+                닫기만 하므로 빨갛게 만들면 경고 의미가 희석된다(카드가 이미 danger).
+              */}
+              <V2PrimaryBtn
+                full
+                tone={
+                  active.kind === "confirm" && active.tone === "danger"
+                    ? "danger"
+                    : "accent"
+                }
+                onClick={closeActiveAsAccept}
+              >
                 {active.kind === "confirm" ? active.confirmText : active.buttonText}
               </V2PrimaryBtn>
               {active.kind === "confirm" ? (
