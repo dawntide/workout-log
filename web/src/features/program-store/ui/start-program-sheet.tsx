@@ -14,6 +14,7 @@ import {
 } from "@/features/program-store/model/use-program-store-start-program-controller";
 import { Ref5StartSetup } from "@/features/program-store/ui/ref5-start-setup";
 import type { Ref5Lift } from "@workout/core/program-engine/ref5";
+import { REF5_PROTOCOL_VERSION } from "@workout/core/program-engine/ref5-protocol-version";
 
 const BottomSheet = dynamic(
   () => import("@/components/ui/bottom-sheet").then((mod) => mod.BottomSheet),
@@ -155,7 +156,7 @@ export const StartProgramSheet = memo(function StartProgramSheet({
               </strong>
               <V2Chip tone="weight">
                 {isRef5
-                  ? `REF5 v${draft.ref5Config?.protocolVersion ?? "1.3"}`
+                  ? `REF5 v${draft.ref5Config?.protocolVersion ?? REF5_PROTOCOL_VERSION}`
                   : `TM ${Math.round(draft.tmPercent * 100)}%`}
               </V2Chip>
             </div>

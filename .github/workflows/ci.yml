@@ -36,8 +36,19 @@ jobs:
       run:
         working-directory: web
     steps:
+      # 아래 REF5 범프 가드가 base...head diff를 읽으므로 얕은 체크아웃으로는 부족하다.
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: ./.github/actions/setup-pnpm-node
+
+      # 프로토콜 범프 PR이 nightly 스펙을 함께 갱신했는지 묻는다(#617이 놓쳐 엿새간 실패).
+      - name: REF5 protocol bump ↔ nightly spec
+        if: ${{ github.event_name == 'pull_request' }}
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: node scripts/ref5-protocol-bump-e2e-guard.mjs
 
       - name: Lint
         run: pnpm lint
