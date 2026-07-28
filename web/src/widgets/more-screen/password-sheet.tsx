@@ -3,6 +3,7 @@ import { errorMessage } from "@/lib/error-message";
 
 import { useEffect, useRef, useState } from "react";
 import { useLocale } from "@/components/locale-provider";
+import { V2Card } from "@/components/v2/primitives";
 import { BottomSheet } from "@/components/ui/bottom-sheet";
 
 export function PasswordSheet({
@@ -86,11 +87,6 @@ export function PasswordSheet({
       open={open}
       onClose={onClose}
       title={locale === "ko" ? "비밀번호 변경" : "Change password"}
-      description={
-        locale === "ko"
-          ? "변경 후 다른 기기의 모든 세션은 자동 로그아웃됩니다."
-          : "After change, all other sessions are signed out."
-      }
       closeLabel={locale === "ko" ? "닫기" : "Close"}
       // 편집 시트 공통 패턴(헤더 ✓): requestSubmit으로 폼 검증(required·minLength)을 유지한다.
       primaryAction={{
@@ -114,6 +110,19 @@ export function PasswordSheet({
           gap: "var(--v2-s-3)",
         }}
       >
+        {/*
+          이 고지는 시트 description으로 두면 안 된다 — MINIMAL_COPY_MODE가 켜져 있어
+          description은 렌더되지 않는다. 다른 기기가 로그아웃된다는 사실은 결과를
+          바꾸는 정보라 본문에 항상 보여야 한다.
+        */}
+        <V2Card tone="inset" padding="var(--v2-s-4)">
+          <p className="v2-small" style={{ margin: 0, color: "var(--v2-ink-2)" }}>
+            {locale === "ko"
+              ? "변경 후 다른 기기의 모든 세션은 자동 로그아웃됩니다."
+              : "After the change, all sessions on other devices are signed out."}
+          </p>
+        </V2Card>
+
         <PwField
           label={locale === "ko" ? "현재 비밀번호" : "Current password"}
           autoComplete="current-password"
