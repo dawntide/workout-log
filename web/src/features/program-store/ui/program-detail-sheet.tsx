@@ -462,6 +462,8 @@ export function ProgramDetailSheet({
           alignItems: "flex-start",
           gap: "var(--v2-s-2)",
           marginBottom: "var(--v2-s-1)",
+          // 커스텀 헤더는 패널의 플로팅 닫기 버튼(우상단)과 겹치지 않게 비워 둔다.
+          paddingRight: "var(--v2-s-8)",
         }}
       >
         <div style={{ display: "flex", gap: "var(--v2-s-1)", flexWrap: "wrap" }}>

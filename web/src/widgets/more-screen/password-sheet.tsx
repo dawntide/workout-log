@@ -1,9 +1,8 @@
 "use client";
 import { errorMessage } from "@/lib/error-message";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLocale } from "@/components/locale-provider";
-import { V2PrimaryBtn } from "@/components/v2/primitives";
 import { BottomSheet } from "@/components/ui/bottom-sheet";
 
 export function PasswordSheet({
@@ -14,6 +13,7 @@ export function PasswordSheet({
   onClose: () => void;
 }) {
   const { locale } = useLocale();
+  const formRef = useRef<HTMLFormElement | null>(null);
   const [current, setCurrent] = useState("");
   const [next, setNext] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -85,32 +85,30 @@ export function PasswordSheet({
     <BottomSheet
       open={open}
       onClose={onClose}
-      headless
-      height="78dvh"
       title={locale === "ko" ? "비밀번호 변경" : "Change password"}
+      description={
+        locale === "ko"
+          ? "변경 후 다른 기기의 모든 세션은 자동 로그아웃됩니다."
+          : "After change, all other sessions are signed out."
+      }
       closeLabel={locale === "ko" ? "닫기" : "Close"}
+      // 편집 시트 공통 패턴(헤더 ✓): requestSubmit으로 폼 검증(required·minLength)을 유지한다.
+      primaryAction={{
+        ariaLabel: submitting
+          ? locale === "ko"
+            ? "비밀번호 변경 중"
+            : "Updating password"
+          : locale === "ko"
+            ? "비밀번호 변경"
+            : "Update password",
+        onPress: () => formRef.current?.requestSubmit(),
+        disabled: submitting,
+      }}
     >
-      <div style={{ padding: "var(--v2-s-2) var(--v2-s-6) var(--v2-s-3)" }}>
-        <p className="v2-eyebrow">
-          {locale === "ko" ? "보안" : "SECURITY"}
-        </p>
-        <h1 className="v2-h1 v2-font-display" style={{ marginTop: "var(--v2-s-1)" }}>
-          {locale === "ko" ? "비밀번호 변경" : "Change password"}
-        </h1>
-        <p
-          className="v2-small"
-          style={{ marginTop: "var(--v2-s-1)", color: "var(--v2-ink-2)" }}
-        >
-          {locale === "ko"
-            ? "변경 후 다른 기기의 모든 세션은 자동 로그아웃됩니다."
-            : "After change, all other sessions are signed out."}
-        </p>
-      </div>
-
       <form
+        ref={formRef}
         onSubmit={onSubmit}
         style={{
-          padding: "0px var(--v2-s-4)",
           display: "flex",
           flexDirection: "column",
           gap: "var(--v2-s-3)",
@@ -175,22 +173,8 @@ export function PasswordSheet({
           </div>
         )}
 
-        <div style={{ marginTop: "var(--v2-s-5)", display: "flex", gap: "var(--v2-s-2)" }}>
-          <V2PrimaryBtn
-            full
-            type="submit"
-            icon="lock"
-            disabled={submitting}
-          >
-            {submitting
-              ? locale === "ko"
-                ? "변경 중…"
-                : "Updating…"
-              : locale === "ko"
-                ? "비밀번호 변경"
-                : "Update password"}
-          </V2PrimaryBtn>
-        </div>
+        {/* 제출 버튼은 헤더 ✓지만, Enter 암시적 제출은 폼 내 submit 버튼이 있어야 동작한다. */}
+        <button type="submit" hidden tabIndex={-1} aria-hidden="true" />
       </form>
     </BottomSheet>
   );
