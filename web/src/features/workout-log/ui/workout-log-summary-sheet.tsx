@@ -125,13 +125,7 @@ export function WorkoutLogSummarySheet({
               ? "사이클 개요"
               : "Cycle overview"}
         </p>
-        <h1
-          className="v2-h2"
-          style={{
-            marginTop: "var(--v2-s-1)",
-            fontSize: "var(--v2-t-18)",
-          }}
-        >
+        <h1 className="v2-h1" style={{ marginTop: "var(--v2-s-1)" }}>
           {currentLabel ?? (localeKey === "ko" ? "사이클" : "Cycle")}
         </h1>
         {draft?.session.note.memo ? (

@@ -1085,8 +1085,14 @@ test("REF5 과거 로그 수정·삭제 후 정방향 재계산", async ({ page 
     new RegExp(thirdLogId),
   );
   await page.getByRole("button", { name: "기록 삭제", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "기록 삭제" })).toBeVisible();
-  await page.getByRole("button", { name: "이 운동 기록을 삭제하시겠습니까?" }).click();
+  // 확인 시트: 질문문은 본문, 버튼은 행동 라벨 — 카드의 트리거 버튼과 이름이 같으므로
+  // dialog 안으로 스코프해서 누른다.
+  const deleteConfirmSheet = page.getByRole("dialog", { name: "기록 삭제" });
+  await expect(deleteConfirmSheet.getByRole("heading", { name: "기록 삭제" })).toBeVisible();
+  await expect(
+    deleteConfirmSheet.getByText("이 운동 기록을 삭제하시겠습니까?"),
+  ).toBeVisible();
+  await deleteConfirmSheet.getByRole("button", { name: "기록 삭제", exact: true }).click();
 
   await expect
     .poll(async () => (await readRef5Status(page, planId)).completedSessionCount, {

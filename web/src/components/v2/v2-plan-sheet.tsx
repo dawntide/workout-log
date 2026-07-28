@@ -401,7 +401,7 @@ export function V2PlanSheet({
           >
             <V2Icon name="chevron_left" style={{ fontSize: "var(--v2-t-20)" }} />
           </button>
-          <h1 id={headingId} className="v2-h1 v2-font-display" style={{ flex: 1 }}>
+          <h1 id={headingId} className="v2-h1" style={{ flex: 1 }}>
             {monthLabel}
           </h1>
           <button
