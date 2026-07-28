@@ -371,7 +371,9 @@ export function CalendarScreen({
         deleteConfirmOpen={deleteConfirmOpen}
         deleteCopy={{
           title: copy.calendarMain.deleteLog,
-          confirm: copy.calendarMain.deleteLogConfirm,
+          // deleteLogConfirm은 질문문이라 본문 문구다. 버튼은 행동 라벨(=제목)을 쓴다.
+          message: copy.calendarMain.deleteLogConfirm,
+          confirm: copy.calendarMain.deleteLog,
           cancel: locale === "ko" ? "취소" : "Cancel",
         }}
         onCloseDeleteConfirm={handleCloseDeleteLog}

@@ -2,8 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { memo } from "react";
-import { V2PrimaryBtn, V2SecondaryBtn } from "@/components/v2/primitives";
-import { V2Icon } from "@/components/v2/primitives/v2-icon";
+import { V2Card, V2PrimaryBtn, V2SecondaryBtn } from "@/components/v2/primitives";
 import { getMonth, getYear } from "@/lib/date-utils";
 
 const MonthYearPickerSheet = dynamic(
@@ -48,6 +47,8 @@ type MoveDateConflictCopy = {
 
 type DeleteCopy = {
   title: string;
+  /** 본문 확인 문구. 버튼 라벨이 아니다(질문문을 버튼에 넣지 않는다). */
+  message: string;
   confirm: string;
   cancel: string;
 };
@@ -86,42 +87,22 @@ const MoveDateConflictSheet = memo(function MoveDateConflictSheet({
   onClose: () => void;
 }) {
   return (
-    <BottomSheet open={open} title={copy.title} onClose={onClose}>
-      <div
-        style={{
-          padding: "0 var(--v2-s-5) var(--v2-s-6)",
-          display: "flex",
-          flexDirection: "column",
-          gap: "var(--v2-s-4)",
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            alignItems: "flex-start",
-            gap: "var(--v2-s-2)",
-          }}
-        >
-          <V2Icon
-            name="warning"
-            style={{
-              fontSize: "var(--v2-t-20)",
-              color: "var(--v2-c-danger)",
-              flexShrink: 0,
-              marginTop: 1,
-            }}
-          />
-          <p
-            className="v2-body"
-            style={{ color: "var(--v2-ink)", lineHeight: 1.6, margin: 0 }}
-          >
-            {copy.description}
-          </p>
-        </div>
-        <V2SecondaryBtn full onClick={onClose}>
+    <BottomSheet
+      open={open}
+      title={copy.title}
+      onClose={onClose}
+      closeLabel={copy.close}
+      footer={
+        <V2PrimaryBtn full onClick={onClose}>
           {copy.close}
-        </V2SecondaryBtn>
-      </div>
+        </V2PrimaryBtn>
+      }
+    >
+      <V2Card tone="danger" padding="var(--v2-s-4)">
+        <p className="v2-body" style={{ whiteSpace: "pre-line", margin: 0 }}>
+          {copy.description}
+        </p>
+      </V2Card>
     </BottomSheet>
   );
 });
@@ -138,29 +119,34 @@ const DeleteConfirmSheet = memo(function DeleteConfirmSheet({
   onConfirm: () => void;
 }) {
   return (
-    <BottomSheet open={open} title={deleteCopy.title} onClose={onClose}>
-      <div
-        style={{
-          padding: "0 var(--v2-s-5) var(--v2-s-5)",
-          display: "flex",
-          flexDirection: "column",
-          gap: "var(--v2-s-2)",
-        }}
-      >
-        <V2PrimaryBtn
-          full
-          onClick={onConfirm}
+    <BottomSheet
+      open={open}
+      title={deleteCopy.title}
+      onClose={onClose}
+      closeLabel={deleteCopy.cancel}
+      footer={
+        <div
           style={{
-            background: "var(--v2-c-danger)",
-            color: "var(--v2-ink-on-accent)",
+            display: "flex",
+            flexDirection: "column",
+            gap: "var(--v2-s-1)",
+            width: "100%",
           }}
         >
-          {deleteCopy.confirm}
-        </V2PrimaryBtn>
-        <V2SecondaryBtn full onClick={onClose}>
-          {deleteCopy.cancel}
-        </V2SecondaryBtn>
-      </div>
+          <V2PrimaryBtn full tone="danger" onClick={onConfirm}>
+            {deleteCopy.confirm}
+          </V2PrimaryBtn>
+          <V2SecondaryBtn full onClick={onClose}>
+            {deleteCopy.cancel}
+          </V2SecondaryBtn>
+        </div>
+      }
+    >
+      <V2Card tone="danger" padding="var(--v2-s-4)">
+        <p className="v2-body" style={{ whiteSpace: "pre-line", margin: 0 }}>
+          {deleteCopy.message}
+        </p>
+      </V2Card>
     </BottomSheet>
   );
 });
