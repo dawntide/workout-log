@@ -1,4 +1,5 @@
 import { expect, test, type Page, type TestInfo } from "@playwright/test";
+import { REF5_PROTOCOL_VERSION } from "@workout/core/program-engine/ref5";
 
 import { observeBrowser } from "./browser-failures";
 
@@ -864,7 +865,9 @@ test("REF5 미완료 세션은 새 시작 대신 기존 세션을 자동 재개"
     {
       data: {
         ref5: {
-          protocolVersion: "1.2",
+          // 리터럴로 두면 프로토콜 범프 때마다 서버가 REF5_STALE_VERSION(409)로 거부한다
+          // (v1.3 컷오버에서 실제로 그렇게 깨졌다). 엔진 상수를 그대로 따라간다.
+          protocolVersion: REF5_PROTOCOL_VERSION,
           actualStartAt: retryStart.toISOString(),
           bodyweightKg: 75,
           manualMicro: false,
