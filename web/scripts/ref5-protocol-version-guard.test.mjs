@@ -89,6 +89,20 @@ test("진실원이 유효한 프로토콜 버전을 선언한다", () => {
   );
 });
 
+test("스캔 대상이 실제로 잡힌다", () => {
+  // 경로 계산이 어긋나면 0개를 훑고도 조용히 통과한다 — 가드에서 가장 나쁜 실패 형태다
+  // (자매 스크립트가 cwd 때문에 실제로 그렇게 새 나갔다). 최소 규모를 못 채우면 실패시킨다.
+  const scanned = scanFiles();
+  assert.ok(
+    scanned.length > 100,
+    `스캔된 파일이 ${scanned.length}개뿐이다 — SCAN_ROOTS 경로가 어긋났을 가능성이 크다`,
+  );
+  assert.ok(
+    scanned.some(({ relativePath }) => relativePath.startsWith("web/e2e/")),
+    "web/e2e가 스캔되지 않았다 — nightly 스펙이 가드 밖으로 빠지면 이 가드는 무의미하다",
+  );
+});
+
 test("현재 프로토콜 버전을 리터럴로 복제한 자리가 없다", () => {
   const literal = `"${currentVersion}"`;
   const violations = [];
