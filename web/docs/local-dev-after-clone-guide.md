@@ -113,10 +113,15 @@ pnpm --dir web run db:cleanup:ux-events
 `auth_session`의 만료 행은 sliding 만료(#495)로도 사라지지 않아 스케줄러가 지운다. 호스팅 모드에
 따라 **둘 중 하나만** 돈다:
 
-- **인프로세스(Vercel)** — [`web/vercel.json`](../vercel.json)의 `crons`가 매일 19:30 UTC(=04:30 KST)에
+- **인프로세스(Vercel) — 현행** — [`web/vercel.json`](../vercel.json)의 `crons`가 매일 19:30 UTC(=04:30 KST)에
   `GET /api/cron/session-prune`을 호출. Vercel 프로젝트에 **`CRON_SECRET` 환경변수 필수**(Vercel이
   Bearer로 붙여준다). 미설정 시 라우트가 401로 거부한다 — 파괴적 엔드포인트라 fail-closed.
 - **분리 배포(VPS)** — `ironlog-session-prune.timer`가 `POST /api/ops/sessions/prune`을 호출.
-  상세는 [`apps/api/deploy/DEPLOY.md`](../../apps/api/deploy/DEPLOY.md) §5.5.
+  **2026-07-29 인프로세스 전환과 함께 disabled.** 상세는 [`apps/api/deploy/DEPLOY.md`](../../apps/api/deploy/DEPLOY.md) §5.5.
+
+> ⚠️ **cron 라우트를 새로 만들면 [`web/src/proxy.ts`](../src/proxy.ts)의 `PUBLIC_PATH_PREFIXES`를 확인할 것.**
+> 목록에 없는 `/api/*`는 쿠키 없는 호출자(=cron)가 라우트에 닿기도 전에 미들웨어에서 401이 된다.
+> 로컬·CI는 `WORKOUT_AUTH_USER_ID` fallback으로 통과해 **프로덕션에서만 드러난다**(#638 실제 사고).
+> [`web/src/proxy.test.ts`](../src/proxy.test.ts)가 `app/api/cron/*`를 스캔해 가드한다.
 
 로컬에서 토큰 없이 ops 라우트를 호출하려면 `WORKOUT_OPS_ALLOW_NO_TOKEN=1`을 명시적으로 설정한다.

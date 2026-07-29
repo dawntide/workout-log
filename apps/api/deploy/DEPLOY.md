@@ -1,6 +1,6 @@
 # ironlog-api 배포 가이드 (B2 — 상시 가동)
 
-apps/api(독립 Hono 백엔드)를 **상시 가동**으로 배포하고, TUI를 그쪽으로 cutover하는 런북.
+apps/api(독립 Hono 백엔드)를 **상시 가동**으로 별도 호스트에 배포하는 런북.
 두 경로를 제공: **A. systemd(권장)** / **B. Docker(대안)**. 둘 다 동일 리버스 프록시(Caddy)로 TLS.
 
 > 📌 **이 문서는 "분리 배포(standalone)" 모드의 런북이다.** 같은 Hono 앱을 web(Vercel)이
@@ -11,10 +11,26 @@ apps/api(독립 Hono 백엔드)를 **상시 가동**으로 배포하고, TUI를 
 > 그대로 둔다. 되돌리기가 env 하나이기 때문이다. 토폴로지 비교는
 > [`web/docs/architecture-layers.md`](../../../web/docs/architecture-layers.md) §호스팅 모드 스위치.
 
-> ✅ **실제 운영 배포 완료 (2026-06-29, AWS Lightsail)**: 리포=`/home/ubuntu/workout-log`, 서비스 유저=`ubuntu`,
-> ExecStart=`node_modules/.bin/tsx src/index.ts` **직접**(systemd 샌드박스에서 `pnpm start`는 deps-status-check로
-> 실패하므로 tsx 직접 호출), 공개=Caddy + `3-37-203-76.sslip.io`(Let's Encrypt). 일상 운영은 **§5 `ilapi` CLI**.
-> 아래 본문의 `/opt`·`ironlog` 유저는 예시 — 실제 배포는 위 구성을 따른다.
+> 🛑 **2026-07-29 — 이 분리 배포는 현재 내려가 있다.** 프로덕션은 인프로세스 모드로 전환됐다
+> (Vercel에서 `APPS_API_BASE` 제거). VPS(AWS Lightsail)에서 `ironlog-api.service`와 전용
+> 리버스 프록시 `caddy.service`가 **stop + disable**됐고 `ironlog-session-prune.timer`도
+> disabled다 — 재부팅해도 뜨지 않는다. 공개 주소 `3-37-203-76.sslip.io`는 죽었다.
+> **이 문서는 폐기가 아니라 "다시 분리 배포할 때의 런북"으로 유지된다.**
+>
+> VPS에 남아 있는 것(의도적): 리포 `/home/ubuntu/workout-log`, systemd 유닛 파일, `ilapi`,
+> 그리고 **사용자가 상시 쓰는 `tmux -s ironlog` TUI 세션**(§5.1 — 이건 계속 살아 있고, 지금은
+> 프로덕션 Vercel을 본다). Lightsail 인스턴스 자체는 다른 용도로 계속 쓰이므로 삭제하지 않았다.
+>
+> ⚠️ **되살릴 때는 `ilapi update`를 먼저.** 정지 시점 VPS 리포는 `b14af81`로 한참 낡아, 그대로
+> 켜면 코드↔DB 스큐(`operator does not exist: uuid = text` → 503)를 재현한다. 순서:
+> `ilapi update` → `sudo systemctl enable --now ironlog-api caddy` → Vercel에 `APPS_API_BASE` 복원 + 재배포.
+>
+> 아래 §A/§B 절차와 §5 `ilapi` 명령은 **그때를 위한 것**이며, 지금 도는 시스템을 설명하지 않는다.
+
+> 📎 **과거 운영 구성 (2026-06-29 ~ 2026-07-29, AWS Lightsail)**: 리포=`/home/ubuntu/workout-log`,
+> 서비스 유저=`ubuntu`, ExecStart=`node_modules/.bin/tsx src/index.ts` **직접**(systemd 샌드박스에서
+> `pnpm start`는 deps-status-check로 실패하므로 tsx 직접 호출), 공개=Caddy + `3-37-203-76.sslip.io`
+> (Let's Encrypt). 아래 본문의 `/opt`·`ironlog` 유저는 예시 — 실제 배포는 위 구성을 따랐다.
 
 ## 0. 사전 지식 — 무엇을 설치해야 하나
 
@@ -110,16 +126,25 @@ curl -s https://api.example.com/api/auth/me -H "Authorization: Bearer $TOKEN"   
 ```
 (전체 흐름은 `apps/tui` live_test를 `IRONLOG_SPIKE_URL=https://api.example.com`으로 돌려 검증 가능.)
 
-## 4. TUI cutover (마지막 단계)
+## 4. TUI 접속 대상 (선택)
 
-apps/api가 공개되면 TUI 기본 서버를 그쪽으로:
+> 📌 **평상시엔 할 일이 없다.** 릴리스 TUI의 기본 서버는 ldflags `defaultBase`가 박는
+> **web(Vercel) 오리진**이고, 그 경로로 인증(쿠키)·데이터(catch-all)가 모두 처리된다 —
+> 인프로세스든 프록시든 TUI는 차이를 모른다. 분리 배포를 되살려도 `defaultBase`는 그대로 둔다.
+
+분리 배포한 apps/api를 TUI가 **직접** 보게 하려면(예: 같은 호스트에서 TLS 우회):
 - 임시/검증: `IRONLOG_API_URL=https://api.example.com ironlog`
-- 영구: `apps/tui/.goreleaser.yaml`의 ldflags `defaultBase`를 `https://api.example.com`으로 바꿔
-  다음 릴리스. (client는 이미 Bearer 이중모드 — login/signup/password 응답의 body 토큰 사용.)
+- 저장: `ironlog --set-server <url>` (= `ilapi cutover local`) / 되돌리기: `ilapi cutover prod`
+  (`~/.config/ironlog/base_url` 삭제 → ldflags 기본값 복귀)
+
+(client는 Bearer·쿠키 이중모드라 어느 백엔드든 붙는다 — login/signup/password 응답의 body 토큰과
+`wl_session` 쿠키를 모두 다룬다.)
 
 ## 5. 운영 — ilapi CLI (권장)
 
-`apps/api/deploy/ilapi`를 PATH에 설치하면 운영이 한 줄로 끝난다. 실제 lightsail 배포는 이 방식으로 운영 중:
+`apps/api/deploy/ilapi`를 PATH에 설치하면 운영이 한 줄로 끝난다. lightsail 배포는 이 방식으로 운영했고,
+`ilapi` 자체는 VPS에 그대로 설치돼 있다 — 다만 **API가 disabled인 지금은 `status`·`cutover`·`ironlog-restart`만
+의미가 있다**(`update`·`restart`·`prune`은 서비스를 다시 켠 뒤에):
 
 ```bash
 sudo install -m 755 apps/api/deploy/ilapi /usr/local/bin/ilapi
@@ -146,6 +171,10 @@ VPS의 `tmux -s ironlog`는 데모가 아니라 **사용자가 폰 SSH로 상시
 2026-07-06, 릴리스 검증이 사용자 운동 도중 이 세션을 재시작해 미저장 세트가 전부 유실됐다
 (TUI 버퍼는 당시 메모리에만 존재; v0.10.3부터 draft 영속화로 완화되지만 규칙은 유지).
 
+**이 규칙은 API를 내린 뒤에도 그대로다.** 세션은 계속 살아 있고, 2026-07-29 `ilapi cutover prod`로
+접속 대상만 로컬 apps/api → 프로덕션 Vercel로 바뀌었다. VPS에서 API가 안 돌아도 이 TUI는 정상
+동작하며, 여전히 사용자의 실사용 클라이언트다.
+
 - **릴리스/업데이트 검증은 별도 세션에서**: `tmux new -d -s ironlog-verify "$IRONLOG"` —
   사용자 세션(`-s ironlog`)은 건드리지 않는다. 검증 후 `tmux kill-session -t ironlog-verify`.
 - 사용자 세션 재시작이 꼭 필요하면(예: cutover): `tmux list-clients -t ironlog`(attach 여부)와
@@ -161,8 +190,8 @@ sliding 만료(#495)로 세션이 연장되지만, 만료된 `auth_session` 행�
 
 | 모드 | 스케줄러 | 대상 | 시크릿 |
 |---|---|---|---|
-| standalone(분리 배포) | `ironlog-session-prune.timer` (아래) | `POST /api/ops/sessions/prune` (apps/api) | `WORKOUT_OPS_TOKEN` |
-| 인프로세스(Vercel) | `web/vercel.json`의 `crons` | `GET /api/cron/session-prune` (web) | `CRON_SECRET` |
+| standalone(분리 배포) | `ironlog-session-prune.timer` (아래) — **현재 disabled** | `POST /api/ops/sessions/prune` (apps/api) | `WORKOUT_OPS_TOKEN` |
+| 인프로세스(Vercel) — **현행** | `web/vercel.json`의 `crons` | `GET /api/cron/session-prune` (web) | `CRON_SECRET` |
 
 Vercel Cron은 **GET만** 보내고 Bearer로 `CRON_SECRET`을 붙인다. 그래서 ops 라우트
 (GET=dry-run / POST=삭제)를 비틀지 않고 cron 전용 경로를 따로 뒀다. Vercel 프로젝트에
