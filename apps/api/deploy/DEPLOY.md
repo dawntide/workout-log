@@ -3,16 +3,27 @@
 apps/api(독립 Hono 백엔드)를 **상시 가동**으로 배포하고, TUI를 그쪽으로 cutover하는 런북.
 두 경로를 제공: **A. systemd(권장)** / **B. Docker(대안)**. 둘 다 동일 리버스 프록시(Caddy)로 TLS.
 
+> 📌 **이 문서는 "분리 배포(standalone)" 모드의 런북이다.** 같은 Hono 앱을 web(Vercel)이
+> 인프로세스로 마운트하는 모드도 있고, 둘은 `APPS_API_BASE` 하나로 갈린다:
+> **설정됨 → 프록시(이 문서대로 별도 호스트 운영)** / **미설정 → 인프로세스(별도 호스트 없음)**.
+> 앱 정의(`src/app.ts`)와 node 기동 엔트리(`src/index.ts`)가 분리돼 있어 두 모드가 **같은 코드**를
+> 쓴다 — 인프로세스로 옮겨도 이 문서의 자산(systemd 유닛·`ilapi`·Dockerfile)은 폐기하지 않고
+> 그대로 둔다. 되돌리기가 env 하나이기 때문이다. 토폴로지 비교는
+> [`web/docs/architecture-layers.md`](../../../web/docs/architecture-layers.md) §호스팅 모드 스위치.
+
 > ✅ **실제 운영 배포 완료 (2026-06-29, AWS Lightsail)**: 리포=`/home/ubuntu/workout-log`, 서비스 유저=`ubuntu`,
 > ExecStart=`node_modules/.bin/tsx src/index.ts` **직접**(systemd 샌드박스에서 `pnpm start`는 deps-status-check로
 > 실패하므로 tsx 직접 호출), 공개=Caddy + `3-37-203-76.sslip.io`(Let's Encrypt). 일상 운영은 **§5 `ilapi` CLI**.
 > 아래 본문의 `/opt`·`ironlog` 유저는 예시 — 실제 배포는 위 구성을 따른다.
 
-## 0. 사전 지식 — 왜 web/도 필요한가 (중요)
+## 0. 사전 지식 — 무엇을 설치해야 하나
 
-`apps/api`는 `@/*` → `../../web/src/*` alias로 web 서버 코드를 런타임 재사용한다. 그 web 코드가
-`drizzle-orm`·`pg` 등을 **web/node_modules에서** 해석하므로, 배포 호스트엔 **web/ 소스 + web 설치**와
-**apps/api 설치**가 둘 다 있어야 한다. (별도 빌드 단계 없음 — `tsx`가 런타임에 alias+트랜스파일.)
+`apps/api`는 도메인·인프라 코드를 **`@workout/core`(`packages/core`)에서만** 가져온다 — web/src를
+가리키던 `@/*` alias는 core 추출로 제거됐고, `pnpm -C apps/api lint:boundary`가 `@/`·`next`·`react`
+import를 CI에서 막는다. 별도 빌드 단계는 없다(`tsx`가 런타임 트랜스파일).
+
+설치는 **워크스페이스 루트에서 `pnpm install` 1회**로 끝난다(lockfile 1개). 루트 설치는 web까지
+같이 깔지만, apps/api 실행에 web/ 코드가 필요해서가 아니라 워크스페이스가 하나이기 때문이다.
 
 전제: Node 24 + pnpm 11(corepack), 리포가 호스트에 있음(예: `/opt/workout-log`).
 

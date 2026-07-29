@@ -12,7 +12,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **모노레포**: 루트 pnpm 워크스페이스(`pnpm-workspace.yaml`) — `web` + `apps/api` + `packages/core`, lockfile은 루트 1개. **clone 후 루트에서 `pnpm install` 1회**로 전 패키지 설치.
 - **`packages/core` (@workout/core)**: web(Next.js)·apps/api(Hono)가 공유하는 프레임워크-무지 도메인/인프라 코드 — db(schema·client)·auth 코어·progression/program-engine·stats/home/export/import 서비스·순수 lib(session-key·bodyweight-load·program-store 등). source-only 패키지(web은 `transpilePackages`, apps/api는 tsx로 소비). **경계 규칙**: core는 next/react/DOM·요청 컨텍스트(쿠키) 무지 — userId·locale은 명시 인자, 쿠키/OAuth/RSC 어댑터(`user.ts`·`oauth-*`·messages.ts·bootstraps)는 web 잔류. 상세: [`packages/core/README.md`](packages/core/README.md).
 - **로컬 실행**: `pnpm -C web dev` (Next.js dev 서버), 접속 `http://localhost:3000`. Postgres 접속 정보는 `web/.env.local`의 `DATABASE_URL`로 전달. 배포는 Vercel(웹앱) + Supabase(Postgres).
-  - ⚠️ **web 데이터 API는 apps/api(Hono 백엔드)로 프록시 cutover됨**([`web/src/app/api/[...path]/route.ts`](web/src/app/api/[...path]/route.ts)): 브라우저 `/api/*` same-origin 호출 → web이 `wl_session` 쿠키를 `Authorization: Bearer`로 변환해 `APPS_API_BASE`로 포워딩(동일 `auth_session` 토큰). 로컬 dev에서 데이터 라우트가 작동하려면 **apps/api 동반 실행** 필요: `web/.env.local`에 `APPS_API_BASE=http://127.0.0.1:8787` + 별도 터미널 `cd apps/api && set -a; . ../../web/.env.local; set +a; DB_SCHEMA=dev pnpm dev`. **실제 로그인**으로 `wl_session` 쿠키 획득(apps/api는 `WORKOUT_AUTH_USER_ID` fallback 없음). `auth`·`ops`·web잔류(stats migration-telemetry[FS결합, 마이그레이션 실행지]·page-bootstrap·health)은 web 자체 처리(구체적 route가 catch-all보다 우선; ux-snapshot은 apps/api로 이식됨). 상세: [`apps/api/deploy/DEPLOY.md`](apps/api/deploy/DEPLOY.md).
+  - ⚠️ **web 데이터 API는 apps/api(Hono 백엔드)가 처리**([`web/src/app/api/[...path]/route.ts`](web/src/app/api/[...path]/route.ts)): 브라우저 `/api/*` same-origin 호출 → catch-all이 `wl_session` 쿠키를 `Authorization: Bearer`로 변환(동일 `auth_session` 토큰) + 앱 locale을 `Accept-Language`로 주입. **호스팅은 `APPS_API_BASE` 하나로 갈린다**:
+    - **설정됨 = 프록시 모드**(현행 프로덕션·CI): 별도 배포된 apps/api로 HTTP 포워딩. 로컬에서 이 모드를 쓰려면 apps/api 동반 실행 — `web/.env.local`에 `APPS_API_BASE=http://127.0.0.1:8787` + 별도 터미널 `cd apps/api && set -a; . ../../web/.env.local; set +a; DB_SCHEMA=dev pnpm dev`.
+    - **미설정 = 인프로세스 모드**: web이 같은 Hono 앱을 `app.fetch()`로 직접 마운트(`@workout/api/app`) — 네트워크 홉·별도 프로세스 없음. 로컬에서 apps/api를 안 띄워도 데이터 라우트가 그대로 돈다.
+    - 두 모드는 요청 정규화가 동일해 **전환·롤백·재분리가 전부 env 하나**다. 이 성질은 CI 게이트 `pnpm -C apps/api lint:boundary`가 강제한다(규칙 2개: apps/api에 `@/`·next·react 금지 + node 서버 어댑터는 `src/index.ts` 전용) — **apps/api에서 next/react를 import하지 말 것**.
+    - 인증은 모드 무관: **실제 로그인**으로 `wl_session` 쿠키 획득(prod에서 apps/api는 `WORKOUT_AUTH_USER_ID` fallback 없음). `auth`·`ops`·web잔류(stats migration-telemetry[FS결합, 마이그레이션 실행지]·page-bootstrap·health)은 web 자체 처리(구체적 route가 catch-all보다 우선; ux-snapshot은 apps/api로 이식됨). 상세: [`apps/api/deploy/DEPLOY.md`](apps/api/deploy/DEPLOY.md), [아키텍처 레이어 모델](web/docs/architecture-layers.md).
 
 ## 핵심 문서
 
@@ -87,6 +91,10 @@ pnpm -C web test:async-ux:continuity   # 비동기 UX 연속성 단일 시나리
 
 # core 경계 린트 (core 내 @/·next·react import 차단 — CI 게이트)
 pnpm -C packages/core lint:boundary
+
+# apps/api 경계 린트 (apps/api 내 @/·next·react 차단 + node 서버 어댑터를 index.ts에 가둠 — CI 게이트)
+# 인프로세스로 마운트돼도 언제든 다시 분리 배포할 수 있는 상태를 유지한다. Windows에서도 실행됨.
+pnpm -C apps/api lint:boundary
 
 # 빌드 (migrate 후 next build 실행)
 pnpm -C web build

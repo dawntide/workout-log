@@ -99,7 +99,20 @@ widgets→app, features→widgets/app, `components/v2/primitives`→상향 전�
 | **web 잔류** — ops/\*·health·stats/migration-telemetry·stats/page-bootstrap | **② web route** | web 직접 |
 | **페이지 SSR** — `/`·`/workout/log`·`/stats`·`/plans` … | **③ RSC가 `@/server` 직접 import** | web 직접 |
 
-이식된 데이터 라우트의 `web/src/app/api/**/route.ts`는 삭제됐고, catch-all([`app/api/[...path]/route.ts`](../src/app/api/%5B...path%5D/route.ts))이 받아 apps/api로 포워딩한다. auth·ops·미이식은 더 구체적인 route라 Next 라우팅상 자동 우선 → web이 직접 처리.
+이식된 데이터 라우트의 `web/src/app/api/**/route.ts`는 삭제됐고, catch-all([`app/api/[...path]/route.ts`](../src/app/api/%5B...path%5D/route.ts))이 받아 apps/api로 넘긴다. auth·ops·미이식은 더 구체적인 route라 Next 라우팅상 자동 우선 → web이 직접 처리.
+
+### 호스팅 모드 스위치 — 같은 백엔드, 두 가지 배치
+
+apps/api는 **어디서 도는지와 무관**하게 같은 Hono 앱이다. 앱 정의([`apps/api/src/app.ts`](../../apps/api/src/app.ts))와 node 기동 엔트리([`index.ts`](../../apps/api/src/index.ts))가 갈라져 있어, catch-all이 `APPS_API_BASE` 하나로 배치를 고른다:
+
+| `APPS_API_BASE` | 모드 | 경로 |
+|---|---|---|
+| 설정됨 | **프록시** (현행 프로덕션·CI·로컬) | 브라우저 → web(Vercel) → HTTP → apps/api(lightsail) |
+| 미설정 | **인프로세스** | 브라우저 → web(Vercel) → `app.fetch()` — 네트워크 홉 없음 |
+
+두 모드는 요청을 **동일하게 정규화**한다(쿠키 → `Authorization: Bearer`, 앱 locale → `Accept-Language`). 핸들러는 자기가 어느 토폴로지에서 도는지 알 수 없고, 그래서 전환이 **코드 변경 없이 env 하나**다 — 인프로세스로 옮긴 뒤 문제가 생기면 같은 변수를 되돌리는 게 롤백이고, 나중에 다시 분리 배포하고 싶어질 때도 같은 레버다.
+
+이 성질을 유지하는 게 CI 게이트 [`pnpm -C apps/api lint:boundary`](../../apps/api/scripts/lint-boundary.mjs)다. 규칙 2개: **framework**(apps/api가 `@/`·next·react를 import하면 실패 — 인프로세스라고 프레임워크를 끌어다 쓰면 재분리가 env 변경이 아니라 리팩터가 된다), **server-entry**(node 서버 어댑터는 `index.ts` 전용 — app.ts 계보에 섞이면 web 서버리스 번들에 node 전용 서버가 끌려온다).
 
 ### 인증 — 토큰 1개로 통일
 
@@ -117,7 +130,7 @@ ironlog    :  저장 토큰 ─────────────────�
 
 - **백엔드 로직 1벌** — `server/`를 web(SSR·route)과 apps/api가 둘 다 import. 물리적으로 두 호스트에서 돌지만 코드 중복 없음.
 - **web은 "프록시 + 직접 DB" 혼합** — 데이터 API만 apps/api로 위임, SSR/auth/미이식은 web이 직접 DB. 완전 분리(SSR까지 HTTP화)는 성능·단일점 후퇴라 의도적으로 안 함.
-- **단일 의존점** — apps/api(lightsail) 다운 시 web 데이터 라우트는 502, 단 SSR 페이지·auth는 web 직접이라 생존.
+- **단일 의존점** — 프록시 모드에서 apps/api(lightsail) 다운 시 web 데이터 라우트는 502, 단 SSR 페이지·auth는 web 직접이라 생존. 인프로세스 모드에서는 이 의존점 자체가 사라진다(대신 web 함수가 DB를 직접 물고, 커넥션이 람다 수만큼 팬아웃).
 - **전부 서울 리전**(Vercel icn1 / lightsail·Supabase ap-northeast-2) — 프록시 홉이 추가돼도 레이턴시 미미.
 - **두 프론트의 접속 차이** — ironlog는 같은 lightsail이라 `127.0.0.1`(TLS 우회), web 브라우저는 공개 `sslip.io` HTTPS 경유.
 

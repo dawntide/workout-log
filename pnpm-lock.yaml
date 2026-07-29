@@ -60,6 +60,9 @@ importers:
       '@tanstack/react-virtual':
         specifier: ^3.13.23
         version: 3.13.23(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      '@workout/api':
+        specifier: workspace:*
+        version: link:../apps/api
       '@workout/core':
         specifier: workspace:*
         version: link:../packages/core
