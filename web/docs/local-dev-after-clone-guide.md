@@ -28,6 +28,10 @@ NEXT_PUBLIC_DISABLE_SW=1
 
 로컬 Postgres를 직접 띄우는 경우에는 `DATABASE_URL=postgres://app:app@127.0.0.1:5432/workoutlog` 형태로 사용할 수 있습니다.
 
+> `db:*` CLI 스크립트와 `drizzle.config.ts`는 [`src/server/db/load-env.ts`](../src/server/db/load-env.ts)로
+> `.env.local` → `.env` 순서로 이 파일을 읽습니다. **셸에 이미 있는 환경변수가 항상 이깁니다** —
+> CI·배포는 `DATABASE_URL`을 진짜 환경변수로 넘기므로 로컬 파일이 그걸 가로채지 않습니다.
+
 ## 3) 실행
 
 ```bash
@@ -73,12 +77,22 @@ git push -u origin docs/local-dev-onboarding
 
 ### UX 이벤트 로그 보존 정리
 
-`ux_event_log` 테이블 정리 작업을 스케줄로 실행해 저장소가 무한 증가하지 않도록 합니다.
+`ux_event_log`는 append-only 이벤트 스트림이라 스스로 줄지 않는다. 보존 기간이 지난 행은
+스케줄러가 지운다 — **[`web/vercel.json`](../vercel.json)의 `crons`가 매일 20:00 UTC(=05:00 KST)에
+`GET /api/cron/ux-events-cleanup`을 호출**한다. 세션 prune 크론과 같은 규약이다(아래 참고):
+Vercel Cron은 GET만 보내고 `CRON_SECRET`을 Bearer로 붙이며, **미설정 시 라우트가 401로 거부**한다
+(파괴적 엔드포인트라 fail-closed). Hobby 플랜은 크론이 하루 1회까지, 실행 시각은 지정 시각의
+±59분이다 — 보존 정리에는 충분하다.
 
-**기본 환경 변수**:
+삭제 구현은 [`packages/core/src/data/ux-event-retention.ts`](../../packages/core/src/data/ux-event-retention.ts)
+한 곳에 있고 크론 라우트와 아래 CLI가 같은 함수를 부른다. 따라서 두 경로의 보존 기준이 갈라지지 않는다.
+세션 prune과 달리 **호스팅 모드(`APPS_API_BASE`)와 무관**하다 — 라우트가 web에 있고 web이 직접 DB를
+치므로 프록시/인프로세스 어느 쪽이든 이 크론 하나만 돈다.
+
+**환경 변수** (크론·CLI 공통):
 ```bash
-UX_EVENTS_RETENTION_DAYS=120   # 기본 보존 기간 (일)
-UX_EVENTS_CLEANUP_DRY_RUN=1    # dry-run 모드 (실제 삭제 없음)
+UX_EVENTS_RETENTION_DAYS=120   # 기본 보존 기간 (일). 양의 정수가 아니면 120으로 되돌림
+UX_EVENTS_CLEANUP_DRY_RUN=1    # dry-run 모드 — "1"일 때만. 삭제 없이 대상 행 수만 센다
 ```
 
 **dry-run으로 먼저 확인**:
@@ -86,15 +100,13 @@ UX_EVENTS_CLEANUP_DRY_RUN=1    # dry-run 모드 (실제 삭제 없음)
 UX_EVENTS_CLEANUP_DRY_RUN=1 pnpm --dir web run db:cleanup:ux-events
 ```
 
-> ⚠️ **현재 스케줄되어 있지 않습니다.** `db:cleanup:ux-events` 스크립트만 있고, 이를 호출하는
-> cron/워크플로/API 라우트는 리포에 없습니다(과거 이 문서는 `/api/ops/cleanup` + Vercel Cron이
-> "현재 운영 환경"이라고 적었지만 그런 라우트도 cron 항목도 존재하지 않습니다). 보존 정리는
-> 당분간 위 명령을 수동 실행해야 하며, 자동화는 별도 작업으로 남아 있습니다.
-
-수동 실행:
+수동 실행(크론 밖에서 즉시 돌릴 때):
 ```bash
 pnpm --dir web run db:cleanup:ux-events
 ```
+
+> `DB_SCHEMA=dev`를 설정하면 CLI도 `dev` 스키마의 `ux_event_log`를 본다(앱의 나머지 쿼리와 동일).
+> 마이그레이션 전 DB처럼 테이블이 없으면 실패가 아니라 무작업으로 넘어간다.
 
 ### 만료 세션 prune
 
