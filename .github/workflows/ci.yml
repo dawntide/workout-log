@@ -226,33 +226,24 @@ jobs:
           WORKOUT_AUTH_USER_ID: 00000000-0000-4000-8000-000000c1c1c1
         run: pnpm db:seed
 
-      # 프로그램 시작 흐름은 /api/plans 등 데이터 라우트를 타고, 그건 web이 apps/api로
-      # 프록시한다. 백엔드가 없으면 그 스펙은 구조적으로 못 돌아 nightly 전용이 되고,
-      # 실제로 버튼·운동명 개명 회귀가 PR을 그대로 통과했다(#582). 기동은 2초면 끝난다.
-      - name: Start apps/api (proxy backend)
-        working-directory: apps/api
-        env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/workout_log_ci
-          PORT: "8787"
-          WORKOUT_DISABLE_RATE_LIMIT: "1"
-          WORKOUT_ALLOW_INSECURE_COOKIES: "1"
-        run: |
-          nohup node_modules/.bin/tsx src/index.ts > /tmp/apps-api.log 2>&1 &
-          for i in $(seq 1 30); do
-            if curl -fsS http://127.0.0.1:8787/health > /dev/null 2>&1; then
-              echo "apps/api up"; exit 0
-            fi
-            sleep 1
-          done
-          echo "apps/api failed to start"; cat /tmp/apps-api.log; exit 1
+      # 데이터 라우트(/api/plans 등)는 catch-all이 처리한다. APPS_API_BASE를 주지
+      # 않으므로 **인프로세스 모드** — web이 Hono 앱을 직접 마운트한다(#634). 별도
+      # 백엔드 프로세스가 없어야 프로덕션이 도는 방식과 같아진다.
+      #
+      # 분리형(프록시) 토폴로지는 e2e-nightly.yml이 apps/api를 동반 기동해 계속
+      # 증명한다 — 두 레인이 두 모드를 나눠 맡는 구조이고, 그래서 언제든 다시
+      # 분리 배포해도 "지금도 되나?"를 새로 확인할 필요가 없다.
+      #
+      # (백엔드 없이 돌리면 프로그램 시작 흐름 스펙이 구조적으로 실패하던 시절
+      #  버튼·운동명 개명 회귀가 PR을 그대로 통과한 적이 있다(#582). 이제는
+      #  백엔드가 web 안에 있어 그 스펙이 항상 돈다.)
 
       # PLAYWRIGHT_SERVER_MODE=prod → webServer가 `pnpm build && pnpm start`(프로덕션 런타임).
       # build가 migrate를 재실행하나 멱등(위 seed는 여전히 필요). prod 렌더 크래시를 여기서 게이트.
-      - name: Run smoke + accessibility + theme E2E tests (prod build)
+      - name: Run smoke + accessibility + theme E2E tests (prod build, in-process API)
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/workout_log_ci
           WORKOUT_AUTH_USER_ID: 00000000-0000-4000-8000-000000c1c1c1
-          APPS_API_BASE: http://127.0.0.1:8787
           NEXT_PUBLIC_APP_URL: http://127.0.0.1:3100
           NEXT_TELEMETRY_DISABLED: "1"
           PLAYWRIGHT_SERVER_MODE: prod
@@ -262,11 +253,6 @@ jobs:
           WORKOUT_DISABLE_RATE_LIMIT: "1"
           CI: "true"
         run: pnpm exec playwright test e2e/smoke.spec.ts e2e/program-start-smoke.spec.ts e2e/a11y-runtime.spec.ts e2e/stale-session-redirect.spec.ts e2e/color-themes.spec.ts e2e/pull-to-refresh.spec.ts --project chromium
-
-      - name: Dump apps/api log
-        if: ${{ always() }}
-        working-directory: .
-        run: tail -50 /tmp/apps-api.log || true
 
       # 실패 시 trace/screenshot/video를 artifact로 보관
       - name: Upload Playwright artifacts

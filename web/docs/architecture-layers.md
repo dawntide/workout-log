@@ -90,6 +90,14 @@ widgets→app, features→widgets/app, `components/v2/primitives`→상향 전�
                               └────────────────────────────────────┘
 ```
 
+> ⚠️ 위 그림의 ironlog 화살표는 **VPS에서 `ilapi cutover local`로 돌릴 때**의 경로다. 릴리스
+> 바이너리의 기본 서버는 `.goreleaser.yaml`의 ldflags `defaultBase`가 박아 넣는 **web(Vercel)
+> 오리진**이고, 그때 ironlog는 apps/api로 직결하지 않고 브라우저와 같은 문으로 들어온다 —
+> 인증은 web의 auth route에 **쿠키**로(클라이언트가 쿠키 jar와 Bearer를 함께 들고 다닌다,
+> [`client.go`](../../apps/tui/internal/api/client.go)의 `SetSessionToken`), 데이터는 catch-all로.
+> `assertSameOrigin`은 Origin 헤더가 없으면 통과시키므로(네이티브 클라이언트) CSRF 검사에
+> 걸리지 않는다. 접속 서버는 `IRONLOG_API_URL`·저장된 서버 URL로 런타임에 바뀐다.
+
 ### web `/api/*` 요청 경로 (Next 라우팅: 구체적 route > catch-all `[...path]`)
 
 | 요청 | 처리 | DB 접근 |
@@ -112,6 +120,8 @@ apps/api는 **어디서 도는지와 무관**하게 같은 Hono 앱이다. 앱 �
 
 두 모드는 요청을 **동일하게 정규화**한다(쿠키 → `Authorization: Bearer`, 앱 locale → `Accept-Language`). 핸들러는 자기가 어느 토폴로지에서 도는지 알 수 없고, 그래서 전환이 **코드 변경 없이 env 하나**다 — 인프로세스로 옮긴 뒤 문제가 생기면 같은 변수를 되돌리는 게 롤백이고, 나중에 다시 분리 배포하고 싶어질 때도 같은 레버다.
 
+**CI가 두 모드를 나눠 맡는다**: [`ci.yml`](../../.github/workflows/ci.yml)의 E2E는 `APPS_API_BASE` 없이(=인프로세스, 프로덕션과 동일) 돌고, [`e2e-nightly.yml`](../../.github/workflows/e2e-nightly.yml)은 apps/api를 별도 프로세스로 띄워(=분리형) 전체 스위트를 돌린다. 그래서 다시 분리 배포하기로 해도 "지금도 되나?"를 새로 확인할 필요가 없다 — nightly가 매일 증명하고 있다.
+
 이 성질을 유지하는 게 CI 게이트 [`pnpm -C apps/api lint:boundary`](../../apps/api/scripts/lint-boundary.mjs)다. 규칙 2개: **framework**(apps/api가 `@/`·next·react를 import하면 실패 — 인프로세스라고 프레임워크를 끌어다 쓰면 재분리가 env 변경이 아니라 리팩터가 된다), **server-entry**(node 서버 어댑터는 `index.ts` 전용 — app.ts 계보에 섞이면 web 서버리스 번들에 node 전용 서버가 끌려온다).
 
 ### 인증 — 토큰 1개로 통일
@@ -132,6 +142,6 @@ ironlog    :  저장 토큰 ─────────────────�
 - **web은 "프록시 + 직접 DB" 혼합** — 데이터 API만 apps/api로 위임, SSR/auth/미이식은 web이 직접 DB. 완전 분리(SSR까지 HTTP화)는 성능·단일점 후퇴라 의도적으로 안 함.
 - **단일 의존점** — 프록시 모드에서 apps/api(lightsail) 다운 시 web 데이터 라우트는 502, 단 SSR 페이지·auth는 web 직접이라 생존. 인프로세스 모드에서는 이 의존점 자체가 사라진다(대신 web 함수가 DB를 직접 물고, 커넥션이 람다 수만큼 팬아웃).
 - **전부 서울 리전**(Vercel icn1 / lightsail·Supabase ap-northeast-2) — 프록시 홉이 추가돼도 레이턴시 미미.
-- **두 프론트의 접속 차이** — ironlog는 같은 lightsail이라 `127.0.0.1`(TLS 우회), web 브라우저는 공개 `sslip.io` HTTPS 경유.
+- **두 프론트의 접속 차이** — 릴리스 ironlog의 기본 서버는 **web(Vercel) 오리진**이라 브라우저와 같은 경로를 탄다(인증=쿠키, 데이터=catch-all). VPS에서 `ilapi cutover local`로 돌릴 때만 `127.0.0.1:8787` 직결(TLS 우회)이 된다. 즉 **인프로세스 전환에 TUI 코드 변경은 필요 없다** — 기본 서버를 그대로 두면 백엔드가 web 안으로 들어온 것만 달라진다.
 
 > 배포·운영(systemd·Caddy·ilapi·env) 상세는 [`apps/api/deploy/DEPLOY.md`](../../apps/api/deploy/DEPLOY.md).
