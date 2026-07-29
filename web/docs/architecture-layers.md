@@ -54,7 +54,12 @@ widgets→app, features→widgets/app, `components/v2/primitives`→상향 전�
 
 ## 시스템 토폴로지 — 멀티프론트 / 단일 백엔드 (2026-06 cutover)
 
-위 레이어 모델은 `web/src` **한 패키지 내부**의 의존 방향이다. 공유 백엔드 로직은 **`@workout/core`(`packages/core`)로 물리 추출 완료**(2026-07, #497~#503): db 스키마/클라이언트·auth 코어·progression/program-engine·stats/home/export/import 서비스·순수 lib이 core에 있고, web(Vercel)과 `apps/api`(Hono, AWS lightsail)가 pnpm 워크스페이스 패키지로 같은 코드를 소비한다 — **백엔드 로직은 코드 1벌**(중복 없음), apps/api의 web/src import는 0(구 `@/*` alias 제거).
+위 레이어 모델은 `web/src` **한 패키지 내부**의 의존 방향이다. 공유 백엔드 로직은 **`@workout/core`(`packages/core`)로 물리 추출 완료**(2026-07, #497~#503): db 스키마/클라이언트·auth 코어·progression/program-engine·stats/home/export/import 서비스·순수 lib이 core에 있고, web과 `apps/api`(Hono)가 pnpm 워크스페이스 패키지로 같은 코드를 소비한다 — **백엔드 로직은 코드 1벌**(중복 없음), apps/api의 web/src import는 0(구 `@/*` alias 제거).
+
+> 🛑 **아래 그림은 2026-07-29 이전(프록시 모드)의 배치다.** 현재 프로덕션은 **인프로세스 모드**라
+> apps/api가 별도 호스트가 아니라 web(Vercel) 함수 **안에서** 돈다 — lightsail 상자와 그리로 가는
+> HTTPS 화살표는 없다고 보면 된다. 그림을 남겨두는 이유는 nightly E2E가 이 배치를 매일 검증하고
+> 있어 언제든 되돌아갈 수 있기 때문이다. 전환 스위치는 아래 §호스팅 모드 스위치.
 
 의존 방향: `web → @workout/core ← apps/api` (core는 next/react/DOM·요청 컨텍스트 무지 — userId·locale 명시 인자, `lint:boundary` CI 게이트). 쿠키 세션 어댑터(`server/auth/user.ts`)·OAuth·RSC 부트스트랩·i18n 카피(`lib/i18n/messages.ts`)는 web 잔류.
 
@@ -115,8 +120,13 @@ apps/api는 **어디서 도는지와 무관**하게 같은 Hono 앱이다. 앱 �
 
 | `APPS_API_BASE` | 모드 | 경로 |
 |---|---|---|
-| 설정됨 | **프록시** (현행 프로덕션·CI·로컬) | 브라우저 → web(Vercel) → HTTP → apps/api(lightsail) |
-| 미설정 | **인프로세스** | 브라우저 → web(Vercel) → `app.fetch()` — 네트워크 홉 없음 |
+| 미설정 | **인프로세스** — **현행 프로덕션·CI E2E** | 브라우저 → web(Vercel) → `app.fetch()` — 네트워크 홉 없음 |
+| 설정됨 | **프록시** — nightly E2E·로컬 선택 | 브라우저 → web(Vercel) → HTTP → 별도 배포된 apps/api |
+
+**2026-07-29 인프로세스로 전환 완료.** Vercel에서 `APPS_API_BASE`를 제거했고, VPS(Lightsail)의
+`ironlog-api`·전용 `caddy`는 stop + disable됐다(리포·유닛·`ilapi`는 롤백 자산으로 존치, 인스턴스는
+다른 용도로 계속 사용 중). 되살리려면 `ilapi update`부터 — 정지 시점 리포가 낡아 코드↔DB 스큐를
+재현한다. 상세는 [`DEPLOY.md`](../../apps/api/deploy/DEPLOY.md) 헤더.
 
 두 모드는 요청을 **동일하게 정규화**한다(쿠키 → `Authorization: Bearer`, 앱 locale → `Accept-Language`). 핸들러는 자기가 어느 토폴로지에서 도는지 알 수 없고, 그래서 전환이 **코드 변경 없이 env 하나**다 — 인프로세스로 옮긴 뒤 문제가 생기면 같은 변수를 되돌리는 게 롤백이고, 나중에 다시 분리 배포하고 싶어질 때도 같은 레버다.
 
@@ -140,8 +150,8 @@ ironlog    :  저장 토큰 ─────────────────�
 
 - **백엔드 로직 1벌** — `server/`를 web(SSR·route)과 apps/api가 둘 다 import. 물리적으로 두 호스트에서 돌지만 코드 중복 없음.
 - **web은 "프록시 + 직접 DB" 혼합** — 데이터 API만 apps/api로 위임, SSR/auth/미이식은 web이 직접 DB. 완전 분리(SSR까지 HTTP화)는 성능·단일점 후퇴라 의도적으로 안 함.
-- **단일 의존점** — 프록시 모드에서 apps/api(lightsail) 다운 시 web 데이터 라우트는 502, 단 SSR 페이지·auth는 web 직접이라 생존. 인프로세스 모드에서는 이 의존점 자체가 사라진다(대신 web 함수가 DB를 직접 물고, 커넥션이 람다 수만큼 팬아웃).
-- **전부 서울 리전**(Vercel icn1 / lightsail·Supabase ap-northeast-2) — 프록시 홉이 추가돼도 레이턴시 미미.
+- **단일 의존점** — 프록시 모드에서 apps/api 다운 시 web 데이터 라우트는 502, 단 SSR 페이지·auth는 web 직접이라 생존. **현행 인프로세스 모드에서는 이 의존점 자체가 없다**(대신 web 함수가 DB를 직접 물고, 커넥션이 람다 수만큼 팬아웃 → 레이트리밋은 Upstash Redis로 공유, `UPSTASH_REDIS_REST_*`).
+- **전부 서울 리전**(Vercel icn1 / Supabase ap-northeast-2, Upstash는 최근접 도쿄) — 프록시 홉이 있던 시절에도 레이턴시는 미미했다.
 - **두 프론트의 접속 차이** — 릴리스 ironlog의 기본 서버는 **web(Vercel) 오리진**이라 브라우저와 같은 경로를 탄다(인증=쿠키, 데이터=catch-all). VPS에서 `ilapi cutover local`로 돌릴 때만 `127.0.0.1:8787` 직결(TLS 우회)이 된다. 즉 **인프로세스 전환에 TUI 코드 변경은 필요 없다** — 기본 서버를 그대로 두면 백엔드가 web 안으로 들어온 것만 달라진다.
 
 > 배포·운영(systemd·Caddy·ilapi·env) 상세는 [`apps/api/deploy/DEPLOY.md`](../../apps/api/deploy/DEPLOY.md).
