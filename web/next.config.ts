@@ -19,8 +19,10 @@ const nextConfig: NextConfig = {
   },
   // PERF: Node.js 전용 패키지(pg)를 서버 번들에서 외부 모듈로 유지 → 클라이언트 번들 제외
   serverExternalPackages: ["pg", "pg-native"],
-  // @workout/core는 빌드 산출물 없는 source-only TS 워크스페이스 패키지 → Next가 직접 트랜스파일
-  transpilePackages: ["@workout/core"],
+  // @workout/core·@workout/api는 빌드 산출물 없는 source-only TS 워크스페이스 패키지 → Next가 직접 트랜스파일.
+  // @workout/api는 APPS_API_BASE 미설정 시 /api catch-all이 인프로세스로 마운트하는 Hono 백엔드다
+  // (exports는 ./app 하나만 열려 있어 라우트 내부 파일은 web에서 import할 수 없다).
+  transpilePackages: ["@workout/core", "@workout/api"],
   // NOTE: cacheComponents(PPR)는 의도적으로 비활성화한다.
   // "use cache"/cacheLife/cacheTag/unstable_cache 사용처가 0건이라 자동 static shell 외
   // 이득이 없고, Vercel preview 빈 화면 + dev typecheck race 비용만 유발했다.

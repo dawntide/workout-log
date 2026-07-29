@@ -47,6 +47,7 @@
   },
   "dependencies": {
     "@tanstack/react-virtual": "^3.13.23",
+    "@workout/api": "workspace:*",
     "@workout/core": "workspace:*",
     "drizzle-orm": "^0.45.1",
     "idb": "^8.0.3",

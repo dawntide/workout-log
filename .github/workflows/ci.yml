@@ -79,13 +79,16 @@ jobs:
         run: pnpm test:extra
 
   # ──────────────────────────────────────────────
-  # Job: apps/api typecheck
-  # apps/api reuses web/src via @/* alias + runs on tsx (no compile step), so a
-  # web/src/server refactor can break the production backend with no other gate.
+  # Job: apps/api typecheck + 경계 가드
+  # apps/api는 @workout/core만 소비하고 tsx로 (컴파일 없이) 돈다 → core 리팩터가
+  # 다른 게이트 없이 백엔드를 깨뜨릴 수 있어 자체 typecheck가 필요하다.
+  # lint:boundary는 "언제든 다시 분리 배포한다"는 전제를 코드로 고정한다: web이
+  # app.ts를 인프로세스로 마운트해도 @/·next·react가 스며들면 안 되고(framework),
+  # node 전용 서버 어댑터는 standalone 엔트리 index.ts에만 있어야 한다(server-entry).
   # 워크스페이스 루트 install 한 번으로 web·apps/api·packages/core 의존이 모두 깔린다.
   # ──────────────────────────────────────────────
   apps-api:
-    name: apps/api Typecheck
+    name: apps/api Typecheck · Boundary
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -94,6 +97,10 @@ jobs:
       - name: Typecheck apps/api
         working-directory: apps/api
         run: pnpm typecheck
+
+      - name: Boundary lint apps/api
+        working-directory: apps/api
+        run: pnpm lint:boundary
 
   # ──────────────────────────────────────────────
   # Job: packages/core typecheck + test
