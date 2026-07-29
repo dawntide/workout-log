@@ -5,6 +5,10 @@
     {
       "path": "/api/cron/session-prune",
       "schedule": "30 19 * * *"
+    },
+    {
+      "path": "/api/cron/ux-events-cleanup",
+      "schedule": "0 20 * * *"
     }
   ]
 }

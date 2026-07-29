@@ -1,4 +1,4 @@
-import "dotenv/config";
+import "./load-env";
 
 import assert from "node:assert/strict";
 import { createHash, randomUUID } from "node:crypto";

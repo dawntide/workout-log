@@ -1,4 +1,4 @@
-import 'dotenv/config';
+import "./src/server/db/load-env";
 import type { Config } from "drizzle-kit";
 
 // DB_SCHEMA가 설정되면(예: "dev") 그 스키마 전용 마이그레이션 폴더/추적 테이블을

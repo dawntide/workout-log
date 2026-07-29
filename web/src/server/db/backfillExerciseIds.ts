@@ -1,3 +1,4 @@
+import "./load-env";
 import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@workout/core/db/client";
 import { exercise, workoutSet } from "@workout/core/db/schema";
