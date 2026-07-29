@@ -153,9 +153,27 @@ VPS의 `tmux -s ironlog`는 데모가 아니라 **사용자가 폰 SSH로 상시
   진행한다. `ironlog_restart` 가드가 사용 신호를 감지하면 거부하며, 확인 후에만 `--force`.
 - 사용자 운동 시간대(주로 저녁 KST)는 확인 없이는 절대 재시작하지 않는다.
 
-## 5.5 만료 세션 자동 prune (systemd timer)
+## 5.5 만료 세션 자동 prune — 스케줄러 둘 중 하나
 
-sliding 만료(#495)로 세션이 연장되지만, 만료된 `auth_session` 행은 스스로 지워지지 않는다 —
+sliding 만료(#495)로 세션이 연장되지만, 만료된 `auth_session` 행은 스스로 지워지지 않아
+스케줄러가 청소해야 한다. **호스팅 모드에 맞춰 하나만 켠다**(둘 다 켜도 삭제는 멱등이라
+사고는 아니지만, 어느 쪽이 도는지 헷갈리는 상태를 만들지 않는다):
+
+| 모드 | 스케줄러 | 대상 | 시크릿 |
+|---|---|---|---|
+| standalone(분리 배포) | `ironlog-session-prune.timer` (아래) | `POST /api/ops/sessions/prune` (apps/api) | `WORKOUT_OPS_TOKEN` |
+| 인프로세스(Vercel) | `web/vercel.json`의 `crons` | `GET /api/cron/session-prune` (web) | `CRON_SECRET` |
+
+Vercel Cron은 **GET만** 보내고 Bearer로 `CRON_SECRET`을 붙인다. 그래서 ops 라우트
+(GET=dry-run / POST=삭제)를 비틀지 않고 cron 전용 경로를 따로 뒀다. Vercel 프로젝트에
+`CRON_SECRET`을 설정하지 않으면 **cron이 401로 실패**한다 — 파괴적 엔드포인트를 무인증으로
+열어두느니 시끄럽게 실패하는 쪽을 택했다(게이트는 `@workout/core/auth/ops-token`, fail-closed).
+
+**VPS 정리 시**: `sudo systemctl disable --now ironlog-session-prune.timer`로 타이머만 끄면 된다
+(유닛 파일은 리포에 남는다 — 다시 분리 배포할 때 그대로 쓴다).
+
+### systemd timer (standalone 모드)
+
 `ironlog-session-prune.timer`가 매일 04:30(서버 로컬)에 `POST /api/ops/sessions/prune`을 호출해 정리한다.
 토큰은 API와 같은 `.env`의 `WORKOUT_OPS_TOKEN`을 재사용(별도 시크릿 없음).
 

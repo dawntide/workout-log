@@ -86,22 +86,25 @@ UX_EVENTS_CLEANUP_DRY_RUN=1    # dry-run 모드 (실제 삭제 없음)
 UX_EVENTS_CLEANUP_DRY_RUN=1 pnpm --dir web run db:cleanup:ux-events
 ```
 
-#### Option A: Vercel Cron (현재 운영 환경)
+> ⚠️ **현재 스케줄되어 있지 않습니다.** `db:cleanup:ux-events` 스크립트만 있고, 이를 호출하는
+> cron/워크플로/API 라우트는 리포에 없습니다(과거 이 문서는 `/api/ops/cleanup` + Vercel Cron이
+> "현재 운영 환경"이라고 적었지만 그런 라우트도 cron 항목도 존재하지 않습니다). 보존 정리는
+> 당분간 위 명령을 수동 실행해야 하며, 자동화는 별도 작업으로 남아 있습니다.
 
-Vercel 루트 폴더의 `vercel.json` 파일에 Cron 항목을 정의하고, 대상 서버리스 함수(API Route)를 호출하여 처리합니다.
-
-```json
-{
-  "crons": [
-    {
-      "path": "/api/ops/cleanup",
-      "schedule": "20 3 * * *"
-    }
-  ]
-}
+수동 실행:
+```bash
+pnpm --dir web run db:cleanup:ux-events
 ```
-*참고: 현재 Vercel 플랫폼 통합 이후, 위와 같은 방식으로 매일 자율 정리 작업을 위임하고 있습니다.*
 
-#### Option B: 내장 API 엔드포인트 수동 호출
+### 만료 세션 prune
 
-관리자 계정이나 스크립트에서 보안 토큰을 담아 `/api/ops/cleanup` 엔드포인트를 직접 POST 호출하여 정리할 수도 있습니다.
+`auth_session`의 만료 행은 sliding 만료(#495)로도 사라지지 않아 스케줄러가 지운다. 호스팅 모드에
+따라 **둘 중 하나만** 돈다:
+
+- **인프로세스(Vercel)** — [`web/vercel.json`](../vercel.json)의 `crons`가 매일 19:30 UTC(=04:30 KST)에
+  `GET /api/cron/session-prune`을 호출. Vercel 프로젝트에 **`CRON_SECRET` 환경변수 필수**(Vercel이
+  Bearer로 붙여준다). 미설정 시 라우트가 401로 거부한다 — 파괴적 엔드포인트라 fail-closed.
+- **분리 배포(VPS)** — `ironlog-session-prune.timer`가 `POST /api/ops/sessions/prune`을 호출.
+  상세는 [`apps/api/deploy/DEPLOY.md`](../../apps/api/deploy/DEPLOY.md) §5.5.
+
+로컬에서 토큰 없이 ops 라우트를 호출하려면 `WORKOUT_OPS_ALLOW_NO_TOKEN=1`을 명시적으로 설정한다.

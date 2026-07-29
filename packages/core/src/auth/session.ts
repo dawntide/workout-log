@@ -1,4 +1,4 @@
-import { and, eq, gt } from "drizzle-orm";
+import { and, eq, gt, lt } from "drizzle-orm";
 import { db } from "@workout/core/db/client";
 import { authSession, appUser } from "@workout/core/db/schema";
 import { acquireActiveAccountMutationLock } from "./account-lifecycle";
@@ -91,6 +91,37 @@ export async function deleteSession(token: string): Promise<void> {
 
 export async function deleteSessionsForUser(userId: string): Promise<void> {
   await db.delete(authSession).where(eq(authSession.userId, userId));
+}
+
+/**
+ * 만료된 auth_session 행 삭제. sliding 만료로 세션은 연장되지만 만료된 행은 스스로
+ * 사라지지 않아 스케줄러가 청소한다(Vercel cron / systemd timer). 호출지가 셋이라
+ * (web ops·web cron·apps/api ops) 구현을 여기 하나로 둔다.
+ *
+ * @returns 삭제된 행 수
+ */
+export async function pruneExpiredSessions(): Promise<number> {
+  const result = await db
+    .delete(authSession)
+    .where(lt(authSession.expiresAt, new Date()));
+  return (result as { rowCount?: number | null })?.rowCount ?? 0;
+}
+
+/**
+ * prune dry-run — 만료된 세션 수를 센다(모니터링용).
+ *
+ * count 집계 대신 상한까지 select하고 길이를 센다. 만료 행이 많지 않다는 가정이며,
+ * 상한에 닿으면 `truncated`로 알린다(그때는 SQL count로 교체할 시점).
+ */
+export async function countExpiredSessions(
+  limit = 1000,
+): Promise<{ expired: number; truncated: boolean }> {
+  const rows = await db
+    .select({ token: authSession.token })
+    .from(authSession)
+    .where(lt(authSession.expiresAt, new Date()))
+    .limit(limit);
+  return { expired: rows.length, truncated: rows.length === limit };
 }
 
 export type AuthUserSummary = {
