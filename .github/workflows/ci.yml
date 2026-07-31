@@ -59,7 +59,13 @@ jobs:
       - name: Typecheck
         run: pnpm typecheck
 
+      # web 유닛 전부. 실행 대상은 러너가 디스크에서 찾으므로(scripts/unit-test-discovery.mjs)
+      # 새 테스트 파일이 목록 누락으로 조용히 빠질 수 없다 — 예전엔 package.json에 손으로
+      # 나열해서 #591의 session-labels.test.ts가 0개로 집계된 적이 있다. 일부 테스트가 db/client를
+      # 전이적으로 import해 로드 시점에 DATABASE_URL을 요구하므로 더미를 준다(연결은 lazy, 실제 I/O 없음).
       - name: Unit tests
+        env:
+          DATABASE_URL: postgres://ci:ci@127.0.0.1:5432/ci_unit
         run: pnpm test:unit
 
       # 처방 엔진(program-engine) 테스트. generateSession이 @/server/db/client를 로드 시점에
@@ -69,14 +75,6 @@ jobs:
         env:
           DATABASE_URL: postgres://ci:ci@127.0.0.1:5432/ci_program_engine
         run: pnpm test:program-engine
-
-      # 그동안 CI에 없던 나머지 유닛 스위트(progression 심화·stats·logging-policy·bodyweight-load·
-      # session-key·editor-actions 등). 일부가 db/client를 전이적으로 import할 수 있어 더미 DATABASE_URL을
-      # 준다(순수 테스트엔 무해). 미커버라 stale 테스트가 방치되던 것(예: bodyweight 미설정 처방)을 CI 게이트로.
-      - name: Extended unit tests
-        env:
-          DATABASE_URL: postgres://ci:ci@127.0.0.1:5432/ci_extra
-        run: pnpm test:extra
 
   # ──────────────────────────────────────────────
   # Job: apps/api typecheck + 경계 가드
