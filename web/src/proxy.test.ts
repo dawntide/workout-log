@@ -60,6 +60,26 @@ describe("proxy — 기계 호출 라우트 통과", () => {
   });
 });
 
+describe("proxy — 비인증 화면에서 쓰는 라우트", () => {
+  // 프로덕션에서 실제로 401을 내고 있던 경로들. 로그인 없이 앱을 열면 web-vitals와
+  // 언어 전환이 미들웨어에서 잘려, 익명 텔레메트리는 통째로 유실됐다.
+  test("익명 web-vitals(/api/ux-events/public)가 쿠키 없이 통과한다", async () => {
+    const res = await proxy(request("/api/ux-events/public"));
+    assert.notEqual(res.status, 401);
+  });
+
+  test("인증형 /api/ux-events는 여전히 쿠키 게이트를 받는다", async () => {
+    // 프리픽스를 `/api/ux-events`로 넓히면 이 단정이 깨진다 — 익명 면제는 /public 한정이다.
+    const res = await proxy(request("/api/ux-events"));
+    assert.equal(res.status, 401);
+  });
+
+  test("언어 카탈로그(/api/locale-copy)가 쿠키 없이 통과한다", async () => {
+    const res = await proxy(request("/api/locale-copy?locale=ko"));
+    assert.notEqual(res.status, 401);
+  });
+});
+
 describe("proxy — 쿠키 게이트는 그대로", () => {
   test("공개 목록에 없는 데이터 라우트는 쿠키 없으면 401", async () => {
     // 이게 401이 아니면 위 통과 단정들이 게이트를 실제로 지나온 증거가 못 된다.
