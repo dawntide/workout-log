@@ -21,6 +21,13 @@ const PUBLIC_PATH_PREFIXES = [
   "/api/health",
   "/api/ops",
   "/api/cron",
+  // 익명 Core Web Vitals. 핸들러가 이 경로에만 requireAuth를 면제하고 user_id NULL로
+  // 저장한다(apps/api routes/misc.ts) — 쿠키를 요구하면 그 설계가 무의미해진다.
+  // 인증형 `/api/ux-events`는 프리픽스에 포함되지 않아 쿠키 게이트를 그대로 통과해야 한다.
+  "/api/ux-events/public",
+  // 로그인·가입 화면의 언어 전환. LocaleProvider가 루트 레이아웃에 있어 비인증 화면에서도
+  // 호출되고, 응답은 사용자 무관 번역 카탈로그다(Cache-Control: public).
+  "/api/locale-copy",
 ];
 
 function isPublicPath(pathname: string): boolean {
