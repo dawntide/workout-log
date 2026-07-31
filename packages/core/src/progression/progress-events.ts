@@ -1,4 +1,6 @@
 import { and, desc, eq } from "drizzle-orm";
+
+import type { WorkoutExecutor } from "@workout/core/db/client";
 import type { ProgressionSummaryPayload, ProgressionTargetDecisionPayload } from "@workout/core/progression/summary";
 import { planProgressEvent } from "@workout/core/db/schema";
 
@@ -87,7 +89,7 @@ function pickBoolean(value: unknown): boolean | null {
 }
 
 export async function readProgressEventByLog(input: {
-  tx: any;
+  tx: WorkoutExecutor;
   planId: string | null | undefined;
   logId: string;
 }) {

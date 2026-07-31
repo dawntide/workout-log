@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 
-import { db } from "@workout/core/db/client";
+import { type WorkoutExecutor, db } from "@workout/core/db/client";
 import { plan, generatedSession, workoutLog, workoutSet } from "@workout/core/db/schema";
 import { and, asc, eq, gt, lt, ne } from "drizzle-orm";
 import {
@@ -123,7 +123,7 @@ export function normalizeWorkoutLogClientMutationId(value: unknown) {
 }
 
 async function buildGenericIdempotentResponse(input: {
-  tx: any;
+  tx: WorkoutExecutor;
   log: { id: string; planId: string | null };
   locale: "ko" | "en";
 }) {
@@ -153,7 +153,7 @@ type ExistingLogForUpsert = {
   performedAt: Date;
 };
 
-async function readStoredSets(tx: any, logId: string) {
+async function readStoredSets(tx: WorkoutExecutor, logId: string) {
   return tx
     .select({
       id: workoutSet.id,
@@ -173,7 +173,7 @@ async function readStoredSets(tx: any, logId: string) {
 }
 
 async function buildRef5WriteResponse(input: {
-  tx: any;
+  tx: WorkoutExecutor;
   planId: string;
   logId: string;
   locale: "ko" | "en";

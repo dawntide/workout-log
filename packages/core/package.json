@@ -11,7 +11,7 @@
     "typecheck": "tsc --noEmit",
     "test": "DATABASE_URL=\"${DATABASE_URL:-postgres://test:test@127.0.0.1:5432/test}\" tsx --test $(find src -name '*.test.ts' | sort)",
     "lint:boundary": "! grep -rnE 'from \"(@/|next/|react|@workout/api)' src --include='*.ts' || (echo 'core 경계 위반: core는 @/(web)·next·react를 import할 수 없습니다' && exit 1)",
-    "lint:no-any": "! grep -rnE '(:[[:space:]]*any\\b|\\bas any\\b|\\bany\\[\\]|<any>|Array<any>)' src/program-dsl src/program-engine/generateSession.ts src/program-engine/snapshot.ts --include='*.ts' --exclude='*.test.ts' || (echo 'DSL any 랫칫 위반: program-dsl·generateSession·snapshot은 any-free 유지(program-dsl-typing-plan §5)' && exit 1)"
+    "lint:no-any": "node ../../script/any-ratchet.mjs src .any-allowlist.json"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

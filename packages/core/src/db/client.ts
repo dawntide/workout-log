@@ -15,6 +15,22 @@ declare global {
 //       긴 작업이 있어 기본은 비활성(0); 배포에서 DB_STATEMENT_TIMEOUT_MS로 상한을 준다.
 type WorkoutDb = ReturnType<typeof drizzle>;
 
+/**
+ * `db.transaction(async (tx) => …)` 콜백이 받는 트랜잭션 핸들.
+ * drizzle이 타입을 export하지 않으므로 db에서 파생한다.
+ */
+export type WorkoutTx = Parameters<Parameters<WorkoutDb["transaction"]>[0]>[0];
+
+/**
+ * 트랜잭션 안이든 밖이든 쿼리를 실행할 수 있는 핸들 — `db` 또는 `tx`.
+ *
+ * 이걸 받는 헬퍼들은 원래 트랜잭션 인자가 `any`였는데, 그것이 "이 함수는 실제로 둘 다로 불린다"는
+ * 사실을 가리고 있었다: 쓰기 경로는 트랜잭션을 넘기고, 읽기 전용·lock-free 경로(예: REF5
+ * 프리뷰)는 `db`를 그대로 넘긴다. 유니온으로 적어 두면 호출 형태가 타입에 드러나고,
+ * 트랜잭션이 반드시 필요한 함수(→ `WorkoutTx`)와 구분된다.
+ */
+export type WorkoutExecutor = WorkoutDb | WorkoutTx;
+
 let database: WorkoutDb | null = null;
 
 export function getDb(): WorkoutDb {

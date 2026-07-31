@@ -323,7 +323,8 @@ statsRoutes.get("/strength-summary", async (c) => {
           const w = resolveLoggedTotalLoadKg({
             exerciseName: r.exerciseName,
             weightKg: r.weightKg,
-            meta: r.meta as any,
+            // jsonb 컬럼이라 형태가 열려 있다 — 헬퍼가 방어적으로 읽는다.
+            meta: r.meta as Record<string, unknown> | null,
           });
           const reps = Number(r.reps || 0);
           if (w === null || w === undefined) return null;

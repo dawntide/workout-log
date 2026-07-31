@@ -1,6 +1,6 @@
 import { and, asc, eq, gte, lte, sql } from "drizzle-orm";
 
-import { db } from "@workout/core/db/client";
+import { type WorkoutExecutor, db } from "@workout/core/db/client";
 import {
   generatedSession,
   plan,
@@ -138,7 +138,7 @@ export function ref5SessionKey(actualStartAt: string, startEventId: string): str
 }
 
 async function assertRef5StableTieAppend(input: {
-  tx: any;
+  tx: WorkoutExecutor;
   planId: string;
   actualStartAt: string;
   sessionKey: string;
@@ -220,7 +220,7 @@ export function selectRef5ResumableSession<
 }
 
 export async function findRef5ResumableSession(input: {
-  tx?: any;
+  tx?: WorkoutExecutor;
   userId: string;
   planId: string;
   calendarDate: string;
@@ -250,7 +250,7 @@ export async function findRef5ResumableSession(input: {
 type RecentBodyweight = { count: number; averageKg: number | null };
 
 async function readRecentBodyweight(
-  tx: any,
+  tx: WorkoutExecutor,
   planId: string,
   actualStartAt: string,
   todayBodyweightKg: number,
@@ -389,7 +389,7 @@ export function toRef5GeneratedSnapshot(input: {
 }
 
 async function calculateSnapshot(input: {
-  tx: any;
+  tx: WorkoutExecutor;
   planRow: typeof plan.$inferSelect;
   runtimeState: Ref5RuntimeState;
   request: Ref5GenerateRequest & { actualStartAt: string; timezone: string };
