@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import type { WorkoutExecutor } from "@workout/core/db/client";
+
 import {
   Ref5StaleVersionError,
   applyRef5FirstSquatStart,
@@ -354,7 +356,10 @@ test("REF5 historical state helper is read-only and excludes tuples at/after tar
   };
 
   const derived = await deriveRef5StateBeforeStart({
-    tx,
+    // 이 목은 읽기 전용 경로가 정말 쓰기를 안 하는지만 보는 최소 스텁이라 drizzle 핸들의
+    // 표면을 다 갖추지 않는다. lockAlreadyHeld: true 분기(= db도 허용)로 들어가므로
+    // 락 불변식은 건드리지 않는다.
+    tx: tx as unknown as WorkoutExecutor,
     userId: "user-1",
     planId: "plan-1",
     actualStartAt: "2026-07-14T01:00:00.000Z",

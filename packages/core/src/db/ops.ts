@@ -26,3 +26,6 @@ export {
   sum,
   avg,
 } from "drizzle-orm";
+
+// 조건식 배열(`SQL[]`)을 조립하는 소비처가 있어 타입도 같은 인스턴스에서 내보낸다.
+export type { SQL } from "drizzle-orm";

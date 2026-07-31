@@ -12,6 +12,7 @@ import {
   ne,
   or,
   sql,
+  type SQL,
 } from "@workout/core/db/ops";
 import {
   exercise,
@@ -164,7 +165,10 @@ logsRoutes.get("/", async (c) => {
       ? Math.max(1, Math.min(100, Math.floor(limitRaw)))
       : 20;
 
-    const filters: Array<any> = [eq(workoutLog.userId, userId)];
+    // or()/and()는 인자가 전부 undefined면 undefined를 돌려주므로 반환 타입이 옵셔널이다.
+    // 소비처인 and(...filters)가 undefined를 그냥 건너뛰니 그대로 담는다 —
+    // 여기서 non-null 단언을 쓰면 any를 걷어낸 자리에 다시 거짓말을 넣는 셈이 된다.
+    const filters: Array<SQL | undefined> = [eq(workoutLog.userId, userId)];
     if (planId) filters.push(eq(workoutLog.planId, planId));
     if (DATE_ONLY_PATTERN.test(dateFilter)) {
       filters.push(buildLocalDateRangeFilter(dateFilter, timezone));
@@ -231,13 +235,13 @@ logsRoutes.get("/", async (c) => {
             .from(workoutSet)
             .where(inArray(workoutSet.logId, logIds))
             .orderBy(asc(workoutSet.sortOrder), asc(workoutSet.setNumber), asc(workoutSet.id))
-        : Promise.resolve([] as any[]),
+        : Promise.resolve([]),
       includeGeneratedSession && generatedSessionIds.length > 0
         ? db
             .select({ id: generatedSession.id, sessionKey: generatedSession.sessionKey })
             .from(generatedSession)
             .where(inArray(generatedSession.id, generatedSessionIds))
-        : Promise.resolve([] as any[]),
+        : Promise.resolve([]),
       includeProgression && logIds.length > 0
         ? db
             .select({
@@ -254,10 +258,10 @@ logsRoutes.get("/", async (c) => {
             .from(planProgressEvent)
             .where(inArray(planProgressEvent.logId, logIds))
             .orderBy(desc(planProgressEvent.createdAt), desc(planProgressEvent.id))
-        : Promise.resolve([] as any[]),
+        : Promise.resolve([]),
     ]);
 
-    const setsByLogId = new Map<string, Array<any>>();
+    const setsByLogId = new Map<string, Array<(typeof sets)[number]>>();
     for (const s of sets) {
       const list = setsByLogId.get(s.logId) ?? [];
       list.push(s);
@@ -433,7 +437,7 @@ logsRoutes.get("/calendar", async (c) => {
 
     const latestByDay = new Map<number, { logId: string; performedAt: Date }>();
     for (const r of rows) {
-      const n = Number((r as any).day);
+      const n = Number(r.day);
       if (!Number.isFinite(n) || n < 1 || n > 31) continue;
       const cur = latestByDay.get(n);
       if (!cur || r.performedAt > cur.performedAt) {

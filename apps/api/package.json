@@ -11,7 +11,8 @@
     "dev:web": "tsx watch --env-file=../../web/.env.local src/index.ts",
     "start": "tsx src/index.ts",
     "typecheck": "tsc --noEmit",
-    "lint:boundary": "node scripts/lint-boundary.mjs"
+    "lint:boundary": "node scripts/lint-boundary.mjs",
+    "lint:no-any": "node ../../script/any-ratchet.mjs src .any-allowlist.json"
   },
   "dependencies": {
     "@hono/node-server": "^1.13.7",

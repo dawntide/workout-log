@@ -100,6 +100,10 @@ jobs:
         working-directory: apps/api
         run: pnpm lint:boundary
 
+      - name: any ratchet apps/api
+        working-directory: apps/api
+        run: pnpm lint:no-any
+
   # ──────────────────────────────────────────────
   # Job: packages/core typecheck + test
   # web·apps/api가 공유하는 source-only 패키지. 자체 게이트로 드리프트 조기 검출.
@@ -119,7 +123,9 @@ jobs:
         working-directory: packages/core
         run: pnpm lint:boundary
 
-      - name: DSL any ratchet packages/core
+      # web은 eslint(no-explicit-any)로 0건이 강제되지만 core·apps/api엔 eslint가 없다.
+      # 남은 any를 파일별 허용치로 못박아 새로 늘어나는 것만 막는다(허용 목록은 줄어들기만 한다).
+      - name: any ratchet packages/core
         working-directory: packages/core
         run: pnpm lint:no-any
 

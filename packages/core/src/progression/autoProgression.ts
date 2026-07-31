@@ -1,4 +1,6 @@
 import { and, asc, desc, eq, gt, inArray, or } from "drizzle-orm";
+
+import type { WorkoutExecutor } from "@workout/core/db/client";
 import {
   plan as planTable,
   planProgressEvent,
@@ -27,7 +29,7 @@ export type ProgressionTargetDecision = {
 };
 
 type ApplyAutoProgressionInput = {
-  tx: any;
+  tx: WorkoutExecutor;
   userId: string;
   planId: string | null | undefined;
   logId: string;
@@ -252,7 +254,7 @@ function toLoggedSetRows(sets: unknown[]): LoggedSetInput[] {
 }
 
 async function resolveAutoProgressionContext(input: {
-  tx: any;
+  tx: WorkoutExecutor;
   userId: string;
   planId: string | null | undefined;
 }): Promise<ResolvedAutoProgressionContext> {
@@ -315,7 +317,7 @@ async function resolveAutoProgressionContext(input: {
 }
 
 async function upsertAutoProgressionRuntimeState(input: {
-  tx: any;
+  tx: WorkoutExecutor;
   planId: string;
   userId: string;
   nextState: unknown;
@@ -569,7 +571,7 @@ export async function applyAutoProgressionFromLog(input: ApplyAutoProgressionInp
 }
 
 export async function rebuildAutoProgressionForPlan(input: {
-  tx: any;
+  tx: WorkoutExecutor;
   userId: string;
   planId: string | null | undefined;
 }) {
@@ -698,7 +700,7 @@ export type ManualRuntimeAdjustment = { workKg: number };
 // meta.targetDecisionsOverride에 보정을 머지한다. 그러면 rebuild/replay가 그 logId를
 // 재생할 때 readStoredDecisionsFromMeta로 복원해 보정이 보존된다(PR #360 메커니즘과 정합).
 export async function applyManualRuntimeAdjustment(input: {
-  tx: any;
+  tx: WorkoutExecutor;
   userId: string;
   planId: string | null | undefined;
   adjustments: Record<string, ManualRuntimeAdjustment>;

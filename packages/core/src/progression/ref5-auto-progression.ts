@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 
 import { and, asc, eq, inArray, sql } from "drizzle-orm";
 
+import type { WorkoutExecutor, WorkoutTx } from "@workout/core/db/client";
 import {
   generatedSession,
   plan,
@@ -588,7 +589,7 @@ export function replayRef5CanonicalRawLogs(
   return replayRef5RawLogs(events, options);
 }
 
-export async function acquireRef5PlanLock(tx: any, planId: string): Promise<void> {
+export async function acquireRef5PlanLock(tx: WorkoutTx, planId: string): Promise<void> {
   await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${planId}))`);
 }
 
@@ -717,7 +718,7 @@ type Ref5ReplayPlanContext = {
 };
 
 async function resolveRef5ReplayPlan(
-  tx: any,
+  tx: WorkoutExecutor,
   userId: string,
   planId: string,
 ): Promise<Ref5ReplayPlanContext | "skip:forbidden-plan" | "skip:not-ref5"> {
@@ -747,7 +748,7 @@ async function resolveRef5ReplayPlan(
 }
 
 async function loadRef5ReplaySource(input: {
-  tx: any;
+  tx: WorkoutExecutor;
   planId: string;
   before?: { actualStartAt: string; sessionKey: string };
 }): Promise<Ref5ReplaySource> {
@@ -1020,7 +1021,7 @@ function ref5AuditIdentity(input: {
 
 /** Append-only audit persistence for v1.2 canonical replay. */
 async function appendMissingRef5AuditRows(input: {
-  tx: any;
+  tx: WorkoutExecutor;
   planId: string;
   rows: Array<typeof planProgressEvent.$inferInsert>;
 }) {
@@ -1076,15 +1077,27 @@ async function appendMissingRef5AuditRows(input: {
   return inserts.length;
 }
 
+/**
+ * 락을 이 함수가 직접 잡는다면 핸들은 **진짜 트랜잭션**이어야 한다.
+ *
+ * `pg_advisory_xact_lock`은 트랜잭션 스코프라, `db`로 부르면 statement의 암묵 트랜잭션이
+ * 커밋되는 순간 락이 같이 풀려 상호배제가 조용히 무효가 된다. 락을 이미 쥐고 있다고
+ * 선언한 호출(읽기 전용·lock-free REF5 프리뷰 등)만 `db`를 넘길 수 있다.
+ * 이 불변식은 원래 트랜잭션 인자의 `any` 뒤에 가려져 규약으로만 존재했다.
+ */
+type Ref5LockScope =
+  | { tx: WorkoutTx; lockAlreadyHeld?: false }
+  | { tx: WorkoutExecutor; lockAlreadyHeld: true };
+
 /** Read-only historical state immediately before the target ordering tuple. */
-export async function deriveRef5StateBeforeStart(input: {
-  tx: any;
-  userId: string;
-  planId: string;
-  actualStartAt: string;
-  sessionKey: string;
-  lockAlreadyHeld?: boolean;
-}) {
+export async function deriveRef5StateBeforeStart(
+  input: Ref5LockScope & {
+    userId: string;
+    planId: string;
+    actualStartAt: string;
+    sessionKey: string;
+  },
+) {
   const parsedStart = Date.parse(input.actualStartAt);
   if (!Number.isFinite(parsedStart) || !input.sessionKey.trim()) {
     throw new Ref5LogValidationError(["A valid REF5 start tuple is required"]);
@@ -1117,12 +1130,12 @@ export async function deriveRef5StateBeforeStart(input: {
  * is rebound to the running revision because it is an optimistic live-start
  * guard, not part of the historical ordering key.
  */
-export async function rebuildRef5ProgressionForPlan(input: {
-  tx: any;
-  userId: string;
-  planId: string | null | undefined;
-  lockAlreadyHeld?: boolean;
-}) {
+export async function rebuildRef5ProgressionForPlan(
+  input: Ref5LockScope & {
+    userId: string;
+    planId: string | null | undefined;
+  },
+) {
   const planId = typeof input.planId === "string" ? input.planId.trim() : "";
   if (!planId) return { applied: false as const, reason: "skip:no-plan" as const };
   if (!input.lockAlreadyHeld) await acquireRef5PlanLock(input.tx, planId);
