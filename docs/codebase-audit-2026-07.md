@@ -183,7 +183,7 @@ S1은 web에 이미 있는 `@/server/auth/rate-limit` 재장착으로 해결(신
    | `v2-more-page` | 1,041줄, `components/v2/` | `widgets/more-screen` 12파일(최대 243줄) | 커널 디렉터리에 있던 화면 조립기를 위젯으로 옮기고 설정 행 단위로 분해. 단일 소비처였던 `v2-password-sheet`도 동반 이동 |
    | `workout-log-screen` | 930줄, `widgets/` | 560줄 + 형제 7파일 | 레이어는 이미 맞아 화면 내부만 분리 — 뷰 4개(툴바·저장바·날짜네비·피드백 배너)와 로직 3개(`use-bodyweight-check`·`use-ref5-session-cancel`·`session-labels`+테스트) |
 
-   부수 발견: `web/package.json`의 `test:unit`이 테스트 파일을 손으로 나열해 **새 테스트가 자동으로 CI에 편입되지 않는다**(#591에서 `session-labels.test.ts`가 목록 누락으로 0개 집계). 고아 테스트 가드는 별도 과제.
+   부수 발견: `web/package.json`의 `test:unit`이 테스트 파일을 손으로 나열해 **새 테스트가 자동으로 CI에 편입되지 않는다**(#591에서 `session-labels.test.ts`가 목록 누락으로 0개 집계). → ✅ **해소** — 목록을 가드로 지키는 대신 없앴다: `scripts/unit-test-discovery.mjs`가 디스크를 걷고 `run-unit-tests.mjs`가 실행하며, `unit-test-discovery-guard.test.mjs`가 목록 회귀·발견 누락·CI 미호출을 막는다(기대 목록은 `git ls-files`에서 받아 발견 로직과 버그를 공유하지 않는다). 같은 성격의 침묵 실패였던 CLAUDE.md↔AGENTS.md 문서 스큐도 `agent-guide-sync-guard.test.mjs`로 함께 닫았다.
 
 ---
 
