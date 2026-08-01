@@ -1,7 +1,5 @@
 {
-  "src/db/seed.ts": 4,
   "src/import/userImport.ts": 8,
   "src/program-store/model.ts": 3,
-  "src/services/workout-log/upsert-log.ts": 4,
-  "src/stats/cache.ts": 1
+  "src/services/workout-log/upsert-log.ts": 4
 }

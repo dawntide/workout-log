@@ -50,7 +50,7 @@ export async function runSeed(options: SeedRunOptions = {}) {
   const shouldHardReset = options.shouldHardReset === true;
   const includeDemoPlans = options.includeDemoPlans === true;
 
-  async function upsertTemplate(slug: string, values: any) {
+  async function upsertTemplate(slug: string, values: typeof programTemplate.$inferInsert) {
     const rows = await db
       .insert(programTemplate)
       .values(values)
@@ -107,7 +107,11 @@ export async function runSeed(options: SeedRunOptions = {}) {
     return rows[0];
   }
 
-  async function ensureVersion(templateId: string, version: number, values: any) {
+  async function ensureVersion(
+    templateId: string,
+    version: number,
+    values: Omit<typeof programVersion.$inferInsert, "templateId" | "version">,
+  ) {
     const inserted = await db
       .insert(programVersion)
       .values({ templateId, version, ...values })
@@ -166,7 +170,11 @@ export async function runSeed(options: SeedRunOptions = {}) {
     return item;
   }
 
-  async function upsertPlanForUser(userId: string, name: string, values: any) {
+  async function upsertPlanForUser(
+    userId: string,
+    name: string,
+    values: Omit<typeof planTable.$inferInsert, "userId" | "name">,
+  ) {
     const existing = await db
       .select()
       .from(planTable)
@@ -198,7 +206,11 @@ export async function runSeed(options: SeedRunOptions = {}) {
     return inserted[0];
   }
 
-  async function ensurePlanForUser(userId: string, name: string, values: any) {
+  async function ensurePlanForUser(
+    userId: string,
+    name: string,
+    values: Omit<typeof planTable.$inferInsert, "userId" | "name">,
+  ) {
     const existing = await db
       .select()
       .from(planTable)

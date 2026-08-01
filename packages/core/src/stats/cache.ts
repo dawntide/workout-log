@@ -1,6 +1,6 @@
 import { createHash } from "crypto";
 import { and, eq } from "drizzle-orm";
-import { db } from "@workout/core/db/client";
+import { type WorkoutExecutor, db } from "@workout/core/db/client";
 import { statsCache } from "@workout/core/db/schema";
 
 // PERF: DB statsCache 위에 얹는 in-process 메모리 캐시.
@@ -110,7 +110,7 @@ export async function setStatsCache<T>(input: {
   statsMemCache.set(memKey, { data: input.payload, expiresAt: Date.now() + ttlMs });
 }
 
-export async function invalidateStatsCacheForUser(userId: string, tx?: any) {
+export async function invalidateStatsCacheForUser(userId: string, tx?: WorkoutExecutor) {
   const executor = tx ?? db;
   await executor.delete(statsCache).where(eq(statsCache.userId, userId));
   // in-process 메모리 캐시에서 해당 userId 항목 제거
