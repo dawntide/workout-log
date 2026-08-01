@@ -1,5 +1,6 @@
-import { eq, inArray } from "drizzle-orm";
-import { db } from "@workout/core/db/client";
+import { eq, getTableColumns, inArray } from "drizzle-orm";
+import type { PgTable } from "drizzle-orm/pg-core";
+import { type WorkoutExecutor, db } from "@workout/core/db/client";
 import {
   exercise,
   generatedSession,
@@ -14,6 +15,7 @@ import {
 } from "@workout/core/db/schema";
 import type { UserDataExport } from "../export/userExport";
 import { validateExportShape } from "./validateExportShape";
+import { validateImportParentScope } from "./validateImportScope";
 import { deleteUserDomainData } from "../data/deleteUserData";
 import { acquireActiveAccountMutationLock } from "../auth/account-lifecycle";
 import { invalidatePersonalRecordsFrom } from "../services/workout-log/personal-records";
@@ -36,8 +38,6 @@ export type ImportPlanResult = {
   summary: ImportTableSummary[];
   warnings: string[];
 };
-
-type AnyExecutor = typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 function rowsAsRecords(value: unknown): Record<string, unknown>[] {
   if (!Array.isArray(value)) return [];
@@ -71,21 +71,38 @@ function rewriteUserId<T extends Record<string, unknown>>(
   return rows.map((row) => ({ ...row, userId } as T));
 }
 
-function deserializeTimestampColumns<T extends Record<string, unknown>>(
-  rows: T[],
-  keys: string[],
-): T[] {
+/**
+ * import 행을 해당 테이블의 INSERT 페이로드로 만든다.
+ *
+ * 종전에는 파싱한 JSON 객체를 그대로 `.values(rows as any)`에 넘겼다. 그 `as any` 때문에
+ * ① 어떤 키가 실제로 INSERT되는지 코드에서 안 보였고 ② 타입이 맞는지 아무도 확인하지 않았다.
+ * 여기서 테이블 컬럼을 기준으로 **화이트리스트**해 모르는 키는 버리고, 타임스탬프 컬럼만
+ * Date로 되돌린 뒤 INSERT 타입으로 좁힌다.
+ *
+ * 마지막 단언은 JSON 경계에서 불가피하다 — 다만 검사 없이 8곳에 흩어져 있던 `as any`와 달리
+ * 컬럼을 실제로 추려낸 뒤 한 곳에서만 일어난다.
+ */
+export function toInsertRows<TInsert>(
+  table: PgTable,
+  rows: Record<string, unknown>[],
+  dateKeys: readonly string[] = [],
+): TInsert[] {
+  const columnNames = Object.keys(getTableColumns(table));
   return rows.map((row) => {
-    const next = { ...row } as Record<string, unknown>;
-    for (const key of keys) {
-      const parsed = toDate(next[key]);
-      if (parsed) next[key] = parsed;
+    const next: Record<string, unknown> = {};
+    for (const name of columnNames) {
+      if (!(name in row)) continue;
+      if (dateKeys.includes(name)) {
+        next[name] = toDate(row[name]) ?? row[name];
+      } else {
+        next[name] = row[name];
+      }
     }
-    return next as T;
+    return next as TInsert;
   });
 }
 
-async function loadExistingCounts(executor: AnyExecutor, userId: string) {
+async function loadExistingCounts(executor: WorkoutExecutor, userId: string) {
   const [userPlans, userLogs, userTemplates] = await Promise.all([
     executor.select({ id: plan.id }).from(plan).where(eq(plan.userId, userId)),
     executor
@@ -214,6 +231,24 @@ export async function importUserData(
   const workoutLogs = rewriteUserId(rowsAsRecords(data.workoutLogs), userId);
   const workoutSets = rowsAsRecords(data.workoutSets);
 
+  // 자식 행이 파일 밖(=남의) 부모를 가리키면 거부한다. dryRun에서도 막아야 미리보기가
+  // "괜찮다"고 답한 뒤 replace에서만 터지는 일이 없다. 삭제보다 먼저 검사한다.
+  const scope = validateImportParentScope({
+    templates,
+    templateVersions,
+    plans,
+    planModules,
+    planOverrides,
+    generatedSessions,
+    workoutLogs,
+    workoutSets,
+  });
+  if (!scope.ok) {
+    const error = new Error(scope.errors.join("; "));
+    (error as Error & { code?: string }).code = "INVALID_IMPORT_BODY";
+    throw error;
+  }
+
   const insertCounts = {
     programTemplate: templates.length,
     programVersion: templateVersions.length,
@@ -265,49 +300,66 @@ export async function importUserData(
     await deleteUserDomainData(tx, userId);
 
     if (templates.length > 0) {
-      await tx.insert(programTemplate).values(
-        deserializeTimestampColumns(templates, ["createdAt", "updatedAt"]) as any,
-      );
+      await tx
+        .insert(programTemplate)
+        .values(
+          toInsertRows<typeof programTemplate.$inferInsert>(programTemplate, templates, [
+            "createdAt",
+            "updatedAt",
+          ]),
+        );
     }
     if (templateVersions.length > 0) {
-      await tx.insert(programVersion).values(
-        deserializeTimestampColumns(templateVersions, ["createdAt"]) as any,
-      );
+      await tx
+        .insert(programVersion)
+        .values(
+          toInsertRows<typeof programVersion.$inferInsert>(programVersion, templateVersions, [
+            "createdAt",
+          ]),
+        );
     }
     if (plans.length > 0) {
-      await tx.insert(plan).values(
-        deserializeTimestampColumns(plans, ["createdAt", "updatedAt"]) as any,
-      );
+      await tx
+        .insert(plan)
+        .values(toInsertRows<typeof plan.$inferInsert>(plan, plans, ["createdAt", "updatedAt"]));
     }
     if (planModules.length > 0) {
-      await tx.insert(planModule).values(
-        deserializeTimestampColumns(planModules, ["createdAt"]) as any,
-      );
+      await tx
+        .insert(planModule)
+        .values(toInsertRows<typeof planModule.$inferInsert>(planModule, planModules, ["createdAt"]));
     }
     if (planOverrides.length > 0) {
-      await tx.insert(planOverride).values(
-        deserializeTimestampColumns(planOverrides, ["createdAt"]) as any,
-      );
+      await tx
+        .insert(planOverride)
+        .values(
+          toInsertRows<typeof planOverride.$inferInsert>(planOverride, planOverrides, ["createdAt"]),
+        );
     }
     if (generatedSessions.length > 0) {
-      await tx.insert(generatedSession).values(
-        deserializeTimestampColumns(generatedSessions, [
-          "scheduledAt",
-          "createdAt",
-          "updatedAt",
-        ]) as any,
-      );
+      await tx
+        .insert(generatedSession)
+        .values(
+          toInsertRows<typeof generatedSession.$inferInsert>(generatedSession, generatedSessions, [
+            "scheduledAt",
+            "createdAt",
+            "updatedAt",
+          ]),
+        );
     }
     if (workoutLogs.length > 0) {
-      await tx.insert(workoutLog).values(
-        deserializeTimestampColumns(workoutLogs, [
-          "performedAt",
-          "createdAt",
-        ]) as any,
-      );
+      await tx
+        .insert(workoutLog)
+        .values(
+          toInsertRows<typeof workoutLog.$inferInsert>(workoutLog, workoutLogs, [
+            "performedAt",
+            "createdAt",
+          ]),
+        );
     }
     if (sanitizedSets.length > 0) {
-      await tx.insert(workoutSet).values(sanitizedSets as any);
+      await tx
+        .insert(workoutSet)
+        .values(toInsertRows<typeof workoutSet.$inferInsert>(workoutSet, sanitizedSets));
     }
   });
 
