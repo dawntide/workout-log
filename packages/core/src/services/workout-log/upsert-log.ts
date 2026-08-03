@@ -37,6 +37,28 @@ import {
 } from "@workout/core/program-engine/ref5";
 
 
+/**
+ * 클라이언트(웹·TUI)가 보내는 세트 한 줄.
+ *
+ * 요청 본문이라 값은 여전히 신뢰하지 않는다 — 아래 소비부는 `String(...)`·`typeof` 검사로
+ * 방어적으로 읽는다. 그래도 `any[]` 대신 형태를 적어 두면 **선언하지 않은 필드를 읽는 오타가
+ * 컴파일에서 걸린다**(`any`는 무엇을 읽어도 통과했다).
+ *
+ * `interface`가 아니라 `type`인 것이 중요하다 — 해시·REF5 경로가 이 값을 `unknown[]`으로
+ * 받는데, interface에는 암묵 인덱스 시그니처가 없어 대입이 막힌다.
+ */
+export type WorkoutSetInput = {
+  exerciseId?: string | null;
+  exerciseName?: string | null;
+  sortOrder?: number | null;
+  setNumber?: number | null;
+  reps?: number | null;
+  weightKg?: number | null;
+  rpe?: number | null;
+  isExtra?: boolean | null;
+  meta?: Record<string, unknown> | null;
+};
+
 export type UpsertWorkoutLogInput = {
   logId?: string;
   userId: string;
@@ -48,7 +70,7 @@ export type UpsertWorkoutLogInput = {
   planId?: string | null;
   generatedSessionId?: string | null;
   clientMutationId?: string | null;
-  sets: any[];
+  sets: WorkoutSetInput[];
   progressionTargetDecisions?: Record<string, ProgressionTargetDecision> | null;
   locale: "ko" | "en";
 };
@@ -681,12 +703,12 @@ export async function upsertWorkoutLogService({
   const resolvedById = new Map<string, string | null>();
 
   const uniqueExerciseIds = Array.from(
-    new Set(sets.map((s: any) => (typeof s.exerciseId === "string" && s.exerciseId.trim() ? s.exerciseId.trim() : null)).filter(Boolean) as string[]),
+    new Set(sets.map((s) => (typeof s.exerciseId === "string" && s.exerciseId.trim() ? s.exerciseId.trim() : null)).filter(Boolean) as string[]),
   );
   const uniqueExerciseNames: string[] = Array.from(
     new Set(
       sets
-        .map((s: any) => String(s.exerciseName ?? "").trim().toLowerCase())
+        .map((s) => String(s.exerciseName ?? "").trim().toLowerCase())
         .filter((n: string): n is string => n.length > 0),
     ),
   );
@@ -775,7 +797,7 @@ export async function upsertWorkoutLogService({
     await invalidatePersonalRecordsFrom({ dbi: tx, userId, fromPerformedAt: prInvalidateFrom });
 
     await tx.insert(workoutSet).values(
-      sets.map((s: any, idx: number) => {
+      sets.map((s, idx) => {
         const exerciseName = String(s.exerciseName ?? "").trim();
         if (!exerciseName) {
           throw new Error("exerciseName is required for all sets");
