@@ -1,4 +1,4 @@
-import { and, desc, eq } from "drizzle-orm";
+import { desc, eq, max } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { db } from "@workout/core/db/client";
 import { plan, userSetting, workoutLog } from "@workout/core/db/schema";
@@ -80,8 +80,15 @@ export async function getWorkoutLogPageBootstrap(
 ): Promise<WorkoutLogPageBootstrap> {
   const userId = await requireAuthenticatedUserId();
 
+  // 기본 날짜 advance 프로브가 필요한지는 searchParams만으로 정해진다(아래 함수의 조기 반환과
+  // 같은 조건). 덕분에 플랜별 최종 수행일을 plans·settings와 같은 배치에 넣어 직렬 홉을 없앤다.
+  const needsNextSessionProbe =
+    !getString(searchParams, "date") &&
+    !getString(searchParams, "logId") &&
+    !getString(searchParams, "sessionId");
+
   // plans + settings 병렬 조회 (기존 동작)
-  const [plans, settingRows] = await Promise.all([
+  const [plans, settingRows, latestPerformedAtByPlan] = await Promise.all([
     db
       .select({
         id: plan.id,
@@ -97,6 +104,17 @@ export async function getWorkoutLogPageBootstrap(
       .select({ key: userSetting.key, value: userSetting.value })
       .from(userSetting)
       .where(eq(userSetting.userId, userId)),
+
+    needsNextSessionProbe
+      ? db
+          .select({
+            planId: workoutLog.planId,
+            latest: max(workoutLog.performedAt),
+          })
+          .from(workoutLog)
+          .where(eq(workoutLog.userId, userId))
+          .groupBy(workoutLog.planId)
+      : Promise.resolve([] as Array<{ planId: string | null; latest: Date | null }>),
   ]);
 
   const initialSettings: WorkoutLogSettingsSnapshot = {};
@@ -136,7 +154,12 @@ export async function getWorkoutLogPageBootstrap(
   // plans는 createdAt desc로 정렬돼 있어 활성 플랜 설정이 없을 때의 폴백도 그대로 유지된다.
   const activePlanId = readActivePlanIdSetting(initialSettings);
 
-  await maybeRedirectToNextSessionDate(userId, initialPlans, searchParams, activePlanId);
+  maybeRedirectToNextSessionDate(
+    initialPlans,
+    searchParams,
+    activePlanId,
+    latestPerformedAtByPlan,
+  );
 
   // ─── SSR 컨텍스트 로딩 ───────────────────────────────────────────────────
   const initialContext = await resolveInitialContext(
@@ -150,12 +173,12 @@ export async function getWorkoutLogPageBootstrap(
   return { initialPlans, initialSettings, initialContext };
 }
 
-async function maybeRedirectToNextSessionDate(
-  userId: string,
+function maybeRedirectToNextSessionDate(
   plans: WorkoutLogPlanListItem[],
   searchParams: RawSearchParams,
   activePlanId: string | null,
-): Promise<void> {
+  latestPerformedAtByPlan: Array<{ planId: string | null; latest: Date | null }>,
+): void {
   const rawPlanId = getString(searchParams, "planId");
   const rawDate = getString(searchParams, "date");
   const rawLogId = getString(searchParams, "logId");
@@ -172,25 +195,12 @@ async function maybeRedirectToNextSessionDate(
   // multiple sessions per calendar day. Do not force its next visit to tomorrow.
   if (isRef5PlanParams(targetPlan.params)) return;
 
-  let latestKey: string | null = null;
-  try {
-    const latestRows = await db
-      .select({ performedAt: workoutLog.performedAt })
-      .from(workoutLog)
-      .where(and(eq(workoutLog.userId, userId), eq(workoutLog.planId, targetPlan.id)))
-      .orderBy(desc(workoutLog.performedAt))
-      .limit(1);
-    const latestPerformedAt = latestRows[0]?.performedAt;
-    if (latestPerformedAt) {
-      const asDate =
-        latestPerformedAt instanceof Date ? latestPerformedAt : new Date(latestPerformedAt as string);
-      latestKey = asDate.toISOString().slice(0, 10);
-    }
-  } catch {
-    return; // 쿼리 실패 시 평소처럼 today 로 진행
-  }
-
-  if (!latestKey) return;
+  const latestPerformedAt =
+    latestPerformedAtByPlan.find((row) => row.planId === targetPlan.id)?.latest ?? null;
+  if (!latestPerformedAt) return;
+  const asDate =
+    latestPerformedAt instanceof Date ? latestPerformedAt : new Date(latestPerformedAt as string);
+  const latestKey = asDate.toISOString().slice(0, 10);
   const todayKey = new Date().toISOString().slice(0, 10);
   if (latestKey < todayKey) return;
 
