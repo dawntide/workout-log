@@ -1960,6 +1960,14 @@ async function buildSession(
   // INSERT하면 유니크 위반으로 렌더가 실패할 수 있었다(레이스). DO UPDATE가 항상
   // 실행돼 RETURNING이 늘 row를 반환하므로 반환값도 안전. 렌더마다 큰 snapshot을
   // 읽어오던 full-row SELECT도 제거된다.
+  //
+  // 단, **이미 저장된 운동기록이 가리키는 세션의 스냅샷은 덮어쓰지 않는다**. 그 스냅샷은
+  // "그때 실제로 수행한 처방"이고, 재생성은 그 사이 전진한 TM·runtimeState·override 기준이라
+  // 값이 달라진다. 덮어쓰면 과거 기록의 처방 메타(amrap·progressionExcluded 등)가 사후
+  // 변형되고, 기록 수정 시 그 메타로 진행 판정이 다시 돌아 결과가 조용히 뒤집힌다.
+  // WHERE로 거르지 않고 CASE로 값을 고정하는 이유: `DO UPDATE ... WHERE false`는 RETURNING이
+  // 비어 위의 "항상 row를 반환한다"는 계약이 깨지고 SELECT 폴백이 필요해진다.
+  const referencedByLog = sql`exists (select 1 from ${workoutLog} where ${workoutLog.generatedSessionId} = ${generatedSession.id})`;
   const [saved] = await db
     .insert(generatedSession)
     .values({
@@ -1970,7 +1978,10 @@ async function buildSession(
     })
     .onConflictDoUpdate({
       target: [generatedSession.planId, generatedSession.sessionKey],
-      set: { snapshot, updatedAt: new Date() },
+      set: {
+        snapshot: sql`case when ${referencedByLog} then ${generatedSession.snapshot} else excluded.snapshot end`,
+        updatedAt: sql`case when ${referencedByLog} then ${generatedSession.updatedAt} else now() end`,
+      },
     })
     .returning();
 

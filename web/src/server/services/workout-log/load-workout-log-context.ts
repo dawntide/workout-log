@@ -289,11 +289,17 @@ type ServerContextInput = {
 /**
  * 서버사이드에서 WorkoutLogInitialContext 를 구성합니다.
  * 실패하면 null 을 반환하고 클라이언트가 폴백합니다.
+ *
+ * `generateSession`은 **콜백으로** 받는다. 세션 생성은 DB write(generated_session upsert)를
+ * 동반하는데, 그 결과가 실제로 필요한 분기는 맨 아래 "새 세션" 하나뿐이다. 미리 만들어
+ * 넘기면 이미 로그가 있는 날짜를 열 때도 write가 일어나고, 그 write는 요청한 날짜가 아니라
+ * **현재 사이클 위치의 세션 키**(runtimeState 기준)를 건드리므로 다가올 세션의 처방이
+ * 조용히 재계산된다. 필요한 분기에서만 호출해 읽기 렌더가 write를 일으키지 않게 한다.
  */
 export async function loadWorkoutContextServer(
   userId: string,
   input: ServerContextInput,
-  generatedSessionData?: GeneratedSessionLike | null,
+  generateSession?: () => Promise<GeneratedSessionLike | null>,
 ): Promise<WorkoutLogInitialContext | null> {
   const { planId, planName, dateKey, preferences, locale, matchKey } = input;
 
@@ -503,7 +509,10 @@ export async function loadWorkoutContextServer(
       };
     }
 
-    // 새 세션: generateAndSaveSession 결과를 사용
+    // 새 세션: 여기서 처음으로 생성(+저장)한다. 위 분기들은 전부 기존 로그·세션을 쓰므로
+    // 생성이 불필요했고, 미리 만들었다면 그 write는 버려졌을 것이다.
+    if (!generateSession) return null;
+    const generatedSessionData = await generateSession();
     if (!generatedSessionData) return null;
 
     const prepared = prepareWorkoutRecordDraftForEntry(

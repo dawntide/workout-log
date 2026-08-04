@@ -273,15 +273,18 @@ async function resolveInitialContext(
       return loadWorkoutContextServer(userId, input);
     }
 
-    // 새 세션: generate 후 컨텍스트 구성
-    const sessionData = await generateAndSaveSession({
-      userId,
-      planId: plan.id,
-      sessionDate: dateKey,
-      timezone: "UTC",
-    });
-
-    return loadWorkoutContextServer(userId, input, sessionData);
+    // 새 세션: 생성은 콜백으로 넘겨 **실제로 쓰이는 분기에서만** 실행되게 한다. 이 날짜에
+    // 이미 로그가 있거나(수정 진입) 자동 진행이 새 기록을 막는 경우엔 생성 결과가 버려지는데,
+    // generateAndSaveSession은 generated_session을 upsert하므로 그 버려질 write가 다가올
+    // 세션의 처방까지 재계산해 덮어썼다.
+    return loadWorkoutContextServer(userId, input, () =>
+      generateAndSaveSession({
+        userId,
+        planId: plan.id,
+        sessionDate: dateKey,
+        timezone: "UTC",
+      }),
+    );
   } catch {
     // 실패하면 클라이언트 폴백 (렌더링은 항상 성공해야 함)
     return null;
