@@ -33,6 +33,33 @@ export type WorkoutExecutor = WorkoutDb | WorkoutTx;
 
 let database: WorkoutDb | null = null;
 
+/**
+ * 풀 생성 직후 실행되는 플랫폼 훅.
+ *
+ * core는 자기가 어디서 도는지 모른다 — web은 Vercel(Fluid Compute: 요청 사이에 인스턴스가
+ * 일시 중단됨), apps/api는 상시 Node 프로세스다. Fluid에서는 중단 전에 pg 풀의 유휴
+ * 클라이언트를 놓아줘야 하는데(`@vercel/functions`의 `attachDatabasePool`), 그건 Vercel
+ * 전용 관심사라 여기서 직접 import하지 않고 어댑터를 주입받는다(web/src/server/db).
+ *
+ * 등록이 늦어도(첫 쿼리로 풀이 이미 만들어진 뒤여도) 그 풀에 즉시 적용한다 — 미들웨어처럼
+ * 별도 번들에서 부트스트랩 순서를 보장하기 어려운 실행 지점이 있기 때문이다.
+ */
+type DbPoolLifecycleHook = (pool: Pool) => void;
+
+let poolLifecycleHook: DbPoolLifecycleHook | null = null;
+const lifecycleAppliedPools = new WeakSet<Pool>();
+
+function applyPoolLifecycleHook(pool: Pool): void {
+  if (!poolLifecycleHook || lifecycleAppliedPools.has(pool)) return;
+  lifecycleAppliedPools.add(pool);
+  poolLifecycleHook(pool);
+}
+
+export function setDbPoolLifecycleHook(hook: DbPoolLifecycleHook | null): void {
+  poolLifecycleHook = hook;
+  if (hook && global.__dbPool) applyPoolLifecycleHook(global.__dbPool);
+}
+
 export function getDb(): WorkoutDb {
   if (database) return database;
 
@@ -56,6 +83,7 @@ export function getDb(): WorkoutDb {
     });
 
   global.__dbPool = pool;
+  applyPoolLifecycleHook(pool);
   database = drizzle(pool);
   return database;
 }
