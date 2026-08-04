@@ -3,6 +3,9 @@ import { Pool } from "pg";
 
 declare global {
   var __dbPool: Pool | undefined;
+  // 훅 상태를 모듈 스코프가 아니라 전역에 두는 이유는 풀과 같다 — 아래 setDbPoolLifecycleHook 주석.
+  var __dbPoolLifecycleHook: ((pool: Pool) => void) | null | undefined;
+  var __dbPoolLifecycleApplied: WeakSet<Pool> | undefined;
 }
 
 // PERF: 개발/프로덕션 모두 전역에 풀을 저장해 서버리스 컨테이너 재사용 시 재연결 방지.
@@ -46,17 +49,24 @@ let database: WorkoutDb | null = null;
  */
 type DbPoolLifecycleHook = (pool: Pool) => void;
 
-let poolLifecycleHook: DbPoolLifecycleHook | null = null;
-const lifecycleAppliedPools = new WeakSet<Pool>();
-
 function applyPoolLifecycleHook(pool: Pool): void {
-  if (!poolLifecycleHook || lifecycleAppliedPools.has(pool)) return;
-  lifecycleAppliedPools.add(pool);
-  poolLifecycleHook(pool);
+  const hook = global.__dbPoolLifecycleHook;
+  if (!hook) return;
+  const applied = (global.__dbPoolLifecycleApplied ??= new WeakSet<Pool>());
+  if (applied.has(pool)) return;
+  applied.add(pool);
+  hook(pool);
 }
 
+/**
+ * 훅과 "적용 완료" 표식을 **모듈 스코프가 아니라 전역에** 둔다. Next는 등록지
+ * (instrumentation.ts·proxy.ts)와 실제 쿼리가 도는 앱 코드를 서로 다른 번들로 컴파일할 수 있고,
+ * 그러면 이 모듈이 번들마다 별도 인스턴스가 되어 한쪽에서 등록한 훅이 다른 쪽에 보이지 않는다.
+ * 풀 자체를 `global.__dbPool`에 두는 이유와 같은 문제다 — 실제로 모듈 스코프로 뒀을 때
+ * 훅이 한 번도 호출되지 않았다.
+ */
 export function setDbPoolLifecycleHook(hook: DbPoolLifecycleHook | null): void {
-  poolLifecycleHook = hook;
+  global.__dbPoolLifecycleHook = hook;
   if (hook && global.__dbPool) applyPoolLifecycleHook(global.__dbPool);
 }
 
