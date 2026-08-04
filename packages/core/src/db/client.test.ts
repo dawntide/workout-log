@@ -43,3 +43,15 @@ test("등록된 훅이 없으면 아무 일도 하지 않는다", () => {
   global.__dbPool = fakePool();
   assert.doesNotThrow(() => setDbPoolLifecycleHook(null));
 });
+
+test("훅 상태는 모듈 스코프가 아니라 전역에 산다", () => {
+  // Next는 등록지(instrumentation·proxy)와 쿼리가 도는 앱 코드를 다른 번들로 컴파일할 수 있다.
+  // 모듈 스코프에 두면 번들마다 별도 인스턴스가 되어 등록이 보이지 않는다 — 실제로 그렇게
+  // 만들었다가 훅이 한 번도 호출되지 않았다. 풀(global.__dbPool)과 같은 저장소를 써야 한다.
+  const hook = () => {};
+  setDbPoolLifecycleHook(hook);
+  assert.equal(global.__dbPoolLifecycleHook, hook);
+
+  setDbPoolLifecycleHook(null);
+  assert.equal(global.__dbPoolLifecycleHook, null);
+});

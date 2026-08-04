@@ -14,10 +14,14 @@ import { logInfo } from "@workout/core/observability/logger";
  * VPS의 apps/api에서도 돈다), `@vercel/functions`는 Vercel 전용이다. 그래서 core는 훅
  * 주입점만 열어두고 배선은 여기(web)서 한다 — 쿠키·OAuth 어댑터가 web에 남아 있는 것과 같다.
  *
- * `VERCEL` 가드: 로컬 dev·CI·VPS에서는 일시 중단이 없어 배선이 불필요하다(무해하지만 의미 없음).
+ * **`process.env.VERCEL` 가드를 두지 않는다.** 처음엔 뒀는데 프로덕션 배포 후 attach 로그도
+ * 실패 로그도 찍히지 않았다(= 훅이 아예 안 걸렸다). 시스템 환경변수 자동 노출이 꺼진 프로젝트면
+ * 런타임에 `VERCEL`이 없어 가드가 항상 조기 반환하는데, 그 가드가 없으면 애초에 생기지 않을
+ * 실패 모드다. 대신 실측한 사실에 기댄다: `attachDatabasePool`은 **실제 pg Pool에 대해 Vercel
+ * 밖에서도 예외 없이 no-op**이다(로컬 node로 확인). 그러니 조건 없이 등록하고 플랫폼 판단은
+ * 패키지에 맡긴다 — 배선 여부는 아래 로그로 확인한다.
  */
 export function registerVercelFluidPoolLifecycle(): void {
-  if (!process.env.VERCEL) return;
   setDbPoolLifecycleHook((pool) => {
     // 실패해도 앱은 정상 동작해야 한다 — 최적화이지 필수 경로가 아니다.
     try {
