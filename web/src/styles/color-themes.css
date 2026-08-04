@@ -41,8 +41,9 @@
 :root[data-color-theme="github-light"] {
   --v2-bg: #f6f8fa;
   --v2-paper: #ffffff;
-  --v2-paper-2: #f6f8fa;
-  --v2-paper-3: #eaeef2;
+  /* paper-2가 bg와 동일해 No-Line 계층 구분이 사라졌던 충돌 교정 — 한 칸씩 재사다리 */
+  --v2-paper-2: #eaeef2;
+  --v2-paper-3: #dde2e8;
   --v2-paper-4: #d0d7de;
   --v2-ink: #1f2328;
   --v2-ink-2: #424a53;
@@ -75,7 +76,8 @@
 :root[data-color-theme="solarized-light"] {
   --v2-bg: #eee8d5;
   --v2-paper: #fdf6e3;
-  --v2-paper-2: #eee8d5;
+  /* paper-2가 bg와 동일해 No-Line 계층 구분이 사라졌던 충돌 교정 */
+  --v2-paper-2: #e6e0cd;
   --v2-paper-3: #ded8c5;
   --v2-paper-4: #b9b29f;
   --v2-ink: #002b36;
@@ -143,7 +145,8 @@
 :root[data-color-theme="tokyo-night-day"] {
   --v2-bg: #d0d5e3;
   --v2-paper: #e1e2e7;
-  --v2-paper-2: #d0d5e3;
+  /* paper-2가 bg와 동일해 No-Line 계층 구분이 사라졌던 충돌 교정 */
+  --v2-paper-2: #cacede;
   --v2-paper-3: #c4c8da;
   --v2-paper-4: #b4b9cc;
   --v2-ink: #25335f;
