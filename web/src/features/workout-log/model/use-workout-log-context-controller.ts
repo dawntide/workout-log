@@ -11,6 +11,7 @@ import {
   type Ref5StartRequiredWorkoutContextResult,
 } from "@/features/workout-log/model/context-loader";
 import {
+  buildWorkoutLogMatchKey,
   readWorkoutLogQueryContext,
   type WorkoutLogQueryContext,
 } from "@/lib/workout-record/query-context";
@@ -257,11 +258,24 @@ export function useWorkoutLogContextController({
       setRef5ResumeNotice(null);
 
       try {
+        // ── SSR initialContext 검증: URL에서 파생 가능한 키로만 비교한다.
+        // bootstrap보다 먼저 판정해야 logId 경로의 중복 /api/logs/:id fetch를 생략할 수 있다.
+        const expectedMatchKey = buildWorkoutLogMatchKey({
+          planId: nextQuery.planId,
+          explicitDate: nextQuery.hasExplicitDate ? nextQuery.date : null,
+          resolvedDate: nextQuery.date,
+          logId: nextQuery.logId,
+          sessionId: nextQuery.sessionId,
+        });
+        const ssrContext =
+          initialContext?.matchKey === expectedMatchKey ? initialContext : null;
+
         const bootstrap = await resolveWorkoutLogBootstrap({
           query: nextQuery,
           initialPlans,
           initialSettings,
           locale,
+          ssrContext,
         });
         if (cancelled) return;
 
@@ -282,10 +296,6 @@ export function useWorkoutLogContextController({
 
         setPlans(bootstrap.plans);
         setSelectedPlanId(bootstrap.loadInput.planId);
-
-        // ── SSR initialContext 검증 후 사용 (API 호출 제거) ──────────────
-        const expectedMatchKey = `${bootstrap.loadInput.planId}:${bootstrap.loadInput.dateKey}:${bootstrap.loadInput.logId ?? ""}:${bootstrap.loadInput.generatedSessionId ?? ""}`;
-        const ssrContext = initialContext?.matchKey === expectedMatchKey ? initialContext : null;
 
         if (ssrContext) {
           // SSR 데이터로 즉시 렌더링 — 클라이언트 API 호출 없음
