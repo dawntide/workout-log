@@ -21,7 +21,7 @@ import {
   buildRef5Status,
   type Ref5Status,
 } from "@workout/core/program-engine/ref5-status";
-import { logInfo } from "@workout/core/observability/logger";
+import { logError, logInfo } from "@workout/core/observability/logger";
 import { runSingleFlight } from "@workout/core/performance/single-flight";
 import { getStatsCache, setStatsCache } from "../stats/cache";
 import {
@@ -326,30 +326,40 @@ async function loadHomeData(params: {
   if (cached) return cached;
   const cacheMs = Date.now() - cacheStartedAt;
 
-  const settingsStartedAt = Date.now();
-  const settings = await getSettingsSnapshotForUser(userId);
-  const prefs = readWorkoutPreferences(settings);
-  const goal = prefs.trainingGoalPrimary;
-  const bodyweightKg = prefs.bodyweightKg;
-  const activePlanId = readActivePlanIdSetting(settings);
-  const settingsMs = Date.now() - settingsStartedAt;
-
   const prRangeDays = 365;
   const prFrom = new Date(now);
   prFrom.setDate(prFrom.getDate() - prRangeDays);
 
-  // 병렬로 데이터 조회
+  // 병렬로 데이터 조회. settings는 goalMetrics 입력으로만 쓰이므로 앞에 직렬로 두지 않고
+  // 같은 배치에 넣는다(왕복 1회 절약).
+  const settingsStartedAt = Date.now();
   const queriesStartedAt = Date.now();
-  const [plans, logs, prs, volumeSeries, goalMetrics] = await Promise.all([
+  const [settings, plans, logs, prs, volumeSeries] = await Promise.all([
+    getSettingsSnapshotForUser(userId),
     fetchPlans(userId, locale),
     fetchLogs(userId, 40),
     // 최근 PR 카드는 "현재 플랜 메인 운동"으로 구성하므로, 1RM 상위 N개로 자르지 않고
     // 충분히 넓게 조회해 둔 뒤 buildStrengthProgress에서 메인 운동과 매칭한다.
     fetchPrs(userId, prFrom, now, 200, locale),
     fetchVolumeSeries(userId),
-    fetchGoalMetrics(userId, goal, bodyweightKg, now),
   ]);
   const queriesMs = Date.now() - queriesStartedAt;
+  const settingsMs = Date.now() - settingsStartedAt;
+
+  const prefs = readWorkoutPreferences(settings);
+  const goal = prefs.trainingGoalPrimary;
+  const bodyweightKg = prefs.bodyweightKg;
+  const activePlanId = readActivePlanIdSetting(settings);
+
+  // goalMetrics는 스냅샷 생성과 겹쳐 돌린다(둘은 서로 무관). 늦게 await하므로 거부를
+  // 즉시 흡수해야 unhandledRejection이 뜨지 않는다 — ref5StatusPromise와 같은 형태.
+  // 실패 시 목표 지표만 비우고 홈 나머지는 그대로 낸다(스냅샷 타임아웃 폴백과 같은 방침).
+  const goalMetricsPromise = fetchGoalMetrics(userId, goal, bodyweightKg, now).catch(
+    (error): HomeGoalMetrics => {
+      logError("home.goal_metrics_failed", { error });
+      return { muscleVolume: null, strengthScore: null, endurance: null };
+    },
+  );
 
   // 세션 스냅샷 생성 (highlightedPlan 필요)
   // PERF: 홈은 읽기 전용 미리보기만 계산하고 generated_session을 쓰지 않는다.
@@ -379,6 +389,7 @@ async function loadHomeData(params: {
     }
   }
   const ref5Status = await ref5StatusPromise;
+  const goalMetrics = await goalMetricsPromise;
   const snapshotMs = Date.now() - snapshotStartedAt;
 
   // 데이터 가공 및 빌드

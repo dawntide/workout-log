@@ -52,10 +52,17 @@ export function usePlanProgressionFeedback(input: {
     setLoadState({ planId, data: null, status: "loading" });
     (async () => {
       try {
-        // 판정 직후의 배너/카드가 목적이라 캐시를 신뢰하지 않는다(network-only).
+        // 판정 직후의 배너/카드가 목적이라 "저장 후"는 반드시 새로 읽어야 한다. 그 조건은
+        // refreshKey(현재 로그 id)에 실려 있으므로 network-only 대신 **캐시 키에** 넣는다 —
+        // 저장으로 로그가 바뀌면 키가 달라져 미스(=새로 읽음), 같은 로그로 재진입하면 히트라
+        // 화면 이동마다 나가던 왕복이 사라진다. 진행 상태를 바꾸는 다른 경로(플랜 관리 조정·
+        // 세션 취소 등)는 apiMutate가 `/api/plans` prefix로 무효화하므로 stale이 남지 않는다.
+        // 키가 그 prefix로 시작해야 무효화에 걸린다는 점에 주의.
         const res = await apiGet<ProgressionStateResponse>(
           `/api/plans/${encodeURIComponent(planId)}/progression-state`,
-          { cachePolicy: "network-only" },
+          {
+            cacheKey: `/api/plans/${encodeURIComponent(planId)}/progression-state#${input.refreshKey ?? ""}`,
+          },
         );
         if (!cancelled) setLoadState({ planId, data: res, status: "settled" });
       } catch {

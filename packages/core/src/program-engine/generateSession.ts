@@ -1724,15 +1724,14 @@ async function buildSession(
   const sessionKey = sessionCtx.sessionKey;
 
   // 하이브리드 연속일 AMRAP 가드 입력. asymptote 처방만 소비하며, 값이 없으면 가드 비활성
-  // (다른 프로그램·preview 경로 동작 불변). 세션 생성은 유저 액션이라 단건 인덱스 조회 1회는 무해.
-  const restDayGap = await resolveRestDayGapDays({
+  // (다른 프로그램·preview 경로 동작 불변). 어떤 planner를 쓸지는 아래 version/template를
+  // 읽어야 알 수 있으므로 조건부로 건너뛸 수 없다 — 대신 아래 배치와 겹쳐 돌려 직렬 홉을 없앤다.
+  // 소비 시점(plannedExercises*)은 배치 이후라 그 전에만 반영하면 된다.
+  const restDayGapPromise = resolveRestDayGapDays({
     planId: input.planId,
     sessionDate: sessionCtx.sessionDate,
     timezone: sessionCtx.timezone,
   });
-  if (restDayGap !== null) {
-    (effectivePlanParams as Record<string, unknown>).restDayGap = restDayGap;
-  }
 
   // overrides + (modules 또는 version/template) 병렬 조회
   let snapshot: SnapshotV3 = {
@@ -1747,7 +1746,7 @@ async function buildSession(
   };
 
   if (p.type === "COMPOSITE") {
-    const [overrides, modules] = await Promise.all([
+    const [overrides, modules, restDayGap] = await Promise.all([
       db
         .select()
         .from(planOverride)
@@ -1759,7 +1758,11 @@ async function buildSession(
           ),
         ),
       db.select().from(planModule).where(eq(planModule.planId, p.id)),
+      restDayGapPromise,
     ]);
+    if (restDayGap !== null) {
+      (effectivePlanParams as Record<string, unknown>).restDayGap = restDayGap;
+    }
 
     const versionIds = Array.from(new Set(modules.map((m) => m.programVersionId).filter((id): id is string => Boolean(id))));
     const versionsWithTemplates = versionIds.length > 0
@@ -1810,7 +1813,7 @@ async function buildSession(
     if (!p.rootProgramVersionId) throw new Error("rootProgramVersionId missing");
 
     // overrides + version/template 병렬 조회
-    const [overrides, rows] = await Promise.all([
+    const [overrides, rows, restDayGap] = await Promise.all([
       db
         .select()
         .from(planOverride)
@@ -1830,7 +1833,11 @@ async function buildSession(
         .innerJoin(programTemplate, eq(programVersion.templateId, programTemplate.id))
         .where(eq(programVersion.id, p.rootProgramVersionId))
         .limit(1),
+      restDayGapPromise,
     ]);
+    if (restDayGap !== null) {
+      (effectivePlanParams as Record<string, unknown>).restDayGap = restDayGap;
+    }
     const row = rows[0];
     if (!row) throw new Error("Program version/template not found");
     const { version, template } = row;
