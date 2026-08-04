@@ -185,6 +185,29 @@ S1은 web에 이미 있는 `@/server/auth/rate-limit` 재장착으로 해결(신
 
    부수 발견: `web/package.json`의 `test:unit`이 테스트 파일을 손으로 나열해 **새 테스트가 자동으로 CI에 편입되지 않는다**(#591에서 `session-labels.test.ts`가 목록 누락으로 0개 집계). → ✅ **해소** — 목록을 가드로 지키는 대신 없앴다: `scripts/unit-test-discovery.mjs`가 디스크를 걷고 `run-unit-tests.mjs`가 실행하며, `unit-test-discovery-guard.test.mjs`가 목록 회귀·발견 누락·CI 미호출을 막는다(기대 목록은 `git ls-files`에서 받아 발견 로직과 버그를 공유하지 않는다). 같은 성격의 침묵 실패였던 CLAUDE.md↔AGENTS.md 문서 스큐도 `agent-guide-sync-guard.test.mjs`로 함께 닫았다.
 
+### 5.5 2026-08-04 체감 로딩 후속 (#646·#647·#648)
+
+"페이지 로딩이 답답하다"는 체감 제보에서 출발한 실측 후속. **리전·번들은 무죄로 확인**(Vercel `icn1` ↔ Supabase `ap-northeast-2` 동일 리전, 클라이언트 JS 전송 ~203KB). 프로덕션 실측상 체감 변동의 지배 요인은 **Vercel 콜드 스타트**였다 — DB를 타지 않는 `/login`조차 새 인스턴스면 371~2,123ms, 웜이면 133~165ms(같은 `x-vercel-id` 인스턴스 반복 호출로 확인). 간헐 사용 PWA라 세션 첫 진입이 대부분 콜드에 걸린다. 코드로 줄일 수 있는 건 그 위에 얹히는 앱 몫이라 아래를 처리했다.
+
+| # | 문제 | 조치 |
+|---|---|---|
+| P1 | **SSR 컨텍스트 전량 폐기** — 서버 matchKey는 `dateKey`에 UTC today를, 클라는 `?date` 없는 `logId` 진입에서 빈 문자열을 넣어 비교가 성립 불가. 홈 "최근 기록"(`?context=recent&logId=`)이 정확히 그 형태라 SSR 산출물을 버리고 `GET /api/logs/:id`·`GET /api/logs?planId=`·`POST /generate`(write 포함)를 재실행 | ✅ #646 — `buildWorkoutLogMatchKey`로 양측이 URL 파생 값만으로 동일 키 생성. 새 세션 경로는 UTC/로컬 비교가 남아 타임존 불일치 시 종전대로 폴백 |
+| P2 | `progression-state` 핸들러 직렬 6홉 (plan→version→template→runtime→lastTargetEvents→lastEvent) | ✅ #646 — version⋈template 조인 + runtime 병렬, 이벤트 2건 병렬 → 3홉 |
+| P3 | 부트스트랩 직렬 홉: home `settings`가 5개 병렬 배치 앞을 막음 / `restDayGap`이 단독 직렬 / workout-log 날짜 advance 프로브가 배치 뒤 단독 | ✅ #647 — 각각 기존 병렬 배치에 합류. `goalMetrics`는 스냅샷 생성(≤1.5s)과 겹쳐 돌리고 늦은 await라 거부를 즉시 흡수(실패 시 목표 지표만 비움). 프로브 필요 여부는 `searchParams`만으로 결정돼 불필요 진입은 쿼리 자체를 안 냄 |
+| P4 | `progression-state` 클라 호출이 `cachePolicy: "network-only"` — 훅이 `planId`/`refreshKey` 변경 때만 재실행되므로 실제 효과는 **재마운트마다 왕복**뿐이었다 | ✅ #647 — `refreshKey`를 캐시 키에 넣어 저장 후엔 미스, 같은 로그 재진입은 히트. 상태를 바꾸는 다른 경로는 `apiMutate`가 `/api/plans` prefix로 무효화 |
+| P5 | **렌더가 다가올 세션의 처방을 훼손** — `resolveInitialContext`가 결과를 쓰지 않는 분기에서도 `generateAndSaveSession`을 선행 호출. 세션 키는 요청 날짜가 아니라 **현재 사이클 위치(runtimeState)** 에서 파생되므로, 로그 있는 과거 날짜를 열면 *다음에 할* 세션 행이 과거 날짜가 박힌 스냅샷으로 재계산됐다(실측: `?date=2026-07-03` 진입 → `C1W2D1` 오염) | ✅ #648 — 생성을 콜백으로 넘겨 실제 사용 분기에서만 실행 |
+| P6 | 저장된 기록이 가리키는 스냅샷도 덮어씀(D3 잔여) — 같은 키가 다시 파생되면 그 사이 전진한 TM·runtimeState·override 기준으로 "그때 수행한 처방"이 재작성. 기록 수정 시 그 스냅샷의 `amrap`·`progressionExcluded`로 진행 판정이 다시 도므로 결과가 조용히 뒤집힐 수 있다 | ✅ #648 — 참조 중인 행은 `CASE`로 값 고정. `WHERE`로 거르면 RETURNING이 비어 **"DO UPDATE가 항상 실행돼 늘 row를 반환한다"는 §5.2-4의 레이스 방지 근거**가 깨진다. `workout_log(generated_session_id)` 인덱스로 EXISTS는 인덱스 조회 |
+
+**기각한 안**: workout-log SSR의 `generateAndSaveSession`을 홈처럼 read-only `generateSessionSnapshot`으로 바꾸는 것. 이 persist는 렌더 최적화가 아니라 **`workout_log.generated_session_id` 링크를 만드는 유일한 지점**이라, 제거하면 기록 수정 시 처방 메타가 빠진 채 재저장돼 진행 판정이 조용히 뒤집히고 캘린더 "다음 할 세션"·플랜 사이클 뷰·ux-snapshot 텔레메트리가 함께 죽는다. 홈이 read-only일 수 있는 건 홈의 "운동 시작"이 결국 이 SSR persist로 귀결되기 때문이며, REF5만 안전한 건 `upsert-log`의 "세션 없는 저장 거부" 가드가 REF5 한정이기 때문이다.
+
+**보류**: 미들웨어(`proxy.ts`)와 RSC가 각각 `findActiveSession`을 호출하는 중복. 미들웨어가 검증한 userId를 요청 헤더로 넘기는 방식은 **모든 경로에서 헤더를 항상 set-or-strip** 해야 위조 우회가 없는데, 절약은 웜 커넥션 왕복 1회(~10-20ms)라 위험 대비 이득이 작다고 판단. 슬라이딩 만료 write는 `SESSION_REFRESH_INTERVAL_MS`로 하루 1회 이하라 부담 아님.
+
+**기우로 판명**: `app-shell.tsx`의 전역 앵커 인터셉터(`window` 클릭 → `router.push`)가 `next/link`와 이중 네비게이션을 일으킨다는 의심은 **사실이 아니다**. 하단 네비 링크 클릭을 계측한 결과 `history.pushState` **1회**, `?_rsc=` 요청 **1건**이었다 — Link 자체 핸들러가 먼저 push해도 같은 URL에 대한 두 번째 `router.push`는 Next가 흡수한다. 조치 불필요.
+
+**테스트 공백**: P6 가드는 유닛 하네스에 DB가 없어 회귀 테스트를 넣지 못했다. SQL 문법 회귀는 E2E가 잡지만 "참조 중이면 보존" 로직이 조용히 깨지는 건 자동으로 잡히지 않는다. 검증은 롤백 트랜잭션으로 두 분기를 대조하는 수동 절차로 했다.
+
+**운영 함정(2026-08-04 실제 발생)**: #648 머지 커밋에 **Vercel 프로덕션 배포가 생성되지 않았다**(직전 두 머지는 1~2분 내 배포). GitHub Deployments에 Production 항목 부재로 확인 — 웹훅 누락. main은 룰셋으로 직접 푸시가 막혀 있어 재트리거하려면 PR을 하나 더 태우거나 Vercel 대시보드에서 해당 프리뷰를 Promote to Production 해야 한다. **머지 = 배포로 가정하지 말고 `gh api repos/:owner/:repo/deployments`로 Production 항목을 확인할 것.**
+
 ---
 
 ## 6. 하지 말 것 (명시적 non-goal)
