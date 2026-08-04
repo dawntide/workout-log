@@ -202,7 +202,7 @@ S1은 web에 이미 있는 `@/server/auth/rate-limit` 재장착으로 해결(신
 
 **보류**: 미들웨어(`proxy.ts`)와 RSC가 각각 `findActiveSession`을 호출하는 중복. 미들웨어가 검증한 userId를 요청 헤더로 넘기는 방식은 **모든 경로에서 헤더를 항상 set-or-strip** 해야 위조 우회가 없는데, 절약은 웜 커넥션 왕복 1회(~10-20ms)라 위험 대비 이득이 작다고 판단. 슬라이딩 만료 write는 `SESSION_REFRESH_INTERVAL_MS`로 하루 1회 이하라 부담 아님.
 
-**남은 미검증**: `app-shell.tsx`의 전역 앵커 인터셉터가 `next/link`와 이중으로 `router.push`를 호출하는지(중복 RSC 요청 의심).
+**기우로 판명**: `app-shell.tsx`의 전역 앵커 인터셉터(`window` 클릭 → `router.push`)가 `next/link`와 이중 네비게이션을 일으킨다는 의심은 **사실이 아니다**. 하단 네비 링크 클릭을 계측한 결과 `history.pushState` **1회**, `?_rsc=` 요청 **1건**이었다 — Link 자체 핸들러가 먼저 push해도 같은 URL에 대한 두 번째 `router.push`는 Next가 흡수한다. 조치 불필요.
 
 **테스트 공백**: P6 가드는 유닛 하네스에 DB가 없어 회귀 테스트를 넣지 못했다. SQL 문법 회귀는 E2E가 잡지만 "참조 중이면 보존" 로직이 조용히 깨지는 건 자동으로 잡히지 않는다. 검증은 롤백 트랜잭션으로 두 분기를 대조하는 수동 절차로 했다.
 
