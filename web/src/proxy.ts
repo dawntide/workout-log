@@ -3,6 +3,12 @@ import {
   findActiveSession,
   SESSION_COOKIE_NAME,
 } from "@workout/core/auth/session";
+import { registerVercelFluidPoolLifecycle } from "@/server/db/vercel-fluid-pool";
+
+// 미들웨어는 별도 번들이라 instrumentation.ts의 부트스트랩이 여기까지 오지 않을 수 있다.
+// 이 파일도 자체 pg 풀을 만드는 실행 지점이므로(아래 findActiveSession) 같은 배선을 건다.
+// 모듈 스코프 = 첫 요청 처리 전, 그리고 중복 호출은 core가 WeakSet으로 흡수한다.
+registerVercelFluidPoolLifecycle();
 
 // "public"은 인증이 없다는 뜻이 아니라 **쿠키 세션 게이트를 건너뛴다**는 뜻이다.
 // 여기 있는 경로들은 각자 자기 인증을 한다: /api/auth는 로그인 자체, /api/ops와
