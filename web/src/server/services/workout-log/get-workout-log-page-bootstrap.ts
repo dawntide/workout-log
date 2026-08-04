@@ -16,6 +16,7 @@ import type {
   WorkoutLogLastSessionSummary,
 } from "@/features/workout-log/model/types";
 import { isRef5PlanParams } from "@/lib/workout-record/ref5-plan";
+import { buildWorkoutLogMatchKey } from "@/lib/workout-record/query-context";
 
 export type WorkoutLogPlanListItem = {
   id: string;
@@ -31,8 +32,8 @@ export type WorkoutLogSettingsSnapshot = Record<string, string | number | boolea
 export type WorkoutLogInitialContext =
   | {
       kind: "loaded";
-      /** 클라이언트가 현재 query와 일치 여부를 검증하는 키 */
-      matchKey: string; // `${planId}:${dateKey}:${logId ?? ""}:${sessionId ?? ""}`
+      /** 클라이언트가 현재 query와 일치 여부를 검증하는 키 — buildWorkoutLogMatchKey 참조 */
+      matchKey: string; // `${rawPlanId ?? ""}:${datePart}:${logId ?? ""}:${sessionId ?? ""}`
       selectedPlanId: string;
       draft: WorkoutRecordDraft;
       programEntryState: WorkoutProgramExerciseEntryStateMap;
@@ -212,11 +213,11 @@ async function resolveInitialContext(
     const rawLogId = getString(searchParams, "logId");
     const rawSessionId = getString(searchParams, "sessionId");
 
-    // 날짜: 명시된 경우 사용, 아니면 서버 UTC today
+    // 날짜: 명시된 경우 사용. 없으면 logId/sessionId 진입은 ""(로그·세션이 날짜를 결정,
+    // 클라이언트 폴백 경로와 동일 의미), 새 세션 진입만 서버 UTC today.
+    const explicitDate = rawDate && DATE_ONLY_PATTERN.test(rawDate) ? rawDate : null;
     const dateKey =
-      rawDate && DATE_ONLY_PATTERN.test(rawDate)
-        ? rawDate
-        : new Date().toISOString().slice(0, 10);
+      explicitDate ?? (rawLogId || rawSessionId ? "" : new Date().toISOString().slice(0, 10));
 
     // 플랜 결정
     const activePlans = plans.filter((p) => !p.isArchived);
@@ -226,7 +227,13 @@ async function resolveInitialContext(
       null;
     if (!plan) return null;
 
-    const matchKey = `${plan.id}:${dateKey}:${rawLogId ?? ""}:${rawSessionId ?? ""}`;
+    const matchKey = buildWorkoutLogMatchKey({
+      planId: rawPlanId,
+      explicitDate,
+      resolvedDate: dateKey,
+      logId: rawLogId,
+      sessionId: rawSessionId,
+    });
     const preferences = readWorkoutPreferences(settings);
     const planParams = plan.params as Record<string, unknown> | null;
     const locale = (preferences.locale ?? "ko") as "ko" | "en";

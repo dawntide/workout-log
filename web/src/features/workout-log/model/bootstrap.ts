@@ -7,6 +7,7 @@ import {
   type WorkoutPreferences,
 } from "@/lib/settings/workout-preferences";
 import type { WorkoutLogQueryContext } from "@/lib/workout-record/query-context";
+import type { WorkoutLogInitialContext } from "@/server/services/workout-log/get-workout-log-page-bootstrap";
 import { getWorkoutLogClientBootstrap } from "./client";
 import type { LoadWorkoutContextInput } from "./context-loader";
 import type {
@@ -19,6 +20,8 @@ type ResolveWorkoutLogBootstrapInput = {
   initialPlans?: WorkoutLogPlanItem[];
   initialSettings?: SettingsSnapshot | null;
   locale: "ko" | "en";
+  /** matchKey 검증을 통과한 SSR 컨텍스트 — 있으면 logId 경로의 로그 상세 fetch를 생략한다. */
+  ssrContext?: WorkoutLogInitialContext | null;
 };
 
 type NoPlanBootstrapResult = {
@@ -41,7 +44,7 @@ export type WorkoutLogBootstrapResult =
 export async function resolveWorkoutLogBootstrap(
   input: ResolveWorkoutLogBootstrapInput,
 ): Promise<WorkoutLogBootstrapResult> {
-  const { query, initialPlans, initialSettings, locale } = input;
+  const { query, initialPlans, initialSettings, locale, ssrContext } = input;
 
   const { plans, settingsSnapshot } = await getWorkoutLogClientBootstrap({
     initialPlans,
@@ -53,19 +56,29 @@ export async function resolveWorkoutLogBootstrap(
     : toDefaultWorkoutPreferences();
 
   if (query.logId) {
-    const logRes = await apiGet<WorkoutLogDetailResponse>(`/api/logs/${encodeURIComponent(query.logId)}`);
+    // SSR 컨텍스트가 같은 URL에서 만들어졌으면(matchKey 일치) 로그 상세를 이미 들고 있다 —
+    // 여기서의 /api/logs/:id 재조회는 순수 중복이므로 생략한다. 미스 시에만 fetch 폴백.
+    const ssrPlanId =
+      ssrContext && ssrContext.kind !== "blocked" ? ssrContext.selectedPlanId : null;
+    let initialLog: WorkoutLogDetailResponse["item"] | undefined;
+    let logPlanId = ssrPlanId ?? "";
+    if (!ssrPlanId) {
+      const logRes = await apiGet<WorkoutLogDetailResponse>(
+        `/api/logs/${encodeURIComponent(query.logId)}`,
+      );
+      initialLog = logRes.item;
+      logPlanId = typeof logRes.item.planId === "string" ? logRes.item.planId : "";
+    }
 
     const editablePlans = plans.filter(
-      (entry) => !entry.isArchived || entry.id === logRes.item.planId,
+      (entry) => !entry.isArchived || entry.id === logPlanId,
     );
     const matchedPlan =
-      editablePlans.find((entry) => entry.id === logRes.item.planId) ??
+      editablePlans.find((entry) => entry.id === logPlanId) ??
       editablePlans.find((entry) => entry.id === query.planId) ??
       editablePlans[0] ??
       null;
-    const resolvedPlanId =
-      matchedPlan?.id ??
-      (typeof logRes.item.planId === "string" ? logRes.item.planId : "");
+    const resolvedPlanId = matchedPlan?.id ?? logPlanId;
     const resolvedPlanName = matchedPlan?.name ?? (locale === "ko" ? "프로그램 미선택" : "No Program Selected");
 
     return {
@@ -82,7 +95,7 @@ export async function resolveWorkoutLogBootstrap(
         planSchedule: matchedPlan?.params?.schedule,
         planParams: matchedPlan?.params ?? null,
         logId: query.logId,
-        initialLog: logRes.item,
+        initialLog,
       },
     };
   }

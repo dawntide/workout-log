@@ -1025,32 +1025,30 @@ plansRoutes.get("/:planId/progression-state", async (c) => {
       return c.json({ program: null, state: null });
     }
 
-    const versionRows = await db
-      .select({
-        id: programVersion.id,
-        templateId: programVersion.templateId,
-        definition: programVersion.definition,
-      })
-      .from(programVersion)
-      .where(eq(programVersion.id, plan.rootProgramVersionId))
-      .limit(1);
-    const version = versionRows[0];
-    if (!version) return c.json({ program: null, state: null });
-
-    const templateRows = await db
-      .select({ id: programTemplate.id, slug: programTemplate.slug })
-      .from(programTemplate)
-      .where(eq(programTemplate.id, version.templateId))
-      .limit(1);
-    const template = templateRows[0];
-    if (!template) return c.json({ program: null, state: null });
-
-    if (isRef5PlanParams(params) || template.slug === "ref5-adaptive-strength") {
-      const runtimeRows = await db
+    // version→template→runtime 은 서로 독립(모두 plan 에서 파생) — 직렬 3홉을 1홉으로.
+    const [versionRows, runtimeRows] = await Promise.all([
+      db
+        .select({
+          id: programVersion.id,
+          templateId: programVersion.templateId,
+          definition: programVersion.definition,
+          templateSlug: programTemplate.slug,
+        })
+        .from(programVersion)
+        .innerJoin(programTemplate, eq(programTemplate.id, programVersion.templateId))
+        .where(eq(programVersion.id, plan.rootProgramVersionId))
+        .limit(1),
+      db
         .select({ state: planRuntimeState.state })
         .from(planRuntimeState)
         .where(eq(planRuntimeState.planId, planId))
-        .limit(1);
+        .limit(1),
+    ]);
+    const version = versionRows[0];
+    if (!version) return c.json({ program: null, state: null });
+    const template = { id: version.templateId, slug: version.templateSlug };
+
+    if (isRef5PlanParams(params) || template.slug === "ref5-adaptive-strength") {
       const state = runtimeRows[0]?.state ?? null;
       const initialDirectStandardsKg = readRef5PlanStartConfig(params).startingValuesKg;
       return c.json({
@@ -1067,11 +1065,6 @@ plansRoutes.get("/:planId/progression-state", async (c) => {
     const program = resolveAutoProgressionProgram(template.slug, version.definition);
     if (!program) return c.json({ program: null, state: null });
 
-    const runtimeRows = await db
-      .select({ state: planRuntimeState.state })
-      .from(planRuntimeState)
-      .where(eq(planRuntimeState.planId, planId))
-      .limit(1);
     const state = runtimeRows[0]?.state ?? null;
 
     const programTargets = targetsFor(program);
@@ -1118,27 +1111,29 @@ plansRoutes.get("/:planId/progression-state", async (c) => {
       };
     }
 
-    const lastByTarget = await readLastTargetEvents(planId);
+    // v0.5.1: 최신 진행 이벤트 1건 — F1 조기 디로드 배너(reason)·F2 블록 판정 카드
+    // (meta.targetDecisions)의 데이터원. additive 필드라 기존 소비자 무영향.
+    // readLastTargetEvents 와는 독립이라 병렬 조회.
+    const [lastByTarget, lastEventRows] = await Promise.all([
+      readLastTargetEvents(planId),
+      db
+        .select({
+          id: planProgressEvent.id,
+          eventType: planProgressEvent.eventType,
+          reason: planProgressEvent.reason,
+          meta: planProgressEvent.meta,
+          createdAt: planProgressEvent.createdAt,
+        })
+        .from(planProgressEvent)
+        .where(eq(planProgressEvent.planId, planId))
+        .orderBy(desc(planProgressEvent.createdAt))
+        .limit(1),
+    ]);
     const targetsLastEvent: Record<string, LastTargetEvent> = {};
     for (const key of ruleKeys) {
       const pt = String(effectiveRules[key]?.progressionTarget ?? key).toUpperCase();
       targetsLastEvent[key] = lastByTarget.get(pt) ?? { lastDeltaKg: null, lastEventType: null };
     }
-
-    // v0.5.1: 최신 진행 이벤트 1건 — F1 조기 디로드 배너(reason)·F2 블록 판정 카드
-    // (meta.targetDecisions)의 데이터원. additive 필드라 기존 소비자 무영향.
-    const lastEventRows = await db
-      .select({
-        id: planProgressEvent.id,
-        eventType: planProgressEvent.eventType,
-        reason: planProgressEvent.reason,
-        meta: planProgressEvent.meta,
-        createdAt: planProgressEvent.createdAt,
-      })
-      .from(planProgressEvent)
-      .where(eq(planProgressEvent.planId, planId))
-      .orderBy(desc(planProgressEvent.createdAt))
-      .limit(1);
     const lastEventRow = lastEventRows[0] ?? null;
     const lastEvent = lastEventRow
       ? {

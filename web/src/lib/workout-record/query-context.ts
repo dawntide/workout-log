@@ -44,6 +44,23 @@ export function readWorkoutLogQueryContext(): WorkoutLogQueryContext {
   };
 }
 
+// SSR initialContext ↔ 클라이언트 매칭 키. "서버가 렌더한 URL 컨텍스트와 지금 클라이언트가
+// 보는 URL 컨텍스트가 같은가"만 답하도록 URL에서 파생 가능한 값으로만 구성한다.
+// - planId: raw ?planId (리졸브된 플랜 id가 아님 — 리졸브 알고리즘은 양쪽이 동일 입력을 쓰므로 결과도 같다)
+// - date: 명시된 ?date. 없으면 logId/sessionId 진입은 ""(로그·세션이 날짜를 결정), 새 세션 진입만
+//   resolvedDate(서버=UTC today, 클라=로컬 today)를 넣어 타임존 불일치 시 클라이언트 폴백을 보장한다.
+export function buildWorkoutLogMatchKey(input: {
+  planId: string | null;
+  explicitDate: string | null;
+  resolvedDate: string;
+  logId: string | null;
+  sessionId: string | null;
+}): string {
+  const datePart =
+    input.explicitDate ?? (input.logId || input.sessionId ? "" : input.resolvedDate);
+  return `${input.planId ?? ""}:${datePart}:${input.logId ?? ""}:${input.sessionId ?? ""}`;
+}
+
 export function isDateOnlyString(value: unknown): value is string {
   return typeof value === "string" && DATE_ONLY_PATTERN.test(value);
 }
