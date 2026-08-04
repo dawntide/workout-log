@@ -224,6 +224,14 @@ jobs:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/workout_log_ci
         run: pnpm db:verify:account-lifecycle
 
+      # 저장된 기록이 가리키는 처방 스냅샷이 재생성으로 덮어써지지 않는지(#648). 가드가
+      # upsert SQL 안에 있어 유닛 하네스(DB 없음)로는 검증되지 않는다 — 이 잡의 Postgres가
+      # 유일한 게이트다. 픽스처는 자체 생성·정리라 seed 전후 어디서 돌아도 무관.
+      - name: Verify generated session immutability
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/workout_log_ci
+        run: pnpm db:verify:generated-session-immutability
+
       - name: Seed DB
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/workout_log_ci
