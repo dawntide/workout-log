@@ -1,12 +1,16 @@
 type ApiCachePolicy = "swr" | "network-only" | "cache-only";
 
-type ApiGetOptions = {
+type ApiGetOptions<T = unknown> = {
   cachePolicy?: ApiCachePolicy;
   cacheKey?: string;
   maxAgeMs?: number;
   staleWhileRevalidateMs?: number;
   dedupe?: boolean;
   signal?: AbortSignal;
+  // SWR stale 히트로 "오래된 값"을 먼저 돌려준 경우, 백그라운드 재검증이 끝나면 한 번 더 알린다.
+  // 이게 없으면 stale을 그린 화면은 다른 이유로 리렌더되기 전까지 영원히 옛 상태로 남는다
+  // (IDB 웜업 엔트리는 항상 stale로 복원되므로 새 진입마다 그 상태가 된다).
+  onRevalidated?: (data: T) => void;
 };
 
 type ApiMutationOptions = {
@@ -323,7 +327,7 @@ export function subscribeApiNetworkInflight(listener: ApiNetworkListener) {
   };
 }
 
-export async function apiGet<T>(path: string, options: ApiGetOptions = {}): Promise<T> {
+export async function apiGet<T>(path: string, options: ApiGetOptions<T> = {}): Promise<T> {
   const {
     cachePolicy = "swr",
     cacheKey = path,
@@ -331,6 +335,7 @@ export async function apiGet<T>(path: string, options: ApiGetOptions = {}): Prom
     staleWhileRevalidateMs = DEFAULT_STALE_WHILE_REVALIDATE_MS,
     dedupe = true,
     signal,
+    onRevalidated,
   } = options;
 
   if (cachePolicy === "network-only") {
@@ -346,11 +351,17 @@ export async function apiGet<T>(path: string, options: ApiGetOptions = {}): Prom
     }
 
     if (cachePolicy === "swr" && ageMs <= maxAgeMs + staleWhileRevalidateMs) {
-      if (!apiInflightRequests.has(cacheKey)) {
-        void requestAndCache<T>(path, cacheKey, { dedupe: true }).catch(() => {
+      const inflight = apiInflightRequests.get(cacheKey);
+      const revalidation = inflight
+        ? (inflight.promise as Promise<T>)
+        : requestAndCache<T>(path, cacheKey, { dedupe: true });
+      void revalidation
+        .then((fresh) => {
+          onRevalidated?.(cloneData(fresh));
+        })
+        .catch(() => {
           // Keep stale cache when background refresh fails.
         });
-      }
       return cloneData(cachedEntry.data as T);
     }
   }

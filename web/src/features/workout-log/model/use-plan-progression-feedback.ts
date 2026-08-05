@@ -62,6 +62,12 @@ export function usePlanProgressionFeedback(input: {
           `/api/plans/${encodeURIComponent(planId)}/progression-state`,
           {
             cacheKey: `/api/plans/${encodeURIComponent(planId)}/progression-state#${input.refreshKey ?? ""}`,
+            // 미저장 세션 진입은 refreshKey 가 비어 키가 하나로 합쳐지고, IDB 웜업 엔트리는
+            // 항상 stale 로 복원된다 → 첫 응답이 저장 전 상태일 수 있다. 재검증이 끝나면
+            // 최신으로 교체해 배너·판정 카드가 stale 히트에 먹히지 않게 한다.
+            onRevalidated: (fresh) => {
+              if (!cancelled) setLoadState({ planId, data: fresh, status: "settled" });
+            },
           },
         );
         if (!cancelled) setLoadState({ planId, data: res, status: "settled" });
