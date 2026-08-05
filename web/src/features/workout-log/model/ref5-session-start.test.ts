@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   buildRef5GeneratePayload,
+  describeRef5HardGate,
+  formatRef5Duration,
   summarizeRef5Preview,
 } from "../ui/ref5-session-start-panel";
 import { isRef5PlanParams } from "@/lib/workout-record/ref5-plan";
@@ -101,4 +103,105 @@ test("v1.3 preview contains the complete ten-set PULL-focus prescription", () =>
     "Deadlift",
   ]);
   assert.equal(JSON.stringify(summary).includes("climb"), false);
+  // 게이트 근거가 없는 스냅샷에서는 하드 판정 블록 자체를 그리지 않는다.
+  assert.equal(summary.hard, null);
+  assert.equal(describeRef5HardGate(summary), null);
+});
+
+const HOUR = 60 * 60 * 1000;
+
+test("preview summary carries the §9 hard-gate evidence for the start screen", () => {
+  const summary = summarizeRef5Preview({
+    id: "preview-gate",
+    planId: "plan-1",
+    sessionKey: "ref5:preview:gate",
+    snapshot: {
+      ref5: {
+        actualStartAt: "2026-08-05T10:00:00.000Z",
+        decision: {
+          sessionType: "NORMAL",
+          focus: "BP",
+          squatPrescription: "V",
+          hard: {
+            allowed: false,
+            lastStartAt: "2026-08-04T10:00:00.000Z",
+            startsIn168Hours: 1,
+          },
+        },
+      },
+      exercises: [],
+    },
+  });
+
+  assert.deepEqual(summary.hard, {
+    allowed: false,
+    lastStartAt: "2026-08-04T10:00:00.000Z",
+    startsIn168Hours: 1,
+  });
+  assert.equal(summary.actualStartAt, "2026-08-05T10:00:00.000Z");
+
+  const gate = describeRef5HardGate(summary);
+  assert.ok(gate);
+  // 판정은 서버 값 그대로. 경과/잔여 시간만 UI가 파생한다.
+  assert.equal(gate.allowed, false);
+  assert.equal(gate.micro, false);
+  assert.equal(gate.elapsedMs, 24 * HOUR);
+  assert.equal(gate.elapsedMet, false);
+  assert.equal(gate.remainingMs, 24 * HOUR);
+  assert.equal(gate.startsIn168Hours, 1);
+  assert.equal(gate.densityMet, true);
+});
+
+test("the displayed 48-hour boundary matches the engine exactly", () => {
+  const lastStartAt = "2026-08-03T10:00:00.000Z";
+  const gateAfter = (elapsedMs: number) =>
+    describeRef5HardGate({
+      mode: "NORMAL",
+      actualStartAt: new Date(Date.parse(lastStartAt) + elapsedMs).toISOString(),
+      hard: { allowed: true, lastStartAt, startsIn168Hours: 0 },
+    });
+
+  assert.equal(gateAfter(48 * HOUR)?.elapsedMet, true);
+  assert.equal(gateAfter(48 * HOUR)?.remainingMs, null);
+  assert.equal(gateAfter(48 * HOUR - 1)?.elapsedMet, false);
+  assert.equal(gateAfter(48 * HOUR - 1)?.remainingMs, 1);
+});
+
+test("hard-gate view explains the first hard, the density cap, and micro sessions", () => {
+  const firstEver = describeRef5HardGate({
+    mode: "NORMAL",
+    actualStartAt: "2026-08-05T10:00:00.000Z",
+    hard: { allowed: true, lastStartAt: null, startsIn168Hours: 0 },
+  });
+  assert.equal(firstEver?.elapsedMet, true);
+  assert.equal(firstEver?.elapsedMs, null);
+  assert.equal(firstEver?.remainingMs, null);
+
+  const dense = describeRef5HardGate({
+    mode: "NORMAL",
+    actualStartAt: "2026-08-05T10:00:00.000Z",
+    hard: { allowed: false, lastStartAt: "2026-08-01T10:00:00.000Z", startsIn168Hours: 2 },
+  });
+  assert.equal(dense?.elapsedMet, true);
+  assert.equal(dense?.densityMet, false);
+  assert.equal(dense?.allowed, false);
+
+  const micro = describeRef5HardGate({
+    mode: "MICRO",
+    actualStartAt: "2026-08-05T10:00:00.000Z",
+    hard: { allowed: false, lastStartAt: "2026-08-01T10:00:00.000Z", startsIn168Hours: 0 },
+  });
+  assert.equal(micro?.micro, true);
+  assert.equal(micro?.allowed, false);
+});
+
+test("gate durations read as whole hours and minutes in both locales", () => {
+  assert.equal(formatRef5Duration(36 * HOUR + 12 * 60_000, "ko"), "36시간 12분");
+  assert.equal(formatRef5Duration(36 * HOUR + 12 * 60_000, "en"), "36h 12m");
+  assert.equal(formatRef5Duration(45 * 60_000, "ko"), "45분");
+  assert.equal(formatRef5Duration(45 * 60_000, "en"), "45m");
+  // 좁은 화면에서 줄바꿈을 유발하던 "72시간 0분"은 시간만 남긴다.
+  assert.equal(formatRef5Duration(72 * HOUR, "ko"), "72시간");
+  assert.equal(formatRef5Duration(72 * HOUR, "en"), "72h");
+  assert.equal(formatRef5Duration(-1, "ko"), "0분");
 });

@@ -255,12 +255,97 @@ func ref5PreviewDecision(s *api.GeneratedSession) (mode, squat, focus string, re
 	return mode, squat, focus, reasons
 }
 
+// ref5SessionStartAt is the exact first-work-set start the snapshot was frozen
+// at. The generic snapshot field wins; the REF5 block is the fallback.
+func ref5SessionStartAt(s *api.GeneratedSession) string {
+	if s == nil {
+		return ""
+	}
+	if at := strings.TrimSpace(s.Snapshot.ActualStartAt); at != "" {
+		return at
+	}
+	if s.Snapshot.Ref5 != nil {
+		return strings.TrimSpace(s.Snapshot.Ref5.ActualStartAt)
+	}
+	return ""
+}
+
+const (
+	ref5HardElapsedWindow = 48 * time.Hour
+	ref5HardDensityLimit  = 2
+)
+
+// ref5HardGate is the §9 SQ hard gate: the server verdict plus the evidence it
+// was made from. Allowed always comes from the engine — the elapsed and
+// remaining spans are display-only and never redefine the 48/168-hour edges.
+type ref5HardGate struct {
+	Present          bool
+	Allowed          bool
+	Micro            bool
+	HasLastStart     bool
+	LastStartAt      time.Time
+	HasElapsed       bool
+	Elapsed          time.Duration
+	Remaining        time.Duration
+	ElapsedMet       bool
+	DensityMet       bool
+	StartsIn168Hours int
+}
+
+func ref5PreviewHardGate(s *api.GeneratedSession, mode string) ref5HardGate {
+	if s == nil || s.Snapshot.Ref5 == nil {
+		return ref5HardGate{}
+	}
+	hard := s.Snapshot.Ref5.Decision.Hard
+	gate := ref5HardGate{
+		Present:          true,
+		Allowed:          hard.Allowed,
+		Micro:            strings.Contains(strings.ToUpper(mode), "MICRO"),
+		StartsIn168Hours: hard.StartsIn168Hours,
+		DensityMet:       hard.StartsIn168Hours < ref5HardDensityLimit,
+		// No prior hard start means the elapsed rule is met and the first hard is H3.
+		ElapsedMet: true,
+	}
+	if hard.LastStartAt == nil || strings.TrimSpace(*hard.LastStartAt) == "" {
+		return gate
+	}
+	last, err := time.Parse(time.RFC3339Nano, strings.TrimSpace(*hard.LastStartAt))
+	if err != nil {
+		return gate
+	}
+	gate.HasLastStart = true
+	gate.LastStartAt = last
+	startedAt, err := time.Parse(time.RFC3339Nano, ref5SessionStartAt(s))
+	if err != nil {
+		// Without a readable start time only the server verdict is trustworthy.
+		gate.ElapsedMet = hard.Allowed
+		return gate
+	}
+	gate.HasElapsed = true
+	gate.Elapsed = startedAt.Sub(last)
+	gate.ElapsedMet = gate.Elapsed >= ref5HardElapsedWindow
+	if !gate.ElapsedMet {
+		gate.Remaining = ref5HardElapsedWindow - gate.Elapsed
+	}
+	return gate
+}
+
+// ref5FormatGap compresses a gate span to terminal width: "36h12m", "45m".
+func ref5FormatGap(d time.Duration) string {
+	if d < 0 {
+		d = 0
+	}
+	hours := int(d / time.Hour)
+	minutes := int(d/time.Minute) % 60
+	if hours > 0 {
+		return fmt.Sprintf("%dh%02dm", hours, minutes)
+	}
+	return fmt.Sprintf("%dm", minutes)
+}
+
 func ref5ResumeLabel(session api.GeneratedSession) string {
 	mode, squat, focus, _ := ref5PreviewDecision(&session)
-	started := session.Snapshot.ActualStartAt
-	if started == "" && session.Snapshot.Ref5 != nil {
-		started = anyString(openJSON(session.Snapshot.Ref5), "actualStartAt")
-	}
+	started := ref5SessionStartAt(&session)
 	clock := "--:--"
 	if at, err := time.Parse(time.RFC3339Nano, started); err == nil {
 		clock = at.In(ref5SessionLocation(&session)).Format("01-02 15:04")

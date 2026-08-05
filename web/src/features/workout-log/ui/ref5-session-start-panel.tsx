@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   V2Card,
   V2Chip,
+  V2Hairline,
   V2PrimaryBtn,
   V2SecondaryBtn,
   V2Switch,
@@ -41,6 +42,13 @@ type PreviewExercise = {
   prescription: string;
 };
 
+/** §9 하드 SQ 게이트의 서버 판정과 그 근거(직전 하드 시작·168시간 창). */
+export type PreviewHardGate = {
+  allowed: boolean;
+  lastStartAt: string | null;
+  startsIn168Hours: number | null;
+};
+
 type PreviewSummary = {
   mode: string;
   squat: string | null;
@@ -48,6 +56,8 @@ type PreviewSummary = {
   reasons: string[];
   exercises: PreviewExercise[];
   setCount: number;
+  hard: PreviewHardGate | null;
+  actualStartAt: string | null;
 };
 
 function asRecord(value: unknown): Record<string, unknown> | null {
@@ -105,6 +115,21 @@ function numberValue(record: Record<string, unknown> | null, keys: string[]) {
 
 function formatWeight(value: number | null) {
   return value === null ? null : `${Number(value.toFixed(2))} kg`;
+}
+
+function readHardGate(
+  sources: Array<Record<string, unknown> | null>,
+): PreviewHardGate | null {
+  for (const source of sources) {
+    const hard = asRecord(source?.hard);
+    if (!hard || typeof hard.allowed !== "boolean") continue;
+    return {
+      allowed: hard.allowed,
+      lastStartAt: firstString([hard], ["lastStartAt"]),
+      startsIn168Hours: numberValue(hard, ["startsIn168Hours"]),
+    };
+  }
+  return null;
 }
 
 function exercisePrescription(exercise: Record<string, unknown>): {
@@ -195,7 +220,91 @@ export function summarizeRef5Preview(session: GeneratedSessionLike): PreviewSumm
         prescription: prescription.text,
       };
     });
-  return { mode, squat, focus, reasons, exercises, setCount };
+  return {
+    mode,
+    squat,
+    focus,
+    reasons,
+    exercises,
+    setCount,
+    hard: readHardGate([decision, ref5, snapshot]),
+    actualStartAt: firstString([ref5, snapshot, decision], ["actualStartAt"]),
+  };
+}
+
+const HOUR_MS = 60 * 60 * 1000;
+const HARD_ELAPSED_HOURS = 48;
+const HARD_WINDOW_HOURS = 168;
+const HARD_WINDOW_LIMIT = 2;
+
+/**
+ * 게이트 판정은 언제나 서버 값(`allowed`)이다. 여기서 파생하는 경과·잔여 시간은
+ * §9가 UI에 허용한 "친절한 표시"일 뿐이며 엔진 경계(48h/168h)를 재정의하지 않는다.
+ */
+export type Ref5HardGateView = {
+  allowed: boolean;
+  micro: boolean;
+  lastStartAt: string | null;
+  elapsedMs: number | null;
+  /** 48시간까지 남은 시간. 이미 충족했거나 계산할 수 없으면 null. */
+  remainingMs: number | null;
+  /** 48시간 경과 조건. 계산 근거가 없으면 null(미상). */
+  elapsedMet: boolean | null;
+  startsIn168Hours: number | null;
+  /** 168시간 창 밀도 조건. 서버 카운트가 없으면 null(미상). */
+  densityMet: boolean | null;
+};
+
+export function describeRef5HardGate(summary: {
+  mode: string;
+  hard: PreviewHardGate | null;
+  actualStartAt: string | null;
+}): Ref5HardGateView | null {
+  const hard = summary.hard;
+  if (!hard) return null;
+
+  const startedAt = summary.actualStartAt ? Date.parse(summary.actualStartAt) : NaN;
+  const lastAt = hard.lastStartAt ? Date.parse(hard.lastStartAt) : NaN;
+  const elapsedMs =
+    Number.isFinite(startedAt) && Number.isFinite(lastAt) ? startedAt - lastAt : null;
+  const elapsedMet =
+    hard.lastStartAt === null
+      ? true // 직전 하드가 없으면 시간 조건은 자동 충족이고 최초 하드는 H3다.
+      : elapsedMs === null
+        ? null
+        : elapsedMs >= HARD_ELAPSED_HOURS * HOUR_MS;
+
+  return {
+    allowed: hard.allowed,
+    micro: summary.mode.toUpperCase().includes("MICRO"),
+    lastStartAt: hard.lastStartAt,
+    elapsedMs,
+    remainingMs:
+      elapsedMs !== null && elapsedMs < HARD_ELAPSED_HOURS * HOUR_MS
+        ? HARD_ELAPSED_HOURS * HOUR_MS - elapsedMs
+        : null,
+    elapsedMet,
+    startsIn168Hours: hard.startsIn168Hours,
+    densityMet:
+      hard.startsIn168Hours === null ? null : hard.startsIn168Hours < HARD_WINDOW_LIMIT,
+  };
+}
+
+export function formatRef5Duration(ms: number, locale: "ko" | "en") {
+  const totalMinutes = Math.floor(Math.max(0, ms) / 60_000);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  if (hours === 0) return locale === "ko" ? `${minutes}분` : `${minutes}m`;
+  // 딱 떨어지는 간격에서 "0분"은 군더더기라 폭만 잡아먹는다.
+  if (minutes === 0) return locale === "ko" ? `${hours}시간` : `${hours}h`;
+  return locale === "ko" ? `${hours}시간 ${minutes}분` : `${hours}h ${minutes}m`;
+}
+
+function formatStartClock(iso: string) {
+  const at = new Date(iso);
+  if (Number.isNaN(at.getTime())) return null;
+  const pad = (value: number) => String(value).padStart(2, "0");
+  return `${at.getFullYear()}-${pad(at.getMonth() + 1)}-${pad(at.getDate())} ${pad(at.getHours())}:${pad(at.getMinutes())}`;
 }
 
 export function buildRef5GeneratePayload(
@@ -237,6 +346,186 @@ function toStartValues(input: {
   };
 }
 
+function GateRow({ label, value }: { label: string; value: string }) {
+  return (
+    // 좁은 폭에서는 값이 라벨 옆에서 쪼개지는 대신 통째로 아랫줄로 내려간다.
+    <div style={{ display: "flex", flexWrap: "wrap", gap: "0 var(--v2-s-3)" }}>
+      <span className="v2-small" style={{ color: "var(--v2-ink-3)", flexShrink: 0 }}>
+        {label}
+      </span>
+      <span
+        className="v2-small"
+        style={{ color: "var(--v2-ink-2)", marginLeft: "auto", textAlign: "right" }}
+      >
+        {value}
+      </span>
+    </div>
+  );
+}
+
+function GateCondition({
+  rule,
+  detail,
+  met,
+  locale,
+}: {
+  rule: string;
+  detail: string | null;
+  met: boolean | null;
+  locale: "ko" | "en";
+}) {
+  const tone = met === null ? "neutral" : met ? "success" : "warning";
+  const label =
+    met === null
+      ? locale === "ko" ? "미상" : "Unknown"
+      : met
+        ? locale === "ko" ? "충족" : "Met"
+        : locale === "ko" ? "미충족" : "Not met";
+  return (
+    <div style={{ display: "grid", gap: "var(--v2-s-1)" }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          gap: "var(--v2-s-2)",
+        }}
+      >
+        <span className="v2-small" style={{ color: "var(--v2-ink-2)" }}>
+          {rule}
+        </span>
+        {/* 좁은 폭에서 긴 규칙 문구가 칩을 눌러 찌그러뜨리지 않게 고정한다. */}
+        <span style={{ flexShrink: 0 }}>
+          <V2Chip tone={tone}>{label}</V2Chip>
+        </span>
+      </div>
+      {detail ? (
+        <span className="v2-small" style={{ color: "var(--v2-ink-3)" }}>
+          {detail}
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * §9 하드 SQ 게이트를 근거와 함께 보여준다. 판정 자체는 서버가 내린 것을 그대로
+ * 표시하고, 경과·잔여 시간만 UI에서 계산해 덧붙인다(§9의 UI 허용 범위).
+ */
+function Ref5HardGateBlock({
+  gate,
+  locale,
+}: {
+  gate: Ref5HardGateView;
+  locale: "ko" | "en";
+}) {
+  const ko = locale === "ko";
+  const clock = gate.lastStartAt ? formatStartClock(gate.lastStartAt) : null;
+  const elapsed = gate.elapsedMs === null ? null : formatRef5Duration(gate.elapsedMs, locale);
+  const remaining =
+    gate.remainingMs === null ? null : formatRef5Duration(gate.remainingMs, locale);
+
+  const lastStartValue =
+    gate.lastStartAt === null
+      ? ko
+        ? "기록 없음 · 최초 하드는 H3"
+        : "None yet · the first hard is H3"
+      : [clock ?? gate.lastStartAt, elapsed ? (ko ? `${elapsed} 전` : `${elapsed} ago`) : null]
+          .filter(Boolean)
+          .join(" · ");
+
+  const elapsedDetail =
+    gate.lastStartAt === null
+      ? ko
+        ? "직전 하드 SQ 기록이 없어 자동 충족"
+        : "No prior hard SQ start, so this is met automatically"
+      : elapsed === null
+        ? null
+        : remaining
+          ? ko
+            ? `${elapsed} 경과 · ${remaining} 남음`
+            : `${elapsed} elapsed · ${remaining} to go`
+          : ko
+            ? `${elapsed} 경과`
+            : `${elapsed} elapsed`;
+
+  const densityDetail =
+    gate.startsIn168Hours === null
+      ? null
+      : ko
+        ? `현재 ${gate.startsIn168Hours}회`
+        : `${gate.startsIn168Hours} so far`;
+
+  return (
+    <div style={{ display: "grid", gap: "var(--v2-s-3)" }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          gap: "var(--v2-s-2)",
+        }}
+      >
+        <p className="v2-label" style={{ margin: 0 }}>
+          {ko ? "SQ 하드 판정" : "SQ hard gate"}
+        </p>
+        <span style={{ flexShrink: 0 }}>
+          <V2Chip tone={gate.allowed ? "success" : "neutral"}>
+            {gate.allowed ? (ko ? "하드 허용" : "Hard allowed") : ko ? "볼륨 V" : "Volume V"}
+          </V2Chip>
+        </span>
+      </div>
+
+      <GateRow label={ko ? "직전 하드 SQ 시작" : "Last hard SQ start"} value={lastStartValue} />
+      <GateRow
+        label={ko ? `${HARD_WINDOW_HOURS}시간 창 하드 시작` : `Hard starts in the ${HARD_WINDOW_HOURS} h window`}
+        value={
+          gate.startsIn168Hours === null
+            ? "—"
+            : ko
+              ? `${gate.startsIn168Hours}회 · 기준 ${HARD_WINDOW_LIMIT}회 미만`
+              : `${gate.startsIn168Hours} · limit is fewer than ${HARD_WINDOW_LIMIT}`
+        }
+      />
+
+      <V2Hairline />
+
+      <p className="v2-label" style={{ margin: 0 }}>
+        {ko ? "판정 기준" : "Gate rules"}
+      </p>
+      <GateCondition
+        locale={locale}
+        met={gate.elapsedMet}
+        rule={
+          ko
+            ? `① 마지막 하드 SQ 시작 후 ${HARD_ELAPSED_HOURS}시간 이상 경과`
+            : `1. At least ${HARD_ELAPSED_HOURS} h since the last hard SQ start`
+        }
+        detail={elapsedDetail}
+      />
+      <GateCondition
+        locale={locale}
+        met={gate.densityMet}
+        rule={
+          ko
+            ? `② 직전 ${HARD_WINDOW_HOURS}시간(7일) 안 하드 시작 ${HARD_WINDOW_LIMIT}회 미만`
+            : `2. Fewer than ${HARD_WINDOW_LIMIT} hard starts in the open ${HARD_WINDOW_HOURS} h window`
+        }
+        detail={densityDetail}
+      />
+      <p className="v2-small" style={{ margin: 0, color: "var(--v2-ink-3)" }}>
+        {gate.micro
+          ? ko
+            ? "마이크로 세션은 두 조건과 무관하게 항상 V 2×5입니다."
+            : "Micro sessions are always V 2×5 regardless of both rules."
+          : ko
+            ? "두 조건을 모두 만족하면 H3 ↔ H2 차례를 쓰고, 아니면 V 3×5입니다."
+            : "Both rules met uses the H3 ↔ H2 turn; otherwise it is V 3×5."}
+      </p>
+    </div>
+  );
+}
+
 export function Ref5SessionStartPanel({
   planId,
   planName,
@@ -275,6 +564,7 @@ export function Ref5SessionStartPanel({
   const visiblePreview =
     previewSession && previewSignature === valuesSignature ? previewSession : null;
   const preview = visiblePreview ? summarizeRef5Preview(visiblePreview) : null;
+  const hardGate = preview ? describeRef5HardGate(preview) : null;
 
   async function requestGeneration(previewOnly: boolean) {
     if (!values) {
@@ -400,6 +690,7 @@ export function Ref5SessionStartPanel({
             {preview.focus ? <V2Chip tone="accent">{preview.focus}</V2Chip> : null}
             <V2Chip tone="volume">{preview.setCount} sets</V2Chip>
           </div>
+          {hardGate ? <Ref5HardGateBlock gate={hardGate} locale={locale} /> : null}
           <div>
             <p className="v2-label" style={{ margin: "0 0 var(--v2-s-1)" }}>
               {locale === "ko" ? "결정 이유" : "Decision reasons"}
