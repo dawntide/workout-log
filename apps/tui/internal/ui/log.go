@@ -95,10 +95,13 @@ func (l Log) Mode() Mode {
 		return Mode{Label: "ADJUST", Tone: theme.Amber}
 	case l.editing:
 		return Mode{Label: "INSERT", Tone: theme.Amber}
+	// PREVIEW/REVIEW는 한 글자 차이라 어느 쪽이 계산 중인지 읽히지 않았고,
+	// 결과 화면의 본문 헤더가 "PREVIEW"인데 상태줄만 "REVIEW"로 어긋났다.
+	// 계산 중은 진행형 라벨을, 결과 화면은 본문과 같은 이름을 쓴다.
 	case l.ref5 != nil && l.ref5.Phase == ref5Previewing:
-		return Mode{Label: "PREVIEW", Tone: theme.Cyan}
+		return Mode{Label: "CALC", Tone: theme.Cyan}
 	case l.ref5 != nil && l.ref5.Phase == ref5PreviewReady:
-		return Mode{Label: "REVIEW", Tone: theme.Cyan}
+		return Mode{Label: "PREVIEW", Tone: theme.Cyan}
 	case l.ref5 != nil && l.ref5.Phase == ref5Starting:
 		return Mode{Label: "STARTING", Tone: theme.Amber}
 	case l.ref5 != nil && l.ref5.Phase == ref5Decide:
