@@ -690,7 +690,6 @@ export function Ref5SessionStartPanel({
             {preview.focus ? <V2Chip tone="accent">{preview.focus}</V2Chip> : null}
             <V2Chip tone="volume">{preview.setCount} sets</V2Chip>
           </div>
-          {hardGate ? <Ref5HardGateBlock gate={hardGate} locale={locale} /> : null}
           <div>
             <p className="v2-label" style={{ margin: "0 0 var(--v2-s-1)" }}>
               {locale === "ko" ? "결정 이유" : "Decision reasons"}
@@ -720,6 +719,8 @@ export function Ref5SessionStartPanel({
               </div>
             ))}
           </div>
+          {/* 오늘 뭘 드는지가 먼저다. 판정 근거는 그 아래에서 "왜 이 처방인지"를 받는다. */}
+          {hardGate ? <Ref5HardGateBlock gate={hardGate} locale={locale} /> : null}
         </section>
       ) : null}
 

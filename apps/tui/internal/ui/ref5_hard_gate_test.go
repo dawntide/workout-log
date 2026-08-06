@@ -101,11 +101,13 @@ func TestRef5HardGateLinesStateTheBaselineTimeAndTheRule(t *testing.T) {
 
 	blocked := hardGateSession("blocked", startedAt, 36*time.Hour, 1, false)
 	lines := ref5HardGateLines(ref5PreviewHardGate(&blocked, "NORMAL"), time.UTC, width)
+	if len(lines) != 2 {
+		t.Fatalf("the gate must stay two lines to survive a short body window, got %d", len(lines))
+	}
 	body := ansi.Strip(strings.Join(lines, "\n"))
 	for _, want := range []string{
 		"직전", "08-03 22:00", "36h00m 전",
-		"7일창", "하드 1회 / 2회 미만",
-		"기준", "48h까지 12h00m · 168h 2회↓",
+		"기준", "48h까지 12h00m", "7일 1/2회",
 	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("blocked gate missing %q:\n%s", want, body)
@@ -114,8 +116,14 @@ func TestRef5HardGateLinesStateTheBaselineTimeAndTheRule(t *testing.T) {
 
 	allowed := hardGateSession("allowed", startedAt, 72*time.Hour, 1, true)
 	body = ansi.Strip(strings.Join(ref5HardGateLines(ref5PreviewHardGate(&allowed, "NORMAL"), time.UTC, width), "\n"))
-	if !strings.Contains(body, "48h↑ & 168h 내 2회↓ → 하드") {
-		t.Errorf("allowed gate must still state the rule:\n%s", body)
+	if !strings.Contains(body, "48h↑ · 7일 1/2회 → 하드") {
+		t.Errorf("allowed gate must state both rules and the outcome:\n%s", body)
+	}
+
+	dense := hardGateSession("dense-line", startedAt, 200*time.Hour, 2, false)
+	body = ansi.Strip(strings.Join(ref5HardGateLines(ref5PreviewHardGate(&dense, "NORMAL"), time.UTC, width), "\n"))
+	if !strings.Contains(body, "48h↑ · 7일 2/2회 → V") {
+		t.Errorf("a density-blocked gate must show the cap and land on V:\n%s", body)
 	}
 
 	micro := hardGateSession("micro-line", startedAt, 72*time.Hour, 0, false)
@@ -155,7 +163,7 @@ func TestRef5HardGateLinesFitFortyColumns(t *testing.T) {
 	}
 }
 
-func TestRef5PreviewBodyKeepsTheGateAboveThePrescriptions(t *testing.T) {
+func TestRef5PreviewBodyKeepsThePrescriptionsAboveTheGate(t *testing.T) {
 	const width = 40
 	startedAt := time.Date(2026, 8, 5, 10, 0, 0, 0, time.UTC)
 	plan := uiRef5Plan()
@@ -173,15 +181,15 @@ func TestRef5PreviewBodyKeepsTheGateAboveThePrescriptions(t *testing.T) {
 		return log
 	}
 
-	// Tall enough that nothing is windowed away: the gate must precede the
-	// prescriptions so a short terminal clips the sets, never the verdict.
+	// Tall enough that nothing is windowed away: today's working weights come
+	// first, so a short terminal clips the reasoning rather than the sets.
 	tall := ansi.Strip(previewLog().Body(width, 32))
 	gateAt, squatAt := strings.Index(tall, "직전"), strings.Index(tall, "Back Squat")
 	if gateAt < 0 || squatAt < 0 {
 		t.Fatalf("preview body missing the gate or the prescriptions:\n%s", tall)
 	}
-	if gateAt > squatAt {
-		t.Errorf("gate evidence must render above the prescriptions:\n%s", tall)
+	if squatAt > gateAt {
+		t.Errorf("prescriptions must render above the gate evidence:\n%s", tall)
 	}
 
 	// The phone minimum still shows the whole gate inside the body window.
@@ -190,10 +198,9 @@ func TestRef5PreviewBodyKeepsTheGateAboveThePrescriptions(t *testing.T) {
 	stripped := ansi.Strip(body)
 	for _, want := range []string{
 		"PREVIEW", "직전", "36h00m 전",
-		"하드 1회 / 2회 미만",
-		// The trailing "↓" proves the rule line survives Body's own padding
-		// (contentWidth = w - 2), not just the 40-column outer frame.
-		"48h까지 12h00m · 168h 2회↓",
+		// The whole rule line must survive Body's own padding (contentWidth =
+		// w - 2) and the body window, not just the 40-column outer frame.
+		"48h까지 12h00m · 7일 1/2회",
 	} {
 		if !strings.Contains(stripped, want) {
 			t.Fatalf("preview body missing %q at %dx%d:\n%s", want, width, height, stripped)
