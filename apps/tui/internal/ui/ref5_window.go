@@ -147,7 +147,32 @@ func ref5WindowPlainLines(windows map[string]api.Ref5WindowStatus, width int) []
 	return strings.Split(flowHints(ref5WindowPlainItems(windows), width), "\n")
 }
 
-func (l Log) ref5WindowPanelLines(width int, compact bool) []string {
+// ref5PanelDetail is how much of the judgment-window legend a body of height h
+// can afford. A single compact/full switch made the panel jump from 2 guide
+// items to 5 the moment h crossed 24 — and that same boundary also turns on
+// vertical padding and the head/body blank line, so a 26-row terminal ended up
+// with *less* room for the session than a 22-row one. The middle tier keeps the
+// short guides until there is real headroom for the itemized ones.
+type ref5PanelDetail int
+
+const (
+	ref5PanelTight ref5PanelDetail = iota
+	ref5PanelMedium
+	ref5PanelFull
+)
+
+func ref5PanelDetailFor(h int) ref5PanelDetail {
+	switch {
+	case compactView(h):
+		return ref5PanelTight
+	case h < 32:
+		return ref5PanelMedium
+	default:
+		return ref5PanelFull
+	}
+}
+
+func (l Log) ref5WindowPanelLines(width int, detail ref5PanelDetail) []string {
 	if l.ref5 == nil || l.planID == "" || l.ref5Progress.planID != l.planID {
 		return nil
 	}
@@ -200,17 +225,21 @@ func (l Log) ref5WindowPanelLines(width int, compact bool) []string {
 		}
 	}
 
-	guides := []string{
-		"하드 = INVALID 제외 SQ H3 3×3 / H2 3×2",
-		"집중 = INVALID 제외 당일 우선 BP·PULL 3×3",
-		"볼륨 = 진행 횟수 제외, FAIL은 최종 판정 반영",
-		"기준 도달 = 자동 판정 후 0부터 재집계",
-		"획득률 = INCREASE 판정 ÷ 완료 판정창 · ↑증량 →유지",
+	shortGuides := []string{
+		"하드 SQ H3(3×3)/H2(3×2) · 집중 당일 우선 BP·PULL 3×3 · INVALID 제외",
+		"볼륨 횟수 제외/FAIL 반영 · 기준 도달 자동 판정→0부터 재집계",
 	}
-	if compact {
+	var guides []string
+	switch detail {
+	case ref5PanelTight, ref5PanelMedium:
+		guides = shortGuides
+	default:
 		guides = []string{
-			"하드 SQ H3(3×3)/H2(3×2) · 집중 당일 우선 BP·PULL 3×3 · INVALID 제외",
-			"볼륨 횟수 제외/FAIL 반영 · 기준 도달 자동 판정→0부터 재집계",
+			"하드 = INVALID 제외 SQ H3 3×3 / H2 3×2",
+			"집중 = INVALID 제외 당일 우선 BP·PULL 3×3",
+			"볼륨 = 진행 횟수 제외, FAIL은 최종 판정 반영",
+			"기준 도달 = 자동 판정 후 0부터 재집계",
+			"획득률 = INCREASE 판정 ÷ 완료 판정창 · ↑증량 →유지",
 		}
 	}
 	for _, guide := range guides {

@@ -41,6 +41,60 @@ func TestRef5WindowProgressRowsNameStreamsAndKeepCompletedCounts(t *testing.T) {
 	}
 }
 
+func TestRef5PanelDetailTiersScaleWithBodyHeight(t *testing.T) {
+	for _, tc := range []struct {
+		h    int
+		want ref5PanelDetail
+	}{
+		{20, ref5PanelTight}, {23, ref5PanelTight},
+		{24, ref5PanelMedium}, {26, ref5PanelMedium}, {31, ref5PanelMedium},
+		{32, ref5PanelFull}, {40, ref5PanelFull},
+	} {
+		if got := ref5PanelDetailFor(tc.h); got != tc.want {
+			t.Errorf("ref5PanelDetailFor(%d) = %v, want %v", tc.h, got, tc.want)
+		}
+	}
+}
+
+// A taller terminal must never show less of the session. The legend used to
+// jump from 2 guides to 5 the moment h crossed 24, so a 26-row body had less
+// room than a 22-row one and pushed the gate lines out of the window.
+func TestRef5PreviewSurvivesEveryPanelTier(t *testing.T) {
+	const width = 40
+	startedAt := time.Date(2026, 8, 5, 10, 0, 0, 0, time.UTC)
+	plan := uiRef5Plan()
+	session := hardGateSession("tiers", startedAt, 36*time.Hour, 1, false)
+	// v1.3 정상 세션은 4종목 10세트 — 픽스처(2종목)보다 본문이 길다.
+	session.Snapshot.Exercises = append(session.Snapshot.Exercises,
+		api.PlannedExercise{ExerciseName: "Bench Press", Role: "MAIN", RowType: "AUTO", Order: 2, Sets: []api.PlannedSet{
+			{SetNumber: 1, Reps: 5, PlannedReps: 5, TargetWeightKg: 70, ExternalLoadKg: 70, TotalLoadKg: 70},
+			{SetNumber: 2, Reps: 5, PlannedReps: 5, TargetWeightKg: 70, ExternalLoadKg: 70, TotalLoadKg: 70},
+		}},
+		api.PlannedExercise{ExerciseName: "Deadlift", Role: "MAIN", RowType: "AUTO", Order: 3, Sets: []api.PlannedSet{
+			{SetNumber: 1, Reps: 4, PlannedReps: 4, TargetWeightKg: 142.5, ExternalLoadKg: 142.5, TotalLoadKg: 142.5},
+			{SetNumber: 2, Reps: 4, PlannedReps: 4, TargetWeightKg: 142.5, ExternalLoadKg: 142.5, TotalLoadKg: 142.5},
+		}})
+	session.Snapshot.TotalWorkingSets = 10
+
+	for _, h := range []int{22, 23, 24, 26, 28, 31, 32, 36} {
+		log := NewLog(nil)
+		log.load = loadIdle
+		log.planID, log.planName = plan.ID, plan.Name
+		log.ref5 = newRef5StartState(plan, 82.5, startedAt)
+		log.ref5Progress = ref5WindowProgressState{planID: plan.ID, status: ref5WindowStatusFixture()}
+		log.ref5.Preview = &session
+		log.ref5.PreviewSignature = log.ref5.Start.signature()
+		log.ref5.Phase = ref5PreviewReady
+
+		body := ansi.Strip(log.Body(width, h))
+		for _, want := range []string{"Back Squat", "Deadlift", "직전", "기준    "} {
+			if !strings.Contains(body, want) {
+				t.Errorf("h=%d preview missing %q:\n%s", h, want, body)
+			}
+		}
+	}
+}
+
 func TestRef5WindowPanelExplainsProgressAndJudgmentRules(t *testing.T) {
 	plan := uiRef5Plan()
 	log := NewLog(nil)
@@ -51,7 +105,7 @@ func TestRef5WindowPanelExplainsProgressAndJudgmentRules(t *testing.T) {
 		planID: plan.ID, status: ref5WindowStatusFixture(),
 	}
 
-	out := ansi.Strip(strings.Join(log.ref5WindowPanelLines(64, false), "\n"))
+	out := ansi.Strip(strings.Join(log.ref5WindowPanelLines(64, ref5PanelFull), "\n"))
 	for _, want := range []string{
 		"기본 판정창", "진행/기준 · 판정완료",
 		"SQ 하드 1/6·2 획득 50% ↑ →", // §18 gain rate + recent flow

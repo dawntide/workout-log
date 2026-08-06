@@ -153,6 +153,7 @@ func (l Log) renderRef5Preview(w int) string {
 	if gate := ref5HardGateLines(ref5PreviewHardGate(preview, mode), ref5SessionLocation(preview), w); len(gate) > 0 {
 		lines = append(lines, gate...)
 	}
-	lines = append(lines, dim.Render("s/Enter는 첫 SQ 워크 세트 시작을 확정합니다."))
+	// 40컬럼에서 두 줄로 접히던 안내다. 한 줄로 줄여 본문 한 행을 세션에 돌린다.
+	lines = append(lines, dim.Render("s/Enter  첫 SQ 워크 세트 시작 확정"))
 	return strings.Join(lines, "\n")
 }
