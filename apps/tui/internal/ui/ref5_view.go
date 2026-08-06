@@ -70,8 +70,8 @@ func summarizeRef5PlannedExercise(ex api.PlannedExercise) string {
 
 // ref5HardGateLines shows why today's SQ is hard or volume: the last hard start
 // that the 48-hour rule counts from, the 168-hour density, and the rule itself.
-// It sits above the prescription list because the body window clips at the
-// bottom — the verdict's evidence must survive a short terminal.
+// It sits below the prescription list — what you lift today outranks why, so a
+// short terminal clips the reasoning rather than the working weights.
 func ref5HardGateLines(gate ref5HardGate, loc *time.Location, w int) []string {
 	if !gate.Present {
 		return nil
@@ -90,22 +90,33 @@ func ref5HardGateLines(gate ref5HardGate, loc *time.Location, w int) []string {
 			lastStyle = amber
 		}
 	}
-	density, densityStyle := fmt.Sprintf("하드 %d회 / %d회 미만", gate.StartsIn168Hours, ref5HardDensityLimit), cyan
+
+	// 기준 줄은 두 조건의 현황과 결과를 한 줄에 담는다. 세 줄이면 중간 높이
+	// (상단 판정창이 compact를 벗어나는 구간)에서 뒷줄이 창 밖으로 밀린다.
+	densityStyle := cyan
 	if !gate.DensityMet {
 		densityStyle = amber
 	}
-	rule := "48h↑ & 168h 내 2회↓ → 하드"
+	density := fmt.Sprintf("7일 %d/%d회", gate.StartsIn168Hours, ref5HardDensityLimit)
+	var rule string
 	switch {
 	case gate.Micro:
-		rule = "MICRO는 조건 무관 · SQ는 V 2×5"
+		rule = dim.Render("MICRO는 조건 무관 · SQ는 V 2×5")
 	case gate.HasElapsed && !gate.ElapsedMet:
-		// 40컬럼 본문의 실폭은 38이다. "남음"까지 붙이면 뒤가 잘린다.
-		rule = "48h까지 " + ref5FormatGap(gate.Remaining) + " · 168h 2회↓"
+		// 40컬럼 본문의 실폭은 38이라 "남음"까지 붙이면 뒤가 잘린다.
+		rule = amber.Render("48h까지 "+ref5FormatGap(gate.Remaining)) +
+			dim.Render(" · ") + densityStyle.Render(density)
+	default:
+		outcome := "V"
+		if gate.Allowed {
+			outcome = "하드"
+		}
+		rule = dim.Render("48h↑ · ") + densityStyle.Render(density) + dim.Render(" → "+outcome)
 	}
+
 	return []string{
 		fitLine(dim.Render("직전    ")+lastStyle.Render(last), w),
-		fitLine(dim.Render("7일창   ")+densityStyle.Render(density), w),
-		fitLine(dim.Render("기준    ")+dim.Render(rule), w),
+		fitLine(dim.Render("기준    ")+rule, w),
 	}
 }
 
@@ -127,10 +138,6 @@ func (l Log) renderRef5Preview(w int) string {
 	}
 	parts = append(parts, fmt.Sprintf("%d sets", preview.Snapshot.TotalWorkingSets))
 	lines := []string{amber.Render("PREVIEW  ") + cyan.Render(strings.Join(parts, " · ")), ""}
-	if gate := ref5HardGateLines(ref5PreviewHardGate(preview, mode), ref5SessionLocation(preview), w); len(gate) > 0 {
-		lines = append(lines, gate...)
-		lines = append(lines, "")
-	}
 	for _, ex := range preview.Snapshot.Exercises {
 		left := lipgloss.NewStyle().Foreground(theme.Fg).Bold(true).Render(truncate(ex.ExerciseName, 20))
 		right := cyan.Render(summarizeRef5PlannedExercise(ex))
@@ -141,6 +148,10 @@ func (l Log) renderRef5Preview(w int) string {
 		lines = append(lines, dim.Render("reason  none · NORMAL 조건 충족"))
 	} else {
 		lines = append(lines, dim.Render("reason  ")+cyan.Render(strings.Join(reasons, ", ")))
+	}
+	// 처방(무게·세트·횟수)이 먼저고, 판정 근거는 그 아래에서 "왜 이 처방인지"를 받는다.
+	if gate := ref5HardGateLines(ref5PreviewHardGate(preview, mode), ref5SessionLocation(preview), w); len(gate) > 0 {
+		lines = append(lines, gate...)
 	}
 	lines = append(lines, dim.Render("s/Enter는 첫 SQ 워크 세트 시작을 확정합니다."))
 	return strings.Join(lines, "\n")
