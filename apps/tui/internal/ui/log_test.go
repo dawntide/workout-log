@@ -149,6 +149,18 @@ func TestLogModeTransitions(t *testing.T) {
 		t.Errorf("want INSERT, got %q", l.Mode().Label)
 	}
 	l.editing = false
+
+	// The REF5 badges must not be one letter apart: the in-flight phase reads as
+	// work being done, and the result screen matches its own body header.
+	l.ref5 = &ref5SessionState{Phase: ref5Previewing}
+	if l.Mode().Label != "CALC" {
+		t.Errorf("want CALC while the prescription is being computed, got %q", l.Mode().Label)
+	}
+	l.ref5.Phase = ref5PreviewReady
+	if l.Mode().Label != "PREVIEW" {
+		t.Errorf("want PREVIEW on the result screen, got %q", l.Mode().Label)
+	}
+	l.ref5 = nil
 }
 
 func TestLogBodyGrouped(t *testing.T) {
