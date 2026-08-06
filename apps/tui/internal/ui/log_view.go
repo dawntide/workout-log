@@ -39,7 +39,7 @@ func (l Log) Body(w, h int) string {
 	if l.editID != "" {
 		head = append(head, fitLine(lipgloss.NewStyle().Foreground(theme.Amber).Render("■ 편집 중 · "+l.performedAt.Format("2006-01-02")), contentWidth))
 	}
-	head = append(head, l.ref5WindowPanelLines(contentWidth, compact)...)
+	head = append(head, l.ref5WindowPanelLines(contentWidth, ref5PanelDetailFor(h))...)
 	if len(head) > 0 && !compact {
 		head = append(head, "")
 	}
