@@ -208,6 +208,19 @@ S1은 web에 이미 있는 `@/server/auth/rate-limit` 재장착으로 해결(신
 
 **운영 함정(2026-08-04 실제 발생)**: #648 머지 커밋에 **Vercel 프로덕션 배포가 생성되지 않았다**(직전 두 머지는 1~2분 내 배포). GitHub Deployments에 Production 항목 부재로 확인 — 웹훅 누락. main은 룰셋으로 직접 푸시가 막혀 있어 재트리거하려면 PR을 하나 더 태우거나 Vercel 대시보드에서 해당 프리뷰를 Promote to Production 해야 한다. **머지 = 배포로 가정하지 말고 `gh api repos/:owner/:repo/deployments`로 Production 항목을 확인할 것.**
 
+> **정정(2026-08-09)**: 위 서술은 "탐지 수단이 수동뿐"이라는 인상을 주는데, 사실이 아니다.
+> **자동 가드가 이미 있었고 이 사고를 실제로 잡았다** — `CI(main push) → db-migrate → deploy`
+> 체인의 [`deploy.yml`](../.github/workflows/deploy.yml)이 `wait-vercel-deployment.py`로
+> 해당 SHA의 프로덕션 배포를 기다린다. #648(`e1f32ad6`)에 대해 2026-08-04T02:49:45Z에 실행돼
+> **"Wait for Vercel deployment to be ready" 스텝에서 failure**로 끝났다(실행 로그로 확인).
+>
+> 즉 놓친 것은 **탐지가 아니라 알림**이다 — 워크플로가 빨갛게 실패했는데 아무도 보지 않아
+> 며칠 뒤 감사에서야 드러났다. 새 가드를 만들 자리가 아니라, 실패가 사람에게 닿게 만들 자리다.
+>
+> 남은 실제 공백은 하나: `ci.yml`의 main push `paths` 필터에 `docs/**`·루트 `*.md`가 없어
+> **문서-only 머지는 이 체인을 아예 타지 않는다**. 다만 그런 머지는 코드가 안 바뀌므로
+> 배포가 빠져도 영향이 없다 — 우선순위 낮음.
+
 ---
 
 ## 6. 하지 말 것 (명시적 non-goal)

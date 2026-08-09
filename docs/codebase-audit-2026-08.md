@@ -146,6 +146,7 @@ prod 실측이 **유저 2 · 플랜 2 · 로그 64 · 세트 695행**이다. 이
 - **CI 커버리지**: PR에서 6개 잡(quality · apps-api · core · bundle-budget · tui · e2e smoke)이 돌고, e2e smoke는 마이그레이션·멱등성·계정 수명주기·스냅샷 불변식까지 사전 검증한 뒤 prod 빌드로 렌더한다. 전체 e2e는 nightly.
   > ⚠️ **정정(2026-08-09)**: 발표 시점의 이 서술은 과장이었다. `apps-api` 잡에는 **테스트 스텝이 없었고**,
   > 존재하던 apps/api 테스트는 한 번도 안 돌고 있었다(§3.5). #666에서 배선해 지금은 서술대로다.
+- **배포 검증이 자동이다**(2026-08-09 추가 확인): `CI(main push) → db-migrate → deploy` 체인의 [`deploy.yml`](.github/workflows/deploy.yml)이 머지 SHA의 Vercel 프로덕션 배포를 기다려 없으면 실패한다. 2026-07 감사 §5.5가 "머지 = 배포로 가정하지 말 것"을 **수동 확인** 지침으로 적어 둔 탓에 백로그에 "가드 없음"으로 잘못 올라와 있었는데, 실행 이력을 열어 보니 **#648 사고를 이 가드가 실제로 잡았다**(`e1f32ad6`, "Wait for Vercel deployment to be ready" 실패). 놓친 건 탐지가 아니라 **알림**이다 — 빨간 워크플로를 아무도 보지 않았다. 남은 공백은 `ci.yml` main push `paths`에 `docs/**`가 없어 문서-only 머지가 체인을 안 탄다는 것뿐이고, 코드가 안 바뀌므로 영향이 없다.
 - **fail-closed 일관성**: ops·cron 전부 Bearer 시크릿 미설정 시 **거부**([`ops.ts:9-12`](apps/api/src/routes/ops.ts:9) · [`cron/session-prune/route.ts:23`](web/src/app/api/cron/session-prune/route.ts:23)). 계정 삭제는 세션 + rate limit + 비밀번호 검증 + `confirmToken` 4중.
 - **import 스코프 가드**: export가 내보내는 10개 테이블 중 부모로만 소유자가 정해지는 자식 전부(`planModules`·`planOverrides`·`generatedSessions`·`workoutLogs`·`workoutSets`·`templateVersions`)가 `validateImportScope`에 등록돼 있다(#644 회귀 차단).
 - **의존성 절제**: web 런타임 deps 12개(워크스페이스 2개 포함). 실질 외부 deps는 `@tanstack/react-virtual`·`@vercel/functions`·`drizzle-orm`·`idb`·`jotai`·`next`·`pg`·`react`·`react-dom`·`tsx`.

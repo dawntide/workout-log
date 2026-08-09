@@ -15,26 +15,6 @@ export class UnauthorizedError extends Error {
 }
 
 /**
- * Sync variant — env-only. 세션 쿠키를 읽지 않으므로 **도메인 데이터 경로에서
- * 절대 사용하면 안 된다** (모든 사용자가 단일 env 유저로 붕괴됨). 요청 스코프가
- * 없는 코드 경로(배경 작업 / 스크립트)에서만 사용하며, 이 경우
- * WORKOUT_AUTH_USER_ID를 명시적으로 설정해야 한다.
- *
- * 요청 스코프(서버 컴포넌트 / API 라우트 / 서버 액션)에서는
- * {@link requireAuthenticatedUserId}를 사용한다.
- */
-export function getAuthenticatedUserId(): string {
-  const userId = (process.env.WORKOUT_AUTH_USER_ID ?? "").trim();
-  if (!userId) {
-    throw new Error(
-      "WORKOUT_AUTH_USER_ID is not set. Use requireAuthenticatedUserId() for " +
-        "request-scoped code, or set the env var explicitly for background jobs.",
-    );
-  }
-  return userId;
-}
-
-/**
  * Cookie session 우선, 없으면 환경변수 fallback.
  * Server components / API routes / server actions에서 사용.
  */
