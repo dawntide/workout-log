@@ -21,7 +21,7 @@
 | 우선도 | 작업 | 노력 | 근거 |
 |---|---|---|---|
 | **P0** | web 인증 폴백을 apps/api와 같은 수준으로 잠근다 (S1) | S | §3.1 |
-| **P2** | `migration_run_log` 보존 정책 (O1) | S | §3.2 |
+| ~~P2~~ | ~~`migration_run_log` 보존 정책 (O1)~~ | S | ✅ **완료(2026-08-09, #664)** — §3.2 |
 | **P3** | `apps/api/src/routes/plans.ts` 1,706줄 분해 (C1) | M | §3.3 |
 | **하지 말 것** | pg_stat 수치로 인덱스 판단 · 리스트 가상화 재론 · DSL Phase 4b | — | §4 |
 
@@ -71,7 +71,12 @@ GET .../api/logs · /api/settings · /api/home             → 401 (동일)
 
 **고칠 때 주의 — 단순 `NODE_ENV` 가드는 CI를 깬다.** E2E 스모크는 `PLAYWRIGHT_SERVER_MODE: prod`로 **프로덕션 빌드**를 띄우면서 `WORKOUT_AUTH_USER_ID`를 설정한다([`ci.yml:255-259`](.github/workflows/ci.yml:255)). 그래서 apps/api가 택한 방식(**NODE_ENV 차단 + 별도 opt-in 플래그**)을 그대로 옮기고 CI가 그 플래그를 세우는 게 맞다. 새 코드는 거의 필요 없다 — 이미 있는 패턴의 이식이다.
 
-### 3.2 P2 — O1: `migration_run_log`만 보존 정책이 없다
+### 3.2 P2 — O1: `migration_run_log`만 보존 정책이 없다 ✅ **해소(2026-08-09, #664)**
+
+> 기존 정리 크론에 편입했다(경로도 `/api/cron/ux-events-cleanup` → `/api/cron/telemetry-cleanup`으로
+> 바뀌었다 — 대상이 둘이 되어 이름이 어긋났고, Hobby 플랜 크론 2개 제한 때문에 라우트를 나누지 않았다).
+> 보존은 형제와 같은 120일. 소비자 lookback 상한(7일·1일)보다 훨씬 길다는 점을 테스트로 고정했다.
+> 배포 후 새 경로 401·옛 경로 404를 확인했다. 아래는 발견 당시 기록이다.
 
 prod 실측:
 
