@@ -87,6 +87,8 @@ jobs:
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/workout_log_ci
           WORKOUT_AUTH_USER_ID: 00000000-0000-4000-8000-000000c1c1c1
+          # ci.yml과 같은 이유 — 이 레인도 prod 빌드다(web/src/server/auth/dev-fallback.ts).
+          WORKOUT_WEB_ALLOW_ENV_AUTH: "1"
           APPS_API_BASE: http://127.0.0.1:8787
           NEXT_PUBLIC_APP_URL: http://127.0.0.1:3100
           NEXT_TELEMETRY_DISABLED: "1"
