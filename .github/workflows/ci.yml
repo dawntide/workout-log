@@ -256,6 +256,10 @@ jobs:
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/workout_log_ci
           WORKOUT_AUTH_USER_ID: 00000000-0000-4000-8000-000000c1c1c1
+          # 이 레인은 prod 빌드라 NODE_ENV=production이고, web의 개발용 인증 폴백은
+          # 거기서 기본 차단된다. E2E는 그 폴백에 의존하므로 여기서만 명시 opt-in 한다
+          # (web/src/server/auth/dev-fallback.ts). Vercel 프로덕션에는 세우지 않는다.
+          WORKOUT_WEB_ALLOW_ENV_AUTH: "1"
           NEXT_PUBLIC_APP_URL: http://127.0.0.1:3100
           NEXT_TELEMETRY_DISABLED: "1"
           PLAYWRIGHT_SERVER_MODE: prod

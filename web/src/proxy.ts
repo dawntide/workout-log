@@ -4,6 +4,7 @@ import {
   SESSION_COOKIE_NAME,
 } from "@workout/core/auth/session";
 import { registerVercelFluidPoolLifecycle } from "@/server/db/vercel-fluid-pool";
+import { devFallbackUserId } from "@/server/auth/dev-fallback";
 
 // 미들웨어는 별도 번들이라 instrumentation.ts의 부트스트랩이 여기까지 오지 않을 수 있다.
 // 이 파일도 자체 pg 풀을 만드는 실행 지점이므로(아래 findActiveSession) 같은 배선을 건다.
@@ -67,8 +68,9 @@ export async function proxy(req: NextRequest) {
     return redirectToLogin(req);
   }
 
-  // 3. Dev fallback: no cookie + WORKOUT_AUTH_USER_ID set → skip session check
-  if ((process.env.WORKOUT_AUTH_USER_ID ?? "").trim()) {
+  // 3. Dev fallback: no cookie + 개발용 폴백이 유효 → skip session check.
+  // 프로덕션 런타임에서는 명시 opt-in 없이는 죽어 있다(devFallbackUserId 주석 참조).
+  if (devFallbackUserId()) {
     return NextResponse.next();
   }
 
