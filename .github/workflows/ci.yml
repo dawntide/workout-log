@@ -104,6 +104,13 @@ jobs:
         working-directory: apps/api
         run: pnpm lint:no-any
 
+      # 종전에는 apps/api에 test 스크립트도 CI 스텝도 없어서, 존재하던 테스트 파일
+      # (ref5-plan-creation)이 **한 번도 안 돌고 있었다**. 글롭 발견이라 새 테스트는
+      # 자동으로 편입된다 — packages/core와 같은 방식.
+      - name: Test apps/api
+        working-directory: apps/api
+        run: pnpm test
+
   # ──────────────────────────────────────────────
   # Job: packages/core typecheck + test
   # web·apps/api가 공유하는 source-only 패키지. 자체 게이트로 드리프트 조기 검출.
