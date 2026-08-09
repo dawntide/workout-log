@@ -42,6 +42,7 @@
     "db:verify:generated-session-immutability": "tsx src/server/db/verifyGeneratedSessionImmutability.ts",
     "db:backfill:exercise": "tsx src/server/db/backfillExerciseIds.ts",
     "db:cleanup:ux-events": "tsx src/server/db/cleanupUxEventLog.ts",
+    "db:cleanup:migration-log": "tsx src/server/db/cleanupMigrationRunLog.ts",
     "gen:icons": "node scripts/gen-icons.mjs",
     "dev:turbo": "next dev --turbo"
   },

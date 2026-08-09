@@ -1,13 +1,15 @@
 import { count, lt } from "drizzle-orm";
 import { db } from "@workout/core/db/client";
 import { uxEventLog } from "@workout/core/db/schema";
+import { isMissingTableError } from "./missing-table";
 
 /**
  * ux_event_log 보존 정리 — 스케줄러/CLI 공용 구현.
  *
  * 이벤트 스트림은 append-only라 스스로 줄지 않는다. 호출지가 둘이라
- * (web cron 라우트 `/api/cron/ux-events-cleanup`, CLI `pnpm -C web db:cleanup:ux-events`)
+ * (web cron 라우트 `/api/cron/telemetry-cleanup`, CLI `pnpm -C web db:cleanup:ux-events`)
  * `pruneExpiredSessions`와 같은 방식으로 구현을 여기 하나로 둔다.
+ * 같은 크론이 `migration_run_log`도 함께 정리한다(`./migration-log-retention`).
  *
  * 스키마 인지: 예전 CLI는 raw SQL로 스키마 없는 `"ux_event_log"`를 지웠다 →
  * `DB_SCHEMA=dev`여도 search_path 상의 public을 건드렸다. drizzle 테이블 객체를 쓰면
@@ -51,15 +53,6 @@ export type UxEventsCleanupResult = {
   /** 테이블이 아직 없어(마이그레이션 전) 아무것도 하지 않음 */
   skipped: boolean;
 };
-
-function isMissingTableError(error: unknown): boolean {
-  if (!error || typeof error !== "object") return false;
-  const errorRecord = error as Record<string, unknown>;
-  if (errorRecord.code === "42P01") return true;
-  const cause = errorRecord.cause;
-  if (!cause || typeof cause !== "object") return false;
-  return (cause as Record<string, unknown>).code === "42P01";
-}
 
 /**
  * 보존 기간이 지난 ux_event_log 행 삭제.
