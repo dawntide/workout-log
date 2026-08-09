@@ -75,24 +75,40 @@ git push -u origin docs/local-dev-onboarding
 
 ## 5) 운영 스케줄러 설정
 
-### UX 이벤트 로그 보존 정리
+### 운영 텔레메트리 보존 정리
 
-`ux_event_log`는 append-only 이벤트 스트림이라 스스로 줄지 않는다. 보존 기간이 지난 행은
-스케줄러가 지운다 — **[`web/vercel.json`](../vercel.json)의 `crons`가 매일 20:00 UTC(=05:00 KST)에
-`GET /api/cron/ux-events-cleanup`을 호출**한다. 세션 prune 크론과 같은 규약이다(아래 참고):
+append-only라 스스로 줄지 않는 텔레메트리 테이블 **둘을 같은 크론이 정리**한다:
+
+| 테이블 | 내용 | 구현 |
+|---|---|---|
+| `ux_event_log` | 익명 Core Web Vitals·UX 이벤트 | [`ux-event-retention.ts`](../../packages/core/src/data/ux-event-retention.ts) |
+| `migration_run_log` | 마이그레이션 실행 텔레메트리 | [`migration-log-retention.ts`](../../packages/core/src/data/migration-log-retention.ts) |
+
+> `migration_run_log`는 2026-08 감사에서 **DB 내 최다 행수(2,101행)인데 혼자 보존 정리를 못 받고
+> 있던 것**이 드러나 편입됐다(감사 §3.2 O1). Hobby 플랜은 크론이 2개까지라 라우트를 나누는 대신
+> 기존 크론에 얹었고, 그래서 경로 이름이 `ux-events-cleanup` → `telemetry-cleanup`으로 바뀌었다.
+>
+> **잘라도 안전한 근거**: 이 테이블을 읽는 화면은 짧은 창만 본다 — `/api/stats/migration-telemetry`의
+> `lookbackMinutes` 상한이 7일, `/api/ops/migrations`가 1일이다. 기본 보존 120일은 그보다 훨씬 길다.
+
+**[`web/vercel.json`](../vercel.json)의 `crons`가 매일 20:00 UTC(=05:00 KST)에
+`GET /api/cron/telemetry-cleanup`을 호출**한다. 세션 prune 크론과 같은 규약이다(아래 참고):
 Vercel Cron은 GET만 보내고 `CRON_SECRET`을 Bearer로 붙이며, **미설정 시 라우트가 401로 거부**한다
 (파괴적 엔드포인트라 fail-closed). Hobby 플랜은 크론이 하루 1회까지, 실행 시각은 지정 시각의
 ±59분이다 — 보존 정리에는 충분하다.
 
-삭제 구현은 [`packages/core/src/data/ux-event-retention.ts`](../../packages/core/src/data/ux-event-retention.ts)
-한 곳에 있고 크론 라우트와 아래 CLI가 같은 함수를 부른다. 따라서 두 경로의 보존 기준이 갈라지지 않는다.
-세션 prune과 달리 **호스팅 모드(`APPS_API_BASE`)와 무관**하다 — 라우트가 web에 있고 web이 직접 DB를
-치므로 프록시/인프로세스 어느 쪽이든 이 크론 하나만 돈다.
+삭제 구현은 테이블마다 core 한 곳에 있고 크론 라우트와 아래 CLI가 같은 함수를 부른다. 따라서 두
+경로의 보존 기준이 갈라지지 않는다. 세션 prune과 달리 **호스팅 모드(`APPS_API_BASE`)와 무관**하다 —
+라우트가 web에 있고 web이 직접 DB를 치므로 프록시/인프로세스 어느 쪽이든 이 크론 하나만 돈다.
+두 정리는 서로 독립이라 **한쪽이 실패해도 다른 쪽은 돈다**(응답에 테이블별 `ok`가 실리고, 하나라도
+실패하면 500).
 
-**환경 변수** (크론·CLI 공통):
+**환경 변수** (크론·CLI 공통, 테이블별로 독립):
 ```bash
-UX_EVENTS_RETENTION_DAYS=120   # 기본 보존 기간 (일). 양의 정수가 아니면 120으로 되돌림
-UX_EVENTS_CLEANUP_DRY_RUN=1    # dry-run 모드 — "1"일 때만. 삭제 없이 대상 행 수만 센다
+UX_EVENTS_RETENTION_DAYS=120        # 기본 보존 기간 (일). 양의 정수가 아니면 120으로 되돌림
+UX_EVENTS_CLEANUP_DRY_RUN=1         # dry-run 모드 — "1"일 때만. 삭제 없이 대상 행 수만 센다
+MIGRATION_LOG_RETENTION_DAYS=120    # 위와 동일 규칙
+MIGRATION_LOG_CLEANUP_DRY_RUN=1
 ```
 
 **dry-run으로 먼저 확인**:
@@ -100,12 +116,20 @@ UX_EVENTS_CLEANUP_DRY_RUN=1    # dry-run 모드 — "1"일 때만. 삭제 없이
 UX_EVENTS_CLEANUP_DRY_RUN=1 pnpm --dir web run db:cleanup:ux-events
 ```
 
+```bash
+MIGRATION_LOG_CLEANUP_DRY_RUN=1 pnpm --dir web run db:cleanup:migration-log
+```
+
 수동 실행(크론 밖에서 즉시 돌릴 때):
 ```bash
 pnpm --dir web run db:cleanup:ux-events
 ```
 
-> `DB_SCHEMA=dev`를 설정하면 CLI도 `dev` 스키마의 `ux_event_log`를 본다(앱의 나머지 쿼리와 동일).
+```bash
+pnpm --dir web run db:cleanup:migration-log
+```
+
+> `DB_SCHEMA=dev`를 설정하면 CLI도 `dev` 스키마의 테이블을 본다(앱의 나머지 쿼리와 동일).
 > 마이그레이션 전 DB처럼 테이블이 없으면 실패가 아니라 무작업으로 넘어간다.
 
 ### 만료 세션 prune
