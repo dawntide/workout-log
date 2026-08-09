@@ -1,4 +1,4 @@
-import { isRef5Template, type ProgramTemplate, type ProgramStoreLocale } from "./model";
+import { isRef5Template, toJsonRecord, type ProgramTemplate, type ProgramStoreLocale } from "./model";
 
 /**
  * Program store filter facets.
@@ -97,8 +97,8 @@ function frequencyBucket(perWeek: number): string {
 function frequencyValues(template: ProgramTemplate): string[] {
   if (isRef5Template(template)) return ["2", "3", "4"];
 
-  const definition = template.latestVersion?.definition;
-  const scheduled = definition?.schedule?.sessionsPerWeek;
+  const definition = toJsonRecord(template.latestVersion?.definition);
+  const scheduled = toJsonRecord(definition?.schedule)?.sessionsPerWeek;
   const perWeek =
     typeof scheduled === "number" && scheduled > 0
       ? scheduled

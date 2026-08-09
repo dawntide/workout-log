@@ -268,6 +268,20 @@ plansRoutes.get("/", async (c) => {
   }
 });
 
+/**
+ * COMPOSITE 플랜 생성 요청의 `modules[]` 원소 — 이 핸들러가 **읽는 필드만** 적는다.
+ *
+ * 요청 본문이라 값은 여전히 신뢰하지 않는다: `target`·`programVersionId`가 실제로
+ * 유효한지는 종전과 동일하게 DB(enum·FK)가 거른다. 달라지는 건 선언하지 않은 필드를
+ * 읽는 오타가 컴파일에서 걸린다는 것뿐이고, 런타임 동작은 그대로다.
+ */
+type PlanModuleInput = {
+  target: typeof planModule.$inferInsert["target"];
+  programVersionId: typeof planModule.$inferInsert["programVersionId"];
+  priority?: number;
+  params?: typeof planModule.$inferInsert["params"];
+};
+
 // POST /api/plans — create a SINGLE / MANUAL / COMPOSITE plan.
 plansRoutes.post("/", async (c) => {
   const locale = resolveLocale(c);
@@ -285,7 +299,7 @@ plansRoutes.post("/", async (c) => {
     }
 
     if (type === "COMPOSITE") {
-      const modules = Array.isArray(body.modules) ? body.modules : [];
+      const modules: PlanModuleInput[] = Array.isArray(body.modules) ? body.modules : [];
       if (modules.length === 0) {
         return c.json(
           {
@@ -305,7 +319,7 @@ plansRoutes.post("/", async (c) => {
           .returning();
 
         await tx.insert(planModule).values(
-          modules.map((m: any) => ({
+          modules.map((m) => ({
             planId: p.id,
             target: m.target,
             programVersionId: m.programVersionId,
@@ -1334,7 +1348,6 @@ function totalWeeksFromDefinition(definition: unknown): number | null {
   const kind = String(def.kind ?? "").toLowerCase();
   if (kind === "531") return 4;
   if (kind === "operator") return 6;
-  if (kind === "candito-linear") return 6;
   if (kind === "asymptote") return 4;
   const family = String(def.programFamily ?? "").toLowerCase();
   if (family === "operator" || def.operatorStyle === true) return 6;
