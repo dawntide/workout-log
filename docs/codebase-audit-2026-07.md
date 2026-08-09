@@ -256,6 +256,7 @@ S1은 web에 이미 있는 `@/server/auth/rate-limit` 재장착으로 해결(신
 - 커밋: 1,168 (2026-02 이후 월평균 ~230)
 
 > **2026-07-22 델타** (위 수치는 발견 당시 기록이라 그대로 둔다):
-> `any` 201 → **~130**(warn 승격 후 점진 감축; 2026-07-23 `home-service` 로그/PR/볼륨 타이핑으로 추가 −16, 잔여는 DSL·drizzle 브리징 지배) ·
+> `any` 201 → **0**(warn 승격 → 점진 감축 → 2026-08-09 잔여 4건 해소로 web·core·apps/api 전부 0.
+> 재유입은 web eslint `no-explicit-any: error` + core·apps/api `lint:no-any` 랫칫이 CI에서 막는다) ·
 > 최대 화면 파일 1,423 → **560**(`workout-log-screen`; 전체 최대는 도메인 엔진인 `generateSession.ts` 2,139) ·
 > CI 게이트 8종(web lint/typecheck/unit · packages/core · apps/api · TUI · E2E smoke · 번들 예산) + nightly 전체 e2e.

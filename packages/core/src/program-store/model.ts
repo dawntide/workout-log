@@ -25,10 +25,23 @@ export type ProgramTemplate = {
   latestVersion: {
     id: string;
     version: number;
-    definition: any;
-    defaults: any;
+    // 저장된 jsonb 원본. kind마다 골격이 달라 여기서 구조를 단정하지 않는다(seed 밖 형태 —
+    // 유저 fork·import 유입 — 가 실재한다). 읽기는 toJsonRecord로 좁혀서 하고, 정식 파싱이
+    // 필요하면 program-dsl의 parseProgramDefinition을 쓴다.
+    definition: unknown;
+    defaults: unknown;
   } | null;
 };
+
+/**
+ * jsonb 값을 "키를 읽어도 되는 객체"로만 좁힌다. 배열·null·원시값은 null로 떨어져
+ * `?.` 체인이 종전 `any` 때와 똑같이 undefined를 낸다(동작 불변).
+ */
+export function toJsonRecord(value: unknown): Record<string, unknown> | null {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+}
 
 export type ProgramListItem = {
   key: string;
@@ -393,7 +406,7 @@ export function getProgramScheduleLabel(
   template: ProgramTemplate,
   locale: ProgramStoreLocale = "ko",
 ): string {
-  const def = template.latestVersion?.definition;
+  const def = toJsonRecord(template.latestVersion?.definition);
   if (!def) return "";
 
   if (isRef5Template(template)) {
@@ -404,10 +417,12 @@ export function getProgramScheduleLabel(
     );
   }
 
+  const schedule = toJsonRecord(def.schedule);
+
   if (def.kind === "operator") {
     const parts: string[] = [];
-    const sessionsPerWeek = def.schedule?.sessionsPerWeek;
-    const weeks = def.schedule?.weeks;
+    const sessionsPerWeek = schedule?.sessionsPerWeek as number | undefined;
+    const weeks = schedule?.weeks as number | undefined;
     if (sessionsPerWeek) parts.push(frequencyText(sessionsPerWeek, locale));
     if (weeks) parts.push(cycleDetailText(weeks, locale));
     return parts.join(" · ");
@@ -415,8 +430,8 @@ export function getProgramScheduleLabel(
 
   if (def.kind === "asymptote") {
     const parts: string[] = [];
-    const sessionsPerCycle = def.schedule?.sessionsPerWeek;
-    const cyclesPerBlock = def.schedule?.weeks;
+    const sessionsPerCycle = schedule?.sessionsPerWeek as number | undefined;
+    const cyclesPerBlock = schedule?.weeks as number | undefined;
     if (sessionsPerCycle) parts.push(frequencyText(sessionsPerCycle, locale));
     if (cyclesPerBlock) parts.push(asymptoteCycleDetailText(cyclesPerBlock, locale));
     return parts.join(" · ");
@@ -430,8 +445,9 @@ export function getProgramScheduleLabel(
   }
 
   if (def.kind === "manual" && Array.isArray(def.sessions) && def.sessions.length > 0) {
-    const keys = (def.sessions as Array<{ key: string }>).map((s) => s.key).join("/");
-    return `${splitText(def.sessions.length, locale)} · ${keys}`;
+    const sessions = def.sessions as Array<{ key: string }>;
+    const keys = sessions.map((s) => s.key).join("/");
+    return `${splitText(sessions.length, locale)} · ${keys}`;
   }
 
   return "";
@@ -441,8 +457,8 @@ export function getProgramDetailInfo(
   template: ProgramTemplate,
   locale: ProgramStoreLocale = "ko",
 ): ProgramDetailInfo {
-  const def = template.latestVersion?.definition;
-  const defaults = template.latestVersion?.defaults;
+  const def = toJsonRecord(template.latestVersion?.definition);
+  const defaults = toJsonRecord(template.latestVersion?.defaults);
   const tags = Array.isArray(template.tags) ? template.tags : [];
 
   const difficultyValue = difficultyText(tags, locale);
@@ -488,9 +504,11 @@ export function getProgramDetailInfo(
     };
   }
 
+  const schedule = toJsonRecord(def.schedule);
+
   if (def.kind === "operator") {
-    const sessionsPerWeek = def.schedule?.sessionsPerWeek as number | undefined;
-    const weeks = def.schedule?.weeks as number | undefined;
+    const sessionsPerWeek = schedule?.sessionsPerWeek as number | undefined;
+    const weeks = schedule?.weeks as number | undefined;
     const parts: string[] = [];
     if (sessionsPerWeek) parts.push(frequencyText(sessionsPerWeek, locale));
     if (weeks) parts.push(cycleDetailText(weeks, locale));
@@ -504,7 +522,7 @@ export function getProgramDetailInfo(
 
     const modules = Array.isArray(def.modules) ? (def.modules as string[]) : null;
 
-    const mainSets = (def.progression?.mainSets as number | undefined) ?? 3;
+    const mainSets = (toJsonRecord(def.progression)?.mainSets as number | undefined) ?? 3;
     const mainReps = 5;
     const setsRepsLabel = `${mainSets}×${mainReps}`;
     const sessions: ProgramSessionBreakdown[] = [
@@ -549,8 +567,8 @@ export function getProgramDetailInfo(
   }
 
   if (def.kind === "asymptote") {
-    const sessionsPerCycle = def.schedule?.sessionsPerWeek as number | undefined;
-    const cyclesPerBlock = def.schedule?.weeks as number | undefined;
+    const sessionsPerCycle = schedule?.sessionsPerWeek as number | undefined;
+    const cyclesPerBlock = schedule?.weeks as number | undefined;
     const parts: string[] = [];
     if (sessionsPerCycle) parts.push(frequencyText(sessionsPerCycle, locale));
     if (cyclesPerBlock) parts.push(asymptoteCycleDetailText(cyclesPerBlock, locale));
@@ -608,8 +626,8 @@ export function getProgramDetailInfo(
   }
 
   if (def.kind === "531") {
-    const sessionsPerWeek = def.schedule?.sessionsPerWeek as number | undefined;
-    const weeks = def.schedule?.weeks as number | undefined;
+    const sessionsPerWeek = schedule?.sessionsPerWeek as number | undefined;
+    const weeks = schedule?.weeks as number | undefined;
     const parts: string[] = [];
     if (sessionsPerWeek) parts.push(frequencyText(sessionsPerWeek, locale));
     if (weeks) parts.push(cycleDetailText(weeks, locale));
@@ -706,13 +724,15 @@ export function getProgramDetailInfo(
   };
 }
 
-function normalizeTargets(definition: any): string[] {
-  const raw = [
+function normalizeTargets(rawDefinition: unknown): string[] {
+  const definition = toJsonRecord(rawDefinition);
+  const dayMap = toJsonRecord(definition?.progression)?.dayMap;
+  const raw: string[] = [
     ...(Array.isArray(definition?.lifts) ? definition.lifts : []),
     ...(Array.isArray(definition?.modules) ? definition.modules : []),
     ...(Array.isArray(definition?.mainLifts) ? definition.mainLifts : []),
     ...(Array.isArray(definition?.cluster) ? definition.cluster : []),
-    ...(Array.isArray(definition?.progression?.dayMap) ? definition.progression.dayMap : []),
+    ...(Array.isArray(dayMap) ? dayMap : []),
   ]
     .map((value) => String(value ?? "").trim())
     .filter(Boolean);
@@ -747,26 +767,28 @@ function targetLabel(target: string) {
 
 export function isOperatorTemplate(template: ProgramTemplate | null | undefined) {
   if (!template) return false;
+  const definition = toJsonRecord(template.latestVersion?.definition);
   const slug = String(template.slug ?? "").trim().toLowerCase();
-  const kind = String(template.latestVersion?.definition?.kind ?? "").trim().toLowerCase();
+  const kind = String(definition?.kind ?? "").trim().toLowerCase();
   return (
     slug === "operator" ||
     kind === "operator" ||
-    template.latestVersion?.definition?.operatorStyle === true ||
-    String(template.latestVersion?.definition?.programFamily ?? "").trim().toLowerCase() === "operator"
+    definition?.operatorStyle === true ||
+    String(definition?.programFamily ?? "").trim().toLowerCase() === "operator"
   );
 }
 
 // 앱의 asymptote 프로그램(= Asymptote × Async 하이브리드 엔진). slug/kind/family로 판별.
 export function isAsymptoteTemplate(template: ProgramTemplate | null | undefined) {
   if (!template) return false;
+  const definition = toJsonRecord(template.latestVersion?.definition);
   const slug = String(template.slug ?? "").trim().toLowerCase();
-  const kind = String(template.latestVersion?.definition?.kind ?? "").trim().toLowerCase();
+  const kind = String(definition?.kind ?? "").trim().toLowerCase();
   return (
     slug === "asymptote-protocol" ||
     slug === "asymptote" ||
     kind === "asymptote" ||
-    String(template.latestVersion?.definition?.programFamily ?? "").trim().toLowerCase() === "asymptote"
+    String(definition?.programFamily ?? "").trim().toLowerCase() === "asymptote"
   );
 }
 
@@ -774,7 +796,7 @@ export function isAsymptoteTemplate(template: ProgramTemplate | null | undefined
 // 판별하되 program-registry에는 등록하지 않아 일반 manual 커스터마이즈 의미로 변환되지 않게 한다.
 export function isRef5Template(template: ProgramTemplate | null | undefined) {
   if (!template) return false;
-  const definition = template.latestVersion?.definition ?? {};
+  const definition = toJsonRecord(template.latestVersion?.definition);
   const slug = String(template.slug ?? "").trim().toLowerCase();
   const kind = String(definition?.kind ?? "").trim().toLowerCase();
   const family = String(definition?.family ?? "").trim().toLowerCase();
@@ -790,13 +812,13 @@ export function programFlowStyle(
   template: ProgramTemplate | null | undefined,
 ): ProgramFlowStyle {
   if (!template) return "uniform";
-  const definition = template.latestVersion?.definition ?? {};
+  const definition = toJsonRecord(template.latestVersion?.definition);
   const familyHint =
     String(definition?.programFamily ?? "").trim().toLowerCase() ||
     (definition?.operatorStyle === true ? "operator" : "");
   const entry = lookupProgramFamily({
     slug: template.slug,
-    kind: definition?.kind,
+    kind: String(definition?.kind ?? ""),
     family: familyHint,
   });
   return entry?.flowStyle ?? "uniform";
@@ -808,13 +830,13 @@ export function resolveProgramFamily(
   template: ProgramTemplate | null | undefined,
 ): string | null {
   if (!template) return null;
-  const definition = template.latestVersion?.definition ?? {};
+  const definition = toJsonRecord(template.latestVersion?.definition);
   const familyHint =
     String(definition?.programFamily ?? "").trim().toLowerCase() ||
     (definition?.operatorStyle === true ? "operator" : "");
   const entry = lookupProgramFamily({
     slug: template.slug,
-    kind: definition?.kind,
+    kind: String(definition?.kind ?? ""),
     family: familyHint,
   });
   return entry?.family ?? null;
@@ -912,7 +934,7 @@ function oneRmTargetsFromManualDefinition(rawDefinition: unknown): OneRmTarget[]
 
 export function extractOneRmTargetsFromTemplate(template: ProgramTemplate): OneRmTarget[] {
   if (isRef5Template(template)) return [];
-  const definition = template.latestVersion?.definition ?? {};
+  const definition = toJsonRecord(template.latestVersion?.definition);
   const fromLogic: OneRmTarget[] = normalizeTargets(definition)
     .map(canonicalTarget)
     .filter(Boolean)
@@ -1149,7 +1171,7 @@ function sessionKeysFromTargets(targets: string[]): string[] {
 }
 
 export function inferSessionDraftsFromTemplate(template: ProgramTemplate): ProgramSessionDraft[] {
-  const definition = template.latestVersion?.definition ?? {};
+  const definition = toJsonRecord(template.latestVersion?.definition);
   // gzclp/texas: kind=manual이지만 슬롯(tier/요일)별 독립 진행이라, sessionDraftFromManual 대신
   // 슬롯 메타(tier·진행키·시작무게)를 주입하는 전용 빌더를 먼저 탄다.
   const slottedLpFamily = resolveProgramFamily(template);
@@ -1158,7 +1180,7 @@ export function inferSessionDraftsFromTemplate(template: ProgramTemplate): Progr
       slottedLpFamily === "texas-method" ||
       slottedLpFamily === "madcow-5x5" ||
       slottedLpFamily === "nsuns-lp") &&
-    Array.isArray(definition.sessions)
+    Array.isArray(definition?.sessions)
   ) {
     return slottedLpSessionDrafts(definition.sessions, slottedLpFamily);
   }
@@ -1167,7 +1189,7 @@ export function inferSessionDraftsFromTemplate(template: ProgramTemplate): Progr
     if (mapped.length > 0) return mapped;
   }
   if (isOperatorTemplate(template)) {
-    return operatorSessionDrafts((definition as { variant?: unknown })?.variant);
+    return operatorSessionDrafts(definition?.variant);
   }
 
   if (definition?.kind === "asymptote") {

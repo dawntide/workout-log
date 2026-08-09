@@ -11,6 +11,7 @@ import {
   isOperatorTemplate,
   isRef5Template,
   resolveProgramFamily,
+  toJsonRecord,
   type OneRmTarget,
   type ProgramTemplate,
 } from "@workout/core/program-store/model";
@@ -205,7 +206,7 @@ export function readRef5StartConfigFromTemplate(
   template: ProgramTemplate,
 ): Ref5StartConfig | null {
   if (!isRef5Template(template)) return null;
-  const raw = template.latestVersion?.defaults?.ref5 as
+  const raw = toJsonRecord(template.latestVersion?.defaults)?.ref5 as
     | Partial<Ref5StartConfig>
     | null
     | undefined;
@@ -590,7 +591,7 @@ function defaultStartPlanParamsFromTemplate(template: ProgramTemplate) {
 }
 
 function resolveStartTmPercent(template: ProgramTemplate) {
-  const tmPercentRaw = Number(template.latestVersion?.defaults?.tmPercent);
+  const tmPercentRaw = Number(toJsonRecord(template.latestVersion?.defaults)?.tmPercent);
   // 하이브리드: 앱의 asymptote는 Async 레이어가 얹힌 엔진이라 시작 TM을 0.87로 잡는다(원본 0.83보다
   // 덜 보수적). 저장된 defaults.tmPercent(0.83)를 의도적으로 오버라이드.
   if (isAsymptoteTemplate(template)) {

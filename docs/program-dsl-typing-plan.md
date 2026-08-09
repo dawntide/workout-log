@@ -106,5 +106,5 @@
 ## 7. 결정 사항
 
 1. **런타임 검증**: ✅ **zod 채택**(2026-07-23) — 스키마=타입=파서 단일 소스로 드리프트 차단. 서버 사이드 한정 + Phase 1에서 번들 예산 확인.
-2. **candito-linear**: ✅ **dev·prod 모두 0건 확인** → 타입 모델에서 제외 완료. **엔진 분기 삭제는 Phase 3(LOGIC)에서** — 골든이 지키는 상태에서 죽은 분기 제거.
+2. **candito-linear**: ✅ **dev·prod 모두 0건 확인** → 타입 모델에서 제외 완료. **분기 삭제도 완료** — 엔진 디스패처는 그 사이 정리됐고, 마지막 잔존이던 `apps/api` 사이클 길이 폴백(`totalWeeksFromDefinition`)도 제거했다. 남은 언급은 `schema.test.ts`의 "미지 kind fallback" 예시뿐이다(의도적).
 3. **G2 prod 스캔**: ✅ 완료(2026-07-23). fork 필드 `operatorStyle`·`setNumber` 발견해 스키마 반영. import 유입 형태는 `userImport.ts`가 임의 JSON을 insert하므로 Phase 1b/2에서 `parseProgramDefinition` 관용성(`.passthrough()`+fallback)으로 흡수.
