@@ -12,6 +12,8 @@
 **코드 위생·게이트·구조는 이전 감사보다 더 좋아졌다. 새 위험은 딱 하나, 그것도 코드가 아니라 "env 하나로 인증이 사라질 수 있다"는 설계 비대칭이다.**
 
 - **게이트 전수 통과**(직접 실행): web/core/apps-api `typecheck` ✓ · web `lint`·`lint:design` ✓ · core·apps-api `lint:no-any`·`lint:boundary` ✓ · core 유닛 **516개** ✓ · web 유닛 **152개** ✓ · TUI `go build`+`vet`+`test` ✓.
+  > 정정(2026-08-09): 이 목록에 apps/api 테스트가 없는 건 우연이 아니라 **당시 실행 경로가 없었기 때문**이다 —
+  > 감사가 그걸 구멍으로 인지하지 못한 채 지나갔다. §3.5 참조.
 - **위생은 사실상 만점**: TODO/FIXME/HACK **0** · `@deprecated` **0** · `@ts-ignore`/`@ts-expect-error` **0** · `any` **0**(web은 eslint `error`, core·apps-api는 랫칫 CI 게이트) · eslint-disable 5(전부 `react-hooks/exhaustive-deps`) · 디자인 린트 baseline 전항목 0.
 - **유일한 P0은 S1**: 로컬 개발용 인증 폴백(`WORKOUT_AUTH_USER_ID`)이 **apps/api에서는 이중으로 잠겨 있는데 web에서는 잠금이 전혀 없다**. 같은 리포·같은 env·정반대 정책이다. 프로덕션 실측상 지금은 안 켜져 있지만(아래 확인), 켜지는 순간 전 페이지·전 잔류 API가 무인증으로 열린다.
 - **성능은 이번 감사에서 결론을 내리지 않는다** — prod가 **유저 2명 / 로그 64건 / 세트 695행**이라 `pg_stat`의 seq scan 수치로는 "인덱스 부족"과 "작아서 planner가 seq scan을 고른 것"을 구분할 수 없다. 대신 인덱스가 **실제 쿼리 표현식과 일치하는지**를 정적으로 대조했고, 일치한다.
@@ -22,7 +24,8 @@
 |---|---|---|---|
 | **P0** | web 인증 폴백을 apps/api와 같은 수준으로 잠근다 (S1) | S | §3.1 |
 | ~~P2~~ | ~~`migration_run_log` 보존 정책 (O1)~~ | S | ✅ **완료(2026-08-09, #664)** — §3.2 |
-| **P3** | `apps/api/src/routes/plans.ts` 1,706줄 분해 (C1) | M | §3.3 |
+| ~~P3~~ | ~~`apps/api/src/routes/plans.ts` 1,706줄 분해 (C1)~~ | M | ✅ **완료(2026-08-09, #666)** — §3.3 |
+| **P1** | ~~apps/api 테스트가 CI에 없음~~ | S | ✅ **완료(2026-08-09, #666)** — **이 감사가 놓쳤던 것**, §3.5 |
 | **하지 말 것** | pg_stat 수치로 인덱스 판단 · 리스트 가상화 재론 · DSL Phase 4b | — | §4 |
 
 ---
@@ -89,11 +92,32 @@ prod 실측:
 
 현재 속도면 연 ~2,200행 / ~1.5 MB라 성능 문제는 아니다. 지적하는 건 **비대칭**이다 — 같은 성격(운영 텔레메트리)의 형제 테이블은 이미 cron 정리를 받았는데 더 큰 쪽만 빠졌다. `ux-events-cleanup` cron에 얹으면 되는 수준이다.
 
-### 3.3 P3 — C1: apps/api가 한 파일에 쏠려 있다
+### 3.3 P3 — C1: apps/api가 한 파일에 쏠려 있다 ✅ **해소(2026-08-09, #666)**
+
+> 라우트 그룹별 모듈 6개 + 공용 헬퍼로 쪼갰고 `plans.ts`는 37줄 조립기만 남았다(최대 모듈 489줄).
+> 핸들러 로직은 옮기기만 했다. **이 리팩터에서 실제로 깨질 수 있는 건 등록 순서 하나**라
+> (Hono는 등록 순서로 매칭 — `/generated-sessions/active`가 `/:sessionId` 뒤로 가면 먹힌다),
+> 전/후 `plansRoutes.routes`를 덤프해 13개 항목이 순서까지 동일함을 확인하고 그 대조를
+> 상시 가드로 남겼다(`plans/route-order.test.ts`). 아래는 발견 당시 기록이다.
 
 [`apps/api/src/routes/plans.ts`](apps/api/src/routes/plans.ts)가 **1,706줄**로, apps/api 전체 5,709줄의 **30%**다. 16개 파일짜리 패키지에서 한 파일이 3분의 1을 먹는 구조다. 7월 감사가 닫은 god-component 작업(#589~#591)과 같은 성격이며, 같은 처방(라우트 그룹별 분리)이 적용된다. 지금 당장의 결함은 아니고 방향 관리 대상이다.
 
 참고로 전체 최대 파일은 도메인 엔진 쪽이다: `generateSession.ts` 2,144 · `ref5.ts` 2,089 · `seed.ts` 1,555. 이들은 엔진/데이터 성격이라 분해 대상이 아니다.
+
+### 3.5 P1 — 이 감사가 놓친 것: apps/api 테스트가 CI에 없었다 ✅ **해소(2026-08-09, #666)**
+
+> **이 항목은 감사 발표(2026-08-09) 뒤 C1 작업 중에 드러났다.** 아래 §5에서 "CI 커버리지"를
+> 강점으로 적으면서 잡 이름만 보고 `apps/api Typecheck · Boundary`를 통과로 셌는데,
+> 그 잡에는 **테스트 스텝이 없었다** — `apps/api/package.json`에 `test` 스크립트 자체가 없었고,
+> 이미 존재하던 [`ref5-plan-creation.test.ts`](apps/api/src/lib/ref5-plan-creation.test.ts)(3개)는
+> **한 번도 실행된 적이 없다**. 테스트 파일이 있는데 아무도 안 돌리는, 이 리포가 반복해서
+> 가드로 막아 온 바로 그 침묵 실패였다.
+>
+> 조치: `packages/core`와 같은 글롭 발견 방식으로 `test` 스크립트를 넣고 CI 잡에 스텝을 추가했다.
+> 새 테스트는 자동 편입된다. 살려 보니 기존 3개는 통과했고, C1의 route-order 가드가 붙어 6개가 됐다.
+>
+> **감사 방법에 대한 교훈**: "게이트 전수 실행"을 잡 이름 목록으로 확인하면 이런 구멍이 남는다.
+> 다음 감사는 **각 잡이 실제로 실행하는 스텝**까지 열어 볼 것.
 
 ### 3.4 성능 — 이번 감사는 결론을 내리지 않는다
 
@@ -120,6 +144,8 @@ prod 실측이 **유저 2 · 플랜 2 · 로그 64 · 세트 695행**이다. 이
 
 - **랫칫 문화가 자리잡았다**: `any` 랫칫(허용치가 실제보다 높아도 실패한다 — 헐거워지는 걸 막는다) · 마이그레이션 저널 가드 · 유닛 테스트 발견 가드 · 에이전트 가이드 스큐 가드 · REF5 프로토콜 범프↔스펙 동반 가드([`ci.yml:46`](.github/workflows/ci.yml:46)). **침묵 실패를 가드로 바꾸는 패턴**이 반복적으로 적용되고 있다.
 - **CI 커버리지**: PR에서 6개 잡(quality · apps-api · core · bundle-budget · tui · e2e smoke)이 돌고, e2e smoke는 마이그레이션·멱등성·계정 수명주기·스냅샷 불변식까지 사전 검증한 뒤 prod 빌드로 렌더한다. 전체 e2e는 nightly.
+  > ⚠️ **정정(2026-08-09)**: 발표 시점의 이 서술은 과장이었다. `apps-api` 잡에는 **테스트 스텝이 없었고**,
+  > 존재하던 apps/api 테스트는 한 번도 안 돌고 있었다(§3.5). #666에서 배선해 지금은 서술대로다.
 - **fail-closed 일관성**: ops·cron 전부 Bearer 시크릿 미설정 시 **거부**([`ops.ts:9-12`](apps/api/src/routes/ops.ts:9) · [`cron/session-prune/route.ts:23`](web/src/app/api/cron/session-prune/route.ts:23)). 계정 삭제는 세션 + rate limit + 비밀번호 검증 + `confirmToken` 4중.
 - **import 스코프 가드**: export가 내보내는 10개 테이블 중 부모로만 소유자가 정해지는 자식 전부(`planModules`·`planOverrides`·`generatedSessions`·`workoutLogs`·`workoutSets`·`templateVersions`)가 `validateImportScope`에 등록돼 있다(#644 회귀 차단).
 - **의존성 절제**: web 런타임 deps 12개(워크스페이스 2개 포함). 실질 외부 deps는 `@tanstack/react-virtual`·`@vercel/functions`·`drizzle-orm`·`idb`·`jotai`·`next`·`pg`·`react`·`react-dom`·`tsx`.
