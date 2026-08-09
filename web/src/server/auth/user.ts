@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
 import { findActiveSession, SESSION_COOKIE_NAME } from "@workout/core/auth/session";
+import { devFallbackUserId } from "./dev-fallback";
 
 /**
  * 인증된 사용자가 없을 때 던지는 에러. API 에러 핸들러가 이를 HTTP 401로
@@ -64,9 +65,9 @@ export async function tryAuthenticatedUserId(): Promise<string | null> {
     if (session) return session.userId;
   }
   // env fallback은 LOCAL-DEV 편의용(.env.local의 WORKOUT_AUTH_USER_ID)으로,
-  // 로그인 없이 앱을 쓸 수 있게 한다. 프로덕션에서는 반드시 UNSET이어야 한다 —
-  // 설정돼 있으면 미인증 요청이 공유 env 유저로 해석된다.
-  const env = (process.env.WORKOUT_AUTH_USER_ID ?? "").trim();
+  // 로그인 없이 앱을 쓸 수 있게 한다. **프로덕션 런타임에서는 명시 opt-in 없이 죽어 있다** —
+  // 종전에는 "프로덕션에선 UNSET이어야 한다"는 규율에만 기대고 있었다(devFallbackUserId).
+  const env = devFallbackUserId();
   if (env) return env;
   return null;
 }
