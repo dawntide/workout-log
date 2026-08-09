@@ -128,7 +128,7 @@ S1은 web에 이미 있는 `@/server/auth/rate-limit` 재장착으로 해결(신
 |---|---|---|
 | F1 | ✅ **해소(2026-07-16)**: 웹 terminal 테마와 조건부 셸을 제거해 `AppShell`이 단일 컴포넌트 트리만 렌더 | `components/app-shell.tsx` · `app/layout.tsx` |
 | F2 | ✅ **해소(2026-07-20)**: useEffect 주입 자체는 의도된 설계(렌더 블로킹 회피)라 유지하고, `ReactDOM.preload`로 **다운로드 시작만 HTML 파싱 시점으로 이동**. preload는 렌더 블로킹이 아니라 FCP 이득은 보존되고, "하이드레이션 이후에야 요청" 지연만 제거. 실측(dev, /login) 요청 시작 236ms→78–104ms. URL은 `lib/fonts.ts` 단일 소스(preload↔stylesheet URL/CORS 불일치 시 이중 다운로드) | `components/font-stylesheet-loader.tsx` · `lib/fonts.ts` · `app/layout.tsx` |
-| F3 | 미가상화 성장 리스트: PR 히스토리·플랜 관리·캘린더 최근 로그 (가상화는 운동 카탈로그만) | `pr-history-screen.tsx:265` · `plans-manage-content.tsx:985` |
+| F3 | ✅ **종결(2026-08-09)**: 셋 중 실제 성장 리스트는 PR 히스토리뿐이었고 **#490에서 가상화 완료**. 나머지 둘은 실측 결과 성장하지 않는다 — **캘린더 최근 로그는 코드가 `.slice(0, 5)`로 5행 고정**이고, **플랜 관리는 플랜 수만큼**인데 prod 실측이 유저당 최대 **2개**다(전체 2). 남은 둘은 가상화 대상이 아니므로 조치 불필요 | `pr-history-screen.tsx`(가상화됨) · `use-calendar-derived-state.ts:404` · `plans-manage-screen.tsx:176` |
 | F4 | ✅ **기우로 판명(2026-07-20)**: `analyze:bundle` 산출물 실측 결과 `messages.ts`의 클라이언트 그래프 기여는 **전 라우트 0.0KB**(`/`·`/calendar`·`/program-store`·`/settings`·`/login`). `LocaleShell`이 서버에서 활성 로케일 copy만 prop으로 넘겨 카탈로그가 클라이언트로 넘어가지 않음. 조치 불필요 | `web/src/lib/i18n/messages.ts` · `app/layout.tsx:59-75` |
 
 ### 4.5 P4 — 구조 부채 (방향 관리 대상)
