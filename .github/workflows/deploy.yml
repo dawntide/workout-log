@@ -9,6 +9,8 @@ on:
 
 permissions:
   contents: read
+  # 배포 검증 실패를 이슈로 승격하기 위해 필요(아래 마지막 스텝).
+  issues: write
 
 jobs:
   wait-vercel:
@@ -33,3 +35,62 @@ jobs:
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
           VERCEL_TEAM_ID: ${{ secrets.VERCEL_TEAM_ID }}
         run: python3 .github/scripts/wait-vercel-deployment.py
+
+      # 위 스텝이 실패하면 워크플로가 빨갛게 끝난다 — 그런데 **빨간 워크플로는 아무도 안 보면
+      # 사라진다**. #648(e1f32ad6)이 정확히 그랬다: 2026-08-04에 이 가드가 배포 미생성을
+      # 제대로 잡아 failure로 끝냈는데, 알아챈 사람이 없어 며칠 뒤 감사에서야 드러났다
+      # (2026-07 감사 §5.5의 정정 박스 참조 — 문제는 탐지가 아니라 알림이었다).
+      #
+      # 그래서 실패를 **리포에 남는 이슈로 승격**한다. 알림을 놓쳐도 다음에 리포를 열면 보인다.
+      # 이미 열린 이슈가 있으면 새로 만들지 않고 댓글만 단다(연속 실패 스팸 방지).
+      - name: Escalate deploy verification failure to an issue
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+
+          # 라벨은 dedup 키다. 없으면 만들고, 있으면 그대로 쓴다.
+          gh label create deploy-failure --color B60205 \
+            --description "프로덕션 배포 검증 실패 — deploy.yml이 자동 생성" 2>/dev/null || true
+
+          body=$(cat <<EOF
+          머지된 커밋의 **Vercel 프로덕션 배포를 확인하지 못했다.**
+
+          - 커밋: \`$TARGET_SHA\`
+          - 실행 로그: $RUN_URL
+
+          ## 무슨 뜻인가
+
+          \`deploy.yml\`의 배포 검증 잡이 **이 SHA의 프로덕션 배포를 READY로 확인하지 못한 채** 실패했다.
+          흔한 원인 셋:
+
+          1. 배포가 **아예 생성되지 않음** — 웹훅 누락(#648 사례)
+          2. 생성됐지만 ERROR / CANCELED로 끝남
+          3. Vercel 시크릿 누락으로 검증 자체를 시작하지 못함
+
+          1·2라면 **프로덕션은 이 커밋 이전 버전으로 계속 돌고 있다.** 3이라면 배포 상태는 불명이다.
+
+          ## 복구
+
+          main은 룰셋으로 직접 푸시가 막혀 있다. 둘 중 하나로 재트리거한다:
+
+          1. Vercel 대시보드에서 이 커밋의 배포를 **Promote to Production**
+          2. PR을 하나 더 태워 새 배포를 만든다
+
+          복구를 확인한 뒤 이 이슈를 닫는다. 열려 있는 동안 추가 실패는 새 이슈 대신 댓글로 쌓인다.
+          EOF
+          )
+
+          existing=$(gh issue list --state open --label deploy-failure --limit 1 --json number --jq '.[0].number // empty')
+          if [ -n "$existing" ]; then
+            echo "기존 이슈 #$existing에 댓글을 단다"
+            gh issue comment "$existing" --body "$body"
+          else
+            echo "새 이슈를 만든다"
+            gh issue create \
+              --title "프로덕션 배포 검증 실패 — $TARGET_SHA" \
+              --label deploy-failure \
+              --body "$body"
+          fi
