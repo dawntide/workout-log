@@ -16,17 +16,22 @@
   > 감사가 그걸 구멍으로 인지하지 못한 채 지나갔다. §3.5 참조.
 - **위생은 사실상 만점**: TODO/FIXME/HACK **0** · `@deprecated` **0** · `@ts-ignore`/`@ts-expect-error` **0** · `any` **0**(web은 eslint `error`, core·apps-api는 랫칫 CI 게이트) · eslint-disable 5(전부 `react-hooks/exhaustive-deps`) · 디자인 린트 baseline 전항목 0.
 - **유일한 P0은 S1**: 로컬 개발용 인증 폴백(`WORKOUT_AUTH_USER_ID`)이 **apps/api에서는 이중으로 잠겨 있는데 web에서는 잠금이 전혀 없다**. 같은 리포·같은 env·정반대 정책이다. 프로덕션 실측상 지금은 안 켜져 있지만(아래 확인), 켜지는 순간 전 페이지·전 잔류 API가 무인증으로 열린다.
+  > ✅ **해소(2026-08-09, #663)** — §3.1 참조. **이 감사가 연 항목은 2026-08-11 기준 전부 닫혔다.**
 - **성능은 이번 감사에서 결론을 내리지 않는다** — prod가 **유저 2명 / 로그 64건 / 세트 695행**이라 `pg_stat`의 seq scan 수치로는 "인덱스 부족"과 "작아서 planner가 seq scan을 고른 것"을 구분할 수 없다. 대신 인덱스가 **실제 쿼리 표현식과 일치하는지**를 정적으로 대조했고, 일치한다.
 
 ### 우선순위 요약
 
 | 우선도 | 작업 | 노력 | 근거 |
 |---|---|---|---|
-| **P0** | web 인증 폴백을 apps/api와 같은 수준으로 잠근다 (S1) | S | §3.1 |
+| ~~P0~~ | ~~web 인증 폴백을 apps/api와 같은 수준으로 잠근다 (S1)~~ | S | ✅ **완료(2026-08-09, #663)** — §3.1 |
 | ~~P2~~ | ~~`migration_run_log` 보존 정책 (O1)~~ | S | ✅ **완료(2026-08-09, #664)** — §3.2 |
 | ~~P3~~ | ~~`apps/api/src/routes/plans.ts` 1,706줄 분해 (C1)~~ | M | ✅ **완료(2026-08-09, #666)** — §3.3 |
-| **P1** | ~~apps/api 테스트가 CI에 없음~~ | S | ✅ **완료(2026-08-09, #666)** — **이 감사가 놓쳤던 것**, §3.5 |
-| **하지 말 것** | pg_stat 수치로 인덱스 판단 · 리스트 가상화 재론 · DSL Phase 4b | — | §4 |
+| ~~P1~~ | ~~apps/api 테스트가 CI에 없음~~ | S | ✅ **완료(2026-08-09, #666)** — **이 감사가 놓쳤던 것**, §3.5 |
+| **하지 말 것** | pg_stat 수치로 인덱스 판단 · 리스트 가상화 재론 · DSL Phase 4b · **에러 추적(Sentry) 도입** | — | §4 |
+
+> **이 감사의 열린 항목은 0이다**(2026-08-11 재검증). 남은 것은 성격이 다른 두 부류뿐이다:
+> ① 규모가 커지면 다시 볼 보류 항목(D5 stats_cache single-flight · R8 사전 커밋 훅 — §6),
+> ② 착수 근거가 아직 없는 미검증 의심(app-shell 앵커 인터셉터 이중 `router.push` — §6).
 
 ---
 
@@ -49,7 +54,16 @@ RSC 페이지 ─────────── @workout/core 직접 import (프
 
 ## 3. 발견 사항
 
-### 3.1 P0 — S1: 인증 폴백이 web에서만 잠겨 있지 않다
+### 3.1 P0 — S1: 인증 폴백이 web에서만 잠겨 있지 않다 ✅ **해소(2026-08-09, #663)**
+
+> apps/api의 방식(**NODE_ENV 차단 + 명시 opt-in**)을 그대로 옮겼다 —
+> [`dev-fallback.ts`](web/src/server/auth/dev-fallback.ts)의 `devFallbackUserId()`가
+> 단일 판정 지점이고, 아래 표의 두 구멍(`proxy.ts`·`user.ts`)이 **둘 다 이 함수를 경유**한다.
+> 프로덕션 런타임에서는 `WORKOUT_WEB_ALLOW_ENV_AUTH=1` 없이는 죽어 있다. 예고한 대로
+> "NODE_ENV만 보고 차단"은 쓰지 않았다 — E2E가 prod 빌드로 이 폴백에 의존하기 때문이고,
+> CI가 그 플래그를 세운다. 정책은 `dev-fallback.test.ts`가 고정한다(비프로덕션 통과 ·
+> 프로덕션 차단 · 플래그 오타/변형 거부 · 공백 트림).
+> #668에서 뒤따라 죽은 env-only export까지 걷어냈다. 아래는 발견 당시 기록이다.
 
 `WORKOUT_AUTH_USER_ID`는 "쿠키가 없으면 이 유저로 친다"는 로컬 개발 편의 장치다. 문제는 **같은 env를 읽는 두 런타임의 정책이 정반대**라는 것이다.
 
@@ -136,6 +150,7 @@ prod 실측이 **유저 2 · 플랜 2 · 로그 64 · 세트 695행**이다. 이
 - **pg_stat 수치로 인덱스를 판단하지 말 것** — 유저 2명 규모에서는 seq scan이 정상이고 `idx_scan=0`이 무죄다. 이 DB에서 인덱스 판단은 **쿼리↔인덱스 정적 대조**로만 한다. (§3.4)
 - **리스트 가상화 재론 금지** — 2026-08-09 실측으로 종결. 캘린더 최근 로그는 `.slice(0, 5)` 고정, 플랜 관리는 유저당 최대 2개다(2026-07 감사 §4.4 F3).
 - **DSL Phase 4b(스냅샷 소비자 READ 전환) 재론 금지** — 근거였던 `any` 잔여가 0이 됐고, 남은 읽기 3곳은 `SnapshotV3`로 타이핑하면 오히려 **거짓 좁힘**이 된다(home-service는 v3와 REF5 v4를 같은 경로로 받는다).
+- **에러 추적(Sentry 등) 도입 금지** — 2026-08-11 소유자 결정. DEPLOY.md §6이 "권장, 선택"으로 오래 올려 둔 항목인데, **운영 인프라를 하나 더 늘리는 비용이 이 규모에서 얻는 값보다 크다**(유저 2명·1인 운영). 지금도 실패는 눈에 보인다: 배포 검증 실패는 이슈로 승격되고(#669), 서버 에러는 구조화 JSON 로그(`api.request`)와 Supabase 로그로 남는다. **다시 열 조건**: 사용자가 늘어 "재현 안 되는 클라이언트 에러"를 쫓게 되거나, Vercel 런타임 로그 1시간 보존이 실제 조사에서 부족해질 때. 그전까지는 백로그에 올리지 말 것.
 - 7월 감사의 non-goal은 그대로 유효하다: 프록시 토폴로지 재설계 금지, 밴드 보조(음수 부하) 재론 금지.
 
 ---
@@ -146,7 +161,12 @@ prod 실측이 **유저 2 · 플랜 2 · 로그 64 · 세트 695행**이다. 이
 - **CI 커버리지**: PR에서 6개 잡(quality · apps-api · core · bundle-budget · tui · e2e smoke)이 돌고, e2e smoke는 마이그레이션·멱등성·계정 수명주기·스냅샷 불변식까지 사전 검증한 뒤 prod 빌드로 렌더한다. 전체 e2e는 nightly.
   > ⚠️ **정정(2026-08-09)**: 발표 시점의 이 서술은 과장이었다. `apps-api` 잡에는 **테스트 스텝이 없었고**,
   > 존재하던 apps/api 테스트는 한 번도 안 돌고 있었다(§3.5). #666에서 배선해 지금은 서술대로다.
-- **배포 검증이 자동이다**(2026-08-09 추가 확인): `CI(main push) → db-migrate → deploy` 체인의 [`deploy.yml`](.github/workflows/deploy.yml)이 머지 SHA의 Vercel 프로덕션 배포를 기다려 없으면 실패한다. 2026-07 감사 §5.5가 "머지 = 배포로 가정하지 말 것"을 **수동 확인** 지침으로 적어 둔 탓에 백로그에 "가드 없음"으로 잘못 올라와 있었는데, 실행 이력을 열어 보니 **#648 사고를 이 가드가 실제로 잡았다**(`e1f32ad6`, "Wait for Vercel deployment to be ready" 실패). 놓친 건 탐지가 아니라 **알림**이다 — 빨간 워크플로를 아무도 보지 않았다. 남은 공백은 `ci.yml` main push `paths`에 `docs/**`가 없어 문서-only 머지가 체인을 안 탄다는 것뿐이고, 코드가 안 바뀌므로 영향이 없다.
+- **배포 검증이 자동이다**(2026-08-09 추가 확인): `CI(main push) → db-migrate → deploy` 체인의 [`deploy.yml`](.github/workflows/deploy.yml)이 머지 SHA의 Vercel 프로덕션 배포를 기다려 없으면 실패한다. 2026-07 감사 §5.5가 "머지 = 배포로 가정하지 말 것"을 **수동 확인** 지침으로 적어 둔 탓에 백로그에 "가드 없음"으로 잘못 올라와 있었는데, 실행 이력을 열어 보니 **#648 사고를 이 가드가 실제로 잡았다**(`e1f32ad6`, "Wait for Vercel deployment to be ready" 실패). 놓친 건 탐지가 아니라 **알림**이다 — 빨간 워크플로를 아무도 보지 않았다.
+  > ✅ **알림 공백도 해소(2026-08-10, #669)** — 배포 검증 실패가 `deploy-failure` 라벨 이슈로 승격된다
+  > (열린 이슈가 있으면 댓글만 달아 도배를 막고, 본문에 SHA·로그 링크·복구 절차를 넣는다).
+  > 알림을 놓쳐도 리포를 열면 보이고 닫을 때까지 상태가 남는다. 남은 공백은 `ci.yml` main push
+  > `paths`에 `docs/**`가 없어 문서-only 머지가 체인을 안 탄다는 것뿐이고, 코드가 안 바뀌므로 영향이 없다
+  > (**이 문서를 고치는 PR이 정확히 그 경우다**).
 - **fail-closed 일관성**: ops·cron 전부 Bearer 시크릿 미설정 시 **거부**([`ops.ts:9-12`](apps/api/src/routes/ops.ts:9) · [`cron/session-prune/route.ts:23`](web/src/app/api/cron/session-prune/route.ts:23)). 계정 삭제는 세션 + rate limit + 비밀번호 검증 + `confirmToken` 4중.
 - **import 스코프 가드**: export가 내보내는 10개 테이블 중 부모로만 소유자가 정해지는 자식 전부(`planModules`·`planOverrides`·`generatedSessions`·`workoutLogs`·`workoutSets`·`templateVersions`)가 `validateImportScope`에 등록돼 있다(#644 회귀 차단).
 - **의존성 절제**: web 런타임 deps 12개(워크스페이스 2개 포함). 실질 외부 deps는 `@tanstack/react-virtual`·`@vercel/functions`·`drizzle-orm`·`idb`·`jotai`·`next`·`pg`·`react`·`react-dom`·`tsx`.
@@ -165,7 +185,8 @@ prod 실측이 **유저 2 · 플랜 2 · 로그 64 · 세트 695행**이다. 이
 | P3 프론트(F1~F4) | ✅ 전부 종결 — F3은 2026-08-09 실측으로 닫힘 |
 | `any` 감축 | ✅ **0건 도달**(2026-08-09, #660). 재유입은 eslint error + 랫칫 2개가 막는다 |
 | god-component | ✅ 웹은 해소. apps/api `plans.ts`가 새로 부상(§3.3) |
-| 인프라 미결(DEPLOY.md) | **그대로** — 에러 추적(Sentry) 미설정 · CORS 정책 · 시크릿 중앙관리 · TUI fleet 버전 추적 |
+| 인프라 미결(DEPLOY.md) | **정리됨(2026-08-11)** — 에러 추적은 **하지 않기로 결정**(§4) · CORS는 인프로세스 모드라 성립 안 함(브라우저가 apps/api를 직접 호출하지 않는다) · 시크릿 중앙관리·TUI fleet 버전 추적은 1인 운영 규모에서 과잉. **넷 다 백로그에서 내린다** |
+| 미검증 의심(신규) | app-shell 앵커 인터셉터([`app-shell.tsx:77`](web/src/components/app-shell.tsx:77))가 `window` click에서 `router.push`를 부르는데, next/link의 React 위임 핸들러가 **먼저** 돌아 같은 이동이 두 번 push될 수 있다. 구조상 성립하나 **RSC 요청이 실제 2회인지는 미측정** — 측정 전에는 착수 금지 |
 
 ---
 
