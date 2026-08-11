@@ -275,7 +275,7 @@ jobs:
           WORKOUT_ALLOW_INSECURE_COOKIES: "1"
           WORKOUT_DISABLE_RATE_LIMIT: "1"
           CI: "true"
-        run: pnpm exec playwright test e2e/smoke.spec.ts e2e/program-start-smoke.spec.ts e2e/a11y-runtime.spec.ts e2e/stale-session-redirect.spec.ts e2e/color-themes.spec.ts e2e/pull-to-refresh.spec.ts --project chromium
+        run: pnpm exec playwright test e2e/smoke.spec.ts e2e/program-start-smoke.spec.ts e2e/a11y-runtime.spec.ts e2e/stale-session-redirect.spec.ts e2e/color-themes.spec.ts e2e/pull-to-refresh.spec.ts e2e/link-navigation.spec.ts --project chromium
 
       # 실패 시 trace/screenshot/video를 artifact로 보관
       - name: Upload Playwright artifacts

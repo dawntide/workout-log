@@ -59,6 +59,13 @@ export function AppShell({
   // 전용 페이드(.app-shell__page, key=pathname)로 대체한다.
   useEffect(() => {
     const handleLinkClick = (e: MouseEvent) => {
+      // next/link가 이미 처리한 클릭은 건너뛴다. Link의 onClick은 React 위임 핸들러라
+      // 이 window 리스너보다 **먼저** 돌면서 preventDefault + 클라 네비게이션을 끝낸다.
+      // 그걸 모르고 여기서 다시 router.push하면 같은 이동이 두 번 일어나, RSC 페이로드를
+      // 두 번 받아온다(2026-08-11 실측: /plans/manage?_rsc=… 요청 2건 — 같은 URL·prefetch 아님.
+      // raw <a>인 하단 네비는 1건). 히스토리는 라우터가 합쳐 pushState가 1회라 눈에 안 띄었다.
+      if (e.defaultPrevented) return;
+
       const target = (e.target as HTMLElement).closest("a");
       if (
         !target ||
