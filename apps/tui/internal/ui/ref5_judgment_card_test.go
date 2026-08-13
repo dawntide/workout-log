@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/charmbracelet/x/ansi"
+
+	"github.com/sharru0701/workout-log/apps/tui/internal/api"
 )
 
 // ref5JudgmentFeedback is the server-assembled REF5 window judgment exactly as
@@ -133,11 +135,14 @@ func TestRef5WindowStatusRestoresJudgmentCardOnReentry(t *testing.T) {
 
 	// A card already on screen (just set by the save response) wins — the
 	// refresh must not restyle or duplicate the same judgment underneath it.
+	saved := &api.ProgressionFeedback{
+		Report: &api.ProgressReport{EventID: "evt-just-saved", Title: "방금 저장이 세운 카드"},
+	}
 	fresh := newBuffer()
-	fresh.feedback = []string{"방금 저장이 세운 카드"}
+	fresh.feedback = saved
 	fresh.beginRef5WindowStatusLoad(plan.ID)
 	screen, _ = fresh.Update(loaded)
-	if kept := screen.(Log).feedback; len(kept) != 1 || kept[0] != "방금 저장이 세운 카드" {
+	if kept := screen.(Log).feedback; kept != saved {
 		t.Errorf("status refresh clobbered the post-save card: %#v", kept)
 	}
 }
