@@ -62,14 +62,21 @@ type ref5WindowStatusLoadedMsg struct {
 	planID    string
 	requestID uint64
 	status    *api.Ref5Status
-	err       error
+	// feedback is the plan's latest judgment card. Carried alongside the windows
+	// because both come from the one progression-state response.
+	feedback *api.ProgressionFeedback
+	err      error
 }
 
 func ref5WindowStatusLoadCmd(c *api.Client, planID string, requestID uint64) tea.Cmd {
 	return func() tea.Msg {
-		status, err := c.Ref5PlanStatus(context.Background(), planID)
+		state, err := c.PlanProgressionState(context.Background(), planID)
+		if err != nil {
+			return ref5WindowStatusLoadedMsg{planID: planID, requestID: requestID, err: err}
+		}
 		return ref5WindowStatusLoadedMsg{
-			planID: planID, requestID: requestID, status: status, err: err,
+			planID: planID, requestID: requestID,
+			status: state.Ref5Status, feedback: state.Feedback,
 		}
 	}
 }

@@ -261,6 +261,10 @@ type PlanProgressionState struct {
 	State          json.RawMessage                     `json:"state"`
 	EffectiveRules map[string]ProgressionEffectiveRule `json:"effectiveRules"`
 	Ref5Status     *Ref5Status                         `json:"ref5Status"`
+	// Server-assembled judgment card for the plan's latest progress event. It
+	// carries the same copy as the save response, so a judgment stays visible
+	// after the buffer is re-entered instead of only in the save that made it.
+	Feedback *ProgressionFeedback `json:"feedback"`
 }
 
 type ProgressionEffectiveRule struct {
