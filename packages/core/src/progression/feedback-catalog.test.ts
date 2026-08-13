@@ -358,3 +358,112 @@ test("buildProgressionFeedbackFromEvent: 이벤트 없음 → 전부 null", () =
     earlyDeloadBanner: null,
   });
 });
+
+// ── REF5 창 판정 리포트 ─────────────────────────────────────────────────────
+
+function ref5EventRow(changes: unknown[], overrides: Partial<{ id: string; eventType: string }> = {}) {
+  return {
+    id: overrides.id ?? "evt-ref5",
+    eventType: overrides.eventType ?? "REF5_INCREASE",
+    reason: "ref5:canonical-replay",
+    createdAt: "2026-08-13T00:00:00.000Z",
+    programSlug: "ref5-adaptive-strength",
+    meta: { changes },
+  };
+}
+
+test("REF5: 증량 판정 — 창 클리어 문구(ko) + 배너 없음", () => {
+  const feedback = buildProgressionFeedbackFromEvent(
+    {
+      eventRow: ref5EventRow([
+        { eventId: "increase:SQ:c1", lift: "SQ", kind: "INCREASE", beforeKg: 100, afterKg: 102.5, causeEventIds: ["window:SQ:c1"] },
+      ]),
+    },
+    "ko",
+  );
+  assert.ok(feedback.report);
+  assert.equal(feedback.report!.title, "REF5 창 판정");
+  assert.equal(feedback.report!.eventId, "evt-ref5");
+  assert.equal(
+    feedback.report!.rows[0]!.text,
+    "SQ 하드 — 판정창 클리어 → 기준 증량 100 → 102.5 kg (+2.5) · 다음 세션부터 적용",
+  );
+  assert.equal(feedback.earlyDeloadBanner, null);
+});
+
+test("REF5: 유지 판정 — MAINTAIN도 카드로 표출(en 포함)", () => {
+  const changes = [
+    { eventId: "maintain:BP:c1", lift: "BP", kind: "MAINTAIN", beforeKg: 62.5, afterKg: 62.5, causeEventIds: [] },
+  ];
+  const ko = buildProgressionFeedbackFromEvent({ eventRow: ref5EventRow(changes, { eventType: "REF5_HOLD" }) }, "ko");
+  assert.equal(ko.report!.rows[0]!.text, "BP 집중 — 판정창 완료 → 기준 유지 (62.5 kg)");
+  const en = buildProgressionFeedbackFromEvent({ eventRow: ref5EventRow(changes, { eventType: "REF5_HOLD" }) }, "en");
+  assert.equal(en.report!.rows[0]!.text, "BP focus — window judged → standard held (62.5 kg)");
+});
+
+test("REF5: 감량 3종 문구 + 같은 리프트 중복 kind의 target 키 유일성", () => {
+  const feedback = buildProgressionFeedbackFromEvent(
+    {
+      eventRow: ref5EventRow(
+        [
+          { eventId: "immediate-decrease:SQ:c1", lift: "SQ", kind: "IMMEDIATE_DECREASE", beforeKg: 100, afterKg: 97.5, causeEventIds: [] },
+          { eventId: "stagnation-decrease:PULL:c1", lift: "PULL", kind: "STAGNATION_DECREASE", beforeKg: 90, afterKg: 87.5, causeEventIds: [] },
+          { eventId: "immediate-decrease:DL:c1", lift: "DL", kind: "IMMEDIATE_DECREASE", beforeKg: 140, afterKg: 137.5, causeEventIds: [] },
+          { eventId: "cap-decrease:DL:c1", lift: "DL", kind: "AUXILIARY_CAP_DECREASE", beforeKg: 140, afterKg: 137.5, causeEventIds: [] },
+        ],
+        { eventType: "REF5_DECREASE" },
+      ),
+    },
+    "ko",
+  );
+  const rows = feedback.report!.rows;
+  assert.equal(rows.length, 4);
+  assert.equal(rows[0]!.text, "SQ 하드 — 연속 실패 → 즉시 감량 100 → 97.5 kg (−2.5)");
+  assert.equal(rows[1]!.text, "PULL 집중(총하중) — 정체 재평가 → 감량 90 → 87.5 kg (−2.5)");
+  assert.match(rows[3]!.text, /메인 기준 연동 상한/);
+  assert.equal(new Set(rows.map((row) => row.target)).size, 4, "target 키는 lift:kind로 유일");
+});
+
+test("REF5: PULL_RELOCK — 추가 중량이 달라졌을 때만 행 생성", () => {
+  const unchanged = buildProgressionFeedbackFromEvent(
+    {
+      eventRow: ref5EventRow([
+        { eventId: "pull-relock:w2:c1", lift: "PULL", kind: "PULL_RELOCK", beforeKg: 20, afterKg: 20, causeEventIds: [] },
+      ]),
+    },
+    "ko",
+  );
+  assert.equal(unchanged.report, null, "동일 추가 중량 재고정은 노이즈 — 카드 없음");
+  const changed = buildProgressionFeedbackFromEvent(
+    {
+      eventRow: ref5EventRow([
+        { eventId: "pull-relock:w2:c1", lift: "PULL", kind: "PULL_RELOCK", beforeKg: 20, afterKg: 22.5, causeEventIds: [] },
+      ]),
+    },
+    "ko",
+  );
+  assert.equal(changed.report!.rows[0]!.text, "PULL — 창 재고정 → 추가 중량 20 → 22.5 kg (+2.5)");
+});
+
+test("REF5: 변경 없는 완료(REF5_COMPLETE)·START는 카드 없음", () => {
+  assert.equal(
+    buildProgressionFeedbackFromEvent({ eventRow: ref5EventRow([], { eventType: "REF5_COMPLETE" }) }, "ko").report,
+    null,
+  );
+  assert.equal(
+    buildProgressionFeedbackFromEvent(
+      {
+        eventRow: {
+          id: "evt-start",
+          eventType: "REF5_START",
+          reason: "NORMAL",
+          createdAt: "2026-08-13T00:00:00.000Z",
+          programSlug: "ref5-adaptive-strength",
+          meta: { decision: { sessionType: "NORMAL" } },
+        },
+      },
+      "ko",
+    ).report,
+    null,
+  );
+});

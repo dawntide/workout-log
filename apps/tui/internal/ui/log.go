@@ -369,6 +369,14 @@ func (l Log) Update(msg tea.Msg) (Screen, tea.Cmd) {
 			return l, nil
 		}
 		l.ref5Progress.status, l.ref5Progress.err = m.status, ""
+		// 판정 카드를 저장 순간에만 보여주면, 저장 직후 종료했다 돌아온 사용자는
+		// 판정이 났다는 사실 자체를 놓친다. 같은 응답에 실려 온 서버 조립 카드를
+		// 재진입 시에도 띄운다 — 다음 세션을 시작하면 START 이벤트가 최신이 되어
+		// 서버가 report=null을 주므로 자연 소멸한다(web과 동일 수명).
+		// 저장 응답으로 방금 세운 카드가 있으면 건드리지 않는다(같은 이벤트라 동일 문구).
+		if len(l.feedback) == 0 {
+			l.feedback = feedbackLines(m.feedback)
+		}
 		return l, nil
 	case ref5PreviewResultMsg:
 		if l.ref5 == nil || l.ref5.Phase != ref5Previewing ||

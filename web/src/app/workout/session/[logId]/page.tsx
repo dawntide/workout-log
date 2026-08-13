@@ -7,6 +7,8 @@ import { useLocale } from "@/components/locale-provider";
 import { apiGet } from "@/lib/api";
 import { ErrorStateRows } from "@/components/ui/settings-state";
 import { V2SessionSummary, type V2SummaryLog } from "@/components/v2/v2-session-summary";
+import { usePlanProgressionFeedback } from "@/features/workout-log/model/use-plan-progression-feedback";
+import { BlockJudgmentCard } from "@/widgets/workout-log-screen/hybrid-feedback-banners";
 
 type LogResponse = {
   item: V2SummaryLog & {
@@ -23,9 +25,18 @@ export default function WorkoutSessionDetailPage() {
   const searchParams = useSearchParams();
   const fresh = searchParams?.get("fresh") === "1";
 
-  const [item, setItem] = useState<V2SummaryLog | null>(null);
+  const [item, setItem] = useState<LogResponse["item"] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // 저장 직후 착지(fresh=1)에서만 진행 판정 카드를 보여준다 — REF5 창 판정처럼
+  // "방금 저장이 만든" 판정이 대상이라, 과거 세션 열람에서 플랜의 최신 판정을
+  // 끌어와 보여주면 오해를 만든다. 문구는 서버 조립(feedback-catalog) 그대로.
+  const progressionFeedback = usePlanProgressionFeedback({
+    planId: fresh ? item?.planId ?? null : null,
+    refreshKey: logId,
+    locale,
+  });
 
   useEffect(() => {
     if (!logId) {
@@ -93,6 +104,16 @@ export default function WorkoutSessionDetailPage() {
             .finally(() => setLoading(false));
         }}
       />
+      {fresh && progressionFeedback.blockReport ? (
+        <div style={{ padding: "var(--v2-s-2) var(--v2-s-4) 0" }}>
+          <BlockJudgmentCard
+            locale={locale}
+            title={progressionFeedback.blockReport.title}
+            rows={progressionFeedback.blockReport.rows}
+            onDismiss={progressionFeedback.dismissBlockReport}
+          />
+        </div>
+      ) : null}
       {item && <V2SessionSummary log={item} freshComplete={fresh} />}
     </div>
   );
