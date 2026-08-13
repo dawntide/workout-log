@@ -264,9 +264,7 @@ func (f Frame) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		f.picker = newPicker(msg.prompt, msg.tag, msg.items)
 		f.pickerOwner = owner
-		if msg.initial != "" {
-			f.picker.input.SetValue(msg.initial)
-		}
+		f.picker.setInitial(msg.initial)
 		f.overlay = overlayPicker
 		return f, f.picker.input.Focus()
 	case exportDoneMsg:

@@ -22,13 +22,39 @@ type picker struct {
 	sel    int
 }
 
+// pickerInputWidth is the resting width of the filter field. A pre-filled value
+// longer than this widens it (see setInitial) instead of scrolling out of view.
+const pickerInputWidth = 18
+
 func newPicker(prompt, tag string, items []pickerItem) picker {
 	ti := textinput.New()
 	ti.Prompt = ""
 	ti.SetVirtualCursor(true)
-	ti.SetWidth(18)
+	ti.SetWidth(pickerInputWidth)
 	ti.Focus()
 	return picker{prompt: prompt, tag: tag, input: ti, items: items}
+}
+
+// setInitial pre-fills the field and sizes it to hold the whole value.
+//
+// textinput scrolls its own viewport when the value outgrows the width, and the
+// cursor starts at the end — so an 18-wide field holding the 19-char REF5 start
+// timestamp rendered "026-08-13 11:38:05" with the leading digit scrolled off.
+// The stored value was intact, but it reads as a corrupt date and invites the
+// user to retype a value that was already correct.
+//
+// The +1 is the cell the end-of-input cursor occupies: sizing to exactly the
+// value length still scrolls by one, which is the same bug one character later.
+// Widening must happen *before* SetValue — the scroll offset is computed while
+// the value is set and a later SetWidth does not recompute it.
+func (p *picker) setInitial(value string) {
+	if value == "" {
+		return
+	}
+	if need := lipgloss.Width(value) + 1; need > pickerInputWidth {
+		p.input.SetWidth(need)
+	}
+	p.input.SetValue(value)
 }
 
 func (p picker) filtered() []pickerItem {
@@ -56,7 +82,9 @@ const pickerMaxRows = 12
 // ↑/↓ "N more" markers — so a long list (program store, exercise dictionary)
 // stays navigable instead of the selected row scrolling off the bottom unseen.
 func (p picker) render(w, h int) (string, int) {
-	header := lipgloss.NewStyle().Foreground(theme.Cyan).Bold(true).Render(p.prompt) + p.input.View()
+	// 넓힌 입력이 좁은 단말에서 패널 밖으로 삐져나가지 않게 폭에 맞춰 자른다
+	// (항목 줄은 이미 fitLine을 거친다).
+	header := fitLine(lipgloss.NewStyle().Foreground(theme.Cyan).Bold(true).Render(p.prompt)+p.input.View(), w)
 
 	shown := p.filtered()
 	itemLines := make([]string, len(shown))
