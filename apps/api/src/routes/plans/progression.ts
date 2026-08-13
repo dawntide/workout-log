@@ -109,6 +109,22 @@ export function registerProgressionRoutes(plansRoutes: Hono<AppEnv>) {
       if (isRef5PlanParams(params) || template.slug === "ref5-adaptive-strength") {
         const state = runtimeRows[0]?.state ?? null;
         const initialDirectStandardsKg = readRef5PlanStartConfig(params).startingValuesKg;
+        // REF5 창 판정 카드 — 완료 리듀서가 meta.changes에 기록한 판정을 서버 조립으로
+        // 내려준다. 최신 이벤트가 REF5_START(다음 세션 시작)면 카드가 자연 소멸하는
+        // 것까지 일반 분기의 lastEvent 의미와 동일.
+        const lastEventRows = await db
+          .select({
+            id: planProgressEvent.id,
+            eventType: planProgressEvent.eventType,
+            reason: planProgressEvent.reason,
+            meta: planProgressEvent.meta,
+            createdAt: planProgressEvent.createdAt,
+          })
+          .from(planProgressEvent)
+          .where(eq(planProgressEvent.planId, planId))
+          .orderBy(desc(planProgressEvent.createdAt))
+          .limit(1);
+        const lastEventRow = lastEventRows[0] ?? null;
         return c.json({
           program: "ref5",
           state,
@@ -116,7 +132,14 @@ export function registerProgressionRoutes(plansRoutes: Hono<AppEnv>) {
           effectiveRules: null,
           targetsLastEvent: {},
           lastEvent: null,
-          feedback: null,
+          feedback: buildProgressionFeedbackFromEvent(
+            {
+              eventRow: lastEventRow
+                ? { ...lastEventRow, programSlug: REF5_IDENTIFIERS.slug }
+                : null,
+            },
+            locale === "ko" ? "ko" : "en",
+          ),
         });
       }
 

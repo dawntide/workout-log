@@ -519,6 +519,97 @@ export function buildProgressReport(
   return { eventId: lastEvent.id, title, rows };
 }
 
+// ── REF5 창 판정 리포트 ─────────────────────────────────────────────────────
+
+// REF5는 targetDecisions 대신 완료 리듀서가 만든 meta.changes(Ref5ProgressionChange[])를
+// 기록한다. 판정창이 닫히거나 감량이 발동할 때만 changes가 생기므로, 행이 있으면 곧
+// "판정이 났다"는 뜻 — REF5_COMPLETE(변경 없음)·REF5_START는 자연히 카드가 없다.
+const REF5_EVENT_SLUG = "ref5-adaptive-strength";
+
+// 웹 판정창 패널(window-progress)의 리프트 표기와 정합 유지.
+const REF5_LIFT_LABEL: Record<FeedbackLocale, Record<string, string>> = {
+  ko: { SQ: "SQ 하드", BP: "BP 집중", PULL: "PULL 집중(총하중)", DL: "DL", OHP: "OHP" },
+  en: { SQ: "SQ hard", BP: "BP focus", PULL: "PULL focus (total)", DL: "DL", OHP: "OHP" },
+};
+
+type Ref5ChangeLike = {
+  lift?: unknown;
+  kind?: unknown;
+  beforeKg?: unknown;
+  afterKg?: unknown;
+};
+
+function ref5DeltaText(beforeKg: number, afterKg: number): string {
+  const sign = afterKg > beforeKg ? "+" : "−";
+  return `${formatKg(beforeKg)} → ${formatKg(afterKg)} kg (${sign}${formatKg(Math.abs(afterKg - beforeKg))})`;
+}
+
+function buildRef5ChangeRowText(
+  change: { lift: string; kind: string; beforeKg: number; afterKg: number },
+  locale: FeedbackLocale,
+): string | null {
+  const label = REF5_LIFT_LABEL[locale][change.lift] ?? change.lift;
+  const delta = ref5DeltaText(change.beforeKg, change.afterKg);
+  switch (change.kind) {
+    case "INCREASE":
+      return locale === "ko"
+        ? `${label} — 판정창 클리어 → 기준 증량 ${delta} · 다음 세션부터 적용`
+        : `${label} — window cleared → standard increased ${delta} · applies from the next session`;
+    case "MAINTAIN":
+      return locale === "ko"
+        ? `${label} — 판정창 완료 → 기준 유지 (${formatKg(change.afterKg)} kg)`
+        : `${label} — window judged → standard held (${formatKg(change.afterKg)} kg)`;
+    case "IMMEDIATE_DECREASE":
+      return locale === "ko"
+        ? `${label} — 연속 실패 → 즉시 감량 ${delta}`
+        : `${label} — consecutive fails → immediate decrease ${delta}`;
+    case "STAGNATION_DECREASE":
+      return locale === "ko"
+        ? `${label} — 정체 재평가 → 감량 ${delta}`
+        : `${label} — stagnation reassessment → decrease ${delta}`;
+    case "AUXILIARY_CAP_DECREASE":
+      return locale === "ko"
+        ? `${label} — 메인 기준 연동 상한 → 감량 ${delta}`
+        : `${label} — main-linked cap → decrease ${delta}`;
+    case "PULL_RELOCK":
+      // 재고정은 추가 중량(added kg)이 실제로 달라졌을 때만 사용자 유의미.
+      return change.beforeKg === change.afterKg
+        ? null
+        : locale === "ko"
+          ? `PULL — 창 재고정 → 추가 중량 ${delta}`
+          : `PULL — window relock → added load ${delta}`;
+    default:
+      return null;
+  }
+}
+
+/** REF5 완료 이벤트 행(meta.changes) → 판정 카드. 판정성 변경이 없으면 null. */
+export function buildRef5ProgressReport(
+  eventRow: { id: string; meta: unknown },
+  locale: FeedbackLocale,
+): ProgressReport | null {
+  const meta = (eventRow.meta ?? {}) as Record<string, unknown>;
+  const changes = Array.isArray(meta.changes) ? (meta.changes as Ref5ChangeLike[]) : [];
+  const rows: ProgressReportRow[] = [];
+  for (const raw of changes) {
+    if (!raw || typeof raw !== "object") continue;
+    const lift = String(raw.lift ?? "").toUpperCase();
+    const kind = String(raw.kind ?? "").toUpperCase();
+    const beforeKg = toKg(raw.beforeKg);
+    const afterKg = toKg(raw.afterKg);
+    if (!lift || beforeKg === null || afterKg === null) continue;
+    const text = buildRef5ChangeRowText({ lift, kind, beforeKg, afterKg }, locale);
+    // 같은 리프트에 즉시 감량+상한 감량이 겹칠 수 있어 target 키는 kind까지 포함.
+    if (text) rows.push({ target: `${lift}:${kind}`, text });
+  }
+  if (rows.length === 0) return null;
+  return {
+    eventId: eventRow.id,
+    title: locale === "ko" ? "REF5 창 판정" : "REF5 window judgment",
+    rows,
+  };
+}
+
 // ── 서버 조립 진입점 — plan_progress_event 행에서 바로 피드백을 만든다 ─────
 
 // programSlug(이벤트 행에 저장된 템플릿 slug) → 카탈로그 키(ProgressionProgram) 매핑 포함.
@@ -542,6 +633,15 @@ export function buildProgressionFeedbackFromEvent(
 ): ProgressionFeedbackPayload {
   const row = input.eventRow;
   if (!row) return { report: null, earlyDeloadBanner: null };
+
+  // REF5는 판정 데이터가 meta.changes에 실리는 별도 계보 — 공통 targetDecisions 경로를
+  // 타지 않고 전용 리포트로 조립한다(조기 디로드 배너 개념 없음).
+  if (
+    String(row.programSlug ?? "") === REF5_EVENT_SLUG ||
+    String(row.eventType ?? "").toUpperCase().startsWith("REF5_")
+  ) {
+    return { report: buildRef5ProgressReport(row, locale), earlyDeloadBanner: null };
+  }
 
   const program = resolveAutoProgressionProgram(String(row.programSlug ?? ""), input.definition);
   const meta = (row.meta ?? {}) as Record<string, unknown>;
