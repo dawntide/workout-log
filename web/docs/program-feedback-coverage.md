@@ -50,6 +50,8 @@
 - TUI: 저장 결과의 foot 라인, 그리고 재진입 시 `progression-state`가 실어 온 같은 카드.
 - 수명: 다음 세션을 시작하면 START 이벤트가 플랜의 최신 이벤트가 되어 서버가 `report: null`을 주므로 카드는 자연 소멸한다.
 
+카드가 **직전 판정 1건**만 보여주므로, 누적 이력은 별도로 `ref5Status.recentChanges`(엔진이 남긴 마지막 8건)를 플랜 상태 화면에 최신순으로 표출한다 — web은 플랜 관리 시트의 REF5 패널, TUI는 Programs 버퍼의 `CHG` 섹션(세로 공간 탓 5건 상한 + 초과분 명시). 이 목록은 카드와 달리 **문장이 아니라 라벨·무게·종류로 쪼갠 행**이고, 서버가 조립하지 않는 구조 데이터라 두 클라이언트가 각자 포맷한다(Go가 TS 모델을 import할 수 없다). 문구 동기화는 `web/src/features/ref5/model/recent-changes.test.ts`와 `apps/tui/internal/ui/ref5_recent_changes_test.go`가 **같은 기대 문자열**을 쓰는 것으로만 유지되니, 라벨을 고치면 양쪽을 함께 고칠 것. 리프트 라벨(무게를 동반할 때 PULL에 `(총하중)`을 붙이는 규칙)은 core `ref5LiftStandardLabel`이 단일 소스다.
+
 ## 검증
 
 - 단위: `packages/core/src/progression/feedback-catalog.test.ts`, `web/src/features/workout-log/model/progression-choice.test.ts`, `apps/tui/internal/ui/progression_choice_test.go`

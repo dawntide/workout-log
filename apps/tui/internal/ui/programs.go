@@ -1072,6 +1072,15 @@ func (s Programs) renderRef5Status(w, h int) string {
 			ref5Kg(status.PullLock.FocusTargetTotalKg), ref5Kg(status.PullLock.VolumeTargetTotalKg))
 	}
 	lines = append(lines, ref5StatusLine("LOCK", lock, inner))
+	// 기준이 그동안 어떻게 움직였는지 — 판정창 진행(WIN)이 "언제 판정되나"라면
+	// 이쪽은 "무엇이 판정됐나"다. 최신순, 세로 공간 탓 상한이 있고 초과분은 명시된다.
+	for index, item := range ref5RecentChangeItems(status.RecentChanges) {
+		label := ""
+		if index == 0 {
+			label = "CHG"
+		}
+		lines = append(lines, ref5StatusLine(label, item, inner))
+	}
 	if status.PendingMicro.Pending {
 		lines = append(lines, ref5StatusLine("MICRO", strings.Join(status.PendingMicro.Reasons, ", "), inner))
 	} else {

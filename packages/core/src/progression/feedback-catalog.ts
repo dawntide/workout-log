@@ -526,11 +526,19 @@ export function buildProgressReport(
 // "판정이 났다"는 뜻 — REF5_COMPLETE(변경 없음)·REF5_START는 자연히 카드가 없다.
 const REF5_EVENT_SLUG = "ref5-adaptive-strength";
 
-// 웹 판정창 패널(window-progress)의 리프트 표기와 정합 유지.
+// 판정창 패널(window-progress)의 표기와 같되, PULL만 "(총하중)"을 붙인다 — 여기는
+// 무게가 함께 나오는 자리라 그 값이 추가 중량이 아니라 체중 포함 총하중임을 밝혀야 한다.
+// 무게를 같이 보여주는 다른 표면(플랜 관리의 최근 판정 이력)도 이 라벨을 공유한다.
 const REF5_LIFT_LABEL: Record<FeedbackLocale, Record<string, string>> = {
   ko: { SQ: "SQ 하드", BP: "BP 집중", PULL: "PULL 집중(총하중)", DL: "DL", OHP: "OHP" },
   en: { SQ: "SQ hard", BP: "BP focus", PULL: "PULL focus (total)", DL: "DL", OHP: "OHP" },
 };
+
+/** 기준 무게와 함께 표기할 때 쓰는 REF5 리프트 라벨(카드·이력 공용). */
+export function ref5LiftStandardLabel(lift: string, locale: FeedbackLocale): string {
+  const key = String(lift ?? "").toUpperCase();
+  return REF5_LIFT_LABEL[locale][key] ?? key;
+}
 
 type Ref5ChangeLike = {
   lift?: unknown;
@@ -548,7 +556,7 @@ function buildRef5ChangeRowText(
   change: { lift: string; kind: string; beforeKg: number; afterKg: number },
   locale: FeedbackLocale,
 ): string | null {
-  const label = REF5_LIFT_LABEL[locale][change.lift] ?? change.lift;
+  const label = ref5LiftStandardLabel(change.lift, locale);
   const delta = ref5DeltaText(change.beforeKg, change.afterKg);
   switch (change.kind) {
     case "INCREASE":

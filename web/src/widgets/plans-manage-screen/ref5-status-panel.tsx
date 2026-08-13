@@ -5,11 +5,75 @@ import {
   V2Stack,
 } from "@/components/v2/primitives";
 import { formatKg } from "@/features/plans-manage/model/plan-view";
+import {
+  buildRef5RecentChangeRows,
+  ref5RecentChangesEmptyCopy,
+  type Ref5ChangeDirection,
+} from "@/features/ref5/model/recent-changes";
 import { buildRef5WindowProgressRows } from "@/features/ref5/model/window-progress";
 import type { Ref5Status } from "@workout/core/program-engine/ref5-status";
 
 import { PlanDetailRow } from "./detail-rows";
 import type { LocaleKey } from "./view-types";
+
+// 방향색은 판정창 흐름 화살표와 같은 의미 체계다: 증량=진행색, 감량=경고색,
+// 유지는 중립. 무게는 자릿수가 흔들리지 않게 tabular-nums로 고정한다.
+const DIRECTION_COLOR: Record<Ref5ChangeDirection, string> = {
+  up: "var(--v2-c-progress)",
+  flat: "var(--v2-ink-3)",
+  down: "var(--v2-c-warning)",
+};
+
+function Ref5RecentChangeRowView({
+  arrow,
+  direction,
+  liftLabel,
+  weightText,
+  kindLabel,
+}: {
+  arrow: string;
+  direction: Ref5ChangeDirection;
+  liftLabel: string;
+  weightText: string;
+  kindLabel: string;
+}) {
+  return (
+    <V2Card tone="inset" padding="var(--v2-s-2) var(--v2-s-3)" radius="var(--v2-r-2)">
+      <div
+        style={{
+          display: "flex",
+          alignItems: "baseline",
+          flexWrap: "wrap",
+          gap: "var(--v2-s-2)",
+        }}
+      >
+        <span
+          aria-hidden
+          className="v2-mono-label"
+          style={{ color: DIRECTION_COLOR[direction], fontWeight: 700 }}
+        >
+          {arrow}
+        </span>
+        <span className="v2-small" style={{ color: "var(--v2-ink)", fontWeight: 700 }}>
+          {liftLabel}
+        </span>
+        <span
+          className="v2-mono-label"
+          style={{
+            color: "var(--v2-ink)",
+            fontVariantNumeric: "tabular-nums",
+            marginInlineStart: "auto",
+          }}
+        >
+          {weightText}
+        </span>
+        <span className="v2-small" style={{ color: "var(--v2-ink-2)" }}>
+          {kindLabel}
+        </span>
+      </div>
+    </V2Card>
+  );
+}
 
 export function Ref5StatusPanel({
   status,
@@ -62,6 +126,7 @@ export function Ref5StatusPanel({
     (lift) => status.structureReview[lift],
   );
   const windowProgressRows = buildRef5WindowProgressRows(status, locale);
+  const recentChangeRows = buildRef5RecentChangeRows(status, locale);
 
   return (
     <V2Card tone="inset" padding="var(--v2-s-4)" radius="var(--v2-r-2)">
@@ -112,6 +177,30 @@ export function Ref5StatusPanel({
               />
             ))}
           </div>
+        </V2Stack>
+
+        <V2Stack gap={2}>
+          <span className="v2-eyebrow" style={{ color: "var(--v2-ink-3)" }}>
+            {locale === "ko" ? "최근 판정" : "Recent judgments"}
+          </span>
+          {recentChangeRows.length === 0 ? (
+            <p className="v2-small" style={{ margin: 0, color: "var(--v2-ink-3)" }}>
+              {ref5RecentChangesEmptyCopy(locale)}
+            </p>
+          ) : (
+            <V2Stack gap={1}>
+              {recentChangeRows.map((row) => (
+                <Ref5RecentChangeRowView
+                  key={row.key}
+                  arrow={row.arrow}
+                  direction={row.direction}
+                  liftLabel={row.liftLabel}
+                  weightText={row.weightText}
+                  kindLabel={row.kindLabel}
+                />
+              ))}
+            </V2Stack>
+          )}
         </V2Stack>
 
         <V2Stack gap={2}>
