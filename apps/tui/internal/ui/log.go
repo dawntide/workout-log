@@ -56,7 +56,9 @@ type Log struct {
 	// v0.5.1 피드백: 세션 태그(스냅샷 승격 메타)와 저장 직후 판정 라인(서버 조립 문구).
 	amrapDeferred bool     // 오늘 AMRAP 보류(연속일) — 헤더 태그
 	lightBlock    bool     // 라이트(회복) 블록 — 헤더 태그
-	feedback      []string // 저장 응답의 판정 카드/배너 라인(styled) — 다음 로드/편집 시 소거
+	// 판정 카드/배너는 **조립 전 payload**로 들고 있다가 Body에서 폭을 알 때 줄을 만든다.
+	// 저장 시점에 문자열로 굳히면 렌더에서 자르는 수밖에 없어 문장 끝(적용 시점)이 날아갔다.
+	feedback *api.ProgressionFeedback // 다음 로드/편집 시 소거
 	status        string
 	statusErr     bool
 	w, h          int
@@ -233,7 +235,7 @@ func (l Log) Update(msg tea.Msg) (Screen, tea.Cmd) {
 		if m.refreshErr != nil {
 			l.status += " · 상세 새로고침 실패 (저장은 완료됨)"
 		}
-		l.feedback = feedbackLines(m.feedback)
+		l.feedback = m.feedback
 		l.keepDoneOnly()
 		if m.savedID != "" {
 			l.editID = m.savedID
@@ -374,8 +376,8 @@ func (l Log) Update(msg tea.Msg) (Screen, tea.Cmd) {
 		// 재진입 시에도 띄운다 — 다음 세션을 시작하면 START 이벤트가 최신이 되어
 		// 서버가 report=null을 주므로 자연 소멸한다(web과 동일 수명).
 		// 저장 응답으로 방금 세운 카드가 있으면 건드리지 않는다(같은 이벤트라 동일 문구).
-		if len(l.feedback) == 0 {
-			l.feedback = feedbackLines(m.feedback)
+		if l.feedback == nil {
+			l.feedback = m.feedback
 		}
 		return l, nil
 	case ref5PreviewResultMsg:

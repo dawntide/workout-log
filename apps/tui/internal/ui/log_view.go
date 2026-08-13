@@ -43,7 +43,14 @@ func (l Log) Body(w, h int) string {
 	if len(head) > 0 && !compact {
 		head = append(head, "")
 	}
-	foot = append(foot, l.feedback...)
+	// 판정 라인은 접히므로 세션을 밀어내지 않게 높이 예산을 준다(본문 1/3, 3~10줄).
+	feedbackBudget := inner / 3
+	if feedbackBudget < 3 {
+		feedbackBudget = 3
+	} else if feedbackBudget > 10 {
+		feedbackBudget = 10
+	}
+	foot = append(foot, feedbackLines(l.feedback, contentWidth, feedbackBudget)...)
 	if l.status != "" {
 		tone := theme.Green
 		if l.statusErr {
@@ -284,33 +291,111 @@ func (l Log) repsCell(active bool, s setEntry) string {
 	return l.setCell(active, colReps, orDot(s.reps), 3)
 }
 
+// feedbackItem is one logical unit of the card — kept whole so a budget cut
+// never lands mid-sentence.
+type feedbackItem struct {
+	text  string
+	first string // 첫 줄 들여쓰기
+	cont  string // 이어지는 줄 들여쓰기(행이 한 덩어리로 읽히게 더 깊게)
+	style lipgloss.Style
+}
+
 // feedbackLines renders the server-assembled progression feedback (judgment
 // card / early-deload banner) as pinned foot lines. Copy comes verbatim from
 // the API (core feedback-catalog) so web and TUI wording never drift; this only
-// styles and caps it for narrow phone viewports. Cleared on the next session
-// load or edit entry.
-func feedbackLines(fb *api.ProgressionFeedback) []string {
+// wraps and budgets it for the viewport. Cleared on the next session load or
+// edit entry.
+//
+// 자르지 않고 **접는다**: 이 줄들은 무게 변화와 그게 언제 적용되는지를 담는데,
+// 잘린 "· 다음 세…"는 하필 사용자가 다음에 뭘 해야 하는지를 지운다. 대신 높이
+// 예산(maxLines)을 넘으면 항목 단위로 멈추고 남은 건수를 밝힌다.
+func feedbackLines(fb *api.ProgressionFeedback, width, maxLines int) []string {
 	if fb == nil {
 		return nil
 	}
-	var out []string
+	if width < 1 {
+		width = 1
+	}
+	if maxLines < 1 {
+		maxLines = 1
+	}
 	amber := lipgloss.NewStyle().Foreground(theme.Amber)
 	cyan := lipgloss.NewStyle().Foreground(theme.Cyan)
+
+	var items []feedbackItem
 	if b := fb.EarlyDeloadBanner; b != nil {
-		out = append(out, amber.Bold(true).Render(b.Title), amber.Render(b.Body))
+		items = append(items,
+			feedbackItem{text: b.Title, style: amber.Bold(true)},
+			feedbackItem{text: b.Body, style: amber},
+		)
 	}
+	rowsFrom := len(items)
 	if r := fb.Report; r != nil && len(r.Rows) > 0 {
-		out = append(out, amber.Bold(true).Render(r.Title))
+		items = append(items, feedbackItem{text: r.Title, style: amber.Bold(true)})
+		rowsFrom = len(items)
 		for _, row := range r.Rows {
-			out = append(out, cyan.Render("  "+row.Text))
+			items = append(items, feedbackItem{text: row.Text, first: "  ", cont: "    ", style: cyan})
 		}
 	}
-	// 좁은 뷰포트 보호: 판정 라인이 테이블을 밀어내지 않게 상한을 둔다.
-	const maxLines = 7
-	if len(out) > maxLines {
-		out = out[:maxLines]
+
+	var out []string
+	for index, item := range items {
+		lines := wrapPrefixed(item.text, width, item.first, item.cont)
+		remaining := len(items) - index
+		// 뒤에 더 있으면 안내 줄 1칸을 남겨 둔다.
+		budget := maxLines
+		if remaining > 1 {
+			budget--
+		}
+		if len(out)+len(lines) > budget {
+			hidden := len(items) - index
+			if index >= rowsFrom {
+				// 판정 행만 남았을 때는 몇 "건"인지가 바로 읽힌다.
+				out = append(out, lipgloss.NewStyle().Foreground(theme.Dim).
+					Render(fitLine(fmt.Sprintf("  … 판정 %d건 더", hidden), width)))
+			} else {
+				out = append(out, lipgloss.NewStyle().Foreground(theme.Dim).
+					Render(fitLine("  … 이하 생략", width)))
+			}
+			break
+		}
+		for _, line := range lines {
+			out = append(out, item.style.Render(line))
+		}
 	}
 	return out
+}
+
+// wrapPrefixed word-wraps text to width with separate first/continuation
+// indents. A single word longer than the line is cut by fitLine — nothing else
+// can be done at that width — but sentences fold instead of losing their tail.
+func wrapPrefixed(text string, width int, first, cont string) []string {
+	words := strings.Fields(text)
+	if len(words) == 0 {
+		return nil
+	}
+	if width < 1 {
+		width = 1
+	}
+	var lines []string
+	prefix := first
+	current := ""
+	for _, word := range words {
+		candidate := word
+		if current != "" {
+			candidate = current + " " + word
+		}
+		if current != "" && lipgloss.Width(prefix+candidate) > width {
+			lines = append(lines, fitLine(prefix+current, width))
+			prefix, current = cont, word
+		} else {
+			current = candidate
+		}
+	}
+	if current != "" {
+		lines = append(lines, fitLine(prefix+current, width))
+	}
+	return lines
 }
 
 // summarizeSaved builds the post-save status line: a count + tonnage headline

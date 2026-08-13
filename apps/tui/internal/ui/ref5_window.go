@@ -260,27 +260,7 @@ func (l Log) ref5WindowPanelLines(width int, detail ref5PanelDetail) []string {
 	return lines
 }
 
+// 판정창 범례는 들여쓰기 없는 단순 접기 — 판정 카드와 같은 래퍼를 쓴다.
 func wrapRef5WindowText(value string, width int) []string {
-	words := strings.Fields(value)
-	if len(words) == 0 {
-		return nil
-	}
-	var lines []string
-	current := ""
-	for _, word := range words {
-		candidate := word
-		if current != "" {
-			candidate = current + " " + word
-		}
-		if current != "" && lipgloss.Width(candidate) > width {
-			lines = append(lines, fitLine(current, width))
-			current = word
-		} else {
-			current = candidate
-		}
-	}
-	if current != "" {
-		lines = append(lines, fitLine(current, width))
-	}
-	return lines
+	return wrapPrefixed(value, width, "", "")
 }
