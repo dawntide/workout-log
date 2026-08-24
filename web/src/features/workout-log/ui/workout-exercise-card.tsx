@@ -87,6 +87,8 @@ export function WorkoutExerciseCard({ exerciseId, onExerciseAction }: Props) {
       exerciseId: exercise.exerciseId ?? exerciseId,
       exerciseName: exercise.exerciseName,
       setIndex,
+      // 프로그램 처방이 있으면 사용자 설정보다 우선한다.
+      prescribedSeconds: exercise.plannedSetMeta?.restSecondsPerSet?.[setIndex] ?? null,
     });
   const ref5Outcome = deriveRef5ExerciseOutcomeView(
     exercise,

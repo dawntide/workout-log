@@ -24,6 +24,7 @@ import {
   decodeRef5SessionSnapshot,
   type Ref5DecodedSessionSnapshot,
   type Ref5SessionSnapshot,
+  ref5RestSecondsForStream,
 } from "./ref5";
 import { acquireActiveAccountMutationLock } from "@workout/core/auth/account-lifecycle";
 
@@ -359,6 +360,8 @@ export function toRef5GeneratedSnapshot(input: {
         sets: exercise.sets.map((set) => ({
           reps: set.plannedReps,
           targetWeightKg: set.externalLoadKg,
+          // 스펙 §19.1의 스트림별 권장 휴식. 사용자 프리셋보다 우선한다.
+          restSeconds: ref5RestSecondsForStream(exercise.stream),
           // Keep domain-native names alongside the generic workout snapshot fields;
           // the start preview must show PULL added load and today's actual total.
           plannedReps: set.plannedReps,

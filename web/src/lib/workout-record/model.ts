@@ -25,6 +25,8 @@ export type WorkoutPlannedSetMeta = {
   repsPerSet: Array<number | null>;
   rpePerSet: Array<number | null>;
   amrapPerSet: boolean[];
+  /** 프로그램이 처방한 세트 후 휴식(초). 없으면 사용자 설정으로 폴백한다. */
+  restSecondsPerSet: Array<number | null>;
 };
 
 export type WorkoutNoteModel = {
@@ -221,6 +223,7 @@ type SnapshotSet = {
   targetWeightKg?: number;
   weightKg?: number;
   percent?: number;
+  restSeconds?: number;
   note?: string;
   meta?: unknown;
   ref5?: unknown;
@@ -302,6 +305,10 @@ function toPlannedSetMeta(sets: SnapshotSet[] | undefined): WorkoutPlannedSetMet
       return Number.isFinite(rpe) && rpe > 0 ? rpe : null;
     }),
     amrapPerSet: sets.map((set) => (set as { amrap?: unknown })?.amrap === true),
+    restSecondsPerSet: sets.map((set) => {
+      const restSeconds = Number(set?.restSeconds);
+      return Number.isFinite(restSeconds) && restSeconds > 0 ? Math.round(restSeconds) : null;
+    }),
   };
 }
 

@@ -29,12 +29,20 @@ import {
 /** 리렌더 주기. 값은 매번 타임스탬프에서 파생하므로 이 값이 정확도를 좌우하지 않는다. */
 const TICK_MS = 250;
 
+export type RestTimerStartInput = {
+  exerciseId: string;
+  exerciseName: string;
+  setIndex: number;
+  /** 프로그램이 처방한 휴식(초). 있으면 사용자 설정보다 우선한다. */
+  prescribedSeconds?: number | null;
+};
+
 export type RestTimerView = {
   active: boolean;
   remaining: number;
   target: number;
   ratio: number;
-  start: (input: { exerciseId: string; exerciseName: string; setIndex: number }) => void;
+  start: (input: RestTimerStartInput) => void;
   extend: (deltaSeconds: number) => void;
   skip: () => void;
 };
@@ -104,12 +112,8 @@ export function useRestTimer(persistenceKey: string | null): RestTimerView {
   );
 
   const start = useCallback(
-    (input: { exerciseId: string; exerciseName: string; setIndex: number }) => {
-      // 처방(restSeconds)은 PR5에서 이 위에 얹힌다. 지금은 프리셋 -> 전역 기본값.
-      const targetSeconds = resolveRestSecondsForExercise(
-        preferences as Pick<WorkoutPreferences, "restDefaultSeconds" | "restPresets">,
-        { exerciseId: input.exerciseId, exerciseName: input.exerciseName },
-      );
+    (input: RestTimerStartInput) => {
+      const targetSeconds = resolveTargetSeconds(preferences, input);
       const next: RestTimerState = {
         exerciseId: input.exerciseId,
         setIndex: input.setIndex,
@@ -166,11 +170,8 @@ export function useStartRestTimer() {
   const persistenceKey = useAtomValue(restPersistenceKeyAtom);
 
   return useCallback(
-    (input: { exerciseId: string; exerciseName: string; setIndex: number }) => {
-      const targetSeconds = resolveRestSecondsForExercise(
-        preferences as Pick<WorkoutPreferences, "restDefaultSeconds" | "restPresets">,
-        { exerciseId: input.exerciseId, exerciseName: input.exerciseName },
-      );
+    (input: RestTimerStartInput) => {
+      const targetSeconds = resolveTargetSeconds(preferences, input);
       const next: RestTimerState = {
         exerciseId: input.exerciseId,
         setIndex: input.setIndex,
@@ -184,6 +185,23 @@ export function useStartRestTimer() {
     },
     [persistenceKey, preferences, setTimer],
   );
+}
+
+/**
+ * 목표 휴식 시간 해석 — 처방 -> 운동별 프리셋 -> 전역 기본값.
+ * 처방이 맨 위인 이유: REF5처럼 프로토콜이 정한 휴식은 판정의 전제라 사용자 설정이
+ * 덮으면 안 된다(계획서 docs/rest-timer-plan.md §3.2).
+ */
+function resolveTargetSeconds(
+  preferences: WorkoutPreferences,
+  input: RestTimerStartInput,
+): number {
+  const prescribed = Number(input.prescribedSeconds);
+  if (Number.isFinite(prescribed) && prescribed > 0) return Math.round(prescribed);
+  return resolveRestSecondsForExercise(preferences, {
+    exerciseId: input.exerciseId,
+    exerciseName: input.exerciseName,
+  });
 }
 
 function restoreKey(state: RestTimerState): string {

@@ -92,6 +92,11 @@ type PlannedSet = {
   rpe?: number;
   amrap?: boolean;
   note?: string;
+  /**
+   * 이 세트 후 권장 휴식(초). 프로그램이 처방하면 사용자 설정(운동별 프리셋·전역
+   * 기본값)보다 우선한다 — 휴식 타이머 해석 순서는 처방 -> 프리셋 -> 기본값이다.
+   */
+  restSeconds?: number;
   // 하이브리드(Asymptote × Async): AMRAP이 아닌 작업 세트의 "그라인딩 정지" 가이드.
   // true면 UI/유저는 렙 타겟을 다 못 채워도 바가 느려지는 첫 렙에서 멈춘다(자동 보정).
   stopOnGrind?: boolean;
@@ -759,7 +764,12 @@ function mapManualSet(s: ManualSet): PlannedSet {
   const percent = toNumberOrNull(s?.percent) ?? undefined;
   const rpe = toNumberOrNull(s?.rpe) ?? undefined;
   const note = typeof s?.note === "string" ? s.note : undefined;
-  return { reps, targetWeightKg, percent, rpe, note };
+  // 이 함수는 새 객체를 명시 조립하므로 여기 없는 필드는 전부 드롭된다.
+  // DSL에 필드를 추가할 때 이 줄을 빠뜨리면 처방이 세션에 실리지 않는다.
+  const restSecondsRaw = toNumberOrNull(s?.restSeconds);
+  const restSeconds =
+    restSecondsRaw !== null && restSecondsRaw > 0 ? Math.round(restSecondsRaw) : undefined;
+  return { reps, targetWeightKg, percent, rpe, note, restSeconds };
 }
 
 export function plannedExercisesFromManualSession(

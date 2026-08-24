@@ -827,7 +827,7 @@ func (l *Log) loadSnapshot(s *api.SessionSnapshot, prev map[string]string) {
 			g.sets = append(g.sets, setEntry{
 				weight: trimNum(w), reps: "", tgtReps: st.Reps, total: setTotal, amrap: st.Amrap,
 				prescribed: true,
-				setNumber:  setNumber, originalMeta: cloneSetMetaIfPresent(st.Meta),
+				setNumber:  setNumber, restSeconds: st.RestSeconds, originalMeta: cloneSetMetaIfPresent(st.Meta),
 			})
 			if total >= maxTgt {
 				maxTgt, tgtReps = total, st.Reps
