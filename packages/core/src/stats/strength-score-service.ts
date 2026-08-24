@@ -1,4 +1,5 @@
 import { estimateE1rmKg } from "./e1rm";
+import { excludeWarmupSets } from "@workout/core/stats/set-type-filter";
 import { and, eq, gte, inArray, lte, or, sql } from "drizzle-orm";
 import { resolveLoggedTotalLoadKg } from "@workout/core/bodyweight-load";
 import { db } from "@workout/core/db/client";
@@ -116,6 +117,7 @@ export async function fetchStrengthScore({
         lte(workoutLog.performedAt, to),
         sql`${workoutSet.weightKg} is not null`,
         sql`${workoutSet.reps} is not null`,
+        excludeWarmupSets(),
         exerciseFilter,
       ),
     );

@@ -8,6 +8,7 @@ import { resolveLoggedTotalLoadKg } from "@workout/core/bodyweight-load";
 import { getExerciseById, resolveExerciseByName } from "@workout/core/exercise/resolve";
 import { getStatsCache, setStatsCache } from "@workout/core/stats/cache";
 import { estimateE1rmKg } from "@workout/core/stats/e1rm";
+import { excludeWarmupSets } from "@workout/core/stats/set-type-filter";
 import { parseDateRangeFromSearchParams } from "@workout/core/stats/range";
 import { fetchE1rmStats } from "@workout/core/stats/e1rm-service";
 import { fetchStatsBundle } from "@workout/core/stats/bundle-service";
@@ -234,6 +235,7 @@ statsRoutes.get("/strength-summary", async (c) => {
           eq(workoutLog.userId, userId),
           gte(workoutLog.performedAt, from),
           sql`${workoutSet.weightKg} > 0`,
+          excludeWarmupSets(),
         ),
       )
       .groupBy(workoutSet.exerciseId, workoutSet.exerciseName)
@@ -273,6 +275,7 @@ statsRoutes.get("/strength-summary", async (c) => {
               keyFilter,
               sql`${workoutSet.weightKg} is not null`,
               sql`${workoutSet.reps} > 0`,
+              excludeWarmupSets(),
             ),
           ),
       );
@@ -466,7 +469,7 @@ statsRoutes.get("/volume", async (c) => {
       gte(workoutLog.performedAt, from),
       lte(workoutLog.performedAt, to),
     );
-    const where = filterByExercise ? and(baseWhere, filterByExercise) : baseWhere;
+    const where = and(baseWhere, filterByExercise, excludeWarmupSets());
 
     const rows = await db
       .select({
@@ -515,7 +518,7 @@ statsRoutes.get("/volume", async (c) => {
         gte(workoutLog.performedAt, prevFrom),
         lte(workoutLog.performedAt, prevTo),
       );
-      const prevWhere = filterByExercise ? and(prevBaseWhere, filterByExercise) : prevBaseWhere;
+      const prevWhere = and(prevBaseWhere, filterByExercise, excludeWarmupSets());
 
       const prevRows = await db
         .select({

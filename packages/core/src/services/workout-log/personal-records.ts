@@ -1,3 +1,4 @@
+import { isWarmupSetType } from "@workout/core/workout-set-type";
 import { estimateE1rmKg } from "../../stats/e1rm";
 import { db } from "@workout/core/db/client";
 import { and, eq, gte, inArray, lt, ne } from "@workout/core/db/ops";
@@ -33,6 +34,7 @@ export type PersonalRecordSetInput = {
   reps: number | null;
   weightKg: number | null;
   isExtra: boolean | null;
+  setType?: string | null;
   meta: Record<string, unknown> | null;
 };
 
@@ -90,7 +92,7 @@ export async function detectPersonalRecords(input: {
   type Best = { weightKg: number; reps: number; e1rm: number; displayName: string };
   const currentTop = new Map<MatchKey, Best>();
   for (const s of sets) {
-    if (s.isExtra) continue;
+    if (s.isExtra || isWarmupSetType(s.setType)) continue;
     const w = Number(
       resolveLoggedTotalLoadKg({
         exerciseName: s.exerciseName,
@@ -118,6 +120,7 @@ export async function detectPersonalRecords(input: {
       reps: workoutSet.reps,
       weightKg: workoutSet.weightKg,
       isExtra: workoutSet.isExtra,
+      setType: workoutSet.setType,
       meta: workoutSet.meta,
     })
     .from(workoutSet)
@@ -157,7 +160,7 @@ export async function detectPersonalRecords(input: {
 
   const priorBest = new Map<MatchKey, number>();
   for (const r of priorRows) {
-    if (r.isExtra) continue;
+    if (r.isExtra || isWarmupSetType(r.setType)) continue;
     const w = Number(
       resolveLoggedTotalLoadKg({
         exerciseName: String(r.exerciseName ?? ""),

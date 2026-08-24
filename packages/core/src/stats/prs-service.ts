@@ -1,4 +1,5 @@
 import { estimateE1rmKg } from "./e1rm";
+import { excludeWarmupSets } from "@workout/core/stats/set-type-filter";
 import { and, eq, gte, lte, or, sql } from "drizzle-orm";
 import {
   isBodyweightExerciseName,
@@ -135,7 +136,7 @@ export async function fetchPrsList({
     sql`${workoutSet.reps} > 0`,
     repCap,
   );
-  const where = exerciseFilter ? and(baseWhere, exerciseFilter) : baseWhere;
+  const where = and(baseWhere, exerciseFilter, excludeWarmupSets());
 
   const rows = await db
     .select({

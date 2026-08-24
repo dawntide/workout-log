@@ -556,6 +556,7 @@ logsRoutes.get("/:logId", async (c) => {
         reps: s.reps,
         weightKg: s.weightKg,
         isExtra: s.isExtra,
+        setType: s.setType,
         meta: s.meta as Record<string, unknown> | null,
       })),
       performedAt: log.performedAt,

@@ -1,3 +1,4 @@
+import { normalizeWorkoutSetType } from "@workout/core/workout-set-type";
 import { and, asc, desc, eq, gt, inArray, or } from "drizzle-orm";
 
 import type { WorkoutExecutor } from "@workout/core/db/client";
@@ -247,6 +248,9 @@ function toLoggedSetRows(sets: unknown[]): LoggedSetInput[] {
       weightKg:
         typeof item.weightKg === "number" ? item.weightKg : Number(item.weightKg ?? 0),
       isExtra: Boolean(item.isExtra ?? false),
+      // 이 어댑터가 통과시키지 않으면 reducer는 세트 타입을 영영 못 본다 — DB에
+      // 컬럼이 있어도 판정은 웜업을 작업 세트로 세게 된다(계획서 §6-2).
+      setType: normalizeWorkoutSetType(item.setType),
       meta: (item.meta ?? {}) as Record<string, unknown>,
     });
   }
@@ -526,6 +530,7 @@ export async function applyAutoProgressionFromLog(input: ApplyAutoProgressionInp
         reps: workoutSet.reps,
         weightKg: workoutSet.weightKg,
         isExtra: workoutSet.isExtra,
+        setType: workoutSet.setType,
         meta: workoutSet.meta,
       })
       .from(workoutSet)
@@ -624,6 +629,7 @@ export async function rebuildAutoProgressionForPlan(input: {
       reps: workoutSet.reps,
       weightKg: workoutSet.weightKg,
       isExtra: workoutSet.isExtra,
+      setType: workoutSet.setType,
       meta: workoutSet.meta,
       sortOrder: workoutSet.sortOrder,
       setNumber: workoutSet.setNumber,
@@ -755,6 +761,7 @@ export async function applyManualRuntimeAdjustment(input: {
       reps: workoutSet.reps,
       weightKg: workoutSet.weightKg,
       isExtra: workoutSet.isExtra,
+      setType: workoutSet.setType,
       meta: workoutSet.meta,
     })
     .from(workoutSet)

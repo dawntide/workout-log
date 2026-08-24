@@ -7,6 +7,7 @@
  */
 
 import { estimateE1rmKg } from "@workout/core/stats/e1rm";
+import { isWarmupSetType } from "@workout/core/workout-set-type";
 import type { ProgressionSummaryPayload } from "@workout/core/progression/summary";
 import type { TrainingGoalKey } from "@/lib/settings/workout-preferences";
 import {
@@ -24,6 +25,7 @@ export type V2SummarySet = {
   weightKg: number | null;
   rpe?: number | null;
   isExtra: boolean;
+  setType?: string | null;
   meta?: Record<string, unknown> | null;
 };
 
@@ -165,6 +167,9 @@ export function buildExerciseSummaries(sets: V2SummarySet[]): ExerciseSummary[] 
   for (const s of sets) {
     const name = String(s.exerciseName ?? "").trim();
     if (!name) continue;
+    // 웜업은 세트 수·볼륨·탑세트 어디에도 넣지 않는다. 서버 통계(SQL)와 같은 규칙을
+    // 클라이언트 요약에서도 지켜야 두 화면의 숫자가 어긋나지 않는다.
+    if (isWarmupSetType(s.setType)) continue;
     const cur = map.get(name) ?? {
       name,
       setCount: 0,
@@ -214,7 +219,7 @@ export function findTopEstOneRm(sets: V2SummarySet[]): {
     estOneRm: number;
   } | null = null;
   for (const s of sets) {
-    if (s.isExtra) continue;
+    if (s.isExtra || isWarmupSetType(s.setType)) continue;
     const name = String(s.exerciseName ?? "").trim();
     // 맨몸 운동은 총부하(체중+추가)로 e1RM을 추정한다.
     const w = Number(

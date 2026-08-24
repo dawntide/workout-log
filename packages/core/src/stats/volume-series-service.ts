@@ -1,5 +1,6 @@
 import { and, eq, gte, lte, or, sql } from "drizzle-orm";
 import { db } from "@workout/core/db/client";
+import { excludeWarmupSets } from "@workout/core/stats/set-type-filter";
 import { exercise, workoutLog, workoutSet } from "@workout/core/db/schema";
 import type { AppLocale } from "../locale";
 import { getExerciseById, resolveExerciseByName } from "@workout/core/exercise/resolve";
@@ -118,7 +119,7 @@ export async function fetchVolumeSeries({
     gte(workoutLog.performedAt, from),
     lte(workoutLog.performedAt, to),
   );
-  const where = filterByExercise ? and(baseWhere, filterByExercise) : baseWhere;
+  const where = and(baseWhere, filterByExercise, excludeWarmupSets());
 
   const rows = await db
     .select({
