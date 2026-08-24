@@ -7,13 +7,13 @@ import {
   buildExerciseSummaries,
   buildPrCards,
   buildSummaryData,
-  epleyEstimate,
   findTopEstOneRm,
   formatDurationLong,
   resolveGoal,
   type V2SummaryLog,
   type V2SummarySet,
 } from "./v2-session-summary.model";
+import { estimateE1rmKg } from "@workout/core/stats/e1rm";
 
 function set(partial: Partial<V2SummarySet> & { exerciseName: string }): V2SummarySet {
   return {
@@ -52,7 +52,7 @@ test("buildExerciseSummaries: 빈 이름 세트는 무시", () => {
 
 // ── 최고 e1RM ────────────────────────────────────────────────────────────────
 
-test("findTopEstOneRm: epley 최댓값 세트 선택, isExtra 제외", () => {
+test("findTopEstOneRm: e1RM 최댓값 세트 선택, isExtra 제외", () => {
   const top = findTopEstOneRm([
     set({ exerciseName: "Squat", weightKg: 100, reps: 5 }), // e ≈ 116.7
     set({ exerciseName: "Squat", weightKg: 130, reps: 1 }), // e ≈ 134.3 (최대)
@@ -61,7 +61,7 @@ test("findTopEstOneRm: epley 최댓값 세트 선택, isExtra 제외", () => {
   assert.ok(top);
   assert.equal(top!.weightKg, 130);
   assert.equal(top!.reps, 1);
-  assert.ok(Math.abs(top!.estOneRm - epleyEstimate(130, 1)) < 1e-9);
+  assert.ok(Math.abs(top!.estOneRm - estimateE1rmKg(130, 1)) < 1e-9);
 });
 
 test("findTopEstOneRm: 유효 세트 없으면 null", () => {
@@ -175,7 +175,7 @@ test("buildSummaryData: 총량 집계 + prKeys + progression PR estOneRm 보강"
   const squatPr = data.prCards.find((p) => p.matchKey === "squat")!;
   // progression 카드는 운동 top set(105kg×5)로 estOneRm 보강
   assert.ok((squatPr.estOneRm ?? 0) > 0);
-  assert.ok(Math.abs((squatPr.estOneRm ?? 0) - epleyEstimate(105, 5)) < 1e-9);
+  assert.ok(Math.abs((squatPr.estOneRm ?? 0) - estimateE1rmKg(105, 5)) < 1e-9);
 });
 
 // ── 소형 유틸 ────────────────────────────────────────────────────────────────

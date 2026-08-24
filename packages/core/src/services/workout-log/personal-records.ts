@@ -1,3 +1,4 @@
+import { estimateE1rmKg } from "../../stats/e1rm";
 import { db } from "@workout/core/db/client";
 import { and, eq, gte, inArray, lt, ne } from "@workout/core/db/ops";
 import { exercise, exerciseAlias, workoutLog, workoutSet } from "@workout/core/db/schema";
@@ -15,12 +16,6 @@ import { resolveLoggedTotalLoadKg } from "@workout/core/bodyweight-load";
 // 판정 로직 자체는 apps/api 라우트에 있던 detectPersonalRecords를 그대로 이동
 // (exerciseId 우선·alias 정규화·맨몸 총부하 e1RM — 통계 서비스와 일관).
 // ─────────────────────────────────────────────────────────────────────────────
-
-function epley(weightKg: number, reps: number): number {
-  if (!Number.isFinite(weightKg) || weightKg <= 0) return 0;
-  const r = Number.isFinite(reps) && reps > 0 ? reps : 1;
-  return weightKg * (1 + r / 30);
-}
 
 export type PersonalRecordPayload = {
   exerciseName: string;
@@ -108,7 +103,7 @@ export async function detectPersonalRecords(input: {
     const displayName = String(s.exerciseName ?? "").trim();
     const key = resolveKey(s.exerciseId, displayName);
     if (!key) continue;
-    const e = epley(w, r);
+    const e = estimateE1rmKg(w, r);
     const cur = currentTop.get(key);
     if (!cur || e > cur.e1rm) {
       currentTop.set(key, { weightKg: w, reps: r, e1rm: e, displayName });
@@ -174,7 +169,7 @@ export async function detectPersonalRecords(input: {
     if (!Number.isFinite(w) || w <= 0 || !Number.isFinite(reps) || reps <= 0) continue;
     const key = resolveKey(r.exerciseId, String(r.exerciseName ?? ""));
     if (!key) continue;
-    const e = epley(w, reps);
+    const e = estimateE1rmKg(w, reps);
     const cur = priorBest.get(key);
     if (cur == null || e > cur) priorBest.set(key, e);
   }

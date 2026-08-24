@@ -16,6 +16,7 @@ import {
   prescriptionToExternalLoadKg,
   resolveLoggedTotalLoadKg,
 } from "./bodyweight-load";
+import { estimateE1rmRounded } from "./stats/e1rm";
 
 const sessionKeyFixture = JSON.parse(
   readFileSync(new URL("../fixtures/session-key.json", import.meta.url), "utf8"),
@@ -130,6 +131,21 @@ test("golden fixture: bodyweight keywords + load conversions", () => {
       bodyweightAddedSuffix("Weighted Pull-Up", BW + c.addedKg, BW, "ko"),
       c.expectedKo,
       `addedSuffix(${c.addedKg})`,
+    );
+  }
+});
+
+const e1rmFixture = JSON.parse(
+  readFileSync(new URL("../fixtures/e1rm.json", import.meta.url), "utf8"),
+) as { cases: Array<{ weightKg: number; reps: number; expected: number }> };
+
+test("golden: 추정 1RM은 Go(setE1rm)와 같은 값을 낸다", () => {
+  assert.ok(e1rmFixture.cases.length > 0, "e1rm fixture cases 비어 있음");
+  for (const c of e1rmFixture.cases) {
+    assert.equal(
+      estimateE1rmRounded(c.weightKg, c.reps),
+      c.expected,
+      `${c.weightKg}kg x ${c.reps}`,
     );
   }
 });

@@ -1,3 +1,4 @@
+import { estimateE1rmKg } from "../stats/e1rm";
 import { and, desc, eq, gte, isNotNull, lte, sql } from "drizzle-orm";
 import { db } from "@workout/core/db/client";
 import {
@@ -263,10 +264,6 @@ function formatDate(iso: string | Date, locale: AppLocale) {
   const parsed = typeof iso === "string" ? new Date(iso) : iso;
   if (Number.isNaN(parsed.getTime())) return HOME_TEXT[locale].unknownDate;
   return DATE_FORMATTERS[locale].withWeekday.format(parsed);
-}
-
-function epley1RM(weightKg: number, reps: number) {
-  return weightKg * (1 + reps / 30);
 }
 
 // ─── Service ────────────────────────────────────────────────────────
@@ -645,7 +642,7 @@ async function fetchPrs(userId: string, from: Date, to: Date, limit: number, loc
     const reps = Number(r.reps ?? 0);
     if (!weightKg || !reps) continue;
 
-    const e1rm = Math.round(epley1RM(weightKg, reps) * 10) / 10;
+    const e1rm = Math.round(estimateE1rmKg(weightKg, reps) * 10) / 10;
     const date = r.performedAt.toISOString().slice(0, 10);
     const point = { date, e1rm, weightKg, reps };
     const key = r.exerciseId ?? String(r.exerciseName ?? "").trim().toLowerCase();

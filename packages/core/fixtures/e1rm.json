@@ -1,0 +1,16 @@
+{
+  "__doc": "추정 1RM 골든 — TS estimateE1rmRounded(packages/core/src/stats/e1rm.ts)와 Go setE1rm(apps/tui/internal/ui/log_model.go)이 같은 값을 내야 한다. expected는 소수 첫째 자리 반올림. 1렙은 무게 그대로, 15렙 초과는 15로 클램프한다.",
+  "cases": [
+    { "weightKg": 100, "reps": 1, "expected": 100 },
+    { "weightKg": 100, "reps": 2, "expected": 106.7 },
+    { "weightKg": 100, "reps": 5, "expected": 116.7 },
+    { "weightKg": 100, "reps": 10, "expected": 133.3 },
+    { "weightKg": 100, "reps": 15, "expected": 150 },
+    { "weightKg": 100, "reps": 16, "expected": 150 },
+    { "weightKg": 100, "reps": 30, "expected": 150 },
+    { "weightKg": 142.5, "reps": 5, "expected": 166.3 },
+    { "weightKg": 60, "reps": 8, "expected": 76 },
+    { "weightKg": 0, "reps": 5, "expected": 0 },
+    { "weightKg": 100, "reps": 0, "expected": 0 }
+  ]
+}

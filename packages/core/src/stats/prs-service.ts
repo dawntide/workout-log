@@ -1,3 +1,4 @@
+import { estimateE1rmKg } from "./e1rm";
 import { and, eq, gte, lte, or, sql } from "drizzle-orm";
 import {
   isBodyweightExerciseName,
@@ -9,10 +10,6 @@ import { exercise, workoutLog, workoutSet } from "@workout/core/db/schema";
 import type { AppLocale } from "../locale";
 import { getExerciseById, resolveExerciseByName } from "@workout/core/exercise/resolve";
 import { getStatsCache, setStatsCache } from "./cache";
-
-function epley1RM(weightKg: number, reps: number) {
-  return weightKg * (1 + reps / 30);
-}
 
 export type PrPoint = {
   date: string;
@@ -175,7 +172,7 @@ export async function fetchPrsList({
     const reps = Number(r.reps ?? 0);
     if (!weightKg || !reps) continue;
 
-    const e1rm = Math.round(epley1RM(weightKg, reps) * 10) / 10;
+    const e1rm = Math.round(estimateE1rmKg(weightKg, reps) * 10) / 10;
     const date = new Date(r.performedAt).toISOString().slice(0, 10);
     const point: PrPoint = { date, e1rm, weightKg, reps };
 

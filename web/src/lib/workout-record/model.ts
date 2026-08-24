@@ -5,6 +5,7 @@ import {
   Ref5StaleVersionError,
   validateAndClassifyRef5Outcome,
 } from "@workout/core/program-engine/ref5";
+import { estimateE1rmKg } from "@workout/core/stats/e1rm";
 
 export type WorkoutWorkflowState = "idle" | "editing" | "saving" | "done";
 
@@ -522,13 +523,6 @@ function readSnapshotRef5Exercise(exercise: SnapshotExercise): WorkoutExerciseRe
   };
 }
 
-function estimateE1rm(weightKg: number, reps: number) {
-  if (!Number.isFinite(weightKg) || !Number.isFinite(reps)) return null;
-  if (weightKg <= 0 || reps <= 0) return null;
-  const effectiveReps = Math.min(reps, 15);
-  return weightKg * (1 + effectiveReps / 30);
-}
-
 function roundTo2(value: number) {
   return Math.round(value * 100) / 100;
 }
@@ -572,8 +566,8 @@ function deriveEstimateFromSnapshot(exercises: SnapshotExercise[]) {
     for (const set of sets) {
       const reps = toNumber(set.reps, 0);
       const weightKg = toNumber(set.targetWeightKg ?? set.weightKg, 0);
-      const e1rm = estimateE1rm(weightKg, reps);
-      if (e1rm !== null) {
+      const e1rm = estimateE1rmKg(weightKg, reps);
+      if (e1rm > 0) {
         estimatedE1rmKg = estimatedE1rmKg === null ? e1rm : Math.max(estimatedE1rmKg, e1rm);
       }
 
@@ -598,8 +592,8 @@ function deriveEstimateFromLoggedExercises(exercises: WorkoutExerciseModel[]) {
     const weightKgPerSet = migrateWeightKgPerSet(exercise.set);
     exercise.set.repsPerSet.forEach((reps, index) => {
       const weightKg = weightKgPerSet[index] ?? weightKgPerSet[0] ?? 0;
-      const e1rm = estimateE1rm(weightKg, reps);
-      if (e1rm !== null) {
+      const e1rm = estimateE1rmKg(weightKg, reps);
+      if (e1rm > 0) {
         estimatedE1rmKg = estimatedE1rmKg === null ? e1rm : Math.max(estimatedE1rmKg, e1rm);
       }
     });

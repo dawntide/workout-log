@@ -6,6 +6,7 @@ package ui
 
 import (
 	"encoding/json"
+	"math"
 	"os"
 	"path/filepath"
 	"testing"
@@ -107,6 +108,26 @@ func TestGoldenBodyweightLoad(t *testing.T) {
 	for _, c := range fx.AddedSuffix {
 		if got := addedSuffix(c.AddedKg); got != c.ExpectedKo {
 			t.Errorf("addedSuffix(%v) = %q, want %q", c.AddedKg, got, c.ExpectedKo)
+		}
+	}
+}
+
+func TestGoldenE1rm(t *testing.T) {
+	var fx struct {
+		Cases []struct {
+			WeightKg float64 `json:"weightKg"`
+			Reps     int     `json:"reps"`
+			Expected float64 `json:"expected"`
+		} `json:"cases"`
+	}
+	readFixture(t, "e1rm.json", &fx)
+	if len(fx.Cases) == 0 {
+		t.Fatal("e1rm fixture cases 비어 있음")
+	}
+	for _, c := range fx.Cases {
+		got := math.Round(estimateE1rmKg(c.WeightKg, c.Reps)*10) / 10
+		if got != c.Expected {
+			t.Errorf("estimateE1rmKg(%v, %d) = %v, want %v", c.WeightKg, c.Reps, got, c.Expected)
 		}
 	}
 }

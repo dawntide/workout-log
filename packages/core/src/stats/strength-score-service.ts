@@ -1,3 +1,4 @@
+import { estimateE1rmKg } from "./e1rm";
 import { and, eq, gte, inArray, lte, or, sql } from "drizzle-orm";
 import { resolveLoggedTotalLoadKg } from "@workout/core/bodyweight-load";
 import { db } from "@workout/core/db/client";
@@ -32,10 +33,6 @@ export type StrengthScoreResult = {
   totalBodyweightRatio: number | null;
   big3: BigLiftStat[];
 };
-
-function epley1RM(weightKg: number, reps: number) {
-  return weightKg * (1 + reps / 30);
-}
 
 function roundKg(value: number): number {
   return Math.round(value * 10) / 10;
@@ -148,7 +145,7 @@ export async function fetchStrengthScore({
     const reps = Number(row.reps ?? 0);
     if (!weightKg || !reps) continue;
 
-    const e1rm = epley1RM(weightKg, reps);
+    const e1rm = estimateE1rmKg(weightKg, reps);
     const date = new Date(row.performedAt).toISOString().slice(0, 10);
     const current = bestByLift.get(liftName);
     if (!current || e1rm > current.e1rm) {
