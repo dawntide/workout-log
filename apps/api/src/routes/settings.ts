@@ -11,6 +11,8 @@ import {
   SETTINGS_KEYS,
   DEFAULT_REST_SECONDS,
   DEFAULT_REST_SOUND_ENABLED,
+  DEFAULT_PLATE_BAR_WEIGHT_KG,
+  DEFAULT_PLATE_PLATES_KG,
   DEFAULT_REST_WAKE_LOCK_ENABLED,
 } from "@workout/core/settings/workout-preferences";
 
@@ -51,6 +53,8 @@ const DEFAULT_SETTINGS: SettingsSnapshot = {
   [SETTINGS_KEYS.restPresetsJson]: "[]",
   [SETTINGS_KEYS.restSoundEnabled]: DEFAULT_REST_SOUND_ENABLED,
   [SETTINGS_KEYS.restWakeLockEnabled]: DEFAULT_REST_WAKE_LOCK_ENABLED,
+  [SETTINGS_KEYS.plateBarWeightKg]: DEFAULT_PLATE_BAR_WEIGHT_KG,
+  [SETTINGS_KEYS.platePlatesJson]: JSON.stringify(DEFAULT_PLATE_PLATES_KG),
 };
 
 // Per-user in-memory fallback, used only if the user_setting table is missing

@@ -77,6 +77,11 @@ export type ResolvedRestSeconds = {
   source: "DEFAULT" | "RULE";
 };
 
+export type PlateInventoryPreference = {
+  barWeightKg: number;
+  platesKg: number[];
+};
+
 export type WorkoutPreferences = {
   locale: LocalePreference;
   theme: ThemePreference;
@@ -91,6 +96,8 @@ export type WorkoutPreferences = {
   restPresets: RestPresetRule[];
   restSoundEnabled: boolean;
   restWakeLockEnabled: boolean;
+  plateBarWeightKg: number;
+  platePlatesKg: number[];
 };
 
 export type ResolvedMinimumPlateIncrement = {
@@ -112,6 +119,8 @@ export const SETTINGS_KEYS = {
   restPresetsJson: "prefs.rest.presetsJson",
   restSoundEnabled: "prefs.rest.soundEnabled",
   restWakeLockEnabled: "prefs.rest.wakeLockEnabled",
+  plateBarWeightKg: "prefs.plate.barWeightKg",
+  platePlatesJson: "prefs.plate.platesJson",
 } as const;
 
 export const DEFAULT_LOCALE_PREFERENCE: LocalePreference = "ko";
@@ -131,11 +140,18 @@ export const DEFAULT_REST_SECONDS = 90;
 export const DEFAULT_REST_SOUND_ENABLED = true;
 /** 배터리 영향이 있어 기본 off — 사용자가 명시적으로 켠다. */
 export const DEFAULT_REST_WAKE_LOCK_ENABLED = false;
+/** 올림픽 바 20kg — 대부분의 헬스장 기본. 종목별 오버라이드는 1차 범위 밖이다. */
+export const DEFAULT_PLATE_BAR_WEIGHT_KG = 20;
+export const DEFAULT_PLATE_PLATES_KG: readonly number[] = [25, 20, 15, 10, 5, 2.5, 1.25];
 
 const MIN_INCREMENT_KG = 0.25;
 const MAX_INCREMENT_KG = 25;
 const MIN_REST_SECONDS = 5;
 const MAX_REST_SECONDS = 600;
+const MIN_BAR_WEIGHT_KG = 0;
+const MAX_BAR_WEIGHT_KG = 60;
+const MIN_PLATE_KG = 0.25;
+const MAX_PLATE_KG = 50;
 export const LOCAL_STORAGE_SETTING_PREFIX = "workout-log.setting.v1.";
 
 function toRounded2(value: number) {
@@ -364,6 +380,34 @@ function normalizeBooleanPreference(value: unknown, fallback: boolean): boolean 
   return fallback;
 }
 
+export function normalizeBarWeightKg(
+  value: unknown,
+  fallback = DEFAULT_PLATE_BAR_WEIGHT_KG,
+): number {
+  if (value === null || value === undefined) return fallback;
+  if (typeof value === "string" && !value.trim()) return fallback;
+  const parsed = toFiniteNumber(value);
+  if (parsed === null) return fallback;
+  return toRounded2(Math.max(MIN_BAR_WEIGHT_KG, Math.min(MAX_BAR_WEIGHT_KG, parsed)));
+}
+
+/** 보유 원판 목록 — 중복·범위 밖 값을 걸러 내림차순으로 정규화한다. */
+export function parsePlatesKg(value: unknown): number[] {
+  const entries = parseRuleEntries(value);
+  const normalized = new Set<number>();
+  for (const entry of entries) {
+    const parsed = toFiniteNumber(entry);
+    if (parsed === null) continue;
+    if (parsed < MIN_PLATE_KG || parsed > MAX_PLATE_KG) continue;
+    normalized.add(toRounded2(parsed));
+  }
+  return Array.from(normalized).sort((a, b) => b - a);
+}
+
+export function serializePlatesKg(platesKg: readonly number[]): string {
+  return JSON.stringify(parsePlatesKg(platesKg));
+}
+
 export function readWorkoutPreferences(snapshot: SettingsSnapshot): WorkoutPreferences {
   const locale = normalizeLocalePreference(snapshot[SETTINGS_KEYS.locale]);
   const theme = normalizeThemePreference(snapshot[SETTINGS_KEYS.theme]);
@@ -399,6 +443,12 @@ export function readWorkoutPreferences(snapshot: SettingsSnapshot): WorkoutPrefe
     snapshot[SETTINGS_KEYS.restWakeLockEnabled],
     DEFAULT_REST_WAKE_LOCK_ENABLED,
   );
+  const plateBarWeightKg = normalizeBarWeightKg(
+    snapshot[SETTINGS_KEYS.plateBarWeightKg],
+    DEFAULT_PLATE_BAR_WEIGHT_KG,
+  );
+  const parsedPlates = parsePlatesKg(snapshot[SETTINGS_KEYS.platePlatesJson]);
+  const platePlatesKg = parsedPlates.length > 0 ? parsedPlates : [...DEFAULT_PLATE_PLATES_KG];
 
   return {
     locale,
@@ -414,6 +464,8 @@ export function readWorkoutPreferences(snapshot: SettingsSnapshot): WorkoutPrefe
     restPresets,
     restSoundEnabled,
     restWakeLockEnabled,
+    plateBarWeightKg,
+    platePlatesKg,
   };
 }
 
@@ -432,6 +484,8 @@ export function toDefaultWorkoutPreferences(): WorkoutPreferences {
     restPresets: [],
     restSoundEnabled: DEFAULT_REST_SOUND_ENABLED,
     restWakeLockEnabled: DEFAULT_REST_WAKE_LOCK_ENABLED,
+    plateBarWeightKg: DEFAULT_PLATE_BAR_WEIGHT_KG,
+    platePlatesKg: [...DEFAULT_PLATE_PLATES_KG],
   };
 }
 

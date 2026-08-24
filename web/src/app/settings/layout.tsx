@@ -19,6 +19,7 @@ function modalTitleFromPathname(
 ) {
   if (pathname.startsWith("/settings/minimum-plate")) return titles.minimumPlate;
   if (pathname.startsWith("/settings/rest-timer")) return titles.restTimer;
+  if (pathname.startsWith("/settings/plate-inventory")) return titles.plateInventory;
   if (pathname.startsWith("/settings/data-export")) return titles.dataExport;
   if (pathname.startsWith("/settings/data")) return titles.data;
   if (pathname.startsWith("/settings/account")) return titles.account;

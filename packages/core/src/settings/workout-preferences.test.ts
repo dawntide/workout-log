@@ -4,6 +4,8 @@ import {
   DARK_COLOR_THEMES,
   DEFAULT_DARK_COLOR_THEME,
   DEFAULT_LIGHT_COLOR_THEME,
+  DEFAULT_PLATE_BAR_WEIGHT_KG,
+  DEFAULT_PLATE_PLATES_KG,
   DEFAULT_REST_SECONDS,
   DEFAULT_REST_SOUND_ENABLED,
   DEFAULT_REST_WAKE_LOCK_ENABLED,
@@ -11,11 +13,14 @@ import {
   LIGHT_COLOR_THEMES,
   SETTINGS_KEYS,
   TRAINING_GOAL_KEYS,
+  normalizeBarWeightKg,
   normalizeDarkColorTheme,
   normalizeRestSeconds,
+  parsePlatesKg,
   parseRestPresets,
   resolveRestSeconds,
   resolveRestSecondsForExercise,
+  serializePlatesKg,
   serializeRestPresets,
   normalizeLightColorTheme,
   normalizeTrainingGoal,
@@ -300,4 +305,53 @@ test("toDefaultWorkoutPreferences carries the rest timer defaults", () => {
   assert.deepEqual(prefs.restPresets, []);
   assert.equal(prefs.restSoundEnabled, DEFAULT_REST_SOUND_ENABLED);
   assert.equal(prefs.restWakeLockEnabled, DEFAULT_REST_WAKE_LOCK_ENABLED);
+});
+
+// ── 플레이트 인벤토리 설정 (M1-2 PR3) ──────────────────────────────────────
+
+test("normalizeBarWeightKg clamps to 0..60 and treats null as unset", () => {
+  assert.equal(normalizeBarWeightKg(20), 20);
+  assert.equal(normalizeBarWeightKg(15), 15);
+  assert.equal(normalizeBarWeightKg(-5), 0);
+  assert.equal(normalizeBarWeightKg(999), 60);
+  assert.equal(normalizeBarWeightKg(null), DEFAULT_PLATE_BAR_WEIGHT_KG);
+  assert.equal(normalizeBarWeightKg(undefined), DEFAULT_PLATE_BAR_WEIGHT_KG);
+  assert.equal(normalizeBarWeightKg("nope"), DEFAULT_PLATE_BAR_WEIGHT_KG);
+});
+
+test("parsePlatesKg dedupes, filters out-of-range values, and sorts descending", () => {
+  assert.deepEqual(parsePlatesKg([20, 25, 20, 2.5]), [25, 20, 2.5]);
+  assert.deepEqual(parsePlatesKg([0, -5, 0.1, 100, 20]), [20]);
+  assert.deepEqual(parsePlatesKg(JSON.stringify([10, 5])), [10, 5]);
+});
+
+test("parsePlatesKg returns an empty list for malformed input", () => {
+  assert.deepEqual(parsePlatesKg("{oops"), []);
+  assert.deepEqual(parsePlatesKg(undefined), []);
+  assert.deepEqual(parsePlatesKg("[]"), []);
+});
+
+test("serializePlatesKg writes a normalized descending JSON array", () => {
+  assert.deepEqual(JSON.parse(serializePlatesKg([2.5, 25, 25, 999])), [25, 2.5]);
+});
+
+test("readWorkoutPreferences falls back to the default plate set when none is stored", () => {
+  const prefs = readWorkoutPreferences({});
+  assert.equal(prefs.plateBarWeightKg, DEFAULT_PLATE_BAR_WEIGHT_KG);
+  assert.deepEqual(prefs.platePlatesKg, [...DEFAULT_PLATE_PLATES_KG]);
+});
+
+test("readWorkoutPreferences reads a stored plate inventory", () => {
+  const prefs = readWorkoutPreferences({
+    [SETTINGS_KEYS.plateBarWeightKg]: 15,
+    [SETTINGS_KEYS.platePlatesJson]: JSON.stringify([20, 10, 5]),
+  });
+  assert.equal(prefs.plateBarWeightKg, 15);
+  assert.deepEqual(prefs.platePlatesKg, [20, 10, 5]);
+});
+
+test("an empty stored plate list falls back to the defaults", () => {
+  // 원판을 전부 지운 상태를 "가진 게 없다"로 읽으면 계산기가 늘 빈 바만 보여준다.
+  const prefs = readWorkoutPreferences({ [SETTINGS_KEYS.platePlatesJson]: "[]" });
+  assert.deepEqual(prefs.platePlatesKg, [...DEFAULT_PLATE_PLATES_KG]);
 });
