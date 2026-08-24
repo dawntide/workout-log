@@ -109,6 +109,17 @@ export function MoreScreen() {
         />
         <V2NavRow
           as="a"
+          href="/settings/plate-inventory"
+          icon="fitness_center"
+          label={locale === "ko" ? "바·원판" : "Bar & Plates"}
+          description={
+            locale === "ko"
+              ? "바 무게와 보유 원판 종류"
+              : "Bar weight and available plates"
+          }
+        />
+        <V2NavRow
+          as="a"
           href="/settings/rest-timer"
           icon="timer"
           label={locale === "ko" ? "휴식 타이머" : "Rest Timer"}

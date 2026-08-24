@@ -31,8 +31,10 @@ import {
 } from "@workout/core/bodyweight-load";
 import type { ExerciseRowAction } from "@/features/workout-log/model/editor-actions";
 import { formatDateFriendly } from "@/lib/workout-record/last-session-summary";
+import { supportsPlateBreakdown } from "@workout/core/exercise/catalog";
 import { useSetRowFocusChain } from "@/features/workout-log/model/use-set-row-focus-chain";
 import { useStartRestTimer } from "@/features/workout-log/model/use-rest-timer";
+import { PlateBreakdownSheet } from "@/features/workout-log/ui/plate-breakdown-sheet";
 import { SET_ROW_GRID } from "@/features/workout-log/ui/set-row-grid";
 import { WorkoutSetRow } from "@/features/workout-log/ui/workout-set-row";
 import { AppSelect } from "@/components/ui/form-controls";
@@ -57,6 +59,7 @@ const TEXAS_ROLE_LABEL: Record<string, { ko: string; en: string }> = {
 export function WorkoutExerciseCard({ exerciseId, onExerciseAction }: Props) {
   const { locale } = useLocale();
   const startRestTimer = useStartRestTimer();
+  const [plateSheetOpen, setPlateSheetOpen] = useState(false);
   const exerciseCardAtom = useMemo(
     () => makeExerciseCardAtom(exerciseId),
     [exerciseId],
@@ -82,6 +85,9 @@ export function WorkoutExerciseCard({ exerciseId, onExerciseAction }: Props) {
 
   const dispatchAction = (action: ExerciseRowAction) =>
     onExerciseAction(exerciseId, action);
+  // 바벨 종목에서만 노출한다. 자중·덤벨·케이블·머신은 원판 분해가 무의미하고,
+  // 카탈로그 밖 사용자 운동은 바벨일 수 있으므로 노출 쪽으로 처리한다.
+  const showPlateBreakdown = supportsPlateBreakdown(exercise.exerciseName);
   const handleSetCompleted = (setIndex: number) =>
     startRestTimer({
       exerciseId: exercise.exerciseId ?? exerciseId,
@@ -427,6 +433,15 @@ export function WorkoutExerciseCard({ exerciseId, onExerciseAction }: Props) {
               {locale === "ko" ? "권장값" : "Target"}
             </ChipButton>
           )}
+          {showPlateBreakdown && (
+            <ChipButton
+              onClick={() => setPlateSheetOpen(true)}
+              icon="fitness_center"
+              size="sm"
+            >
+              {locale === "ko" ? "원판" : "Plates"}
+            </ChipButton>
+          )}
         </div>
 
         {previousSession && (
@@ -608,6 +623,13 @@ export function WorkoutExerciseCard({ exerciseId, onExerciseAction }: Props) {
           />
         )}
       </article>
+      {showPlateBreakdown ? (
+        <PlateBreakdownSheet
+          open={plateSheetOpen}
+          onClose={() => setPlateSheetOpen(false)}
+          exercise={exercise}
+        />
+      ) : null}
     </V2Card>
   );
 }

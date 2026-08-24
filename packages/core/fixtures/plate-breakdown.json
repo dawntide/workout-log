@@ -1,0 +1,65 @@
+{
+  "__doc": "원판 분해 골든 — TS breakdownPlates(packages/core/src/plate-breakdown.ts)의 계약을 고정한다. bar/plates는 입력 인벤토리, target은 처방 무게, expected는 반환값. kind: exact=정확히 조립 가능, nearest=가장 가까운 조립 가능 무게, below-bar=빈 바보다 가벼움.",
+  "standard": {
+    "__doc": "기본 인벤토리(바 20kg + 25/20/15/10/5/2.5/1.25)에서의 대표 케이스",
+    "bar": 20,
+    "plates": [25, 20, 15, 10, 5, 2.5, 1.25],
+    "cases": [
+      { "target": 20, "expected": { "kind": "exact", "perSide": [], "totalKg": 20 } },
+      { "target": 60, "expected": { "kind": "exact", "perSide": [20], "totalKg": 60 } },
+      { "target": 100, "expected": { "kind": "exact", "perSide": [25, 15], "totalKg": 100 } },
+      { "target": 142.5, "expected": { "kind": "exact", "perSide": [25, 25, 10, 1.25], "totalKg": 142.5 } },
+      { "target": 62.5, "expected": { "kind": "exact", "perSide": [20, 1.25], "totalKg": 62.5 } },
+      { "target": 25, "expected": { "kind": "exact", "perSide": [2.5], "totalKg": 25 } }
+    ]
+  },
+  "notAssemblable": {
+    "__doc": "인벤토리로 정확히 만들 수 없는 무게 — 가장 가까운 조립 가능 무게를 준다",
+    "bar": 20,
+    "plates": [25, 20, 15, 10, 5],
+    "cases": [
+      { "target": 62.5, "expected": { "kind": "nearest", "perSide": [20], "totalKg": 60 } },
+      { "target": 68, "expected": { "kind": "nearest", "perSide": [25], "totalKg": 70 } }
+    ]
+  },
+  "edges": {
+    "__doc": "경계 — 빈 바 미만, 원판 없음, 바만",
+    "cases": [
+      {
+        "bar": 20,
+        "plates": [25, 20, 15, 10, 5, 2.5, 1.25],
+        "target": 15,
+        "expected": { "kind": "below-bar", "barWeightKg": 20, "requestedKg": 15 }
+      },
+      {
+        "bar": 20,
+        "plates": [],
+        "target": 60,
+        "expected": { "kind": "nearest", "perSide": [], "totalKg": 20 }
+      },
+      {
+        "bar": 15,
+        "plates": [25, 20, 15, 10, 5, 2.5, 1.25],
+        "target": 15,
+        "expected": { "kind": "exact", "perSide": [], "totalKg": 15 }
+      }
+    ]
+  },
+  "microPlates": {
+    "__doc": "1.25kg 마이크로 원판이 있는 경우와 없는 경우 — REF5 OHP 마이크로로딩과 같은 맥락",
+    "cases": [
+      {
+        "bar": 20,
+        "plates": [25, 20, 15, 10, 5, 2.5, 1.25],
+        "target": 42.5,
+        "expected": { "kind": "exact", "perSide": [10, 1.25], "totalKg": 42.5 }
+      },
+      {
+        "bar": 20,
+        "plates": [25, 20, 15, 10, 5, 2.5],
+        "target": 42.5,
+        "expected": { "kind": "nearest", "perSide": [10], "totalKg": 40 }
+      }
+    ]
+  }
+}
