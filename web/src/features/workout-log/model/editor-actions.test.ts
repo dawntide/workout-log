@@ -135,3 +135,51 @@ test("APPLY_TARGET_WEIGHTS zeroes bodyweight-exercise external weight when bodyw
   // 추가중량을 입력하도록 유도한다(prescriptionToExternalLoadKg 정책).
   assert.deepEqual(applyTargetWeights(exercise, preferences), [0, 0, 0]);
 });
+
+// ── 세트 타입(M1-3 PR3) ─────────────────────────────────────────────────────
+
+function applySetType(
+  exercise: WorkoutExerciseViewModel,
+  setIndex: number,
+  value: "WARMUP" | "FAILURE" | null,
+) {
+  const update = buildExerciseActionUpdate(
+    exercise.id,
+    exercise,
+    { type: "CHANGE_SET_TYPE", setIndex, value },
+    toDefaultWorkoutPreferences(),
+    resolveWorkoutWeightWithPreferences,
+  );
+  if (!update) return null;
+  const draft = update.draftUpdater(makeDraft(exercise));
+  return (
+    materializeWorkoutExercises(draft).find((e) => e.id === exercise.id)?.set
+      .setTypePerSet ?? null
+  );
+}
+
+test("CHANGE_SET_TYPE tags one set and leaves its neighbours alone", () => {
+  const exercise = makeAutoExercise({ exerciseName: "Back Squat", targets: [100, 100, 100] });
+  assert.deepEqual(applySetType(exercise, 0, "WARMUP"), ["WARMUP", null, null]);
+  assert.deepEqual(applySetType(exercise, 2, "FAILURE"), [null, null, "FAILURE"]);
+});
+
+test("CHANGE_SET_TYPE with null clears the tag", () => {
+  const exercise = makeAutoExercise({ exerciseName: "Back Squat", targets: [100, 100] });
+  exercise.set.setTypePerSet = ["WARMUP", null];
+  assert.deepEqual(applySetType(exercise, 0, null), [null, null]);
+});
+
+test("CHANGE_SET_TYPE ignores an out-of-range set index", () => {
+  const exercise = makeAutoExercise({ exerciseName: "Back Squat", targets: [100] });
+  assert.deepEqual(applySetType(exercise, 5, "WARMUP"), [null]);
+  assert.deepEqual(applySetType(exercise, -1, "WARMUP"), [null]);
+});
+
+// REF5는 로그된 세트가 처방과 정확히 일치해야 하고(spec §11.3), §3.2가 의도적 실패를
+// 금지한다. 태그를 받아도 canonical 저장에서 버려지므로 액션 자체를 거부한다.
+test("CHANGE_SET_TYPE is rejected on REF5 exercises", () => {
+  const exercise = makeAutoExercise({ exerciseName: "Back Squat", targets: [100, 100] });
+  exercise.ref5 = { prescription: {}, terminationReason: null, originalSetMeta: [] };
+  assert.equal(applySetType(exercise, 0, "WARMUP"), null);
+});

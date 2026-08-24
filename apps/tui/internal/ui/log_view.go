@@ -263,7 +263,21 @@ func (l Log) renderSet(gi, si int, s setEntry) string {
 	if v := setE1rm(s); v > 0 {
 		e1rm = lipgloss.NewStyle().Foreground(theme.Dim).Render(fmt.Sprintf(" e%.0f", v))
 	}
-	return marker + wcell + sep + rcell + rpe + "   " + done + e1rm + suffix
+	return marker + wcell + sep + rcell + rpe + "   " + done + e1rm + setTypeTag(s.setType) + suffix
+}
+
+// setTypeTag renders the warm-up / failure marker as a `[W]` / `[F]` bracket tag —
+// the terminal label idiom this client settled on (filled pills read as GUI chrome).
+// Empty for a working set so untagged rows stay quiet.
+func setTypeTag(setType string) string {
+	switch setType {
+	case "WARMUP":
+		return lipgloss.NewStyle().Foreground(theme.Amber).Render(" [W]")
+	case "FAILURE":
+		return lipgloss.NewStyle().Foreground(theme.Red).Render(" [F]")
+	default:
+		return ""
+	}
 }
 
 func (l Log) setCell(active bool, c logCol, text string, width int) string {

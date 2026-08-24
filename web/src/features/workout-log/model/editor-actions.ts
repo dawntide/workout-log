@@ -1,6 +1,7 @@
 import type { WorkoutDraftData } from "@/lib/storage/workoutDraftStore";
 import type { WorkoutPreferences } from "@/lib/settings/workout-preferences";
 import { prescriptionToExternalLoadKg } from "@workout/core/bodyweight-load";
+import type { WorkoutSetType } from "@workout/core/workout-set-type";
 import {
   addUserExercise,
   patchSeedExercise,
@@ -15,13 +16,16 @@ import {
 import {
   appendSetReps,
   appendSetRpe,
+  appendSetType,
   appendSetWeight,
   createFallbackProgramEntryState,
   patchSetRpeAtIndex,
   patchSetRepsAtIndex,
+  patchSetTypeAtIndex,
   patchSetWeightAtIndex,
   removeSetRepsAtIndex,
   removeSetRpeAtIndex,
+  removeSetTypeAtIndex,
   removeSetWeightAtIndex,
 } from "./exercise-entry";
 import type {
@@ -34,6 +38,7 @@ export type ExerciseRowAction =
   | { type: "APPLY_TARGET_WEIGHTS" }
   | { type: "CHANGE_SET_REPS"; setIndex: number; value: number }
   | { type: "CHANGE_SET_RPE"; setIndex: number; value: number }
+  | { type: "CHANGE_SET_TYPE"; setIndex: number; value: WorkoutSetType | null }
   | { type: "CHANGE_REF5_TERMINATION_REASON"; value: Ref5TerminationReason }
   | { type: "ADD_SET" }
   | { type: "REMOVE_SET"; index: number }
@@ -72,6 +77,7 @@ export function buildExerciseActionUpdate(
     (action.type === "CHANGE_WEIGHT" ||
       action.type === "APPLY_TARGET_WEIGHTS" ||
       action.type === "CHANGE_SET_RPE" ||
+      action.type === "CHANGE_SET_TYPE" ||
       action.type === "ADD_SET" ||
       action.type === "REMOVE_SET" ||
       action.type === "DELETE")
@@ -192,6 +198,21 @@ export function buildExerciseActionUpdate(
             : updateUserExercise(prev, exerciseId, { set: { rpePerSet } }),
       };
     }
+    case "CHANGE_SET_TYPE": {
+      const { setIndex, value } = action;
+      const setTypePerSet = patchSetTypeAtIndex(
+        exercise.set.setTypePerSet,
+        exercise.set.repsPerSet.length,
+        setIndex,
+        value,
+      );
+      return {
+        draftUpdater: (prev) =>
+          exercise.source === "PROGRAM"
+            ? patchSeedExercise(prev, exerciseId, { set: { setTypePerSet } })
+            : updateUserExercise(prev, exerciseId, { set: { setTypePerSet } }),
+      };
+    }
     case "CHANGE_REF5_TERMINATION_REASON": {
       const ref5 = { terminationReason: action.value };
       return {
@@ -205,9 +226,10 @@ export function buildExerciseActionUpdate(
       const repsPerSet = appendSetReps(exercise.set.repsPerSet);
       const rpePerSet = appendSetRpe(exercise.set.rpePerSet, exercise.set.repsPerSet.length);
       const weightKgPerSet = appendSetWeight(exercise.set.weightKgPerSet, exercise.set.repsPerSet.length);
+      const setTypePerSet = appendSetType(exercise.set.setTypePerSet, exercise.set.repsPerSet.length);
       if (exercise.source === "PROGRAM") {
         return {
-          draftUpdater: (prev) => patchSeedExercise(prev, exerciseId, { set: { repsPerSet, rpePerSet, weightKgPerSet } }),
+          draftUpdater: (prev) => patchSeedExercise(prev, exerciseId, { set: { repsPerSet, rpePerSet, weightKgPerSet, setTypePerSet } }),
           programEntryStateUpdater: (prev) => {
             const current = createFallbackProgramEntryState(exercise, prev[exerciseId]);
             return {
@@ -218,7 +240,7 @@ export function buildExerciseActionUpdate(
         };
       }
       return {
-        draftUpdater: (prev) => updateUserExercise(prev, exerciseId, { set: { repsPerSet, rpePerSet, weightKgPerSet } }),
+        draftUpdater: (prev) => updateUserExercise(prev, exerciseId, { set: { repsPerSet, rpePerSet, weightKgPerSet, setTypePerSet } }),
       };
     }
     case "REMOVE_SET": {
@@ -234,9 +256,15 @@ export function buildExerciseActionUpdate(
         exercise.set.repsPerSet.length,
         index,
       );
+      // 삭제한 자리를 함께 빼지 않으면 뒤 세트의 태그가 한 칸씩 밀린다.
+      const setTypePerSet = removeSetTypeAtIndex(
+        exercise.set.setTypePerSet,
+        exercise.set.repsPerSet.length,
+        index,
+      );
       if (exercise.source === "PROGRAM") {
         return {
-          draftUpdater: (prev) => patchSeedExercise(prev, exerciseId, { set: { repsPerSet, rpePerSet, weightKgPerSet } }),
+          draftUpdater: (prev) => patchSeedExercise(prev, exerciseId, { set: { repsPerSet, rpePerSet, weightKgPerSet, setTypePerSet } }),
           programEntryStateUpdater: (prev) => {
             const current = createFallbackProgramEntryState(exercise, prev[exerciseId]);
             return {
@@ -253,7 +281,7 @@ export function buildExerciseActionUpdate(
         };
       }
       return {
-        draftUpdater: (prev) => updateUserExercise(prev, exerciseId, { set: { repsPerSet, rpePerSet, weightKgPerSet } }),
+        draftUpdater: (prev) => updateUserExercise(prev, exerciseId, { set: { repsPerSet, rpePerSet, weightKgPerSet, setTypePerSet } }),
       };
     }
     case "CHANGE_MEMO": {

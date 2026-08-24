@@ -117,6 +117,10 @@ func (l Log) updateNormal(m tea.KeyPressMsg) (Log, tea.Cmd) {
 		return l.beginReplace()
 	case "x":
 		return l.toggleDone()
+	case "w":
+		return l.toggleSetType("WARMUP")
+	case "f":
+		return l.toggleSetType("FAILURE")
 	case "o":
 		return l.addSet()
 	case "d":
@@ -432,6 +436,44 @@ func (l Log) undoDelete() (Log, tea.Cmd) {
 	l.status, l.statusErr = theme.GlyphDone+" 삭제 되돌림", false
 	l.persistDraft()
 	return l, nil
+}
+
+// toggleSetType tags the cursor set as a warm-up or a failure, or clears the tag
+// when it is already set. Two toggles beat one cycling key here: the user never
+// has to remember the cycle order, and "w"/"f" say what they do.
+//
+// REF5 rows never reach this — updateRef5Active has its own key table, and the
+// protocol requires the logged sets to match the prescription exactly (spec §3.2
+// already forbids intentional failures and extra reps).
+func (l Log) toggleSetType(setType string) (Log, tea.Cmd) {
+	if l.gi >= len(l.groups) || l.si >= len(l.groups[l.gi].sets) {
+		return l, nil
+	}
+	s := &l.groups[l.gi].sets[l.si]
+	if s.setType == setType {
+		s.setType = ""
+		l.status, l.statusErr = setTypeClearedStatus(setType), false
+	} else {
+		s.setType = setType
+		l.status, l.statusErr = setTypeAppliedStatus(setType), false
+	}
+	l.invalidateProgressionChoices()
+	l.persistDraft()
+	return l, nil
+}
+
+func setTypeAppliedStatus(setType string) string {
+	if setType == "WARMUP" {
+		return "웜업 · 볼륨·1RM·진행 판정에서 제외됩니다"
+	}
+	return "실패 · 통계에는 남고 진행 판정에만 반영됩니다"
+}
+
+func setTypeClearedStatus(setType string) string {
+	if setType == "WARMUP" {
+		return "웜업 해제 · 작업 세트"
+	}
+	return "실패 해제 · 작업 세트"
 }
 
 func (l Log) toggleDone() (Log, tea.Cmd) {
