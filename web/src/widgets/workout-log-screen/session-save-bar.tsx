@@ -1,6 +1,22 @@
 import { StickyActionBar } from "@/components/ui/page-layout";
+import { formatRestClock } from "@/lib/workout-record/rest-timer";
 
-/** 세트 진행률 게이지 + 저장 버튼. 세트가 하나도 없으면 게이지는 생략한다. */
+export type SessionSaveBarRest = {
+  active: boolean;
+  remaining: number;
+  target: number;
+  ratio: number;
+  onExtend: (deltaSeconds: number) => void;
+  onSkip: () => void;
+};
+
+/**
+ * 세트 진행률 게이지 + 저장 버튼.
+ *
+ * 휴식 중에는 진행률 줄을 **휴식 줄로 전환**한다(추가가 아니라 교체). 높이가 그대로라
+ * .app-main 여백·.app-sticky-action bottom 상수를 손대지 않아도 되고, 도크 위 슬롯을
+ * 이미 점유한 저장바와 부유 필이 수직으로 충돌하는 일도 없다(계획서 §3.4).
+ */
 export function SessionSaveBar({
   completedSetsCount,
   totalSetsCount,
@@ -9,6 +25,7 @@ export function SessionSaveBar({
   onSave,
   locale,
   copy,
+  rest,
 }: {
   completedSetsCount: number;
   totalSetsCount: number;
@@ -21,12 +38,71 @@ export function SessionSaveBar({
     saveEdited: string;
     saveCreate: string;
   };
+  rest?: SessionSaveBarRest;
 }) {
   const complete = completedSetsCount >= totalSetsCount;
+  const restActive = Boolean(rest?.active);
+  const restDone = restActive && (rest?.remaining ?? 0) <= 0;
 
   return (
     <StickyActionBar>
-      {totalSetsCount > 0 && (
+      {restActive && rest ? (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "var(--v2-s-2)",
+            paddingBottom: "var(--v2-s-2)",
+          }}
+          role="timer"
+          aria-live="polite"
+          aria-label={
+            locale === "ko"
+              ? `휴식 ${formatRestClock(rest.remaining)} 남음`
+              : `Rest ${formatRestClock(rest.remaining)} remaining`
+          }
+        >
+          <span
+            className="v2-mono-label"
+            style={{
+              color: restDone ? "var(--v2-c-success)" : "var(--v2-c-progress)",
+              fontVariantNumeric: "tabular-nums",
+              flexShrink: 0,
+            }}
+          >
+            {locale === "ko" ? "휴식" : "Rest"} {formatRestClock(rest.remaining)}
+          </span>
+          <div
+            style={{
+              flex: 1,
+              height: "var(--v2-s-1)",
+              borderRadius: "var(--v2-r-pill)",
+              background: "var(--v2-paper-2)",
+              overflow: "hidden",
+            }}
+          >
+            <div
+              style={{
+                width: `${Math.round((1 - rest.ratio) * 100)}%`,
+                height: "100%",
+                background: restDone ? "var(--v2-c-success)" : "var(--v2-c-progress)",
+                transition: "width var(--v2-d-1) var(--v2-e-out), background var(--v2-d-2) var(--v2-e-out)",
+              }}
+            />
+          </div>
+          <RestChipButton
+            label={locale === "ko" ? "30초 추가" : "Add 30 seconds"}
+            text="+30s"
+            onClick={() => rest.onExtend(30)}
+          />
+          <RestChipButton
+            label={locale === "ko" ? "휴식 건너뛰기" : "Skip rest"}
+            text={locale === "ko" ? "건너뛰기" : "Skip"}
+            onClick={rest.onSkip}
+          />
+        </div>
+      ) : null}
+      {!restActive && totalSetsCount > 0 && (
         <div
           style={{
             display: "flex",
@@ -110,5 +186,40 @@ export function SessionSaveBar({
             : copy.saveCreate}
       </button>
     </StickyActionBar>
+  );
+}
+
+/** 휴식 줄의 소형 액션. No-Line Rule에 맞춰 테두리 없이 배경 톤으로만 구분한다. */
+function RestChipButton({
+  label,
+  text,
+  onClick,
+}: {
+  label: string;
+  text: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      className="v2-mono-label v2-tap-44"
+      style={{
+        position: "relative",
+        flexShrink: 0,
+        // 세로 패딩 0 — 휴식 줄이 진행률 줄보다 높아지면 저장바가 커져 레이아웃이
+        // 흔들린다(계획서 §3.4의 "높이 불변"). 실제 터치 영역은 v2-tap-44의 ::after가 준다.
+        padding: "0px var(--v2-s-2)",
+        borderRadius: "var(--v2-r-pill)",
+        border: "none",
+        background: "var(--v2-paper-2)",
+        color: "var(--v2-ink-2)",
+        cursor: "pointer",
+        appearance: "none",
+      }}
+    >
+      {text}
+    </button>
   );
 }

@@ -29,6 +29,8 @@ type Props = {
    * 채워 넣을 값이다(Strong의 "Previous 탭 = 값 복사"와 동형).
    */
   previousReps?: number | null;
+  /** 완료 탭 시 휴식 타이머를 시작한다. 값이 이미 있는 세트도 재시작한다. */
+  onSetCompleted?: (setIndex: number) => void;
 };
 
 export function WorkoutSetRow({
@@ -36,6 +38,7 @@ export function WorkoutSetRow({
   setIndex,
   onExerciseAction,
   previousReps,
+  onSetCompleted,
 }: Props) {
   const { locale } = useLocale();
   const focusChain = useSetRowFocusChain();
@@ -165,18 +168,23 @@ export function WorkoutSetRow({
     return null;
   }, [plannedReps, previousReps]);
 
-  // 이미 값이 있으면 아무것도 하지 않는다 — 탭으로 기록을 지우지 않는 것이 원칙이다.
-  // (완료 취소는 반복 칸을 직접 비운다.) 휴식 타이머 연결은 후속 PR에서 이 자리에 붙는다.
-  const canCompleteByTap = !hasReps && completionFillReps !== null;
+  // 값이 이미 있으면 기록은 건드리지 않고 휴식만 (재)시작한다 — 탭으로 기록을 지우지
+  // 않는 것이 원칙이고, 완료 취소는 반복 칸을 직접 비운다(계획서 §3.3).
+  const canFillByTap = !hasReps && completionFillReps !== null;
+  const canCompleteByTap = canFillByTap || hasReps;
 
   const handleCompleteTap = useCallback(() => {
-    if (!canCompleteByTap || completionFillReps === null) return;
-    onExerciseAction({
-      type: "CHANGE_SET_REPS",
-      setIndex,
-      value: completionFillReps,
-    });
-  }, [canCompleteByTap, completionFillReps, onExerciseAction, setIndex]);
+    if (canFillByTap && completionFillReps !== null) {
+      onExerciseAction({
+        type: "CHANGE_SET_REPS",
+        setIndex,
+        value: completionFillReps,
+      });
+    } else if (!hasReps) {
+      // 채울 값도 없고 기록도 없다 — 휴식만 시작한다.
+    }
+    onSetCompleted?.(setIndex);
+  }, [canFillByTap, completionFillReps, hasReps, onExerciseAction, onSetCompleted, setIndex]);
 
   const completionLabel = isFailure
     ? locale === "ko"
@@ -186,7 +194,7 @@ export function WorkoutSetRow({
       ? locale === "ko"
         ? `${setIndex + 1}세트 완료됨`
         : `Set ${setIndex + 1} completed`
-      : canCompleteByTap
+      : canFillByTap
         ? locale === "ko"
           ? `${setIndex + 1}세트 완료 (${completionFillReps}회 기록)`
           : `Complete set ${setIndex + 1} with ${completionFillReps} reps`

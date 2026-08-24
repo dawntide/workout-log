@@ -32,6 +32,7 @@ import {
 import type { ExerciseRowAction } from "@/features/workout-log/model/editor-actions";
 import { formatDateFriendly } from "@/lib/workout-record/last-session-summary";
 import { useSetRowFocusChain } from "@/features/workout-log/model/use-set-row-focus-chain";
+import { useStartRestTimer } from "@/features/workout-log/model/use-rest-timer";
 import { SET_ROW_GRID } from "@/features/workout-log/ui/set-row-grid";
 import { WorkoutSetRow } from "@/features/workout-log/ui/workout-set-row";
 import { AppSelect } from "@/components/ui/form-controls";
@@ -55,6 +56,7 @@ const TEXAS_ROLE_LABEL: Record<string, { ko: string; en: string }> = {
 
 export function WorkoutExerciseCard({ exerciseId, onExerciseAction }: Props) {
   const { locale } = useLocale();
+  const startRestTimer = useStartRestTimer();
   const exerciseCardAtom = useMemo(
     () => makeExerciseCardAtom(exerciseId),
     [exerciseId],
@@ -80,6 +82,12 @@ export function WorkoutExerciseCard({ exerciseId, onExerciseAction }: Props) {
 
   const dispatchAction = (action: ExerciseRowAction) =>
     onExerciseAction(exerciseId, action);
+  const handleSetCompleted = (setIndex: number) =>
+    startRestTimer({
+      exerciseId: exercise.exerciseId ?? exerciseId,
+      exerciseName: exercise.exerciseName,
+      setIndex,
+    });
   const ref5Outcome = deriveRef5ExerciseOutcomeView(
     exercise,
     exerciseCard.programEntryState,
@@ -537,6 +545,7 @@ export function WorkoutExerciseCard({ exerciseId, onExerciseAction }: Props) {
               setIndex={i}
               onExerciseAction={dispatchAction}
               previousReps={previousSession?.sets[i]?.reps ?? null}
+              onSetCompleted={handleSetCompleted}
             />
           ))}
         </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAppDialog } from "@/components/ui/app-dialog-provider";
 import {
   EmptyStateRows,
@@ -33,6 +33,8 @@ import { BodyweightCheckBanner } from "./bodyweight-check-banner";
 import { DateNav } from "./date-nav";
 import { SessionFeedbackNotices } from "./session-feedback-notices";
 import { SessionSaveBar } from "./session-save-bar";
+import { useRestTimer } from "@/features/workout-log/model/use-rest-timer";
+import { restPersistenceKeyAtom } from "@/features/workout-log/store/workout-log-atoms";
 import { SessionToolbar } from "./session-toolbar";
 import { shouldShowAmrapEveNotice } from "@/features/workout-log/model/progression-feedback";
 import { usePlanProgressionFeedback } from "@/features/workout-log/model/use-plan-progression-feedback";
@@ -109,6 +111,12 @@ function WorkoutLogScreenContent({
     selectedPlanId && query.date
       ? `${selectedPlanId}:${query.date}:${query.sessionId ?? "new"}`
       : null;
+  // 휴식 타이머 컨트롤러는 화면에 한 번만 마운트한다 — 틱·Wake Lock·만료음을 전담한다.
+  const restTimer = useRestTimer(persistenceKey);
+  const setRestPersistenceKey = useSetAtom(restPersistenceKeyAtom);
+  useEffect(() => {
+    setRestPersistenceKey(persistenceKey);
+  }, [persistenceKey, setRestPersistenceKey]);
   const isWorkoutLogRouteActive = pathname?.startsWith("/workout/log") ?? true;
   const isEditingExistingLog = Boolean(query.logId);
   const isStartedRef5Session = Boolean(draft?.session.ref5);
@@ -507,6 +515,14 @@ function WorkoutLogScreenContent({
                 onSave={requestSave}
                 locale={locale}
                 copy={copy.workoutLog}
+                rest={{
+                  active: restTimer.active,
+                  remaining: restTimer.remaining,
+                  target: restTimer.target,
+                  ratio: restTimer.ratio,
+                  onExtend: restTimer.extend,
+                  onSkip: restTimer.skip,
+                }}
               />
             </>
           )}
