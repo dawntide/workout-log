@@ -16,6 +16,8 @@ import {
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
+import type { WorkoutSetType } from "../workout-set-type";
+
 /**
  * 스키마 격리: DB_SCHEMA가 설정되면(예: "dev") 모든 테이블/enum을 해당 스키마에
  * 한정해 발행한다. 미설정(prod)이면 기존처럼 기본(public) 스키마를 쓴다.
@@ -439,6 +441,11 @@ export const workoutSet = table(
     // Keep one decimal place so the DB contract matches the input model.
     rpe: numeric("rpe", { precision: 3, scale: 1, mode: "number" }),
     isExtra: boolean("is_extra").notNull().default(false),
+
+    // 세트 타입. NULL = 작업 세트라 레거시 행 전부가 자동으로 작업 세트가 된다(백필 없음).
+    // 인덱스는 두지 않는다 — 이 필터는 항상 log_id 인덱스로 좁혀진 뒤에 적용되므로
+    // 선택도가 낮은 단독 인덱스는 이득이 없다(계획서 docs/set-type-plan.md §3.2).
+    setType: text("set_type").$type<WorkoutSetType>(),
 
     meta: jsonb("meta").notNull().default({}),
   },

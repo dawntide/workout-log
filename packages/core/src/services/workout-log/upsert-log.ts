@@ -14,6 +14,7 @@ import { applyAutoProgressionFromLog, rebuildAutoProgressionForPlan } from "@wor
 import type { ProgressionTargetDecision } from "@workout/core/progression/autoProgression";
 import { buildProgressionSummary, readProgressEventByLog } from "@workout/core/progression/progress-events";
 import { buildProgressionFeedbackFromEvent } from "@workout/core/progression/feedback-catalog";
+import { normalizeWorkoutSetType } from "@workout/core/workout-set-type";
 import { invalidateStatsCacheForUser } from "../../stats/cache";
 import { invalidatePersonalRecordsFrom } from "./personal-records";
 import { acquireActiveAccountMutationLock } from "@workout/core/auth/account-lifecycle";
@@ -56,6 +57,8 @@ export type WorkoutSetInput = {
   weightKg?: number | null;
   rpe?: number | null;
   isExtra?: boolean | null;
+  /** "WARMUP" | "FAILURE" | null(작업 세트). 미지 값은 작업 세트로 떨어진다. */
+  setType?: string | null;
   meta?: Record<string, unknown> | null;
 };
 
@@ -187,6 +190,7 @@ async function readStoredSets(tx: WorkoutExecutor, logId: string) {
       weightKg: workoutSet.weightKg,
       rpe: workoutSet.rpe,
       isExtra: workoutSet.isExtra,
+      setType: workoutSet.setType,
       meta: workoutSet.meta,
     })
     .from(workoutSet)
@@ -825,6 +829,7 @@ export async function upsertWorkoutLogService({
           weightKg: s.weightKg ?? null,
           rpe: s.rpe ?? null,
           isExtra: Boolean(s.isExtra ?? false),
+          setType: normalizeWorkoutSetType(s.setType),
           meta: s.meta ?? {},
         };
       }),

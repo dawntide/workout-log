@@ -140,6 +140,29 @@ export async function buildUserDataExport(userId: string): Promise<UserDataExpor
   };
 }
 
+/**
+ * CSV 열 순서. `workout_set`의 모든 컬럼(`id`는 `setId`로) + 조인해 오는 로그 3열이다.
+ * JSON export는 `db.select()`라 컬럼이 자동으로 따라오지만 **CSV는 이 배열이 전부**다 —
+ * 컬럼을 추가하고 여기를 빠뜨리면 조용히 누락된다. userExport.test.ts가 그걸 막는다.
+ */
+export const WORKOUT_SET_CSV_HEADER = [
+  "setId",
+  "logId",
+  "performedAt",
+  "planId",
+  "generatedSessionId",
+  "exerciseId",
+  "exerciseName",
+  "sortOrder",
+  "setNumber",
+  "reps",
+  "weightKg",
+  "rpe",
+  "isExtra",
+  "setType",
+  "meta",
+] as const;
+
 export async function buildWorkoutSetCsv(userId: string): Promise<string> {
   const rows = await db
     .select({
@@ -156,6 +179,7 @@ export async function buildWorkoutSetCsv(userId: string): Promise<string> {
       weightKg: workoutSet.weightKg,
       rpe: workoutSet.rpe,
       isExtra: workoutSet.isExtra,
+      setType: workoutSet.setType,
       meta: workoutSet.meta,
     })
     .from(workoutSet)
@@ -163,24 +187,7 @@ export async function buildWorkoutSetCsv(userId: string): Promise<string> {
     .where(eq(workoutLog.userId, userId))
     .orderBy(asc(workoutLog.performedAt), asc(workoutSet.sortOrder), asc(workoutSet.setNumber));
 
-  const header = [
-    "setId",
-    "logId",
-    "performedAt",
-    "planId",
-    "generatedSessionId",
-    "exerciseId",
-    "exerciseName",
-    "sortOrder",
-    "setNumber",
-    "reps",
-    "weightKg",
-    "rpe",
-    "isExtra",
-    "meta",
-  ];
-
-  const lines = [header.join(",")];
+  const lines = [WORKOUT_SET_CSV_HEADER.join(",")];
 
   for (const r of rows) {
     lines.push(
@@ -198,6 +205,7 @@ export async function buildWorkoutSetCsv(userId: string): Promise<string> {
         r.weightKg,
         r.rpe,
         r.isExtra,
+        r.setType,
         r.meta,
       ]
         .map((v) => csvCell(v))

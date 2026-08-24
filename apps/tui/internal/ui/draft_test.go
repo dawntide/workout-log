@@ -49,6 +49,7 @@ func draftedLog(store draftStore) Log {
 		name: "Back Squat", prev: "100×5", tgt: "102.5×5", blockTarget: "SQUAT", role: "MAIN",
 		progressionTarget: "SQUAT", skipProgression: true,
 		sets: []setEntry{
+			{weight: "60", reps: "8", done: true, tgtReps: 5, restSeconds: 240, setType: "WARMUP"},
 			{weight: "102.5", reps: "5", done: true, tgtReps: 5, restSeconds: 240},
 			{weight: "102.5", reps: "", tgtReps: 5, restSeconds: 240},
 		},
@@ -85,13 +86,18 @@ func TestDraftRoundTrip(t *testing.T) {
 	if g.progressionKey != "" || g.progressionTarget != "SQUAT" || g.enforcePlannedReps || !g.skipProgression {
 		t.Errorf("group progression fields lost: %+v", g)
 	}
-	if len(g.sets) != 2 || !g.sets[0].done || g.sets[0].weight != "102.5" || g.sets[1].tgtReps != 5 {
+	if len(g.sets) != 3 || !g.sets[1].done || g.sets[1].weight != "102.5" || g.sets[2].tgtReps != 5 {
 		t.Errorf("sets not restored faithfully: %+v", g.sets)
 	}
 	// 처방 휴식은 드래프트 왕복에서 보존돼야 한다. 이 리포에는 struct 필드를 리플렉션으로
 	// 대조하는 테스트가 없어서, 새 필드는 이렇게 손으로 단언해야 회귀가 잡힌다.
 	if g.sets[0].restSeconds != 240 || g.sets[1].restSeconds != 240 {
 		t.Errorf("prescribed rest lost in draft round-trip: %+v", g.sets)
+	}
+	// 세트 타입도 마찬가지다. 작업 세트는 빈 문자열로 남아야 한다 — 태그가 아래 세트로
+	// 번지면 그 세트가 통계에서 통째로 빠진다.
+	if g.sets[0].setType != "WARMUP" || g.sets[1].setType != "" || g.sets[2].setType != "" {
+		t.Errorf("set type lost or bled across sets in draft round-trip: %+v", g.sets)
 	}
 	if restored.editID != "log-1" || !restored.performedAt.Equal(l.performedAt) {
 		t.Errorf("edit identity lost: editID=%q performedAt=%v", restored.editID, restored.performedAt)
@@ -206,7 +212,7 @@ func TestDraftRestoredMsgLoadsBuffer(t *testing.T) {
 
 	scr, _ := NewLog(nil).Update(draftRestoredMsg{draft: d})
 	l2 := scr.(Log)
-	if len(l2.groups) != 1 || l2.doneCount() != 1 {
+	if len(l2.groups) != 1 || l2.doneCount() != 2 {
 		t.Fatalf("restore via Update failed: %+v", l2.groups)
 	}
 }

@@ -59,7 +59,7 @@ func saveCmd(c *api.Client, groups []exGroup, editID string, performedAt time.Ti
 			reps, _ := strconv.Atoi(s.reps)
 			ws := api.WorkoutSet{
 				ExerciseName: name, SortOrder: gi, SetNumber: s.setNumber,
-				WeightKg: w, Reps: reps, IsExtra: s.isExtra,
+				WeightKg: w, Reps: reps, IsExtra: s.isExtra, SetType: s.setType,
 				Meta: cloneSetMetaIfPresent(s.originalMeta),
 			}
 			if isBodyweightExercise(name) && s.total > 0 {
@@ -244,7 +244,7 @@ func draftSetFingerprints(draft todayDraft) []string {
 			}
 			workoutSet := api.WorkoutSet{
 				ExerciseName: strings.TrimSpace(group.Name), WeightKg: round2(weight),
-				Reps: reps, IsExtra: set.IsExtra,
+				Reps: reps, IsExtra: set.IsExtra, SetType: set.SetType,
 			}
 			if raw := strings.TrimSpace(set.RPE); raw != "" {
 				rpe, err := strconv.ParseFloat(raw, 64)

@@ -49,6 +49,7 @@ type setEntry struct {
 	amrap        bool         // generated AMRAP marker; serialized into engine meta
 	prescribed   bool         // belongs to the generated session and must be accounted for
 	isExtra      bool         // excluded from automatic progression
+	setType      string       // "WARMUP" | "FAILURE" | "" (working set); input lands in a later PR
 	setNumber    int          // generated prescription set number (REF5 immutable)
 	restSeconds  int          // prescribed rest after this set (0 = fall back to user settings)
 	originalMeta *api.SetMeta // generated/logged engine metadata, losslessly cloned on save

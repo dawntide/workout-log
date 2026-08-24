@@ -601,6 +601,7 @@ func (l *Log) loadForEdit(m editLogMsg) {
 			weight: trimNum(float64(st.WeightKg)), reps: strconv.Itoa(st.Reps),
 			rpe: rpeString(st.RPE), done: true, total: setTotal,
 			prescribed: m.generatedSessionID != "" && !st.IsExtra, isExtra: st.IsExtra,
+			setType:   st.SetType,
 			setNumber: st.SetNumber, originalMeta: cloneSetMetaIfPresent(st.Meta),
 		})
 	}

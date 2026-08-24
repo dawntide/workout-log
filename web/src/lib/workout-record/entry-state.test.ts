@@ -40,6 +40,7 @@ function createDraft(): WorkoutRecordDraft {
           rpePerSet: [0, 0, 0],
           weightKgPerSet: [100, 100, 100],
           weightKg: 100,
+          setTypePerSet: [null, null, null],
         },
         note: {
           memo: "Operator W1",
@@ -66,6 +67,7 @@ function createVisibleProgramExercise(): WorkoutExerciseViewModel {
       rpePerSet: [0, 0, 0],
       weightKgPerSet: [100, 100, 100],
       weightKg: 100,
+      setTypePerSet: [null, null, null],
     },
     note: {
       memo: "",
