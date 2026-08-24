@@ -21,6 +21,7 @@ function exercise(reason: Ref5TerminationReason) {
       repsPerSet: [3, 3, 3],
       rpePerSet: [null, null, null],
       amrapPerSet: [false, false, false],
+      restSecondsPerSet: [null, null, null],
     },
     ref5: {
       prescription: { stream: "BP_FOCUS" },

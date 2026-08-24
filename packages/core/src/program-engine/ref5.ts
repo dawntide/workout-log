@@ -813,6 +813,37 @@ export interface Ref5PrescriptionSet {
 
 export type Ref5ExerciseRole = "SQUAT" | "FOCUS" | "VOLUME" | "AUXILIARY";
 
+/**
+ * 스트림별 권장 휴식(초) — 스펙 §19.1 "수행 운영 지침 · 휴식"의 구현체.
+ *
+ * 스펙이 범위로 적은 값을 엔진은 하나로 정해야 하므로 각 범위의 중간값을 쓴다:
+ *   SQ H3/H2 · BP/PULL 집중 = 3–5분 -> 240초
+ *   SQ V · BP/PULL 볼륨 · OHP = 2–3분 -> 150초
+ *   DL = 2–4분 -> 180초
+ *   마이크로 = 2–3분 -> 150초
+ *
+ * 사용자가 운동별 프리셋을 지정하면 그쪽이 아니라 **이 처방이 우선**한다 —
+ * 프로토콜이 정한 휴식은 REF5 판정의 전제이기 때문이다.
+ */
+const REF5_REST_SECONDS_BY_STREAM: Record<Ref5Stream, number> = {
+  SQ_H3: 240,
+  SQ_H2: 240,
+  SQ_V_NORMAL: 150,
+  SQ_V_MICRO: 150,
+  BP_FOCUS: 240,
+  BP_VOLUME_NORMAL: 150,
+  BP_VOLUME_MICRO: 150,
+  PULL_FOCUS: 240,
+  PULL_VOLUME_NORMAL: 150,
+  PULL_VOLUME_MICRO: 150,
+  DL: 180,
+  OHP: 150,
+};
+
+export function ref5RestSecondsForStream(stream: Ref5Stream): number {
+  return REF5_REST_SECONDS_BY_STREAM[stream];
+}
+
 export interface Ref5ExercisePrescription {
   prescriptionId: string;
   lift: Ref5Lift;

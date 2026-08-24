@@ -30,6 +30,7 @@ export const manualSetSchema = z
     note: str.optional(),
     amrap: z.boolean().optional(),
     setNumber: num.optional(), // fork-only (prod inventory)
+    restSeconds: num.optional(), // 세트 후 권장 휴식(초) — 없으면 사용자 설정으로 폴백
   })
   .passthrough();
 

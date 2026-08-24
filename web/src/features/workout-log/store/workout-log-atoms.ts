@@ -9,6 +9,7 @@ import type {
 import type { WorkoutPreferences } from "@/lib/settings/workout-preferences";
 import type { WorkoutLogLastSessionSummary, WorkoutLogRecentLogItem } from "@/features/workout-log/model/types";
 import { toDefaultWorkoutPreferences } from "@/lib/settings/workout-preferences";
+import type { RestTimerState } from "@/lib/workout-record/rest-timer";
 
 // Core Data Atoms
 export const draftAtom = atom<WorkoutRecordDraft | null>(null);
@@ -20,6 +21,19 @@ export const workflowStateAtom = atom<WorkoutWorkflowState>("idle");
 export const recentLogItemsAtom = atom<WorkoutLogRecentLogItem[]>([]);
 export const lastSessionAtom = atom<WorkoutLogLastSessionSummary | null>(null);
 export const saveErrorAtom = atom<string | null>(null);
+
+/**
+ * 휴식 타이머 — 화면 스코프 jotai. 라우트를 벗어나면 소멸하지만, 시작 시각을
+ * sessionStorage에 기록해 두어 돌아오면 남은 시간이 이어진다(use-rest-timer).
+ * 전역 store를 도입하지 않는 이유는 계획서 docs/rest-timer-plan.md 결정 3 참고.
+ */
+export const restTimerAtom = atom<RestTimerState | null>(null);
+
+/**
+ * 휴식 상태를 sessionStorage에 쓸 때 쓰는 키. 화면이 채워 넣고, 카드처럼 깊은 곳에서도
+ * prop 드릴링 없이 타이머를 시작할 수 있게 한다.
+ */
+export const restPersistenceKeyAtom = atom<string | null>(null);
 
 // Derived Atoms for Subscriptions (Prevents full app re-renders)
 export const isDraftLoadedAtom = atom((get) => get(draftAtom) !== null);

@@ -18,20 +18,27 @@ import {
 import type { WorkoutExerciseViewModel } from "@/lib/workout-record/model";
 import { resolveWorkoutSetRepsEntry } from "@/lib/workout-record/ref5-outcome";
 import { CellInput } from "./cell-input";
+import { SET_ROW_GRID } from "./set-row-grid";
 
 type Props = {
   exercise: WorkoutExerciseViewModel;
   setIndex: number;
   onExerciseAction: (action: ExerciseRowAction) => void;
+  /**
+   * 직전 세션 같은 세트 번호의 실제 반복 수. 처방이 없는 운동에서 완료 버튼이
+   * 채워 넣을 값이다(Strong의 "Previous 탭 = 값 복사"와 동형).
+   */
+  previousReps?: number | null;
+  /** 완료 탭 시 휴식 타이머를 시작한다. 값이 이미 있는 세트도 재시작한다. */
+  onSetCompleted?: (setIndex: number) => void;
 };
-
-const ROW_GRID =
-  "var(--v2-s-6) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) var(--v2-s-6)";
 
 export function WorkoutSetRow({
   exercise,
   setIndex,
   onExerciseAction,
+  previousReps,
+  onSetCompleted,
 }: Props) {
   const { locale } = useLocale();
   const focusChain = useSetRowFocusChain();
@@ -152,6 +159,49 @@ export function WorkoutSetRow({
     [focusChain, exercise.id, setIndex],
   );
 
+  // 완료 버튼이 빈 칸에 채워 넣을 값: 처방 → 직전 기록 순. 둘 다 없으면 채우지 않는다.
+  const completionFillReps = useMemo(() => {
+    if (plannedReps > 0) return plannedReps;
+    if (typeof previousReps === "number" && Number.isFinite(previousReps) && previousReps > 0) {
+      return Math.round(previousReps);
+    }
+    return null;
+  }, [plannedReps, previousReps]);
+
+  // 값이 이미 있으면 기록은 건드리지 않고 휴식만 (재)시작한다 — 탭으로 기록을 지우지
+  // 않는 것이 원칙이고, 완료 취소는 반복 칸을 직접 비운다(계획서 §3.3).
+  const canFillByTap = !hasReps && completionFillReps !== null;
+  const canCompleteByTap = canFillByTap || hasReps;
+
+  const handleCompleteTap = useCallback(() => {
+    if (canFillByTap && completionFillReps !== null) {
+      onExerciseAction({
+        type: "CHANGE_SET_REPS",
+        setIndex,
+        value: completionFillReps,
+      });
+    } else if (!hasReps) {
+      // 채울 값도 없고 기록도 없다 — 휴식만 시작한다.
+    }
+    onSetCompleted?.(setIndex);
+  }, [canFillByTap, completionFillReps, hasReps, onExerciseAction, onSetCompleted, setIndex]);
+
+  const completionLabel = isFailure
+    ? locale === "ko"
+      ? `${setIndex + 1}세트 미달`
+      : `Set ${setIndex + 1} below target`
+    : isComplete
+      ? locale === "ko"
+        ? `${setIndex + 1}세트 완료됨`
+        : `Set ${setIndex + 1} completed`
+      : canFillByTap
+        ? locale === "ko"
+          ? `${setIndex + 1}세트 완료 (${completionFillReps}회 기록)`
+          : `Complete set ${setIndex + 1} with ${completionFillReps} reps`
+        : locale === "ko"
+          ? `${setIndex + 1}세트 미완료`
+          : `Set ${setIndex + 1} not completed`;
+
   const rowBackground = isComplete
     ? "color-mix(in srgb, var(--v2-c-reps) 10%, var(--v2-paper))"
     : isFailure
@@ -162,7 +212,7 @@ export function WorkoutSetRow({
     <div
       style={{
         display: "grid",
-        gridTemplateColumns: ROW_GRID,
+        gridTemplateColumns: SET_ROW_GRID,
         gap: "var(--v2-s-2)",
         alignItems: "center",
         padding: "var(--v2-s-1) var(--v2-s-2)",
@@ -219,12 +269,25 @@ export function WorkoutSetRow({
         allowDecimal
         readOnly={Boolean(exercise.ref5)}
       />
-      <span
-        aria-hidden
+      <button
+        type="button"
+        className="v2-tap-44"
+        onClick={handleCompleteTap}
+        aria-pressed={isComplete}
+        aria-label={completionLabel}
+        aria-disabled={!canCompleteByTap}
         style={{
           display: "inline-flex",
           alignItems: "center",
           justifyContent: "center",
+          position: "relative",
+          padding: 0,
+          // No-Line Rule: 브라우저 기본 button 테두리(2px outset)를 명시적으로 지운다.
+          // appearance:none만으로는 남는다 — 실제로 렌더에서 확인했다.
+          border: "none",
+          background: "transparent",
+          appearance: "none",
+          cursor: canCompleteByTap ? "pointer" : "default",
           color: isFailure
             ? "var(--v2-c-danger)"
             : isComplete
@@ -256,7 +319,7 @@ export function WorkoutSetRow({
             }}
           />
         )}
-      </span>
+      </button>
     </div>
   );
 }

@@ -32,6 +32,8 @@ import {
 import type { ExerciseRowAction } from "@/features/workout-log/model/editor-actions";
 import { formatDateFriendly } from "@/lib/workout-record/last-session-summary";
 import { useSetRowFocusChain } from "@/features/workout-log/model/use-set-row-focus-chain";
+import { useStartRestTimer } from "@/features/workout-log/model/use-rest-timer";
+import { SET_ROW_GRID } from "@/features/workout-log/ui/set-row-grid";
 import { WorkoutSetRow } from "@/features/workout-log/ui/workout-set-row";
 import { AppSelect } from "@/components/ui/form-controls";
 import type { Ref5TerminationReason } from "@/entities/workout-record";
@@ -45,9 +47,6 @@ type Props = {
   onExerciseAction: (exerciseId: string, action: ExerciseRowAction) => void;
 };
 
-const ROW_GRID =
-  "var(--v2-s-6) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) var(--v2-s-6)";
-
 // texas 주간(v2) 요일 역할 라벨. 처방이 흘린 exercise.texasRole을 배지로 표시한다.
 const TEXAS_ROLE_LABEL: Record<string, { ko: string; en: string }> = {
   volume: { ko: "볼륨일", en: "Volume" },
@@ -57,6 +56,7 @@ const TEXAS_ROLE_LABEL: Record<string, { ko: string; en: string }> = {
 
 export function WorkoutExerciseCard({ exerciseId, onExerciseAction }: Props) {
   const { locale } = useLocale();
+  const startRestTimer = useStartRestTimer();
   const exerciseCardAtom = useMemo(
     () => makeExerciseCardAtom(exerciseId),
     [exerciseId],
@@ -82,6 +82,14 @@ export function WorkoutExerciseCard({ exerciseId, onExerciseAction }: Props) {
 
   const dispatchAction = (action: ExerciseRowAction) =>
     onExerciseAction(exerciseId, action);
+  const handleSetCompleted = (setIndex: number) =>
+    startRestTimer({
+      exerciseId: exercise.exerciseId ?? exerciseId,
+      exerciseName: exercise.exerciseName,
+      setIndex,
+      // 프로그램 처방이 있으면 사용자 설정보다 우선한다.
+      prescribedSeconds: exercise.plannedSetMeta?.restSecondsPerSet?.[setIndex] ?? null,
+    });
   const ref5Outcome = deriveRef5ExerciseOutcomeView(
     exercise,
     exerciseCard.programEntryState,
@@ -504,7 +512,7 @@ export function WorkoutExerciseCard({ exerciseId, onExerciseAction }: Props) {
           className="v2-mono-label"
           style={{
             display: "grid",
-            gridTemplateColumns: ROW_GRID,
+            gridTemplateColumns: SET_ROW_GRID,
             gap: "var(--v2-s-2)",
             padding: "0 var(--v2-s-2)",
             color: "var(--v2-ink-3)",
@@ -538,6 +546,8 @@ export function WorkoutExerciseCard({ exerciseId, onExerciseAction }: Props) {
               exercise={exercise}
               setIndex={i}
               onExerciseAction={dispatchAction}
+              previousReps={previousSession?.sets[i]?.reps ?? null}
+              onSetCompleted={handleSetCompleted}
             />
           ))}
         </div>

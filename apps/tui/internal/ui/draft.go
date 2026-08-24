@@ -31,6 +31,7 @@ type draftSet struct {
 	Prescribed   bool         `json:"prescribed,omitempty"`
 	IsExtra      bool         `json:"isExtra,omitempty"`
 	SetNumber    int          `json:"setNumber,omitempty"`
+	RestSeconds  int          `json:"restSeconds,omitempty"`
 	OriginalMeta *api.SetMeta `json:"originalMeta,omitempty"`
 }
 
@@ -89,7 +90,7 @@ func draftFromLog(l *Log, now time.Time) todayDraft {
 				Weight: s.weight, Reps: s.reps, RPE: s.rpe,
 				Done: s.done, TgtReps: s.tgtReps, Total: s.total,
 				Amrap: s.amrap, Prescribed: s.prescribed, IsExtra: s.isExtra,
-				SetNumber: s.setNumber, OriginalMeta: cloneSetMetaIfPresent(s.originalMeta),
+				SetNumber: s.setNumber, RestSeconds: s.restSeconds, OriginalMeta: cloneSetMetaIfPresent(s.originalMeta),
 			})
 		}
 		groups = append(groups, draftGroup{
@@ -237,7 +238,7 @@ func (l *Log) loadFromDraft(d todayDraft) {
 				weight: s.Weight, reps: s.Reps, rpe: s.RPE,
 				done: s.Done, tgtReps: s.TgtReps, total: s.Total, amrap: s.Amrap,
 				prescribed: s.Prescribed, isExtra: s.IsExtra,
-				setNumber: s.SetNumber, originalMeta: cloneSetMetaIfPresent(s.OriginalMeta),
+				setNumber: s.SetNumber, restSeconds: s.RestSeconds, originalMeta: cloneSetMetaIfPresent(s.OriginalMeta),
 			})
 		}
 		groups = append(groups, exGroup{

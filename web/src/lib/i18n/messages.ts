@@ -55,6 +55,7 @@ export type AppCopy = {
       language: string;
       theme: string;
       minimumPlate: string;
+      restTimer: string;
       bodyweight: string;
       exerciseManagement: string;
       dataExport: string;
@@ -477,6 +478,7 @@ export const appCopyByLocale: Record<AppLocale, AppCopy> = {
         language: "언어 설정",
         theme: "테마 설정",
         minimumPlate: "최소 원판 무게",
+        restTimer: "휴식 타이머",
         bodyweight: "몸무게 입력",
         exerciseManagement: "운동종목 관리",
         dataExport: "데이터 내보내기",
@@ -900,6 +902,7 @@ export const appCopyByLocale: Record<AppLocale, AppCopy> = {
         language: "Language",
         theme: "Appearance",
         minimumPlate: "Minimum Plate",
+        restTimer: "Rest Timer",
         bodyweight: "Bodyweight",
         exerciseManagement: "Exercise Management",
         dataExport: "Data Export",

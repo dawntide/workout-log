@@ -107,6 +107,17 @@ export function MoreScreen() {
               : "Smallest plate you load"
           }
         />
+        <V2NavRow
+          as="a"
+          href="/settings/rest-timer"
+          icon="timer"
+          label={locale === "ko" ? "휴식 타이머" : "Rest Timer"}
+          description={
+            locale === "ko"
+              ? "기본 휴식 시간·운동별 설정·종료음"
+              : "Default rest, per-exercise times, chime"
+          }
+        />
         <BodyweightRow
           snapshot={snapshot}
           expanded={expandedRow === "bodyweight"}

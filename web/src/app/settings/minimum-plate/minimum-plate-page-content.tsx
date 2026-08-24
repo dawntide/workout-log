@@ -2,8 +2,8 @@
 
 import { type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import { BottomSheet } from "@/components/ui/bottom-sheet";
-import { AppTextInput } from "@/components/ui/form-controls";
 import { NumberKeypadField } from "@/components/ui/number-keypad-field";
+import { ExercisePickerField } from "@/components/v2/settings/exercise-picker-field";
 import { EmptyStateRows, NoticeStateRows } from "@/components/ui/settings-state";
 import {
   V2NavRow,
@@ -11,7 +11,6 @@ import {
   V2SecondaryBtn,
   V2Stack,
 } from "@/components/v2/primitives";
-import { V2Icon } from "@/components/v2/primitives/v2-icon";
 import {
   V2SettingsFootnote,
   V2SettingsGroup,
@@ -123,14 +122,6 @@ export function MinimumPlatePageContent({ initialSnapshot, initialExercises }: M
 
   const rules = useMemo(() => parseMinimumPlateRules(rulesSetting.value), [rulesSetting.value]);
 
-  const visibleExercises = useMemo(() => {
-    const query = exerciseQuery.trim().toLowerCase();
-    if (!query) return exercises;
-    return exercises.filter((exercise) => {
-      const full = `${exercise.name} ${exercise.category ?? ""}`.toLowerCase();
-      return full.includes(query);
-    });
-  }, [exerciseQuery, exercises]);
 
   const selectedExerciseOption = useMemo(
     () => (ruleDraft.exerciseId ? exercises.find((exercise) => exercise.id === ruleDraft.exerciseId) ?? null : null),
@@ -353,158 +344,23 @@ export function MinimumPlatePageContent({ initialSnapshot, initialExercises }: M
       >
         <div style={{ display: "flex", flexDirection: "column", gap: "var(--v2-s-4)" }}>
           <div style={{ background: "var(--v2-paper)", borderRadius: "var(--v2-r-4)", padding: "var(--v2-s-4)", display: "flex", flexDirection: "column", gap: "var(--v2-s-2)" }}>
-            <label style={{ display: "flex", flexDirection: "column", gap: "var(--v2-s-1)" }}>
-              <span className="v2-font-text" style={{ color: "var(--v2-ink-2)", fontSize: "var(--v2-t-small)" }}>{locale === "ko" ? "운동종목 드롭다운 검색/선택" : "Search and select an exercise"}</span>
-              <div data-no-swipe="true">
-                <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
-                  <span
-                    aria-hidden="true"
-                    style={{
-                      position: "absolute",
-                      insetInlineStart: "0.82rem",
-                      top: "50%",
-                      transform: "translateY(-50%)",
-                      width: "0.9rem",
-                      height: "0.9rem",
-                      color: "var(--v2-ink-3)",
-                      pointerEvents: "none",
-                      display: "inline-flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                    }}
-                  >
-                    <V2Icon name="search" weight={400} style={{ fontSize: "var(--v2-t-18)" }} />
-                  </span>
-                  <AppTextInput
-                    type="text"
-                    inputMode="search"
-                    autoComplete="off"
-                    value={exerciseQuery}
-                    style={{ paddingInlineStart: "2.15rem", paddingInlineEnd: exerciseQuery.trim().length > 0 ? "2.25rem" : "var(--v2-s-4)" }}
-                    placeholder={locale === "ko" ? "예: Pull-up" : "e.g. Pull-Up"}
-                    onChange={(event) => {
-                      const nextQuery = event.target.value;
-                      setExerciseQuery(nextQuery);
-                      setSheetError(null);
-                      setRuleDraft((prev) => {
-                        if (!prev.exerciseId) return prev;
-                        if (nextQuery.trim().toLowerCase() === prev.exerciseName.trim().toLowerCase()) return prev;
-                        return { ...prev, exerciseId: null, exerciseName: "" };
-                      });
-                    }}
-                    onKeyDown={(event) => {
-                      if (event.key !== "Enter") return;
-                      event.preventDefault();
-                      const first = visibleExercises[0] ?? null;
-                      if (!first) return;
-                      selectExerciseOption(first);
-                    }}
-                  />
-                  {exerciseQuery.trim().length > 0 ? (
-                    <button
-                      type="button"
-                      aria-label={locale === "ko" ? "검색어 지우기" : "Clear search query"}
-                      style={{
-                        position: "absolute",
-                        insetInlineEnd: "0.55rem",
-                        top: "50%",
-                        transform: "translateY(-50%)",
-                        width: "24px",
-                        height: "24px",
-                        minHeight: "24px",
-                        borderRadius: "999px",
-                        background: "var(--v2-paper-3)",
-                        color: "var(--v2-ink-2)",
-                        display: "inline-flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        padding: 0,
-                        lineHeight: 0,
-                      }}
-                      onClick={() => {
-                        setExerciseQuery("");
-                        setSheetError(null);
-                      }}
-                    >
-                      <V2Icon name="close" weight={500} style={{ fontSize: "var(--v2-t-14)" }} />
-                    </button>
-                  ) : null}
-                </div>
-
-                {selectedExerciseOption ? (
-                  <div
-                    role="status"
-                    aria-live="polite"
-                    style={{
-                      marginTop: "var(--v2-s-2)",
-                      padding: "var(--v2-s-2)",
-                      boxShadow: "inset 0 0 0 2px var(--v2-accent)",
-                      borderRadius: "var(--v2-r-1)",
-                      background: "color-mix(in srgb, var(--v2-accent) 14%, var(--v2-paper))",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      gap: "var(--v2-s-2)",
-                    }}
-                  >
-                    <strong style={{ minWidth: 0 }}>
-                      {selectedExerciseOption.category
-                        ? `${selectedExerciseOption.name} · ${selectedExerciseOption.category}`
-                        : selectedExerciseOption.name}
-                    </strong>
-                    <V2SecondaryBtn className="v2-font-display" onClick={() => selectExerciseOption(null)}>
-                      {locale === "ko" ? "선택 변경" : "Change Selection"}
-                    </V2SecondaryBtn>
-                  </div>
-                ) : null}
-
-                {!selectedExerciseOption ? (
-                  <div
-                    role="listbox"
-                    aria-label={locale === "ko" ? "운동종목 검색 결과" : "Exercise search results"}
-                    style={{
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: "var(--v2-s-1)",
-                      maxHeight: "240px",
-                      overflowY: "auto",
-                      paddingTop: "var(--v2-s-2)",
-                    }}
-                  >
-                    {visibleExercises.length === 0 ? (
-                      <span className="v2-font-text" style={{ color: "var(--v2-ink-2)", fontSize: "var(--v2-t-small)" }}>{locale === "ko" ? "검색 조건에 맞는 운동종목이 없습니다." : "No exercises match the current search."}</span>
-                    ) : (
-                      visibleExercises.map((exercise) => (
-                        <button
-                          key={exercise.id}
-                          type="button"
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            width: "100%",
-                            minHeight: "44px",
-                            padding: "var(--v2-s-3) var(--v2-s-4)",
-                            background: "var(--v2-paper-2)",
-                            border: "none",
-                            borderRadius: "var(--v2-r-2)",
-                            textAlign: "left",
-                            fontSize: "var(--v2-t-14)",
-                            color: "var(--v2-ink)",
-                            cursor: "pointer",
-                            WebkitTapHighlightColor: "transparent",
-                          }}
-                          onClick={() => {
-                            selectExerciseOption(exercise);
-                          }}
-                        >
-                          {exercise.category ? `${exercise.name} · ${exercise.category}` : exercise.name}
-                        </button>
-                      ))
-                    )}
-                  </div>
-                ) : null}
-              </div>
-            </label>
+            <ExercisePickerField
+              label={locale === "ko" ? "운동종목 드롭다운 검색/선택" : "Search and select an exercise"}
+              placeholder={locale === "ko" ? "예: Pull-up" : "e.g. Pull-Up"}
+              exercises={exercises}
+              query={exerciseQuery}
+              onQueryChange={(nextQuery) => {
+                setExerciseQuery(nextQuery);
+                setSheetError(null);
+                setRuleDraft((prev) => {
+                  if (!prev.exerciseId) return prev;
+                  if (nextQuery.trim().toLowerCase() === prev.exerciseName.trim().toLowerCase()) return prev;
+                  return { ...prev, exerciseId: null, exerciseName: "" };
+                });
+              }}
+              selected={selectedExerciseOption}
+              onSelect={selectExerciseOption}
+            />
           </div>
 
           <div style={{ background: "var(--v2-paper)", borderRadius: "var(--v2-r-4)", padding: "var(--v2-s-4)" }}>

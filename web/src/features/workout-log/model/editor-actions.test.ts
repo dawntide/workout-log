@@ -56,6 +56,7 @@ function makeAutoExercise(input: {
       repsPerSet: input.targets.map(() => 5),
       rpePerSet: input.targets.map(() => null),
       amrapPerSet: input.targets.map(() => false),
+      restSecondsPerSet: input.targets.map(() => null),
     },
     set: {
       count: length,

@@ -50,6 +50,7 @@ type setEntry struct {
 	prescribed   bool         // belongs to the generated session and must be accounted for
 	isExtra      bool         // excluded from automatic progression
 	setNumber    int          // generated prescription set number (REF5 immutable)
+	restSeconds  int          // prescribed rest after this set (0 = fall back to user settings)
 	originalMeta *api.SetMeta // generated/logged engine metadata, losslessly cloned on save
 }
 

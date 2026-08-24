@@ -9,6 +9,9 @@ import {
   DEFAULT_DARK_COLOR_THEME,
   DEFAULT_LIGHT_COLOR_THEME,
   SETTINGS_KEYS,
+  DEFAULT_REST_SECONDS,
+  DEFAULT_REST_SOUND_ENABLED,
+  DEFAULT_REST_WAKE_LOCK_ENABLED,
 } from "@workout/core/settings/workout-preferences";
 
 import { requireAuth, type AppEnv } from "../auth";
@@ -44,6 +47,10 @@ const DEFAULT_SETTINGS: SettingsSnapshot = {
   "prefs.uxThreshold.saveFromGenerate": 0.65,
   "prefs.uxThreshold.saveSuccessFromClicks7d": 0.6,
   "prefs.uxThreshold.addAfterSheetOpen14d": 0.35,
+  [SETTINGS_KEYS.restDefaultSeconds]: DEFAULT_REST_SECONDS,
+  [SETTINGS_KEYS.restPresetsJson]: "[]",
+  [SETTINGS_KEYS.restSoundEnabled]: DEFAULT_REST_SOUND_ENABLED,
+  [SETTINGS_KEYS.restWakeLockEnabled]: DEFAULT_REST_WAKE_LOCK_ENABLED,
 };
 
 // Per-user in-memory fallback, used only if the user_setting table is missing

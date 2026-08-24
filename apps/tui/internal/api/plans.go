@@ -182,6 +182,7 @@ type PlannedSet struct {
 	PlannedReps    int      `json:"plannedReps,omitempty"`
 	ExternalLoadKg Float64  `json:"externalLoadKg,omitempty"`
 	TotalLoadKg    Float64  `json:"totalLoadKg,omitempty"`
+	RestSeconds    int      `json:"restSeconds,omitempty"`
 	Note           string   `json:"note,omitempty"`
 	Meta           *SetMeta `json:"meta,omitempty"`
 }
