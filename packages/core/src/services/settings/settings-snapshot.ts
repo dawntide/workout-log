@@ -11,6 +11,9 @@ import {
   DEFAULT_LIGHT_COLOR_THEME,
   SETTINGS_KEYS,
   type SettingValue,
+  DEFAULT_REST_SECONDS,
+  DEFAULT_REST_SOUND_ENABLED,
+  DEFAULT_REST_WAKE_LOCK_ENABLED,
 } from "../../settings/workout-preferences";
 
 export type SettingsSnapshot = Record<string, SettingValue>;
@@ -29,6 +32,10 @@ export const DEFAULT_SETTINGS: SettingsSnapshot = {
   "prefs.uxThreshold.saveFromGenerate": 0.65,
   "prefs.uxThreshold.saveSuccessFromClicks7d": 0.6,
   "prefs.uxThreshold.addAfterSheetOpen14d": 0.35,
+  [SETTINGS_KEYS.restDefaultSeconds]: DEFAULT_REST_SECONDS,
+  [SETTINGS_KEYS.restPresetsJson]: "[]",
+  [SETTINGS_KEYS.restSoundEnabled]: DEFAULT_REST_SOUND_ENABLED,
+  [SETTINGS_KEYS.restWakeLockEnabled]: DEFAULT_REST_WAKE_LOCK_ENABLED,
 };
 
 export async function getSettingsSnapshotForUser(

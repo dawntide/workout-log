@@ -66,6 +66,17 @@ export type MinimumPlateRule = {
   incrementKg: number;
 };
 
+export type RestPresetRule = {
+  exerciseId: string | null;
+  exerciseName: string;
+  seconds: number;
+};
+
+export type ResolvedRestSeconds = {
+  seconds: number;
+  source: "DEFAULT" | "RULE";
+};
+
 export type WorkoutPreferences = {
   locale: LocalePreference;
   theme: ThemePreference;
@@ -76,6 +87,10 @@ export type WorkoutPreferences = {
   bodyweightKg: number | null;
   trainingGoalPrimary: TrainingGoalKey;
   trainingGoalSecondary: TrainingGoalKey[];
+  restDefaultSeconds: number;
+  restPresets: RestPresetRule[];
+  restSoundEnabled: boolean;
+  restWakeLockEnabled: boolean;
 };
 
 export type ResolvedMinimumPlateIncrement = {
@@ -93,6 +108,10 @@ export const SETTINGS_KEYS = {
   bodyweightKg: "prefs.bodyweight.kg",
   trainingGoalPrimary: "prefs.trainingGoal.primary",
   trainingGoalSecondaryJson: "prefs.trainingGoal.secondaryJson",
+  restDefaultSeconds: "prefs.rest.defaultSeconds",
+  restPresetsJson: "prefs.rest.presetsJson",
+  restSoundEnabled: "prefs.rest.soundEnabled",
+  restWakeLockEnabled: "prefs.rest.wakeLockEnabled",
 } as const;
 
 export const DEFAULT_LOCALE_PREFERENCE: LocalePreference = "ko";
@@ -103,9 +122,20 @@ export const DEFAULT_MINIMUM_PLATE_KG = 2.5;
 export const DEFAULT_BODYWEIGHT_KG: number | null = null;
 export const DEFAULT_TRAINING_GOAL_PRIMARY: TrainingGoalKey = "general";
 export const DEFAULT_TRAINING_GOAL_SECONDARY: TrainingGoalKey[] = [];
+/**
+ * 90초 — 로드맵 §M1-1 결정 2. 폐기된 기획(v2-next-pr-plan §B3)은 3분을 전제했으나 그건
+ * 파워리프팅 기준이고, 보조 운동이 많은 우리 프로그램 구성에는 90초가 맞다. 처방(restSeconds)이나
+ * 운동별 프리셋이 있으면 어차피 덮인다.
+ */
+export const DEFAULT_REST_SECONDS = 90;
+export const DEFAULT_REST_SOUND_ENABLED = true;
+/** 배터리 영향이 있어 기본 off — 사용자가 명시적으로 켠다. */
+export const DEFAULT_REST_WAKE_LOCK_ENABLED = false;
 
 const MIN_INCREMENT_KG = 0.25;
 const MAX_INCREMENT_KG = 25;
+const MIN_REST_SECONDS = 5;
+const MAX_REST_SECONDS = 600;
 export const LOCAL_STORAGE_SETTING_PREFIX = "workout-log.setting.v1.";
 
 function toRounded2(value: number) {
@@ -269,6 +299,71 @@ export function serializeMinimumPlateRules(rules: MinimumPlateRule[]): string {
   return JSON.stringify(normalized);
 }
 
+export function normalizeRestSeconds(value: unknown, fallback = DEFAULT_REST_SECONDS): number {
+  // null/undefined/빈 문자열은 "미설정"이다. toFiniteNumber는 Number(null) === 0 때문에
+  // null을 0으로 읽어 최솟값으로 클램프해버리므로 여기서 먼저 걸러낸다.
+  if (value === null || value === undefined) return fallback;
+  if (typeof value === "string" && !value.trim()) return fallback;
+  const parsed = toFiniteNumber(value);
+  if (parsed === null) return fallback;
+  const clamped = Math.max(MIN_REST_SECONDS, Math.min(MAX_REST_SECONDS, parsed));
+  return Math.round(clamped);
+}
+
+function normalizeRestPreset(raw: unknown): RestPresetRule | null {
+  if (!raw || typeof raw !== "object") return null;
+  const record = raw as Record<string, unknown>;
+  const seconds = normalizeRestSeconds(record.seconds, Number.NaN);
+  if (!Number.isFinite(seconds)) return null;
+
+  const exerciseIdRaw = typeof record.exerciseId === "string" ? record.exerciseId.trim() : "";
+  const exerciseName = typeof record.exerciseName === "string" ? record.exerciseName.trim() : "";
+  if (!exerciseName) return null;
+
+  return {
+    exerciseId: exerciseIdRaw || null,
+    exerciseName,
+    seconds,
+  };
+}
+
+export function parseRestPresets(value: unknown): RestPresetRule[] {
+  const entries = parseRuleEntries(value);
+  if (entries.length === 0) return [];
+
+  const normalized: RestPresetRule[] = [];
+  const dedupe = new Set<string>();
+  for (const entry of entries) {
+    const preset = normalizeRestPreset(entry);
+    if (!preset) continue;
+    const key = preset.exerciseId
+      ? `id:${preset.exerciseId}`
+      : `name:${preset.exerciseName.toLowerCase()}`;
+    if (dedupe.has(key)) continue;
+    dedupe.add(key);
+    normalized.push(preset);
+  }
+  return normalized;
+}
+
+export function serializeRestPresets(presets: RestPresetRule[]): string {
+  const normalized = presets
+    .map((preset) => normalizeRestPreset(preset))
+    .filter(Boolean) as RestPresetRule[];
+  return JSON.stringify(normalized);
+}
+
+function normalizeBooleanPreference(value: unknown, fallback: boolean): boolean {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    if (normalized === "true" || normalized === "1") return true;
+    if (normalized === "false" || normalized === "0") return false;
+  }
+  if (typeof value === "number") return value !== 0;
+  return fallback;
+}
+
 export function readWorkoutPreferences(snapshot: SettingsSnapshot): WorkoutPreferences {
   const locale = normalizeLocalePreference(snapshot[SETTINGS_KEYS.locale]);
   const theme = normalizeThemePreference(snapshot[SETTINGS_KEYS.theme]);
@@ -291,6 +386,19 @@ export function readWorkoutPreferences(snapshot: SettingsSnapshot): WorkoutPrefe
     snapshot[SETTINGS_KEYS.trainingGoalSecondaryJson],
     trainingGoalPrimary,
   );
+  const restDefaultSeconds = normalizeRestSeconds(
+    snapshot[SETTINGS_KEYS.restDefaultSeconds],
+    DEFAULT_REST_SECONDS,
+  );
+  const restPresets = parseRestPresets(snapshot[SETTINGS_KEYS.restPresetsJson]);
+  const restSoundEnabled = normalizeBooleanPreference(
+    snapshot[SETTINGS_KEYS.restSoundEnabled],
+    DEFAULT_REST_SOUND_ENABLED,
+  );
+  const restWakeLockEnabled = normalizeBooleanPreference(
+    snapshot[SETTINGS_KEYS.restWakeLockEnabled],
+    DEFAULT_REST_WAKE_LOCK_ENABLED,
+  );
 
   return {
     locale,
@@ -302,6 +410,10 @@ export function readWorkoutPreferences(snapshot: SettingsSnapshot): WorkoutPrefe
     bodyweightKg,
     trainingGoalPrimary,
     trainingGoalSecondary,
+    restDefaultSeconds,
+    restPresets,
+    restSoundEnabled,
+    restWakeLockEnabled,
   };
 }
 
@@ -316,6 +428,10 @@ export function toDefaultWorkoutPreferences(): WorkoutPreferences {
     bodyweightKg: DEFAULT_BODYWEIGHT_KG,
     trainingGoalPrimary: DEFAULT_TRAINING_GOAL_PRIMARY,
     trainingGoalSecondary: [...DEFAULT_TRAINING_GOAL_SECONDARY],
+    restDefaultSeconds: DEFAULT_REST_SECONDS,
+    restPresets: [],
+    restSoundEnabled: DEFAULT_REST_SOUND_ENABLED,
+    restWakeLockEnabled: DEFAULT_REST_WAKE_LOCK_ENABLED,
   };
 }
 
@@ -374,6 +490,57 @@ export function resolveMinimumPlateIncrement(
     incrementKg: preferences.minimumPlateDefaultKg,
     source: "DEFAULT",
   };
+}
+
+/**
+ * 휴식 목표 시간 해석. 우선순위는 `resolveMinimumPlateIncrement`와 동일한 4단이다:
+ * exerciseId 정확 일치 → 이름(exerciseId 없는 규칙 우선) → 이름(아무 규칙) → 전역 기본값.
+ *
+ * 세션/세트 처방(`restSeconds`)은 이 함수보다 **위**에 있다 — 처방이 있으면 호출자가
+ * 이 함수를 부르지 않는다(로드맵 §M1-1의 ① 처방 → ② 프리셋 → ③ 기본값).
+ */
+export function resolveRestSeconds(
+  preferences: Pick<WorkoutPreferences, "restDefaultSeconds" | "restPresets">,
+  input: {
+    exerciseId?: string | null;
+    exerciseName: string;
+  },
+): ResolvedRestSeconds {
+  const byId = input.exerciseId
+    ? preferences.restPresets.find((preset) => preset.exerciseId === input.exerciseId)
+    : null;
+  if (byId) {
+    return { seconds: byId.seconds, source: "RULE" };
+  }
+
+  const nameKey = toExerciseNameKey(input.exerciseName);
+  if (nameKey) {
+    const byNameOnly = preferences.restPresets.find(
+      (preset) => !preset.exerciseId && toExerciseNameKey(preset.exerciseName) === nameKey,
+    );
+    if (byNameOnly) {
+      return { seconds: byNameOnly.seconds, source: "RULE" };
+    }
+
+    const byAnyName = preferences.restPresets.find(
+      (preset) => toExerciseNameKey(preset.exerciseName) === nameKey,
+    );
+    if (byAnyName) {
+      return { seconds: byAnyName.seconds, source: "RULE" };
+    }
+  }
+
+  return { seconds: preferences.restDefaultSeconds, source: "DEFAULT" };
+}
+
+export function resolveRestSecondsForExercise(
+  preferences: Pick<WorkoutPreferences, "restDefaultSeconds" | "restPresets">,
+  input: {
+    exerciseId?: string | null;
+    exerciseName: string;
+  },
+): number {
+  return resolveRestSeconds(preferences, input).seconds;
 }
 
 export function snapWeightToIncrementKg(weightKg: number, incrementKg: number): number {
