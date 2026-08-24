@@ -6,6 +6,7 @@
  * 뷰는 이 결과만 받아 표현만 담당한다. 유닛 테스트는 이 파일을 직접 대상으로 한다.
  */
 
+import { estimateE1rmKg } from "@workout/core/stats/e1rm";
 import type { ProgressionSummaryPayload } from "@workout/core/progression/summary";
 import type { TrainingGoalKey } from "@/lib/settings/workout-preferences";
 import {
@@ -159,12 +160,6 @@ export function buildPrCards(
   return out;
 }
 
-export function epleyEstimate(weightKg: number, reps: number): number {
-  if (!Number.isFinite(weightKg) || weightKg <= 0) return 0;
-  const r = Math.max(1, Number.isFinite(reps) ? reps : 1);
-  return weightKg * (1 + r / 30);
-}
-
 export function buildExerciseSummaries(sets: V2SummarySet[]): ExerciseSummary[] {
   const map = new Map<string, ExerciseSummary>();
   for (const s of sets) {
@@ -205,7 +200,7 @@ export function buildExerciseSummaries(sets: V2SummarySet[]): ExerciseSummary[] 
   return Array.from(map.values());
 }
 
-/** 세션 전체에서 EST 1RM 기준 최고 세트(epley) — 스트렝스/파워리프팅 BigStat에 사용. */
+/** 세션 전체에서 EST 1RM 기준 최고 세트 — 스트렝스/파워리프팅 BigStat에 사용. */
 export function findTopEstOneRm(sets: V2SummarySet[]): {
   exerciseName: string;
   weightKg: number;
@@ -232,7 +227,7 @@ export function findTopEstOneRm(sets: V2SummarySet[]): {
     const r = Number(s.reps ?? 0);
     if (!Number.isFinite(w) || w <= 0 || !Number.isFinite(r) || r <= 0)
       continue;
-    const e = epleyEstimate(w, r);
+    const e = estimateE1rmKg(w, r);
     if (!best || e > best.estOneRm) {
       best = {
         exerciseName: name,
@@ -307,7 +302,7 @@ export function buildSummaryData(log: V2SummaryLog): SummaryData {
     const reps = top?.reps ?? 1;
     return {
       ...p,
-      estOneRm: epleyEstimate(p.afterWorkKg, reps),
+      estOneRm: estimateE1rmKg(p.afterWorkKg, reps),
     };
   });
 

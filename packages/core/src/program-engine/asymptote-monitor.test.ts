@@ -6,17 +6,18 @@ import {
   ASYMPTOTE_MONITOR_WINDOW,
   aggregateDriverExposures,
   asymptoteDriverTrend,
-  epleyE1rm,
   type DriverExposure,
   type LoggedSetRow,
 } from "./asymptote-monitor";
+import { estimateE1rmRounded } from "../stats/e1rm";
 
-test("epleyE1rm: w*(1+reps/30), 비유효 입력은 0", () => {
-  assert.equal(Math.round(epleyE1rm(100, 5) * 100) / 100, 116.67);
-  assert.ok(Math.abs(epleyE1rm(100, 1) - (100 + 100 / 30)) < 1e-9);
-  assert.equal(epleyE1rm(0, 5), 0);
-  assert.equal(epleyE1rm(100, 0), 0);
-  assert.equal(epleyE1rm(-5, 5), 0);
+// e1RM 공식 자체는 stats/e1rm.test.ts가 잠근다. 여기서는 모니터가 그 공식을
+// 총부하(풀업이면 BW+추중량)에 적용해 노출 e1RM을 만드는지만 본다.
+test("노출 e1RM은 총부하 기준 — 풀업은 체중을 더해 계산한다", () => {
+  const out = asymptoteDriverTrend([
+    { performedAt: "2026-01-01", weightKg: 10, reps: 5, bodyweightKg: 70 },
+  ]);
+  assert.equal(out.points[0]?.e1rm, estimateE1rmRounded(80, 5));
 });
 
 function series(e1rmWeights: Array<[string, number, number]>): DriverExposure[] {

@@ -1,3 +1,4 @@
+import { estimateE1rmKg } from "./e1rm";
 import { and, desc, eq, gte, isNotNull, lte, max, or, sql } from "drizzle-orm";
 import { resolveLoggedTotalLoadKg } from "@workout/core/bodyweight-load";
 import { db } from "@workout/core/db/client";
@@ -27,10 +28,6 @@ export type Stats1RMFilterOptions = {
   exercises: Array<{ id: string; name: string }>;
   plans: Array<{ id: string; name: string }>;
 };
-
-function epley1RM(weightKg: number, reps: number) {
-  return weightKg * (1 + reps / 30);
-}
 
 async function resolveExerciseSelection({
   exerciseId,
@@ -206,7 +203,7 @@ export async function fetchE1rmStats({
         performedAt: row.performedAt,
         weightKg,
         reps,
-        e1rm: Math.round(epley1RM(weightKg, reps) * 10) / 10,
+        e1rm: Math.round(estimateE1rmKg(weightKg, reps) * 10) / 10,
       };
     })
     .filter(Boolean) as Array<{ performedAt: Date; weightKg: number; reps: number; e1rm: number }>;

@@ -3,6 +3,7 @@
 // N세션(기본 7) 이동평균으로 평활해, AMRAP 전에 정체/하락 조짐을 본다.
 // 순수 함수 — DB/UI 비의존. e1rm-service 등에서 모은 탑세트 노출을 입력으로 받는다.
 
+import { estimateE1rmKg } from "@workout/core/stats/e1rm";
 import { mapExerciseNameToTarget } from "@workout/core/strength-engine/target-mapping";
 
 // 드라이버 한 노출(세션의 탑세트). 풀업은 bodyweightKg를 주면 총중량(BW+추중량)으로 환산한다.
@@ -31,17 +32,14 @@ export const ASYMPTOTE_MONITOR_WINDOW = 7;
 // 이동평균 변화가 이 비율(±1.5%) 이내면 FLAT으로 본다(체중·라운딩 노이즈 흡수).
 export const ASYMPTOTE_MONITOR_FLAT_BAND = 0.015;
 
-// Epley 추정 1RM. e1rm-service의 epley1RM과 동일 공식(RIR 항 없음).
-export function epleyE1rm(weightKg: number, reps: number): number {
-  if (!Number.isFinite(weightKg) || !Number.isFinite(reps) || weightKg <= 0 || reps <= 0) return 0;
-  return weightKg * (1 + reps / 30);
-}
-
 // 풀업 총중량 보정 포함 단일 노출 e1RM(소수 1자리).
+// 여기서 resolveLoggedTotalLoadKg를 쓰지 않는다 — 그 함수는 meta.totalLoadKg에 이미
+// 적힌 총부하를 읽는 용도인데, 이 모니터의 입력(asymptote-monitor-service)은 meta 없이
+// workout_set.weightKg(=추중량)만 select한다. 경유시키면 체중이 빠진 값이 나온다.
 function exposureE1rm(exposure: DriverExposure): number {
   const bw = Number.isFinite(exposure.bodyweightKg as number) ? (exposure.bodyweightKg as number) : 0;
   const totalLoad = exposure.weightKg + (bw > 0 ? bw : 0);
-  return Math.round(epleyE1rm(totalLoad, exposure.reps) * 10) / 10;
+  return Math.round(estimateE1rmKg(totalLoad, exposure.reps) * 10) / 10;
 }
 
 function mean(values: number[]): number {

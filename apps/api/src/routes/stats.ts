@@ -7,6 +7,7 @@ import { logError } from "@workout/core/observability/logger";
 import { resolveLoggedTotalLoadKg } from "@workout/core/bodyweight-load";
 import { getExerciseById, resolveExerciseByName } from "@workout/core/exercise/resolve";
 import { getStatsCache, setStatsCache } from "@workout/core/stats/cache";
+import { estimateE1rmKg } from "@workout/core/stats/e1rm";
 import { parseDateRangeFromSearchParams } from "@workout/core/stats/range";
 import { fetchE1rmStats } from "@workout/core/stats/e1rm-service";
 import { fetchStatsBundle } from "@workout/core/stats/bundle-service";
@@ -34,12 +35,6 @@ import { apiError, resolveLocale } from "../lib/http";
 /** The request's raw URLSearchParams (parseDateRangeFromSearchParams takes one). */
 function searchParams(c: { req: { url: string } }): URLSearchParams {
   return new URL(c.req.url).searchParams;
-}
-
-function epley1RM(weightKg: number, reps: number) {
-  if (reps <= 0) return 0;
-  if (reps === 1) return weightKg;
-  return weightKg * (1 + reps / 30);
 }
 
 const CACHE_HEADER = "private, max-age=60, stale-while-revalidate=300";
@@ -331,7 +326,7 @@ statsRoutes.get("/strength-summary", async (c) => {
           return {
             date: r.performedAt.toISOString().slice(0, 10),
             ts: r.performedAt.getTime(),
-            e1rm: epley1RM(w, reps),
+            e1rm: estimateE1rmKg(w, reps),
             weightKg: w,
             reps,
           };

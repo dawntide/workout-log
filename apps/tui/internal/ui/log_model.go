@@ -211,16 +211,35 @@ func rpeString(rpe *float64) string {
 	return trimNum(*rpe)
 }
 
+// maxTrustedE1rmReps mirrors MAX_TRUSTED_REPS in packages/core/src/stats/e1rm.ts.
+const maxTrustedE1rmReps = 15
+
+// estimateE1rmKg is the Go half of the estimated-1RM pair; the TS half lives in
+// packages/core/src/stats/e1rm.ts and packages/core/fixtures/e1rm.json locks the
+// two together. A single rep returns the weight itself (Epley overshoots there),
+// and reps above 15 clamp because Epley loses accuracy at high reps.
+func estimateE1rmKg(totalLoadKg float64, reps int) float64 {
+	if math.IsNaN(totalLoadKg) || math.IsInf(totalLoadKg, 0) || totalLoadKg <= 0 {
+		return 0
+	}
+	if reps <= 0 {
+		return 0
+	}
+	if reps == 1 {
+		return totalLoadKg
+	}
+	if reps > maxTrustedE1rmReps {
+		reps = maxTrustedE1rmReps
+	}
+	return totalLoadKg * (1 + float64(reps)/30.0)
+}
+
 func setE1rm(s setEntry) float64 {
 	reps, err := strconv.Atoi(strings.TrimSpace(s.reps))
-	if err != nil || reps <= 0 {
+	if err != nil {
 		return 0
 	}
-	w := setLoad(s) // bodyweight-inclusive total for bodyweight lifts
-	if w <= 0 {
-		return 0
-	}
-	return w * (1 + float64(reps)/30.0) // Epley estimate (display only)
+	return estimateE1rmKg(setLoad(s), reps) // setLoad is bodyweight-inclusive
 }
 
 func validNum(s string) bool {

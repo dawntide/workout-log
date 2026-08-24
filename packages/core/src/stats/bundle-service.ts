@@ -1,3 +1,4 @@
+import { estimateE1rmKg } from "./e1rm";
 import { db } from "@workout/core/db/client";
 import { exercise, workoutLog, workoutSet } from "@workout/core/db/schema";
 import { and, count, eq, gte, lte, sql } from "drizzle-orm";
@@ -6,10 +7,6 @@ import type { AppLocale } from "../locale";
 import { getStatsCache, setStatsCache } from "./cache";
 
 // ─── 1RM Helpers ──────────────────────────────────────────────────────────────
-
-function epley1RM(weightKg: number, reps: number) {
-  return weightKg * (1 + reps / 30);
-}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -90,7 +87,7 @@ async function fetchPrs(userId: string, from: Date, to: Date, limit: number, loc
     const reps = Number(r.reps ?? 0);
     if (!weightKg || !reps) continue;
 
-    const e1rm = Math.round(epley1RM(weightKg, reps) * 10) / 10;
+    const e1rm = Math.round(estimateE1rmKg(weightKg, reps) * 10) / 10;
     const date = new Date(r.performedAt).toISOString().slice(0, 10);
     const point: PrPoint = { date, e1rm, weightKg, reps };
     const key = r.exerciseId ?? String(r.exerciseName ?? "").trim().toLowerCase();
