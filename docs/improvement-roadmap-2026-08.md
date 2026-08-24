@@ -98,7 +98,11 @@ M6 공개 API / MCP        (차별화 4)                       ← 기능 표면
 
 ## 4. M2 — 데이터 폭 (P2)
 
-### M2-1 체중 시계열 — 규모 M
+> **단위 구현계획 작성 완료** (2026-08-19) — [`bodyweight-timeseries-plan.md`](bodyweight-timeseries-plan.md) · [`rir-input-plan.md`](rir-input-plan.md)
+
+### M2-1 체중 시계열 — 규모 M ([계획서](bodyweight-timeseries-plan.md))
+
+> **교정**: "`validateImportScope`에 등재"는 **오류**다 — `body_measurement`는 자체 `userId` 컬럼을 가지므로 그 파일의 ScopeRule 대상이 아니다(규칙은 부모로만 소유자가 정해지는 자식 테이블용). 실제로 필요한 것은 `rewriteUserId` 적용과 **`userExport.ts` 등재**이며, 후자는 `planRuntimeState`가 이미 빠뜨려 **replace import 시 삭제만 되고 복원되지 않는** 실재 함정이다.
 
 - **배경**: 체중이 설정의 단일 현재값. Hevy(+사진)·Liftosaur·Strong(PRO)·Alpha 전원 시계열 보유. 우리 앱은 strength score(체중 대비 배율)와 자중 종목 로드가 이미 체중을 소비하므로 **단일값 → 시계열 전환의 정확도 효용이 큼**(과거 세션의 e1RM·볼륨이 당시 체중으로 계산됨).
 - **목표 UX**: 홈 또는 통계 덱에서 체중 기록(날짜+값), 추이 차트(기존 e1RM 차트 UI 재사용), 설정의 현재값은 "최근 기록"의 뷰가 됨. 진행 사진·둘레는 비채택(§8, 개인 도구·범위 통제).
@@ -107,7 +111,9 @@ M6 공개 API / MCP        (차별화 4)                       ← 기능 표면
 - **TUI**: 스키마 동시(API 추가 → `:` 명령 or settings 버퍼 입력), 차트 후행.
 - **DoD**: 시점 체중 적용 유닛(자중 e1RM) / export·import 왕복 + scope 검증 / E2E 기록→차트.
 
-### M2-2 RIR 입력 옵션 — 규모 S
+### M2-2 RIR 입력 옵션 — 규모 S~M ([계획서](rir-input-plan.md))
+
+> **교정 2건**: ① RIR 변환 저장은 **REF5가 `rpe: 0`을 센티널로 쓰는 것과 충돌**한다 → RIR을 **0~5로 클램프**해 저장값이 5~10만 나오게 하는 것으로 확정(저장 스키마·통계·export 무변경). ② 조사 중 **평균 RPE가 0으로 희석되는 버그**를 발견했다(웹이 미입력을 0으로 전송 + `avg()`에 필터 없음, REF5 사용자에게 특히 심함) → 같은 도메인이므로 이 마일스톤에서 함께 고친다.
 
 - **배경**: RPE만 존재. Boostcamp·JuggernautAI 둘 다, Alpha는 RIR 중심. SHRED의 "3단 난이도"는 RPE의 대중화 번역층.
 - **목표 UX**: 설정에 "강도 입력 방식: RPE / RIR" 토글 → 세트 행 3번째 셀의 라벨·키패드가 전환. 저장은 기존 `rpe` 컬럼 하나로(RIR 입력 시 `rpe = 10 - rir` 변환 저장 vs 원값+방식 저장 — 단위 계획에서 확정; 변환 저장이 통계·export 호환에 유리하나 소수 RIR 표현력 확인 필요).
