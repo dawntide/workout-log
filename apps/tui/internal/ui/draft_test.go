@@ -212,7 +212,8 @@ func TestDraftRestoredMsgLoadsBuffer(t *testing.T) {
 
 	scr, _ := NewLog(nil).Update(draftRestoredMsg{draft: d})
 	l2 := scr.(Log)
-	if len(l2.groups) != 1 || l2.doneCount() != 2 {
+	// done 세트는 둘이지만 하나가 웜업이라 진척도에는 하나만 잡힌다.
+	if len(l2.groups) != 1 || l2.doneCount() != 1 {
 		t.Fatalf("restore via Update failed: %+v", l2.groups)
 	}
 }

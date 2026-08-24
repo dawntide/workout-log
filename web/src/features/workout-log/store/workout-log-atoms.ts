@@ -1,3 +1,4 @@
+import { isWarmupSetType } from "@workout/core/workout-set-type";
 import { atom } from "jotai";
 import type {
   WorkoutRecordDraft,
@@ -175,6 +176,9 @@ export const completedSetsCountAtom = atom((get) => {
   for (const exercise of visibleExercises) {
     const entryState = entryStateMap[exercise.id];
     for (let i = 0; i < exercise.set.repsPerSet.length; i++) {
+      // 웜업은 분자·분모 양쪽에서 빠진다(totalSetsCountAtom도 같은 규칙) — 한쪽만
+      // 빼면 웜업을 단 순간 진행률이 100%를 넘거나 영영 못 채운다.
+      if (isWarmupSetType(exercise.set.setTypePerSet?.[i])) continue;
       const rawValue = entryState?.repsInputs[i]?.trim() ?? "";
       if (isWorkoutSetCompleted({
         source: exercise.source,
@@ -190,7 +194,11 @@ export const completedSetsCountAtom = atom((get) => {
 
 export const totalSetsCountAtom = atom((get) => {
   return get(visibleExercisesAtom).reduce(
-    (sum, e) => sum + e.set.repsPerSet.length,
+    (sum, e) =>
+      sum +
+      e.set.repsPerSet.filter(
+        (_reps, index) => !isWarmupSetType(e.set.setTypePerSet?.[index]),
+      ).length,
     0,
   );
 });

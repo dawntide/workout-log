@@ -1,5 +1,6 @@
 import { and, eq, gte, lte, sql } from "drizzle-orm";
 import { db } from "@workout/core/db/client";
+import { excludeWarmupSets } from "@workout/core/stats/set-type-filter";
 import { exercise, workoutLog, workoutSet } from "@workout/core/db/schema";
 import {
   aggregateMuscleVolumeRows,
@@ -62,6 +63,7 @@ export async function fetchMuscleVolume({
         gte(workoutLog.performedAt, from),
         lte(workoutLog.performedAt, to),
         sql`${workoutSet.reps} is not null`,
+        excludeWarmupSets(),
       ),
     );
 

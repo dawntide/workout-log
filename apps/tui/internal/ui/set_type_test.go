@@ -73,3 +73,30 @@ func TestSetTypeIsInertDuringRef5(t *testing.T) {
 		t.Error("REF5 sessions must not accept set-type tags")
 	}
 }
+
+func TestWarmupIsExcludedFromProgressCount(t *testing.T) {
+	l := pressLogKey(taggableLog(), 'w') // 1세트를 웜업으로
+	if got := l.doneCount(); got != 1 {
+		t.Errorf("done 세트는 둘이지만 하나가 웜업이라 진척도는 1이어야 한다, got %d", got)
+	}
+	// 실패는 수행한 세트다 — 진척도에 남는다.
+	l.si = 1
+	if got := pressLogKey(l, 'f').doneCount(); got != 1 {
+		t.Errorf("실패 태그가 진척도를 바꾸면 안 된다, got %d", got)
+	}
+}
+
+func TestWarmupRowHidesE1rm(t *testing.T) {
+	// 통계에서 빠지는 값을 행에만 남기면 그 값이 집계에 반영되는 것처럼 읽힌다.
+	before := ansi.Strip(taggableLog().Body(60, 18))
+	if !strings.Contains(before, "e") {
+		t.Fatalf("기준선: 작업 세트 행에 e1RM이 보여야 한다:\n%s", before)
+	}
+	tagged := ansi.Strip(pressLogKey(taggableLog(), 'w').Body(60, 18))
+	lines := strings.Split(tagged, "\n")
+	for _, line := range lines {
+		if strings.Contains(line, "[W]") && strings.Contains(line, " e") {
+			t.Errorf("웜업 행에 e1RM이 남아 있다: %q", line)
+		}
+	}
+}

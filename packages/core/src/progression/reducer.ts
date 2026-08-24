@@ -1,3 +1,4 @@
+import { isWarmupSetType } from "@workout/core/workout-set-type";
 import { resolveLoggedTotalLoadKg } from "@workout/core/bodyweight-load";
 import { mapExerciseNameToTarget as mapExerciseToTarget } from "@workout/core/strength-engine/target-mapping";
 import {
@@ -38,6 +39,8 @@ export type LoggedSetInput = {
   reps?: number | null;
   weightKg?: number | null;
   isExtra?: boolean;
+  /** "WARMUP" | "FAILURE" | null. 웜업은 판정에서 빠지고, 실패는 미완료 신호가 된다. */
+  setType?: string | null;
   meta?: Record<string, unknown>;
 };
 
@@ -116,6 +119,10 @@ function parsePlannedReps(meta: Record<string, unknown> | undefined) {
 }
 
 function setWasCompleted(set: LoggedSetInput) {
+  // 사용자가 실패로 표시한 세트는 처방 반복을 채웠더라도 완료가 아니다. 무게를 든
+  // 사실은 통계에 그대로 남지만(§3.3), 다음 세션을 올릴 근거는 되지 못한다 —
+  // 사용자의 명시 신호가 meta.completed보다 우선한다.
+  if (set.setType === "FAILURE") return false;
   const meta = (set.meta ?? {}) as Record<string, unknown>;
   const completed = meta.completed;
   if (completed === true) return true;
@@ -517,7 +524,7 @@ export function collectTargetOutcomes(sets: LoggedSetInput[]): Map<string, Targe
   >();
 
   for (const set of sets) {
-    if (set.isExtra) continue;
+    if (set.isExtra || isWarmupSetType(set.setType)) continue;
     const identity = progressionIdentityForSet(set);
     if (!identity) continue;
     const outcome = acc.get(identity.key) ?? {
@@ -590,7 +597,7 @@ function collectAsymptoteAmrapReps(
 
   const setsByKey = new Map<string, LoggedSetInput[]>();
   for (const set of sets) {
-    if (set.isExtra) continue;
+    if (set.isExtra || isWarmupSetType(set.setType)) continue;
     const identity = progressionIdentityForSet(set);
     if (!identity) continue;
     const list = setsByKey.get(identity.key) ?? [];
@@ -989,7 +996,7 @@ export function reduceProgressionState(input: {
                 ? 4
                 : null;
   const hasLoggedProgramSet = input.sets.some((set) => {
-    if (set.isExtra) return false;
+    if (set.isExtra || isWarmupSetType(set.setType)) return false;
     const reps = toFiniteNumber(set.reps);
     return Boolean(String(set.exerciseName ?? "").trim()) && reps !== null && reps >= 0;
   });

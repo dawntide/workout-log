@@ -1,4 +1,5 @@
 import { estimateE1rmKg } from "./e1rm";
+import { excludeWarmupSets } from "@workout/core/stats/set-type-filter";
 import { db } from "@workout/core/db/client";
 import { exercise, workoutLog, workoutSet } from "@workout/core/db/schema";
 import { and, count, eq, gte, lte, sql } from "drizzle-orm";
@@ -41,7 +42,14 @@ async function fetchVolumeTonnage(userId: string, from: Date, to: Date): Promise
     .select({ tonnage: sql<number>`coalesce(sum(${workoutSet.weightKg} * ${workoutSet.reps}), 0)` })
     .from(workoutLog)
     .innerJoin(workoutSet, eq(workoutSet.logId, workoutLog.id))
-    .where(and(eq(workoutLog.userId, userId), gte(workoutLog.performedAt, from), lte(workoutLog.performedAt, to)));
+    .where(
+      and(
+        eq(workoutLog.userId, userId),
+        gte(workoutLog.performedAt, from),
+        lte(workoutLog.performedAt, to),
+        excludeWarmupSets(),
+      ),
+    );
   return Number(rows[0]?.tonnage ?? 0);
 }
 
@@ -65,6 +73,7 @@ async function fetchPrs(userId: string, from: Date, to: Date, limit: number, loc
         lte(workoutLog.performedAt, to),
         sql`${workoutSet.weightKg} is not null`,
         sql`${workoutSet.reps} is not null`,
+        excludeWarmupSets(),
       ),
     )
     .orderBy(workoutLog.performedAt);

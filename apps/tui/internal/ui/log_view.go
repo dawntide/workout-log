@@ -260,7 +260,9 @@ func (l Log) renderSet(gi, si int, s setEntry) string {
 		done = lipgloss.NewStyle().Foreground(theme.Green).Render(theme.GlyphDone)
 	}
 	e1rm := ""
-	if v := setE1rm(s); v > 0 {
+	// 웜업은 추정 1RM 집계에서 빠진다 — 행에만 숫자가 남으면 그 값이 통계에
+	// 반영되는 것처럼 읽힌다.
+	if v := setE1rm(s); v > 0 && s.setType != "WARMUP" {
 		e1rm = lipgloss.NewStyle().Foreground(theme.Dim).Render(fmt.Sprintf(" e%.0f", v))
 	}
 	return marker + wcell + sep + rcell + rpe + "   " + done + e1rm + setTypeTag(s.setType) + suffix

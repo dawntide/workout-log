@@ -5,6 +5,7 @@ import { exercise, workoutLog, workoutSet } from "@workout/core/db/schema";
 import { requireAuthenticatedUserId } from "@/server/auth/user";
 import { fetchE1rmStats } from "@workout/core/stats/e1rm-service";
 import { getStatsCache, setStatsCache } from "@workout/core/stats/cache";
+import { excludeWarmupSets } from "@workout/core/stats/set-type-filter";
 import type { E1RMPoint, E1RMResponse } from "@workout/core/stats/e1rm-service";
 
 const LOOKBACK_DAYS = 90;
@@ -83,6 +84,7 @@ async function fetchRecentSets(
         buildExerciseFilter(exerciseId, exerciseName),
         sql`${workoutSet.weightKg} is not null`,
         sql`${workoutSet.reps} is not null`,
+        excludeWarmupSets(),
       ),
     )
     .orderBy(desc(workoutLog.performedAt), desc(workoutSet.sortOrder))
@@ -131,6 +133,7 @@ async function fetchExerciseSummary(
         lte(workoutLog.performedAt, to),
         sql`${workoutSet.weightKg} is not null`,
         sql`${workoutSet.reps} is not null`,
+        excludeWarmupSets(),
       ),
     );
 

@@ -195,3 +195,47 @@ test("formatDurationLong: mm:ss, 비양수는 null", () => {
   assert.equal(formatDurationLong(0), null);
   assert.equal(formatDurationLong(null), null);
 });
+
+// ── 세트 타입(M1-3 PR4) ─────────────────────────────────────────────────────
+// 세션 요약은 클라이언트에서 집계한다. 서버 통계(SQL)와 규칙이 어긋나면 같은 세션을
+// 두 화면에서 볼 때 숫자가 달라진다(계획서 docs/set-type-plan.md §3.3).
+
+test("세트 타입: 웜업은 볼륨·세트 수·탑세트에서 빠진다", () => {
+  const summaries = buildExerciseSummaries([
+    set({ exerciseName: "Back Squat", setNumber: 1, reps: 8, weightKg: 60, setType: "WARMUP" }),
+    set({ exerciseName: "Back Squat", setNumber: 2, reps: 5, weightKg: 100 }),
+    set({ exerciseName: "Back Squat", setNumber: 3, reps: 5, weightKg: 100 }),
+  ]);
+  assert.equal(summaries.length, 1);
+  assert.equal(summaries[0]!.setCount, 2);
+  assert.equal(summaries[0]!.totalReps, 10);
+  assert.equal(summaries[0]!.volumeKg, 1000);
+  assert.equal(summaries[0]!.topWeightKg, 100);
+});
+
+test("세트 타입: 실패 세트는 통계에 남는다 — 실제로 든 무게다", () => {
+  const summaries = buildExerciseSummaries([
+    set({ exerciseName: "Bench Press", setNumber: 1, reps: 5, weightKg: 80 }),
+    set({ exerciseName: "Bench Press", setNumber: 2, reps: 3, weightKg: 80, setType: "FAILURE" }),
+  ]);
+  assert.equal(summaries[0]!.setCount, 2);
+  assert.equal(summaries[0]!.volumeKg, 640);
+});
+
+test("세트 타입: 웜업은 세션 최고 e1RM 후보에서 빠진다", () => {
+  // 웜업이 가벼워도 고반복이면 Epley가 작업 세트를 넘길 수 있다 — 실제로 위험한 경우다.
+  const top = findTopEstOneRm([
+    set({ exerciseName: "Deadlift", setNumber: 1, reps: 15, weightKg: 100, setType: "WARMUP" }),
+    set({ exerciseName: "Deadlift", setNumber: 2, reps: 3, weightKg: 140 }),
+  ]);
+  assert.equal(top?.weightKg, 140);
+});
+
+test("세트 타입: 태그 없는 레거시 세션은 종전대로 전부 집계된다", () => {
+  const summaries = buildExerciseSummaries([
+    set({ exerciseName: "Row", setNumber: 1, reps: 10, weightKg: 50 }),
+    set({ exerciseName: "Row", setNumber: 2, reps: 10, weightKg: 50 }),
+  ]);
+  assert.equal(summaries[0]!.setCount, 2);
+  assert.equal(summaries[0]!.volumeKg, 1000);
+});

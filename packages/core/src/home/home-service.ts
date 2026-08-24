@@ -1,4 +1,5 @@
 import { estimateE1rmKg } from "../stats/e1rm";
+import { excludeWarmupSets } from "@workout/core/stats/set-type-filter";
 import { and, desc, eq, gte, isNotNull, lte, sql } from "drizzle-orm";
 import { db } from "@workout/core/db/client";
 import {
@@ -564,6 +565,9 @@ async function fetchLogs(userId: string, limit: number) {
     })
     .from(subq)
     .leftJoin(workoutSet, eq(workoutSet.logId, subq.id))
+    // 이 행들은 총 볼륨·완료 세트 수 집계와 "직전 세션" 요약을 함께 먹인다 — 둘 다
+    // 웜업이 들어가면 안 된다. 전체 세트를 봐야 하는 곳(로그 상세·편집)은 별도 경로다.
+    .where(excludeWarmupSets())
     .orderBy(desc(subq.performedAt), subq.id, workoutSet.sortOrder);
 
   if (rows.length === 0) return [];
@@ -628,6 +632,7 @@ async function fetchPrs(userId: string, from: Date, to: Date, limit: number, loc
         lte(workoutLog.performedAt, to),
         isNotNull(workoutSet.weightKg),
         isNotNull(workoutSet.reps),
+        excludeWarmupSets(),
       ),
     )
     .orderBy(workoutLog.performedAt);
@@ -702,7 +707,7 @@ async function fetchVolumeSeries(userId: string) {
     })
     .from(workoutLog)
     .innerJoin(workoutSet, eq(workoutSet.logId, workoutLog.id))
-    .where(eq(workoutLog.userId, userId))
+    .where(and(eq(workoutLog.userId, userId), excludeWarmupSets()))
     .groupBy(workoutLog.id, workoutLog.performedAt)
     .orderBy(desc(workoutLog.performedAt))
     .limit(7);

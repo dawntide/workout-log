@@ -1,5 +1,6 @@
 import { and, eq, gte, lte, sql } from "drizzle-orm";
 import { db } from "@workout/core/db/client";
+import { excludeWarmupSets } from "@workout/core/stats/set-type-filter";
 import { workoutLog, workoutSet } from "@workout/core/db/schema";
 import { getStatsCache, setStatsCache } from "./cache";
 
@@ -80,7 +81,9 @@ export async function fetchEnduranceStats({
       })
       .from(workoutLog)
       .innerJoin(workoutSet, eq(workoutSet.logId, workoutLog.id))
-      .where(baseWhere)
+      // baseWhere는 workoutSet을 조인하지 않는 세션 쿼리와 공유한다 — 세트 조건은
+      // 여기서만 얹는다(공유 쪽에 넣으면 조인 없는 쿼리가 깨진다).
+      .where(and(baseWhere, excludeWarmupSets()))
       .groupBy(periodExprLog)
       .orderBy(periodExprLog),
     db

@@ -4,6 +4,7 @@
 
 import { and, desc, eq, gte, or, sql } from "drizzle-orm";
 import { db } from "@workout/core/db/client";
+import { excludeWarmupSets } from "@workout/core/stats/set-type-filter";
 import { plan, programTemplate, programVersion, workoutLog, workoutSet } from "@workout/core/db/schema";
 import {
   ASYMPTOTE_DRIVERS,
@@ -81,6 +82,7 @@ export async function fetchAsymptoteDriverMonitor(input: {
         gte(workoutLog.performedAt, since),
         sql`${workoutSet.weightKg} is not null`,
         sql`${workoutSet.reps} is not null`,
+        excludeWarmupSets(),
       ),
     )
     .orderBy(workoutLog.performedAt)

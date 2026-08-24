@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  collectTargetOutcomes,
+  type LoggedSetInput,
   readIncrementOverride,
   reduceProgressionState,
   resolveAutoProgressionProgram,
@@ -730,4 +732,60 @@ test("operator(v2): W6D3 전부 충족 → 블록 증량(회귀, plannedRef.reps
   assert.equal(result.eventType, "INCREASE");
   assert.equal(result.nextState.targets.SQUAT?.workKg, 155); // 하체 +5
   assert.equal(result.nextState.targets.BENCH?.workKg, 112.5); // 상체 +2.5
+});
+
+// ── 세트 타입(M1-3 PR4) ─────────────────────────────────────────────────────
+// 진행 판정은 DB 행이 아니라 축소 타입(LoggedSetInput)을 받는다. 어댑터가
+// setType을 통과시키는지는 warmup-exclusion-guard가 지키고, 여기서는 통과한 뒤의
+// 판정 규칙을 잠근다(계획서 docs/set-type-plan.md §3.3).
+
+function progressionSet(overrides: Partial<LoggedSetInput> = {}): LoggedSetInput {
+  return {
+    exerciseName: "Back Squat",
+    reps: 5,
+    weightKg: 100,
+    meta: { plannedRef: { progressionKey: "SQUAT", progressionTarget: "SQUAT", reps: 5 } },
+    ...overrides,
+  };
+}
+
+test("웜업 세트는 진행 판정에 아예 들어가지 않는다", () => {
+  const outcomes = collectTargetOutcomes([
+    progressionSet({ setType: "WARMUP", weightKg: 60, reps: 8 }),
+    progressionSet(),
+    progressionSet(),
+  ]);
+  const squat = outcomes.get("SQUAT");
+  assert.ok(squat, "SQUAT 결과가 있어야 한다");
+  assert.equal(squat.total, 2, "웜업이 세트 수에 잡히면 성공률이 희석된다");
+  assert.equal(squat.successful, 2);
+  // 평균 무게에도 웜업 60kg이 섞이면 안 된다 — 섞이면 다음 세션 처방이 내려간다.
+  assert.equal(squat.averageWeightKg, 100);
+});
+
+test("실패로 표시한 세트는 처방 반복을 채웠어도 성공이 아니다", () => {
+  const outcomes = collectTargetOutcomes([
+    progressionSet(),
+    progressionSet({ setType: "FAILURE" }),
+  ]);
+  const squat = outcomes.get("SQUAT");
+  assert.ok(squat);
+  assert.equal(squat.total, 2, "실패 세트도 수행이므로 총 세트 수에는 남는다");
+  assert.equal(squat.successful, 1);
+});
+
+test("실패 표시는 meta.completed보다 우선한다", () => {
+  const outcomes = collectTargetOutcomes([
+    progressionSet({
+      setType: "FAILURE",
+      meta: { completed: true, plannedRef: { progressionKey: "SQUAT", progressionTarget: "SQUAT", reps: 5 } },
+    }),
+  ]);
+  assert.equal(outcomes.get("SQUAT")?.successful, 0);
+});
+
+test("태그 없는 레거시 세트는 종전대로 작업 세트다", () => {
+  const outcomes = collectTargetOutcomes([progressionSet(), progressionSet({ setType: null })]);
+  assert.equal(outcomes.get("SQUAT")?.total, 2);
+  assert.equal(outcomes.get("SQUAT")?.successful, 2);
 });

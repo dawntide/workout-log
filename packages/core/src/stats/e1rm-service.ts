@@ -1,4 +1,5 @@
 import { estimateE1rmKg } from "./e1rm";
+import { excludeWarmupSets } from "@workout/core/stats/set-type-filter";
 import { and, desc, eq, gte, isNotNull, lte, max, or, sql } from "drizzle-orm";
 import { resolveLoggedTotalLoadKg } from "@workout/core/bodyweight-load";
 import { db } from "@workout/core/db/client";
@@ -91,6 +92,7 @@ export async function fetchDefaultStatsExerciseId(userId: string): Promise<strin
       .where(
         and(
           eq(workoutLog.userId, userId),
+          excludeWarmupSets(),
           isNotNull(workoutSet.exerciseId),
         ),
       )
@@ -185,6 +187,7 @@ export async function fetchE1rmStats({
         lte(workoutLog.performedAt, to),
         sql`${workoutSet.weightKg} is not null`,
         sql`${workoutSet.reps} is not null`,
+        excludeWarmupSets(),
       ),
     )
     .orderBy(desc(workoutLog.performedAt))

@@ -192,7 +192,9 @@ func (l Log) doneCount() int {
 	n := 0
 	for _, g := range l.groups {
 		for _, s := range g.sets {
-			if s.done {
+			// 웜업은 세지 않는다 — 웹의 진행률 게이지와 같은 규칙이다. 완료 표시는
+			// 남기되(사용자가 실제로 수행했다) 세션 진척도에는 넣지 않는다.
+			if s.done && s.setType != "WARMUP" {
 				n++
 			}
 		}
