@@ -131,7 +131,15 @@ Strong 패턴(그룹 컬러 바 + A1→B1→A2→B2 자동 순회)이 표준이�
 
 벤치마킹 결론 2: **진행 엔진을 파는 앱 5종(Boostcamp·Alpha·Juggernaut·Fitbod·SHRED) 전부 세트 화면에서 "왜"를 설명하지 않는다.** REF5 판정 카드(#672)는 이미 시장에 없는 속성이며, 이를 전 프로그램으로 확장하는 것이 가장 "우리다운" 투자.
 
-### M4-1 판정 근거 전 family 확장 — 규모 L
+> **단위 구현계획 작성 완료** (2026-08-19) — [`judgment-history-and-roadmap-plan.md`](judgment-history-and-roadmap-plan.md)
+
+### ~~M4-1 판정 근거 전 family 확장 — 규모 L~~ → **종결(이미 구현됨)**. 잔여는 판정 이력 확장 — 규모 S~M
+
+> 🔴 **이 항목은 유령이었다.** 실측 결과 전 family의 판정 근거 표출이 **이미 완성돼 있다**: [`feedback-catalog.ts`](../packages/core/src/progression/feedback-catalog.ts)(671줄)가 `reason`→문구의 단일 진실원이고, reducer가 이미 family별 구조화 `reason`을 생산하며(`stage-down:1->2`·`reset:intensity-fail:*0.9` 등), `plan_progress_event`에 `reason`·`beforeState`·`afterState`·`meta`가 이미 있고, 커버리지가 [`program-feedback-coverage.md`](../web/docs/program-feedback-coverage.md)에 패밀리 10종으로 명문화돼 있으며 유닛·E2E 검증까지 통과 상태다(2026-07-17 심층 13/13 + REF5 11/11).
+>
+> **벤치마킹 결론은 유효하다** — 시장의 진행 엔진 5종이 '왜'를 설명하지 않는 것은 사실이고, 우리는 이미 그 차별점을 **갖고 있다**. 아래 '현황' 서술은 오류이므로 참고하지 말 것.
+>
+> **재정의된 잔여 갭**: 누적 판정 **이력**이 REF5 전용이다(카드는 직전 1건, 누적은 `ref5Status.recentChanges`뿐). 비-REF5는 이력 화면이 없고 `/plans/history`는 제거되어 `/calendar`로 리다이렉트한다. → 계획서 §3.1.
 
 - **현황**: REF5만 판정 카드+최근 판정 이력 보유. 다른 family(GZCLP rep-스킴 강등, Texas 강도일 판정, Greyskull 더블 프로그레션, Madcow/nSuns 퍼센트 슬롯, 블록 완주형 TB)는 자동 진행 요약 행+세션 상세의 타겟 결정 표시 수준.
 - **목표**: "결정 설명 모델"의 정식화 — 각 progression reducer가 결정과 함께 **구조화된 근거**를 반환:
@@ -143,7 +151,9 @@ Strong 패턴(그룹 컬러 바 + A1→B1→A2→B2 자동 순회)이 표준이�
 - **함정**: PATCH 재계산·replay 경로에서 과거 이벤트(근거 없음)와 혼재 — 근거 필드는 optional, 없으면 기존 표시로 폴백. program-seed-guide 문서 동반 갱신. 이벤트 스키마가 export에 포함되는지 확인 후 validator 갱신.
 - **DoD**: family별 reducer 유닛에 근거 어서션 추가 / 골든: 결정 자체는 출력 불변(근거만 추가) / E2E: 저장→판정 카드 표출 1개 family.
 
-### M4-2 주차 로드맵 전면 공개 — 규모 M
+### M4-2 주차 로드맵 전면 공개 — 규모 M ([계획서](judgment-history-and-roadmap-plan.md))
+
+> **확인**: `previewSessionExercises`가 **DB를 안 건드리는 순수 함수이고 `week`·`day`를 명시 지정할 수 있어** N주 전개의 기반이 이미 있다. 단 `schedule.weeks`가 optional이라 주차 수를 모르는 프로그램이 있다 → 전개 상한 12주로 확정.
 
 - **배경**: JuggernautAI 패턴(블록 구성·디로드 위치·볼륨 흐름을 처음부터 끝까지 열람, 단 "미래 무게는 당일 재계산" 계약). **우리는 결정론 엔진이라 더 강하게 감** — 현 상태 기준 확정 처방을 보여줄 수 있고, 이는 AI 앱이 흉내 못 내는 속성.
 - **목표 UX**:
