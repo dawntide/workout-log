@@ -197,6 +197,13 @@
       "when": 1784788969470,
       "tag": "0027_ux_event_nullable_user",
       "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1784875369470,
+      "tag": "0028_workout_set_type",
+      "breakpoints": true
     }
   ]
 }

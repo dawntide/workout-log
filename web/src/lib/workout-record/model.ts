@@ -6,6 +6,10 @@ import {
   validateAndClassifyRef5Outcome,
 } from "@workout/core/program-engine/ref5";
 import { estimateE1rmKg } from "@workout/core/stats/e1rm";
+import {
+  normalizeWorkoutSetType,
+  type WorkoutSetType,
+} from "@workout/core/workout-set-type";
 
 export type WorkoutWorkflowState = "idle" | "editing" | "saving" | "done";
 
@@ -18,6 +22,11 @@ export type WorkoutSetModel = {
   weightKgPerSet: number[];
   /** 파생/레거시 값 = weightKgPerSet[0]. 표시 폴백 및 구버전 draft 호환용으로 유지. */
   weightKg: number;
+  /**
+   * 세트별 타입. null = 작업 세트라 구버전 draft·레거시 로그가 그대로 작업 세트가 된다.
+   * `isExtra`(운동 단위)와 달리 세트마다 독립이므로 reps/rpe와 같은 병렬 배열이다.
+   */
+  setTypePerSet: Array<WorkoutSetType | null>;
 };
 
 export type WorkoutPlannedSetMeta = {
@@ -185,6 +194,7 @@ export type ExistingWorkoutLogLike = {
     weightKg?: number | null;
     rpe?: number | null;
     isExtra?: boolean | null;
+    setType?: string | null;
     meta?: unknown;
   }>;
   generatedSession?: (GeneratedSessionLike & { updatedAt?: string }) | null;
@@ -210,6 +220,7 @@ export type WorkoutLogPayload = {
     weightKg: number;
     rpe: number;
     isExtra: boolean;
+    setType: WorkoutSetType | null;
     meta: Record<string, unknown>;
   }>;
 };
@@ -415,6 +426,20 @@ function normalizeRpePerSetArray(
   }
 
   return Array.from({ length: count }, () => 0);
+}
+
+/**
+ * 길이를 세트 수에 맞춘다. reps/rpe와 달리 **마지막 값으로 확장하지 않는다** — 세트를
+ * 늘렸을 때 방금 단 웜업 태그가 새 작업 세트까지 번지면 안 되기 때문이다. 모자란 자리는
+ * 작업 세트(null)로 채운다.
+ */
+function normalizeSetTypePerSetArray(
+  value: unknown,
+  fallbackCount = 1,
+): Array<WorkoutSetType | null> {
+  const count = Math.min(50, Math.max(1, Math.round(toNumber(fallbackCount, 1))));
+  const source = Array.isArray(value) ? value : [];
+  return Array.from({ length: count }, (_, index) => normalizeWorkoutSetType(source[index]));
 }
 
 function normalizeWeightValue(value: unknown, fallback = 0) {
@@ -743,6 +768,8 @@ function toSeedExercise(exercise: SnapshotExercise, index: number): WorkoutExerc
       rpePerSet: normalizeRpePerSetArray(null, repsPerSet.length),
       weightKgPerSet,
       weightKg: weightKgPerSet[0] ?? 0,
+      // 처방은 웜업을 지시하지 않는다 — 태그는 사용자가 직접 단다(계획서 §3.4).
+      setTypePerSet: normalizeSetTypePerSetArray(null, repsPerSet.length),
     },
     note: {
       memo: typeof first.note === "string" ? first.note : "",
@@ -801,6 +828,18 @@ function mergeSetModel(base: WorkoutSetModel, patch?: Partial<WorkoutSetModel>):
     );
   }
 
+  const baseSetTypePerSet = normalizeSetTypePerSetArray(base.setTypePerSet, baseRepsPerSet.length);
+  let nextSetTypePerSet = baseSetTypePerSet;
+  if (patch?.setTypePerSet !== undefined) {
+    nextSetTypePerSet = normalizeSetTypePerSetArray(patch.setTypePerSet, nextRepsPerSet.length);
+  } else if (nextRepsPerSet.length !== baseSetTypePerSet.length) {
+    // 세트를 늘렸을 때 마지막 태그를 이어받지 않는다 — 새 세트는 작업 세트로 시작한다.
+    nextSetTypePerSet = Array.from(
+      { length: nextRepsPerSet.length },
+      (_, index) => baseSetTypePerSet[index] ?? null,
+    );
+  }
+
   const baseWeightPerSet = migrateWeightKgPerSet(base);
   let nextWeightPerSet = baseWeightPerSet;
   if (patch?.weightKgPerSet !== undefined) {
@@ -829,6 +868,7 @@ function mergeSetModel(base: WorkoutSetModel, patch?: Partial<WorkoutSetModel>):
     rpePerSet: nextRpePerSet,
     weightKgPerSet: nextWeightPerSet,
     weightKg: nextWeightPerSet[0] ?? 0,
+    setTypePerSet: nextSetTypePerSet,
   };
 }
 
@@ -879,6 +919,7 @@ function groupLoggedExercises(
     repsPerSet: number[];
     rpePerSet: number[];
     weightKgPerSet: number[];
+    setTypePerSet: Array<WorkoutSetType | null>;
     memo: string;
     plannedSetMeta: WorkoutPlannedSetMeta | null;
     badge: WorkoutExerciseBadge;
@@ -898,6 +939,7 @@ function groupLoggedExercises(
     const rawMeta = toRecord(rawSet?.meta);
     const loggedRef5 = toRecord(rawMeta.ref5);
     const isExtra = Boolean(rawSet?.isExtra);
+    const setType = normalizeWorkoutSetType(rawSet?.setType);
     const previous = grouped[grouped.length - 1] ?? null;
     const isContinuation =
       previous !== null &&
@@ -909,6 +951,7 @@ function groupLoggedExercises(
       previous.repsPerSet.push(reps);
       previous.rpePerSet.push(rpe);
       previous.weightKgPerSet.push(weightKg);
+      previous.setTypePerSet.push(setType);
       previous.ref5?.originalSetMeta.push(structuredClone(rawMeta));
       if (!previous.memo && memo) {
         previous.memo = memo;
@@ -928,6 +971,7 @@ function groupLoggedExercises(
       repsPerSet: [reps],
       rpePerSet: [rpe],
       weightKgPerSet: [weightKg],
+      setTypePerSet: [setType],
       memo,
       plannedSetMeta: snapshotExerciseEntry?.plannedSetMeta ?? null,
       badge: snapshotExerciseEntry?.badge ?? (isExtra ? "ADDED" : "AUTO"),
@@ -967,6 +1011,10 @@ function groupLoggedExercises(
         exercise.repsPerSet.length,
       ),
       weightKg: exercise.weightKgPerSet[0] ?? 0,
+      setTypePerSet: normalizeSetTypePerSetArray(
+        exercise.setTypePerSet,
+        exercise.repsPerSet.length,
+      ),
     },
     note: {
       memo: exercise.memo,
@@ -1195,6 +1243,7 @@ export function addUserExercise(
         Math.max(0, input.weightKg),
       ),
       weightKg: Math.max(0, input.weightKg),
+      setTypePerSet: normalizeSetTypePerSetArray(null, repsPerSet.length),
     },
     note: {
       memo: input.memo.trim(),
@@ -1345,6 +1394,10 @@ export function toWorkoutLogPayload(
       exercise.set.rpePerSet,
       repsPerSet.length,
     );
+    const setTypePerSet = normalizeSetTypePerSetArray(
+      exercise.set.setTypePerSet,
+      repsPerSet.length,
+    );
     const weightKgPerSet = normalizeWeightPerSetArray(
       migrateWeightKgPerSet(exercise.set),
       exercise.set.weightKg,
@@ -1422,6 +1475,7 @@ export function toWorkoutLogPayload(
         weightKg,
         rpe: rpePerSet[index] ?? 0,
         isExtra: exercise.badge === "ADDED",
+        setType: setTypePerSet[index] ?? null,
         meta,
       });
     });

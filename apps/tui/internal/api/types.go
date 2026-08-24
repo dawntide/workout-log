@@ -130,6 +130,9 @@ func (m SetMeta) MarshalJSON() ([]byte, error) {
 }
 
 // WorkoutSet is one logged set (also used as the create-log request element).
+//
+// SetType is "WARMUP", "FAILURE", or "" for a working set. Unknown values fall back
+// to a working set server-side, so round-tripping an unfamiliar tag is safe.
 type WorkoutSet struct {
 	ExerciseID   string   `json:"exerciseId,omitempty"`
 	ExerciseName string   `json:"exerciseName"`
@@ -139,6 +142,7 @@ type WorkoutSet struct {
 	WeightKg     float64  `json:"weightKg"`
 	RPE          *float64 `json:"rpe,omitempty"`
 	IsExtra      bool     `json:"isExtra,omitempty"`
+	SetType      string   `json:"setType,omitempty"`
 	Meta         *SetMeta `json:"meta,omitempty"`
 }
 
@@ -153,6 +157,7 @@ type LoggedSet struct {
 	Reps         int      `json:"reps"`
 	RPE          *float64 `json:"rpe,omitempty"`
 	IsExtra      bool     `json:"isExtra,omitempty"`
+	SetType      string   `json:"setType,omitempty"`
 	Meta         *SetMeta `json:"meta,omitempty"`
 }
 

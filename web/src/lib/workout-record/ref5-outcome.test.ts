@@ -35,6 +35,7 @@ function exercise(reason: Ref5TerminationReason) {
       rpePerSet: [0, 0, 0],
       weightKgPerSet: [82.5, 82.5, 82.5],
       weightKg: 82.5,
+      setTypePerSet: [null, null, null],
     },
     note: { memo: "" },
     isEdited: false,

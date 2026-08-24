@@ -8,6 +8,7 @@ import {
   type GeneratedSessionLike,
   hasWorkoutEdits,
   isWorkoutDraftProtocolCompatible,
+  materializeWorkoutExercises,
   migrateWorkoutRecordDraft,
   patchSeedExercise,
   toWorkoutLogPayload,
@@ -1001,4 +1002,66 @@ test("toWorkoutLogPayload: operator(v2 enforcePlannedReps)는 EX_키를 plannedR
   assert.equal(meta0.plannedRef?.reps, 1);
   assert.equal(meta0.plannedRef?.progressionTarget, "SQUAT");
   assert.equal(meta0.plannedRef?.progressionKey, undefined); // EX_키 있어도 plannedRef엔 미포함 → family 진행 유지
+});
+
+// ── 세트 타입(웜업·실패) ─────────────────────────────────────────────────────
+// 컬럼은 additive라 레거시 로그가 전부 작업 세트(null)로 읽혀야 하고, 태그가 붙은
+// 세트만 그대로 왕복해야 한다. 태그가 인접 세트로 번지면 그 세트가 통계에서 통째로
+// 빠지므로(계획서 docs/set-type-plan.md §3.3) 번짐 여부를 함께 잠근다.
+
+function loggedSetTypeLog(setTypes: Array<string | null | undefined>): ExistingWorkoutLogLike {
+  return {
+    id: "log-set-type",
+    planId: "plan-1",
+    generatedSessionId: null,
+    performedAt: "2026-08-25T10:00:00.000Z",
+    notes: null,
+    sets: setTypes.map((setType, index) => ({
+      exerciseId: "ex-1",
+      exerciseName: "Back Squat",
+      sortOrder: 0,
+      setNumber: index + 1,
+      reps: 5,
+      weightKg: 100,
+      rpe: 0,
+      isExtra: false,
+      setType,
+      meta: {},
+    })),
+  };
+}
+
+test("세트 타입: 저장→복원 왕복에서 태그가 자기 세트에만 남는다", () => {
+  const draft = createWorkoutRecordDraftFromLog(loggedSetTypeLog(["WARMUP", null, "FAILURE"]), "Plan");
+  const exercise = draft.userExercises[0];
+  assert.deepEqual(exercise.set.setTypePerSet, ["WARMUP", null, "FAILURE"]);
+
+  const payload = toWorkoutLogPayload(draft);
+  assert.deepEqual(
+    payload.sets.map((set) => set.setType),
+    ["WARMUP", null, "FAILURE"],
+  );
+});
+
+test("세트 타입: 컬럼이 없던 레거시 로그는 전부 작업 세트로 읽힌다", () => {
+  const draft = createWorkoutRecordDraftFromLog(loggedSetTypeLog([undefined, undefined]), "Plan");
+  assert.deepEqual(draft.userExercises[0].set.setTypePerSet, [null, null]);
+  assert.deepEqual(
+    toWorkoutLogPayload(draft).sets.map((set) => set.setType),
+    [null, null],
+  );
+});
+
+test("세트 타입: 미지 값은 작업 세트로 떨어진다 (구 클라이언트 내성)", () => {
+  const draft = createWorkoutRecordDraftFromLog(loggedSetTypeLog(["DROPSET", "warmup"]), "Plan");
+  assert.deepEqual(draft.userExercises[0].set.setTypePerSet, [null, "WARMUP"]);
+});
+
+test("세트 타입: 세트를 늘려도 마지막 태그가 새 세트로 번지지 않는다", () => {
+  const draft = createWorkoutRecordDraftFromLog(loggedSetTypeLog(["WARMUP"]), "Plan");
+  const userId = draft.userExercises[0].id;
+  const grown = updateUserExercise(draft, userId, { set: { count: 3 } });
+  const exercise = materializeWorkoutExercises(grown)[0];
+  // reps·무게는 마지막 값을 이어받지만(세트 추가의 상식적 기본값), 타입은 아니다.
+  assert.deepEqual(exercise.set.setTypePerSet, ["WARMUP", null, null]);
 });

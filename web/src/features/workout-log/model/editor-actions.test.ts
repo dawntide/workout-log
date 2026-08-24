@@ -64,6 +64,7 @@ function makeAutoExercise(input: {
       repsPerSet: input.targets.map(() => 5),
       rpePerSet: input.targets.map(() => 0),
       weightKgPerSet: input.targets.map(() => 0),
+      setTypePerSet: input.targets.map(() => null),
       weightKg: 0,
     },
     note: { memo: "" },

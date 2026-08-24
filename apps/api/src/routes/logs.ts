@@ -230,6 +230,7 @@ logsRoutes.get("/", async (c) => {
               weightKg: workoutSet.weightKg,
               rpe: workoutSet.rpe,
               isExtra: workoutSet.isExtra,
+              setType: workoutSet.setType,
               meta: workoutSet.meta,
             })
             .from(workoutSet)
@@ -507,6 +508,7 @@ logsRoutes.get("/:logId", async (c) => {
         weightKg: workoutSet.weightKg,
         rpe: workoutSet.rpe,
         isExtra: workoutSet.isExtra,
+        setType: workoutSet.setType,
         meta: workoutSet.meta,
       })
       .from(workoutSet)

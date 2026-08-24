@@ -30,6 +30,7 @@ type draftSet struct {
 	Amrap        bool         `json:"amrap,omitempty"`
 	Prescribed   bool         `json:"prescribed,omitempty"`
 	IsExtra      bool         `json:"isExtra,omitempty"`
+	SetType      string       `json:"setType,omitempty"`
 	SetNumber    int          `json:"setNumber,omitempty"`
 	RestSeconds  int          `json:"restSeconds,omitempty"`
 	OriginalMeta *api.SetMeta `json:"originalMeta,omitempty"`
@@ -89,7 +90,7 @@ func draftFromLog(l *Log, now time.Time) todayDraft {
 			sets = append(sets, draftSet{
 				Weight: s.weight, Reps: s.reps, RPE: s.rpe,
 				Done: s.done, TgtReps: s.tgtReps, Total: s.total,
-				Amrap: s.amrap, Prescribed: s.prescribed, IsExtra: s.isExtra,
+				Amrap: s.amrap, Prescribed: s.prescribed, IsExtra: s.isExtra, SetType: s.setType,
 				SetNumber: s.setNumber, RestSeconds: s.restSeconds, OriginalMeta: cloneSetMetaIfPresent(s.originalMeta),
 			})
 		}
@@ -237,7 +238,7 @@ func (l *Log) loadFromDraft(d todayDraft) {
 			sets = append(sets, setEntry{
 				weight: s.Weight, reps: s.Reps, rpe: s.RPE,
 				done: s.Done, tgtReps: s.TgtReps, total: s.Total, amrap: s.Amrap,
-				prescribed: s.Prescribed, isExtra: s.IsExtra,
+				prescribed: s.Prescribed, isExtra: s.IsExtra, setType: s.SetType,
 				setNumber: s.SetNumber, restSeconds: s.RestSeconds, originalMeta: cloneSetMetaIfPresent(s.OriginalMeta),
 			})
 		}
