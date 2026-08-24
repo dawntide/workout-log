@@ -80,3 +80,21 @@ test("validateExportShape: collects multiple errors", () => {
   assert.equal(result.ok, false);
   assert.ok(result.errors.length >= 2);
 });
+
+// ── 체중 기록(M2-1 PR1) ─────────────────────────────────────────────────────
+
+test("validateExportShape: bodyMeasurements 없는 구 export도 통과한다", () => {
+  // v1 이후 추가된 키를 필수로 만들면 사용자가 반년 전 받아 둔 백업이 통째로
+  // 거부된다. 부재는 "빈 이력"이지 형식 오류가 아니다.
+  assert.equal(validateExportShape(baseValidShape).ok, true);
+});
+
+test("validateExportShape: bodyMeasurements가 있어도 통과한다", () => {
+  const withMeasurements = {
+    ...baseValidShape,
+    bodyMeasurements: [
+      { id: "bm-1", userId: "user-1", kind: "weight", valueKg: 72.5, measuredAt: "2026-03-01T00:00:00.000Z" },
+    ],
+  };
+  assert.equal(validateExportShape(withMeasurements).ok, true);
+});
