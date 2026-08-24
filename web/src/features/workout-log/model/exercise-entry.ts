@@ -1,3 +1,7 @@
+import {
+  normalizeWorkoutSetType,
+  type WorkoutSetType,
+} from "@workout/core/workout-set-type";
 import type {
   WorkoutExerciseViewModel,
   WorkoutProgramExerciseEntryState,
@@ -115,6 +119,49 @@ export function removeSetWeightAtIndex(
   index: number,
 ) {
   const next = normalizeWeightPerSet(values, length);
+  if (next.length <= 1) return next;
+  if (index < 0 || index >= next.length) return next;
+  return [...next.slice(0, index), ...next.slice(index + 1)];
+}
+
+function normalizeSetTypePerSet(
+  values: Array<WorkoutSetType | null> | undefined,
+  length: number,
+): Array<WorkoutSetType | null> {
+  const count = Math.max(1, Math.min(50, Math.round(length)));
+  const source = Array.isArray(values) ? values : [];
+  // 무게·RPE와 달리 마지막 값으로 확장하지 않는다 — 웜업 태그가 새 세트로 번지면
+  // 그 세트가 통계에서 통째로 빠진다(계획서 docs/set-type-plan.md §3.3).
+  return Array.from({ length: count }, (_, index) => normalizeWorkoutSetType(source[index]));
+}
+
+export function patchSetTypeAtIndex(
+  values: Array<WorkoutSetType | null> | undefined,
+  length: number,
+  index: number,
+  nextSetType: WorkoutSetType | null,
+) {
+  const next = normalizeSetTypePerSet(values, length);
+  if (index < 0 || index >= next.length) return next;
+  next[index] = normalizeWorkoutSetType(nextSetType);
+  return next;
+}
+
+export function appendSetType(
+  values: Array<WorkoutSetType | null> | undefined,
+  length: number,
+) {
+  const next = normalizeSetTypePerSet(values, length);
+  if (next.length >= 50) return next;
+  return [...next, null];
+}
+
+export function removeSetTypeAtIndex(
+  values: Array<WorkoutSetType | null> | undefined,
+  length: number,
+  index: number,
+) {
+  const next = normalizeSetTypePerSet(values, length);
   if (next.length <= 1) return next;
   if (index < 0 || index >= next.length) return next;
   return [...next.slice(0, index), ...next.slice(index + 1)];

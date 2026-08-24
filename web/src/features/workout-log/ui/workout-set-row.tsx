@@ -5,6 +5,7 @@ import {
   useEffect,
   useMemo,
   useRef,
+  useState,
   type KeyboardEvent,
 } from "react";
 import { useAtomValue } from "jotai";
@@ -17,8 +18,29 @@ import {
 } from "@/features/workout-log/model/use-set-row-focus-chain";
 import type { WorkoutExerciseViewModel } from "@/lib/workout-record/model";
 import { resolveWorkoutSetRepsEntry } from "@/lib/workout-record/ref5-outcome";
+import type { WorkoutSetType } from "@workout/core/workout-set-type";
 import { CellInput } from "./cell-input";
 import { SET_ROW_GRID } from "./set-row-grid";
+import { SetTypeSheet } from "./set-type-sheet";
+
+/**
+ * 태그는 세트 번호 자리를 대신한다 — 열을 늘리지 않는 것이 중요하다. 5열 그리드가
+ * 어긋나면 로깅 입력 동선(1탭 완료) 전체가 흔들린다.
+ */
+const SET_TYPE_GLYPH: Record<WorkoutSetType, string> = {
+  WARMUP: "W",
+  FAILURE: "F",
+};
+
+const SET_TYPE_COLOR: Record<WorkoutSetType, string> = {
+  WARMUP: "var(--v2-c-warning)",
+  FAILURE: "var(--v2-c-danger)",
+};
+
+const SET_TYPE_LABELS: Record<WorkoutSetType, { ko: string; en: string }> = {
+  WARMUP: { ko: "웜업", en: "warm-up" },
+  FAILURE: { ko: "실패", en: "failure" },
+};
 
 type Props = {
   exercise: WorkoutExerciseViewModel;
@@ -43,6 +65,7 @@ export function WorkoutSetRow({
   const { locale } = useLocale();
   const focusChain = useSetRowFocusChain();
   const programEntryState = useAtomValue(programEntryStateAtom);
+  const [setTypeSheetOpen, setSetTypeSheetOpen] = useState(false);
 
   const weightRef = useRef<HTMLInputElement>(null);
   const repsRef = useRef<HTMLInputElement>(null);
@@ -79,6 +102,11 @@ export function WorkoutSetRow({
     if (!Number.isFinite(r) || r <= 0) return "";
     return Number.isInteger(r) ? String(r) : r.toFixed(1);
   }, [exercise.set.rpePerSet, setIndex]);
+
+  const setType = exercise.set.setTypePerSet?.[setIndex] ?? null;
+  // REF5는 세트 수·구성이 처방과 정확히 일치해야 하고, 스펙 §3.2가 의도적 실패와
+  // 추가 반복을 이미 금지한다 — 태그를 받으면 저장에서 버려지므로 열지 않는다.
+  const canTagSetType = !exercise.ref5;
 
   const repsNum = Number(repsRaw);
   const hasReps = exercise.source === "PROGRAM" || exercise.ref5 || plannedReps > 0
@@ -202,6 +230,15 @@ export function WorkoutSetRow({
           ? `${setIndex + 1}세트 미완료`
           : `Set ${setIndex + 1} not completed`;
 
+  const setTypeName = setType ? SET_TYPE_LABELS[setType] : null;
+  const setTypeButtonLabel = setTypeName
+    ? locale === "ko"
+      ? `${setIndex + 1}세트 타입: ${setTypeName.ko} — 바꾸기`
+      : `Set ${setIndex + 1} type: ${setTypeName.en} — change`
+    : locale === "ko"
+      ? `${setIndex + 1}세트 타입 지정`
+      : `Set ${setIndex + 1} type`;
+
   const rowBackground = isComplete
     ? "color-mix(in srgb, var(--v2-c-reps) 10%, var(--v2-paper))"
     : isFailure
@@ -221,15 +258,37 @@ export function WorkoutSetRow({
         minHeight: "var(--v2-touch)",
       }}
     >
-      <span
-        className="v2-mono-label"
-        style={{
-          color: "var(--v2-ink-3)",
-          textAlign: "center",
-        }}
-      >
-        {setIndex + 1}
-      </span>
+      {canTagSetType ? (
+        <button
+          type="button"
+          className="v2-mono-label v2-tap-44"
+          onClick={() => setSetTypeSheetOpen(true)}
+          aria-label={setTypeButtonLabel}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            position: "relative",
+            padding: 0,
+            // No-Line Rule: 브라우저 기본 button 테두리(2px outset)를 명시적으로 지운다.
+            border: "none",
+            background: "transparent",
+            appearance: "none",
+            cursor: "pointer",
+            font: "inherit",
+            color: setType ? SET_TYPE_COLOR[setType] : "var(--v2-ink-3)",
+          }}
+        >
+          {setType ? SET_TYPE_GLYPH[setType] : setIndex + 1}
+        </button>
+      ) : (
+        <span
+          className="v2-mono-label"
+          style={{ color: "var(--v2-ink-3)", textAlign: "center" }}
+        >
+          {setIndex + 1}
+        </span>
+      )}
       <CellInput
         ref={weightRef}
         value={weightValue}
@@ -320,6 +379,17 @@ export function WorkoutSetRow({
           />
         )}
       </button>
+      {canTagSetType ? (
+        <SetTypeSheet
+          open={setTypeSheetOpen}
+          onClose={() => setSetTypeSheetOpen(false)}
+          setNumber={setIndex + 1}
+          value={setType}
+          onChange={(value) =>
+            onExerciseAction({ type: "CHANGE_SET_TYPE", setIndex, value })
+          }
+        />
+      ) : null}
     </div>
   );
 }

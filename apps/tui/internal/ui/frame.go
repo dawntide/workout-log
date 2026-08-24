@@ -844,7 +844,7 @@ type keymapSection struct {
 // common keys, then the rest — so "what can I do here" and "what works
 // everywhere" are answerable at a glance (lazygit-style).
 var bufferKeymaps = []keymapSection{
-	{vToday, "TODAY", [][2]string{{"i", "편집/reps"}, {"e/n", "운동/새세션"}, {"o", "세트"}, {"x", "완료/계획reps"}, {"t", "REF5 종료"}, {"d", "삭제"}, {"D", "입력폐기"}, {"u", "되돌리기"}, {"s", "저장/시작"}, {"a", "보강"}, {"c", "교체"}, {"hl", "셀"}}},
+	{vToday, "TODAY", [][2]string{{"i", "편집/reps"}, {"e/n", "운동/새세션"}, {"o", "세트"}, {"x", "완료/계획reps"}, {"w/f", "웜업/실패"}, {"t", "REF5 종료"}, {"d", "삭제"}, {"D", "입력폐기"}, {"u", "되돌리기"}, {"s", "저장/시작"}, {"a", "보강"}, {"c", "교체"}, {"hl", "셀"}}},
 	{vStats, "STATS", [][2]string{{"v", "뷰"}, {"[ ]", "범위"}, {"b", "차트"}, {"/", "검색"}, {"R", "새로고침"}}},
 	{vHistory, "HISTORY", [][2]string{{"⏎", "상세"}, {"e", "편집"}, {"d", "삭제"}, {"R", "새로고침"}}},
 	{vPrograms, "PROGRAMS", [][2]string{{"⏎", "활성"}, {"v", "REF5 상태"}, {"R", "새로고침"}, {"n", "새플랜"}, {"r", "이름"}, {"d", "삭제"}}},
