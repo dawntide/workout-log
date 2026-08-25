@@ -1,0 +1,22 @@
+{
+  "name": "@workout/mcp",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Workout Log MCP 서버 — PAT로 공개 API를 호출하는 stdio 래퍼",
+  "bin": { "workout-log-mcp": "./src/index.ts" },
+  "scripts": {
+    "start": "tsx src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test $(find src -name '*.test.ts' | sort)",
+    "lint:boundary": "node scripts/lint-boundary.mjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "tsx": "^4.21.0",
+    "typescript": "^5.7.0"
+  }
+}
