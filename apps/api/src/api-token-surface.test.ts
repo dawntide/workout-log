@@ -1,8 +1,16 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
 import { app } from "./app";
-import { apiTokenSurfaceSnapshot, decideApiTokenSurface } from "./api-token-surface";
+import {
+  apiTokenRateLimits,
+  apiTokenSurfaceSnapshot,
+  decideApiTokenSurface,
+} from "./api-token-surface";
 
 /**
  * PAT 공개 표면의 계약.
@@ -10,6 +18,8 @@ import { apiTokenSurfaceSnapshot, decideApiTokenSurface } from "./api-token-surf
  * ⚠️ **프로덕션 프로브로는 이걸 검증할 수 없다** — 미인증 요청은 프록시가 401로 끊어
  * Hono까지 가지 않고, 존재하지 않는 경로도 401이다. 이 파일이 유일한 방어선이다.
  */
+
+const dirname = path.dirname(fileURLToPath(import.meta.url));
 
 function registeredRoutes(): Set<string> {
   const { routes } = app as unknown as {
@@ -60,6 +70,7 @@ test("공개 표면 스냅샷 — 바뀌면 의도적 결정을 강제한다", (
       "GET /api/exercises/categories",
       "GET /api/bodyweight",
       "GET /api/home",
+      "GET /api/export",
     ],
     write: ["POST /api/logs", "PATCH /api/logs/:logId", "POST /api/bodyweight"],
   });
@@ -110,7 +121,8 @@ test("공개 표면 밖은 스코프와 무관하게 401 — 기본은 거부다
     ["GET", "/api/ops/sessions/prune"],
     ["GET", "/api/stats/ux-snapshot"],
     ["POST", "/api/ux-events"],
-    ["GET", "/api/export"],
+    // import는 **쓰기 중에서도 파괴적이다**(mode: "replace"가 전부 지운다).
+    // export는 읽기라 열었지만 그 역방향은 어느 스코프로도 열지 않는다.
     ["POST", "/api/me/import"],
     // 삭제는 프로그램 실수의 손실이 되돌릴 수 없다.
     ["DELETE", "/api/logs/abc"],
@@ -195,4 +207,41 @@ test("requireAuth를 쓰지 않는 경로도 공개 표면 밖이면 막힌다",
       `${method} ${pathname}가 PAT에 열려 있다`,
     );
   }
+});
+
+test("export를 공개한 전제 — 도메인 데이터만 담긴다", () => {
+  // `GET /api/export`를 read 표면에 넣은 근거가 "세분화된 읽기로 이미 도달 가능"
+  // 이라는 것이다. export에 설정·인증·텔레메트리가 추가되면 그 전제가 깨지고
+  // PAT 표면이 **조용히 넓어진다**. 여기서 잡는다.
+  const source = readFileSync(
+    path.resolve(dirname, "../../../packages/core/src/export/userExport.ts"),
+    "utf8",
+  );
+  const shape = source.slice(
+    source.indexOf("export type UserDataExport = {"),
+    source.indexOf("};", source.indexOf("export type UserDataExport = {")),
+  );
+  assert.ok(shape.includes("workoutLogs"), "export 타입 스캔 실패 — 가드가 무력하다");
+
+  for (const forbidden of ["setting", "Setting", "authSession", "apiToken", "uxEvent", "password"]) {
+    assert.ok(
+      !shape.includes(forbidden),
+      `export에 "${forbidden}"이 들어왔다 — PAT의 read 표면이 넓어졌으니 공개 여부를 다시 판단할 것`,
+    );
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 토큰당 요청 한도
+// ─────────────────────────────────────────────────────────────────────────────
+
+test("쓰기 한도가 읽기보다 엄격하다", () => {
+  // 인증 라우트에만 있던 rate limit을 PAT로 넓힌 이유는 사람이 아니라 **루프**다 —
+  // MCP를 붙인 LLM은 초당 수십 번도 간다. 쓰기는 더 비싸고 피해도 크므로 더 좁다.
+  const limits = apiTokenRateLimits();
+  assert.ok(limits.write.max < limits.read.max, "쓰기 한도가 읽기보다 느슨하다");
+  assert.equal(limits.read.windowMs, 60_000);
+  assert.equal(limits.write.windowMs, 60_000);
+  // 사람이 쓰는 스크립트를 굶기면 안 된다 — 대시보드 새로고침 한 번이 수십 요청이다.
+  assert.ok(limits.read.max >= 60, `읽기 한도 ${limits.read.max}는 정상 사용도 막는다`);
 });

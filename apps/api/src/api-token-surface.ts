@@ -13,6 +13,7 @@
 import type { Context, Next } from "hono";
 
 import { isApiTokenValue, verifyApiToken } from "@workout/core/auth/api-token";
+import { rateLimit } from "@workout/core/auth/rate-limit";
 import { logError } from "@workout/core/observability/logger";
 
 import type { AppEnv } from "./auth";
@@ -30,7 +31,19 @@ type SurfaceRule = {
  *
  * 계획서 §7 결정 3(logs·stats·plans·exercises)에 `bodyweight`를 더했다. M2-1(#683)이
  * 추가한 경로라 계획서가 알 수 없었고, "내 데이터를 프로그램으로 읽는다"는 목적에
- * 정확히 들어맞는다. `export`는 PR2에서 판단한다 — 전량 덤프라 스코프 의미가 다르다.
+ * 정확히 들어맞는다.
+ *
+ * **`export`도 넣는다**(PR2 판단). 전량 덤프라 망설였지만:
+ * - 담기는 것이 **도메인 데이터뿐**이다 — 설정·인증·텔레메트리는 없다
+ *   (`UserDataExport`). 즉 세분화된 읽기로 이미 전부 도달할 수 있다.
+ * - 거부해도 유출된 read 토큰이 닿는 범위가 줄지 않는다. `/api/logs`를 페이징하면
+ *   같은 결과를 얻는다 — 느려질 뿐이다.
+ * - 백업 스크립트는 PAT의 가장 자연스러운 용도이고, "데이터는 사용자 것"이라는
+ *   포지션과 정면으로 맞는다.
+ *
+ * ⚠️ 이 판단은 **export가 도메인 데이터만 담는다**는 전제 위에 있다.
+ * `api-token-surface.test.ts`가 그 전제를 잠근다 — export에 설정이 추가되면
+ * PAT 표면이 조용히 넓어지므로 그때 다시 판단해야 한다.
  */
 const READ_SURFACE: SurfaceRule[] = [
   { method: "GET", path: "/api/logs" },
@@ -54,6 +67,7 @@ const READ_SURFACE: SurfaceRule[] = [
   { method: "GET", path: "/api/exercises/categories" },
   { method: "GET", path: "/api/bodyweight" },
   { method: "GET", path: "/api/home" },
+  { method: "GET", path: "/api/export" },
 ];
 
 /**
@@ -78,6 +92,25 @@ function matches(rule: SurfaceRule, method: string, pathname: string): boolean {
     (part, index) => part.startsWith(":") || part === pathParts[index],
   );
 }
+
+/**
+ * 토큰당 요청 한도.
+ *
+ * 인증 라우트에만 있던 rate limit을 PAT 경로로 넓힌다(계획서 §3.1). 사람이 쓰는
+ * 스크립트에는 넉넉하지만, **MCP를 붙인 LLM이 루프에 물리는 경우**를 막는다 —
+ * 사람이 F5를 누르는 것과 달리 루프는 초당 수십 번도 간다.
+ *
+ * 키는 **토큰 해시**다. IP로 잡으면 같은 집에서 도는 다른 클라이언트끼리 서로를
+ * 굶기고, 토큰별로 잡아야 어느 토큰이 폭주하는지도 드러난다.
+ */
+const TOKEN_RATE_LIMITS = {
+  /** 읽기 — 대시보드 새로고침·도구 몇 번에는 충분하다. */
+  read: { max: 120, windowMs: 60_000 },
+  /** 쓰기 — 더 비싸고 루프의 피해가 크다. */
+  write: { max: 30, windowMs: 60_000 },
+} as const;
+
+const WRITE_METHODS = new Set(["POST", "PATCH", "PUT", "DELETE"]);
 
 export type SurfaceDecision =
   | { allowed: true }
@@ -155,7 +188,25 @@ export async function enforceApiTokenSurface(c: Context<AppEnv>, next: Next) {
       : c.json({ error: "Unauthorized" }, 401);
   }
 
+  const isWrite = WRITE_METHODS.has(c.req.method.toUpperCase());
+  const limit = isWrite ? TOKEN_RATE_LIMITS.write : TOKEN_RATE_LIMITS.read;
+  const throttled = await rateLimit({
+    key: `api-token:${isWrite ? "w" : "r"}:${verified.tokenHash}`,
+    max: limit.max,
+    windowMs: limit.windowMs,
+  });
+  if (!throttled.allowed) {
+    return c.json({ error: "Too many requests" }, 429, {
+      "Retry-After": String(Math.ceil(throttled.retryAfterMs / 1000)),
+    });
+  }
+
   c.set("apiTokenUserId", verified.userId);
   c.set("apiTokenScope", verified.scope);
   return next();
+}
+
+/** 한도 값을 테스트·문서가 읽는다. */
+export function apiTokenRateLimits() {
+  return TOKEN_RATE_LIMITS;
 }
