@@ -783,12 +783,19 @@ func (f Frame) region(w, h int, s Screen) (string, int) {
 		if noLabel == "" {
 			noLabel = "아니오"
 		}
-		line := lipgloss.NewStyle().Foreground(theme.Red).Bold(true).Render(f.confirmPrompt) + "  " +
-			hint("y", yesLabel) + "  " + hint("n", noLabel)
+		hints := hint("y", yesLabel) + "  " + hint("n", noLabel)
 		if f.confirmCancelLabel != "" {
-			line += "  " + hint("esc", f.confirmCancelLabel)
+			hints += "  " + hint("esc", f.confirmCancelLabel)
 		}
-		return fitLine(line, w), 1
+		prompt := lipgloss.NewStyle().Foreground(theme.Red).Bold(true).Render(f.confirmPrompt)
+		// 프롬프트를 먼저 줄인다. 이어붙인 뒤 통째로 자르면 **y/n이 먼저 화면 밖으로
+		// 나간다** — 파괴적 확인에서 답하는 방법이 사라지는 셈이라 최악의 순서다
+		// (실측: 프로덕션 규모 요약이면 w=80에서 "아니오"가 이미 잘렸다). 오른쪽 앵커를
+		// 지키고 왼쪽을 줄이는 것은 바로 위 statusline이 clock/badge에 쓰는 것과 같은 규칙.
+		if room := w - lipgloss.Width(hints) - 2; room > 0 {
+			prompt = fitLine(prompt, room)
+		}
+		return fitLine(prompt+"  "+hints, w), 1
 	default:
 		items := s.Hints()
 		// Prefer the full key+label bar; fall back to keys-only when it would
