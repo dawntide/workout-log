@@ -14,6 +14,7 @@ import { useBodyweightKg } from "@/lib/settings/use-bodyweight";
 import { isRef5PlanParams } from "@/lib/workout-record/ref5-plan";
 import { bodyweightAddedSuffix } from "@workout/core/bodyweight-load";
 import { familyFallbackKeyForBaselineKey } from "@workout/core/program-store/model";
+import type { JudgmentHistoryEntry } from "@workout/core/progression/event-history";
 import type { Ref5Status } from "@workout/core/program-engine/ref5-status";
 
 import {
@@ -61,6 +62,7 @@ export function usePlansManageController({ initialPlans }: { initialPlans: Plan[
   } | null>(null);
   const [lastEvents, setLastEvents] = useState<Record<string, TargetLastEvent>>({});
   const [ref5Status, setRef5Status] = useState<Ref5Status | null>(null);
+  const [judgmentHistory, setJudgmentHistory] = useState<JudgmentHistoryEntry[]>([]);
   // v0.5.1 F4: 라이트 블록(회복) 진행 중 배지 — progression-state의 lightBlockMode 파생.
   const [lightBlockActive, setLightBlockActive] = useState(false);
   const [showStartingBaseline, setShowStartingBaseline] = useState(false);
@@ -209,6 +211,7 @@ export function usePlansManageController({ initialPlans }: { initialPlans: Plan[
       );
       if (res.program === "ref5") {
         setRef5Status(res.ref5Status ?? null);
+        setJudgmentHistory(res.judgmentHistory ?? []);
         setIncrementDraft({});
         setProgressPosition(null);
         setLastEvents({});
@@ -244,6 +247,7 @@ export function usePlansManageController({ initialPlans }: { initialPlans: Plan[
     } catch {
       setIncrementDraft({});
       setRef5Status(null);
+      setJudgmentHistory([]);
     } finally {
       setIncrementLoading(false);
     }
@@ -575,6 +579,7 @@ export function usePlansManageController({ initialPlans }: { initialPlans: Plan[
     isAutoProgression,
     isRef5ManagedPlan,
     ref5Status,
+    judgmentHistory,
     currentProgressRows,
     filteredPlans,
     heroMetrics,

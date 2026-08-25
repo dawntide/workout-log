@@ -11,6 +11,7 @@ import { formatDateTime, planTypeLabel } from "@/features/plans-manage/model/pla
 import { CurrentProgressionSection } from "./current-progression-section";
 import { PlanDetailRow } from "./detail-rows";
 import { IncrementOverridesSection } from "./increment-overrides-section";
+import { JudgmentHistorySection } from "./judgment-history-section";
 import { Ref5StatusPanel } from "./ref5-status-panel";
 import { StrengthBaselinesSection } from "./strength-baselines-section";
 import type { LocaleKey, PlansManageController, PlansManageCopy } from "./view-types";
@@ -55,6 +56,7 @@ export function PlanManageSheet({
     isAutoProgression,
     isRef5ManagedPlan,
     ref5Status,
+    judgmentHistory,
     currentProgressRows,
     openAdjustment,
     saveAdjustment,
@@ -199,6 +201,16 @@ export function PlanManageSheet({
                   : "Loading increment settings..."
               }
               tone="inset"
+            />
+          ) : null}
+
+          {/* ── 판정 이력 ── REF5 패널의 "최근 판정"과 같은 자리·같은 시각 언어.
+              REF5 플랜에서는 그 패널이 계속 창 판정을 맡고, 이 섹션은 누적 이력을 맡는다. */}
+          {isAutoProgression ? (
+            <JudgmentHistorySection
+              entries={judgmentHistory}
+              locale={locale}
+              loading={incrementLoading}
             />
           ) : null}
 

@@ -1,6 +1,7 @@
 // plans-manage 순수 모델 — 화면(widgets/plans-manage-screen)에서 추출.
 // 전부 프레임워크-무관 순수 함수/타입(감사 2026-07 §5.4-4 god-component 분해 1단계:
 // "로직의 features/*/model 이동부터"). 데이터 로딩/뮤테이션 훅 추출은 후속.
+import type { JudgmentHistoryEntry } from "@workout/core/progression/event-history";
 import type { PlanForManage } from "@/server/services/plans/get-plans-for-manage";
 import { selectDisplayStrengthBaselineKeys } from "@workout/core/program-store/model";
 import type { Ref5Status } from "@workout/core/program-engine/ref5-status";
@@ -44,6 +45,8 @@ export type ProgressionStateApiResponse = {
     }
   >;
   targetsLastEvent?: Record<string, TargetLastEvent>;
+  /** 누적 판정 이력 — 서버가 카드와 같은 조립기로 만든 행을 그대로 싣는다. */
+  judgmentHistory?: JudgmentHistoryEntry[];
   ref5Status?: Ref5Status | null;
 };
 
