@@ -254,6 +254,22 @@ export function WorkoutLogSummarySheet({
             >
               {localeKey === "ko" ? "세션 타임라인" : "TIMELINE"}
             </p>
+            {/* 앞으로의 처방을 끝까지 보여주는 대신, **무엇을 보고 있는지**를 밝힌다.
+                이 격자는 "현 상태(작업중량·단계)를 그대로 유지했을 때"의 결정론적
+                전개다. AMRAP 결과나 판정이 나면 그 이후 주차가 갱신된다 — 이 고지가
+                없으면 사용자가 확정 스케줄로 오해한다(계획서 §3.2). */}
+            <p
+              className="v2-small"
+              style={{
+                color: "var(--v2-ink-3)",
+                margin: "0 0 var(--v2-s-3) 0",
+                paddingLeft: "var(--v2-s-1)",
+              }}
+            >
+              {localeKey === "ko"
+                ? "현 상태 기준 처방입니다. AMRAP·판정 결과에 따라 이후 주차가 갱신됩니다."
+                : "Projected from your current state. Later weeks update as AMRAP and judgments land."}
+            </p>
             <div
               style={{
                 display: "flex",
