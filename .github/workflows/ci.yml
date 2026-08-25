@@ -112,6 +112,30 @@ jobs:
         run: pnpm test
 
   # ──────────────────────────────────────────────
+  # Job: apps/mcp typecheck + boundary + smoke
+  # MCP 서버는 공개 API를 HTTP로만 부르는 얇은 래퍼다. 경계 가드가 core·DB 직접
+  # 접근을 막고(배포 독립성), 스모크가 실제 MCP 프로토콜을 태운다.
+  # ──────────────────────────────────────────────
+  mcp:
+    name: apps/mcp Typecheck · Boundary · Smoke
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-pnpm-node
+
+      - name: Typecheck apps/mcp
+        working-directory: apps/mcp
+        run: pnpm typecheck
+
+      - name: Boundary lint apps/mcp
+        working-directory: apps/mcp
+        run: pnpm lint:boundary
+
+      - name: Test apps/mcp
+        working-directory: apps/mcp
+        run: pnpm test
+
+  # ──────────────────────────────────────────────
   # Job: packages/core typecheck + test
   # web·apps/api가 공유하는 source-only 패키지. 자체 게이트로 드리프트 조기 검출.
   # ──────────────────────────────────────────────
