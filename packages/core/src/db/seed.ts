@@ -23,7 +23,8 @@ import {
   REF5_START_CONFIG_VERSION,
   deriveRef5ControlRefs,
 } from "../program-engine/ref5";
-import { EXERCISE_CATALOG, EXERCISE_NAMES } from "../exercise/catalog";
+import { EXERCISE_NAMES } from "../exercise/catalog";
+import { EXERCISE_CATALOG } from "../exercise/all-exercises";
 import { roundToNearest2p5 } from "../program-engine/round";
 import { exerciseSlotKey } from "../program-store/program-registry";
 import {
@@ -1219,7 +1220,19 @@ export async function runSeed(options: SeedRunOptions = {}) {
     changelog: "Canonical 4-day power/hypertrophy split",
   });
 
+  // 카탈로그는 700종대라 항목마다 왕복하면 seed가 분 단위로 늘어난다(오픈 데이터
+  // 확충 전에는 32종이라 문제가 없었다). 이름 삽입은 배치로 묶고, 별칭이 있는
+  // 항목만 개별 upsert로 마저 처리한다 — 별칭은 수기 큐레이션 32종에만 있다.
+  const EXERCISE_INSERT_CHUNK = 250;
+  for (let offset = 0; offset < EXERCISE_CATALOG.length; offset += EXERCISE_INSERT_CHUNK) {
+    const chunk = EXERCISE_CATALOG.slice(offset, offset + EXERCISE_INSERT_CHUNK);
+    await db
+      .insert(exercise)
+      .values(chunk.map((item) => ({ name: item.name, category: item.category })))
+      .onConflictDoNothing();
+  }
   for (const item of EXERCISE_CATALOG) {
+    if (!item.aliases || item.aliases.length === 0) continue;
     await upsertExercise(item);
   }
 

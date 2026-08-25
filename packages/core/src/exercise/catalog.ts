@@ -1,3 +1,6 @@
+import type { MuscleContribution } from "../muscle-groups/category-to-muscle";
+import { OPEN_EXERCISE_EQUIPMENT } from "./open-equipment";
+
 export const EXERCISE_NAMES = {
   highBarBackSquat: "High-Bar Back Squat",
   lowBarBackSquat: "Low-Bar Back Squat",
@@ -75,6 +78,12 @@ export type ExerciseCatalogItem = {
   category: string;
   aliases: readonly string[];
   equipment: ExerciseEquipment;
+  /**
+   * 근육군 기여도. 없으면 `resolveMuscleContribution`의 기존 2단 폴백
+   * (운동명 맵 → 카테고리 맵 → Other)이 그대로 동작한다 — 잘못된 매핑이 빈
+   * 매핑보다 나쁘므로 억지로 채우지 않는다(계획서 §6-6).
+   */
+  muscles?: MuscleContribution;
 };
 
 /** Temporary resolution bridge while application code and the data migration roll out. */
@@ -90,7 +99,12 @@ export const LEGACY_EXERCISE_NAME_FALLBACKS: Readonly<Record<string, string>> = 
  * is not a canonical exercise: all existing ambiguous Back Squat data is known
  * to be high-bar. New squat records must select an explicit variation.
  */
-export const EXERCISE_CATALOG = [
+/**
+ * 손으로 큐레이션한 종목 — 프로그램이 처방하는 것들이다. 별칭(영/한)·근육 가중치가
+ * 사람 손을 탔으므로 오픈 데이터와 이름이 겹치면 **이쪽이 이긴다**(변환 스크립트가
+ * 겹치는 항목을 걸러낸다).
+ */
+export const CURATED_EXERCISE_CATALOG = [
   {
     name: EXERCISE_NAMES.highBarBackSquat,
     category: "Legs",
@@ -309,12 +323,14 @@ export const EXERCISE_CATALOG = [
   },
 ] as const satisfies readonly ExerciseCatalogItem[];
 
+
+
 /** Resolve a user/program label to the catalog identity used for history and stats. */
 export function canonicalExerciseNameForInput(raw: string): string | null {
   const normalized = raw.trim().toLowerCase();
   if (!normalized) return null;
 
-  for (const item of EXERCISE_CATALOG) {
+  for (const item of CURATED_EXERCISE_CATALOG) {
     if (item.name.toLowerCase() === normalized) return item.name;
     if (item.aliases.some((alias) => alias.toLowerCase() === normalized)) {
       return item.name;
@@ -332,10 +348,15 @@ export function canonicalExerciseNameForInput(raw: string): string | null {
  * 정확한 장비가 잡힌다.
  */
 export function resolveExerciseEquipment(exerciseName: string): ExerciseEquipment {
+  // 수기 항목이 먼저다 — 별칭(영/한)까지 해석하고 큐레이션 값이 정확하다.
   const canonical = canonicalExerciseNameForInput(exerciseName);
-  if (!canonical) return "unknown";
-  const item = EXERCISE_CATALOG.find((candidate) => candidate.name === canonical);
-  return item?.equipment ?? "unknown";
+  if (canonical) {
+    const item = CURATED_EXERCISE_CATALOG.find((candidate) => candidate.name === canonical);
+    if (item) return item.equipment;
+  }
+  // 오픈 데이터는 **장비만** 담은 경량 맵으로 본다. 전체 카탈로그를 여기서 참조하면
+  // 이 함수를 쓰는 클라이언트 컴포넌트가 723종을 통째로 번들에 싣는다(§4 G6).
+  return OPEN_EXERCISE_EQUIPMENT[exerciseName.trim().toLowerCase()] ?? "unknown";
 }
 
 /**

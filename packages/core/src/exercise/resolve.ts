@@ -1,7 +1,7 @@
 import { eq, inArray, sql } from "drizzle-orm";
 import { db } from "@workout/core/db/client";
 import { exercise, exerciseAlias } from "@workout/core/db/schema";
-import { canonicalExerciseNameForInput } from "@workout/core/exercise/catalog";
+import { canonicalExerciseNameForInputAll as canonicalExerciseNameForInput } from "@workout/core/exercise/all-exercises";
 
 export type ResolvedExercise = {
   id: string;
