@@ -246,13 +246,20 @@ func (l Log) renderSet(gi, si int, s setEntry) string {
 
 	// RPE: an editable cell when the RPE column is active here, otherwise shown
 	// only when a value exists (optional metric, never forced).
+	// 셀에 들어 있는 값은 언제나 사용자가 고른 방향(RPE 또는 RIR)이다. 저장 시점에
+	// RPE 스케일로 뒤집는다 — 두 방향을 화면에 섞어 보이지 않는 것이 핵심이다.
+	intensityMarker := " @"
+	if l.intensity == "RIR" {
+		intensityMarker = " r"
+	}
 	rpe := "    " // reserved 4-col slot so done/e1rm stay aligned across sets
 	if l.groups[gi].ref5 != nil {
-		rpe = "    " // immutable REF5 rows never expose an RPE editor
+		rpe = "    " // immutable REF5 rows never expose an intensity editor
 	} else if active && l.col == colRPE {
-		rpe = lipgloss.NewStyle().Foreground(theme.Dim).Render(" @") + l.setCell(active, colRPE, orDot(s.rpe), 2)
+		rpe = lipgloss.NewStyle().Foreground(theme.Dim).Render(intensityMarker) + l.setCell(active, colRPE, orDot(s.rpe), 2)
 	} else if s.rpe != "" {
-		rpe = lipgloss.NewStyle().Foreground(theme.Dim).Render(fmt.Sprintf(" @%-2s", s.rpe))
+		shown := displayIntensityText(s.rpe, l.intensity == "RIR")
+		rpe = lipgloss.NewStyle().Foreground(theme.Dim).Render(fmt.Sprintf("%s%-2s", intensityMarker, shown))
 	}
 
 	done := lipgloss.NewStyle().Foreground(theme.Ghost).Render("·")

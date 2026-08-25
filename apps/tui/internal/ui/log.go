@@ -51,17 +51,18 @@ type Log struct {
 	pendingOverride           bool   // server override in flight; locks/re-correlates Today
 	overridePlanID            string
 	bodyweight                float64       // user bodyweight (kg) for bodyweight-exercise load math
+	intensity                 string        // "RPE" | "RIR"; empty means RPE (저장값은 언제나 RPE 스케일)
 	load                      loadState     // boot-time auto-load of today's session
 	undo                      *undoSnapshot // last delete, restorable with `u`
 	// v0.5.1 피드백: 세션 태그(스냅샷 승격 메타)와 저장 직후 판정 라인(서버 조립 문구).
-	amrapDeferred bool     // 오늘 AMRAP 보류(연속일) — 헤더 태그
-	lightBlock    bool     // 라이트(회복) 블록 — 헤더 태그
+	amrapDeferred bool // 오늘 AMRAP 보류(연속일) — 헤더 태그
+	lightBlock    bool // 라이트(회복) 블록 — 헤더 태그
 	// 판정 카드/배너는 **조립 전 payload**로 들고 있다가 Body에서 폭을 알 때 줄을 만든다.
 	// 저장 시점에 문자열로 굳히면 렌더에서 자르는 수밖에 없어 문장 끝(적용 시점)이 날아갔다.
-	feedback *api.ProgressionFeedback // 다음 로드/편집 시 소거
-	status        string
-	statusErr     bool
-	w, h          int
+	feedback  *api.ProgressionFeedback // 다음 로드/편집 시 소거
+	status    string
+	statusErr bool
+	w, h      int
 }
 
 // NewLog starts in loadPending so the very first render shows "loading today's
@@ -645,6 +646,7 @@ func (l Log) Update(msg tea.Msg) (Screen, tea.Cmd) {
 		l.editID, l.performedAt = "", time.Time{}
 		l.ref5 = nil
 		l.bodyweight = m.bodyweight
+		l.intensity = m.intensity
 		l.amrapDeferred, l.lightBlock = false, false
 		if m.snapshot != nil {
 			l.amrapDeferred, l.lightBlock = m.snapshot.AmrapDeferred, m.snapshot.LightBlockMode

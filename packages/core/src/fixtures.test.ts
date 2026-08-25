@@ -17,6 +17,7 @@ import {
   resolveLoggedTotalLoadKg,
 } from "./bodyweight-load";
 import { estimateE1rmRounded } from "./stats/e1rm";
+import { toStoredIntensity } from "./settings/intensity";
 
 const sessionKeyFixture = JSON.parse(
   readFileSync(new URL("../fixtures/session-key.json", import.meta.url), "utf8"),
@@ -146,6 +147,31 @@ test("golden: 추정 1RM은 Go(setE1rm)와 같은 값을 낸다", () => {
       estimateE1rmRounded(c.weightKg, c.reps),
       c.expected,
       `${c.weightKg}kg x ${c.reps}`,
+    );
+  }
+});
+
+const intensityFixture = JSON.parse(
+  readFileSync(new URL("../fixtures/intensity.json", import.meta.url), "utf8"),
+) as {
+  rirCases: Array<{ shown: number; stored: number }>;
+  rpeCases: Array<{ shown: number; stored: number }>;
+};
+
+test("golden: 강도 변환이 Go(intensityToStored)와 같은 값을 낸다", () => {
+  assert.ok(intensityFixture.rirCases.length > 0, "intensity fixture cases 비어 있음");
+  for (const testCase of intensityFixture.rirCases) {
+    assert.equal(
+      toStoredIntensity(testCase.shown, "RIR"),
+      testCase.stored,
+      `RIR ${testCase.shown}`,
+    );
+  }
+  for (const testCase of intensityFixture.rpeCases) {
+    assert.equal(
+      toStoredIntensity(testCase.shown, "RPE"),
+      testCase.stored,
+      `RPE ${testCase.shown}`,
     );
   }
 });

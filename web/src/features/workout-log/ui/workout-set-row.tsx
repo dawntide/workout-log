@@ -21,6 +21,11 @@ import { resolveWorkoutSetRepsEntry } from "@/lib/workout-record/ref5-outcome";
 import type { WorkoutSetType } from "@workout/core/workout-set-type";
 import { CellInput } from "./cell-input";
 import { SET_ROW_GRID } from "./set-row-grid";
+import { workoutPreferencesAtom } from "@/features/workout-log/store/workout-log-atoms";
+import {
+  toDisplayIntensity,
+  toStoredIntensity,
+} from "@workout/core/settings/intensity";
 import { SetTypeSheet } from "./set-type-sheet";
 
 /**
@@ -62,9 +67,11 @@ export function WorkoutSetRow({
   previousReps,
   onSetCompleted,
 }: Props) {
-  const { locale } = useLocale();
+  const { locale, copy } = useLocale();
   const focusChain = useSetRowFocusChain();
   const programEntryState = useAtomValue(programEntryStateAtom);
+  // 저장값은 언제나 RPE 스케일이다 — 이 설정은 입력·표시 방향만 바꾼다.
+  const intensityMode = useAtomValue(workoutPreferencesAtom).intensityInput;
   const [setTypeSheetOpen, setSetTypeSheetOpen] = useState(false);
 
   const weightRef = useRef<HTMLInputElement>(null);
@@ -97,11 +104,11 @@ export function WorkoutSetRow({
     return w > 0 ? String(w) : "";
   }, [exercise.set.weightKgPerSet, setIndex]);
 
-  const rpeRaw = useMemo(() => {
-    const r = exercise.set.rpePerSet?.[setIndex] ?? 0;
-    if (!Number.isFinite(r) || r <= 0) return "";
-    return Number.isInteger(r) ? String(r) : r.toFixed(1);
-  }, [exercise.set.rpePerSet, setIndex]);
+  const intensityRaw = useMemo(() => {
+    const displayed = toDisplayIntensity(exercise.set.rpePerSet?.[setIndex], intensityMode);
+    if (displayed === null) return "";
+    return Number.isInteger(displayed) ? String(displayed) : displayed.toFixed(1);
+  }, [exercise.set.rpePerSet, intensityMode, setIndex]);
 
   const setType = exercise.set.setTypePerSet?.[setIndex] ?? null;
   // REF5는 세트 수·구성이 처방과 정확히 일치해야 하고, 스펙 §3.2가 의도적 실패와
@@ -150,24 +157,21 @@ export function WorkoutSetRow({
     [exercise.ref5, onExerciseAction, plannedReps, setIndex],
   );
 
-  const handleRpeChange = useCallback(
+  const handleIntensityChange = useCallback(
     (raw: string) => {
       const cleaned = raw.replace(/[^0-9.]/g, "");
       if (cleaned === "" || cleaned === ".") {
+        // 화면 배열은 "값 없음"을 0으로 들고 있다(전송 경계에서 null로 번역된다).
         onExerciseAction({ type: "CHANGE_SET_RPE", setIndex, value: 0 });
         return;
       }
       const num = Number(cleaned);
       if (!Number.isFinite(num)) return;
-      const clamped = Math.max(0, Math.min(10, num));
-      const halfRounded = Math.round(clamped * 2) / 2;
-      onExerciseAction({
-        type: "CHANGE_SET_RPE",
-        setIndex,
-        value: halfRounded,
-      });
+      // 클램프·스냅·RIR 뒤집기가 전부 여기 한 함수에 있다 — 두 클라이언트가 공유한다.
+      const stored = toStoredIntensity(num, intensityMode);
+      onExerciseAction({ type: "CHANGE_SET_RPE", setIndex, value: stored ?? 0 });
     },
-    [onExerciseAction, setIndex],
+    [intensityMode, onExerciseAction, setIndex],
   );
 
   const onKeyDown = useCallback(
@@ -319,11 +323,14 @@ export function WorkoutSetRow({
       />
       <CellInput
         ref={rpeRef}
-        value={rpeRaw}
+        value={intensityRaw}
         placeholder="—"
         color="var(--v2-c-warning)"
-        ariaLabel={`Set ${setIndex + 1} RPE`}
-        onChange={handleRpeChange}
+        ariaLabel={(intensityMode === "RIR"
+          ? copy.workoutLog.intensity.rirCellLabel
+          : copy.workoutLog.intensity.rpeCellLabel
+        ).replace("{n}", String(setIndex + 1))}
+        onChange={handleIntensityChange}
         onKeyDown={onKeyDown("rpe")}
         allowDecimal
         readOnly={Boolean(exercise.ref5)}

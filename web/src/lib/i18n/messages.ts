@@ -258,6 +258,18 @@ export type AppCopy = {
     dateNavNext: string;
     dateNavToday: string;
     dateChangeAriaLabel: string;
+    /**
+     * 세트 강도 열. 라벨이 설정(RPE/RIR)에 따라 바뀌므로 카탈로그로 회수했다 —
+     * 하드코딩으로 두면 한쪽 모드에서 틀린 라벨이 남는다.
+     */
+    intensity: {
+      rpeHeader: string;
+      rirHeader: string;
+      rpeCellLabel: string;
+      rirCellLabel: string;
+      rpeAverage: string;
+      rirAverage: string;
+    };
   };
   programStore: {
     eyebrow: string;
@@ -682,6 +694,14 @@ export const appCopyByLocale: Record<AppLocale, AppCopy> = {
       dateNavNext: "다음 날",
       dateNavToday: "오늘",
       dateChangeAriaLabel: "날짜 변경",
+      intensity: {
+        rpeHeader: "RPE",
+        rirHeader: "RIR",
+        rpeCellLabel: "{n}세트 RPE",
+        rirCellLabel: "{n}세트 RIR",
+        rpeAverage: "평균 RPE",
+        rirAverage: "평균 RIR",
+      },
     },
     programStore: {
       eyebrow: "Program Store",
@@ -1107,6 +1127,14 @@ export const appCopyByLocale: Record<AppLocale, AppCopy> = {
       dateNavNext: "Next Day",
       dateNavToday: "Today",
       dateChangeAriaLabel: "Change date",
+      intensity: {
+        rpeHeader: "RPE",
+        rirHeader: "RIR",
+        rpeCellLabel: "Set {n} RPE",
+        rirCellLabel: "Set {n} RIR",
+        rpeAverage: "Avg RPE",
+        rirAverage: "Avg RIR",
+      },
     },
     programStore: {
       eyebrow: "Program Store",

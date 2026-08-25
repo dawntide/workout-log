@@ -277,6 +277,7 @@ type sessionLoadedMsg struct {
 	planID             string            // active plan id, for session overrides
 	generatedSessionID string            // saved generated-session row id
 	bodyweight         float64           // user bodyweight for bodyweight-exercise load math
+	intensity          string            // "RPE" | "RIR" — display direction for the intensity cell
 	noPlan             bool              // auto-load found no active plan
 	err                error
 }
@@ -298,7 +299,26 @@ func generatedSessionMsg(c *api.Client, planID string) sessionLoadedMsg {
 		planID:             planID,
 		generatedSessionID: s.ID,
 		bodyweight:         fetchBodyweight(c),
+		intensity:          fetchIntensityInput(c),
 	}
+}
+
+// fetchIntensityInput reads the intensity display mode (prefs.intensityInput).
+// Stored values are always on the RPE scale; this only flips how the cell reads
+// and writes. Unknown/unavailable falls back to "RPE" so a settings hiccup never
+// shows numbers in the wrong direction.
+func fetchIntensityInput(c *api.Client) string {
+	vals, err := c.Settings(context.Background())
+	if err != nil {
+		return "RPE"
+	}
+	var mode string
+	if json.Unmarshal(vals["prefs.intensityInput"], &mode) == nil {
+		if upper := strings.ToUpper(strings.TrimSpace(mode)); upper == "RIR" {
+			return "RIR"
+		}
+	}
+	return "RPE"
 }
 
 // fetchBodyweight reads the user's bodyweight (kg) from settings
