@@ -8,6 +8,7 @@ import { V2NavRow, V2SecondaryBtn } from "@/components/v2/primitives";
 import { AccountCard } from "./account-card";
 import { AppInfoFooter } from "./app-info-footer";
 import { BodyweightRow } from "./bodyweight-row";
+import { IntensityInputRow } from "./intensity-input-row";
 import { LanguageRow } from "./language-row";
 import { PasswordSheet } from "./password-sheet";
 import { Section } from "./section";
@@ -138,6 +139,11 @@ export function MoreScreen() {
           snapshot={snapshot}
           expanded={expandedRow === "training-goal"}
           onToggle={(next) => setExpandedRow(next ? "training-goal" : null)}
+        />
+        <IntensityInputRow
+          snapshot={snapshot}
+          expanded={expandedRow === "intensity-input"}
+          onToggle={(next) => setExpandedRow(next ? "intensity-input" : null)}
         />
       </Section>
 

@@ -23,6 +23,7 @@ import {
   serializePlatesKg,
   serializeRestPresets,
   normalizeLightColorTheme,
+  normalizeIntensityInput,
   normalizeTrainingGoal,
   parseTrainingGoalSecondary,
   readWorkoutPreferences,
@@ -354,4 +355,30 @@ test("an empty stored plate list falls back to the defaults", () => {
   // 원판을 전부 지운 상태를 "가진 게 없다"로 읽으면 계산기가 늘 빈 바만 보여준다.
   const prefs = readWorkoutPreferences({ [SETTINGS_KEYS.platePlatesJson]: "[]" });
   assert.deepEqual(prefs.platePlatesKg, [...DEFAULT_PLATE_PLATES_KG]);
+});
+
+// ── 강도 입력 방식 (M2-2 PR2) ───────────────────────────────────────────────
+
+test("normalizeIntensityInput accepts both modes, case-insensitively", () => {
+  assert.equal(normalizeIntensityInput("RPE"), "RPE");
+  assert.equal(normalizeIntensityInput("RIR"), "RIR");
+  assert.equal(normalizeIntensityInput("rir"), "RIR");
+  assert.equal(normalizeIntensityInput(" Rpe "), "RPE");
+});
+
+test("normalizeIntensityInput falls back to RPE for unknown input", () => {
+  // 구 클라이언트가 모르는 값을 보내도 화면이 깨지면 안 된다.
+  assert.equal(normalizeIntensityInput("RIRPE"), "RPE");
+  assert.equal(normalizeIntensityInput(null), "RPE");
+  assert.equal(normalizeIntensityInput(undefined), "RPE");
+  assert.equal(normalizeIntensityInput(7), "RPE");
+});
+
+test("intensityInput은 스냅샷에서 읽히고 기본값이 RPE다", () => {
+  assert.equal(toDefaultWorkoutPreferences().intensityInput, "RPE");
+  assert.equal(
+    readWorkoutPreferences({ [SETTINGS_KEYS.intensityInput]: "RIR" }).intensityInput,
+    "RIR",
+  );
+  assert.equal(readWorkoutPreferences({}).intensityInput, "RPE");
 });
