@@ -28,6 +28,9 @@ const NO_HISTORY_ORDER = new Map<string, number>([
 ]);
 
 function canonicalName(name: string): string {
+  // 수기 카탈로그만 본다(all-exercises가 아니다) — 이 함수는 **클라이언트 훅**이
+  // 쓰므로 전체 카탈로그를 끌어오면 723종이 번들에 실린다(실측 gzip 10KB).
+  // 오픈 데이터 항목은 별칭이 없어 정식 이름 = 입력이라, 폴백과 결과가 같다.
   return canonicalExerciseNameForInput(name) ?? name.trim();
 }
 

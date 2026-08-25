@@ -1,3 +1,5 @@
+import { EXERCISE_CATALOG } from "../exercise/all-exercises";
+
 export type MuscleGroup =
   | "Quad"
   | "Hamstring"
@@ -113,14 +115,38 @@ function normalizeCategoryKey(category: string | null | undefined): string | nul
   return trimmed.length === 0 ? null : trimmed;
 }
 
+/**
+ * 카탈로그 항목의 `muscles`를 이름으로 찾는다. 오픈 데이터 종목이 여기 걸린다.
+ *
+ * 지연 초기화하는 이유: 이 모듈은 `catalog.ts`가 타입만 가져가는 쪽이라 런타임
+ * 순환은 없지만, 모듈 로드 시점에 카탈로그 755종을 훑으면 초기화가 그만큼 늦어진다.
+ */
+let catalogMusclesByName: Map<string, MuscleContribution> | null = null;
+
+function lookupCatalogMuscles(exerciseName: string): MuscleContribution | null {
+  if (!catalogMusclesByName) {
+    catalogMusclesByName = new Map();
+    for (const item of EXERCISE_CATALOG) {
+      if (!item.muscles || Object.keys(item.muscles).length === 0) continue;
+      catalogMusclesByName.set(item.name.trim().toLowerCase(), item.muscles);
+    }
+  }
+  return catalogMusclesByName.get(exerciseName.trim().toLowerCase()) ?? null;
+}
+
 export function resolveMuscleContribution(
   exerciseName: string,
   category: string | null | undefined,
 ): MuscleContribution {
   const exerciseKey = normalizeExerciseKey(exerciseName);
+  // 수기 가중치가 최우선이다 — 큐레이션이 오픈 데이터보다 정확하다.
   if (exerciseKey && EXERCISE_CONTRIBUTIONS[exerciseKey]) {
     return EXERCISE_CONTRIBUTIONS[exerciseKey];
   }
+
+  // 그다음이 카탈로그의 muscles(오픈 데이터의 primary/secondary 변환값).
+  const fromCatalog = lookupCatalogMuscles(exerciseName);
+  if (fromCatalog) return fromCatalog;
 
   const categoryKey = normalizeCategoryKey(category);
   if (categoryKey && CATEGORY_PRIMARY[categoryKey]) {

@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import { EXERCISE_CATALOG } from "./all-exercises";
 import {
-  EXERCISE_CATALOG,
   EXERCISE_NAMES,
   LEGACY_EXERCISE_NAME_FALLBACKS,
   canonicalExerciseNameForInput,

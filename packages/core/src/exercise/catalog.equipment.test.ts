@@ -1,7 +1,8 @@
+import { EXERCISE_CATALOG } from "./all-exercises";
+import { CURATED_EXERCISE_CATALOG } from "./catalog";
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
-  EXERCISE_CATALOG,
   EXERCISE_NAMES,
   resolveExerciseEquipment,
   supportsPlateBreakdown,
@@ -17,14 +18,20 @@ test("every catalog entry declares equipment", () => {
     "bodyweight",
     "unknown",
   ];
+  // 값 자체의 유효성은 전체 카탈로그에 적용된다.
   for (const item of EXERCISE_CATALOG) {
     assert.ok(
       valid.includes(item.equipment),
       `${item.name} has an invalid equipment value: ${String(item.equipment)}`,
     );
-    // 카탈로그가 unknown을 쓰면 태깅을 빠뜨린 것이다 — unknown은 카탈로그 밖 전용이다.
+  }
+  // "unknown을 쓰지 않는다"는 **수기 항목의 태깅 완결성** 검사다. 오픈 데이터에는
+  // 케틀벨·밴드·메디신볼처럼 우리 6종에 없는 장비가 207종 있고, 그것들을 억지로
+  // 끼워 맞추는 것보다 unknown이 옳다(계획서 §6-6).
+  for (const item of CURATED_EXERCISE_CATALOG) {
     assert.notEqual(item.equipment, "unknown", `${item.name} is missing an equipment tag`);
   }
+  assert.ok(CURATED_EXERCISE_CATALOG.length >= 30, "수기 카탈로그 스캔이 비었다");
 });
 
 test("resolveExerciseEquipment reads through aliases and trims input", () => {

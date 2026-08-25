@@ -196,15 +196,48 @@ async function loadSource(argSource) {
   return response.json();
 }
 
+const GENERATED_HEADER = [
+  "// 자동 생성 — web/scripts/build-exercise-catalog.mjs",
+  "//",
+  "// 출처: free-exercise-db (https://github.com/yuhonas/free-exercise-db), Unlicense",
+  "// (퍼블릭 도메인 — 표기 의무는 없으나 출처를 남긴다).",
+  "//",
+  "// 손으로 고치지 말 것. 큐레이션이 필요하면 CURATED_EXERCISE_CATALOG에 넣는다 —",
+  "// 이름이 겹치면 수기 항목이 이긴다.",
+  "",
+];
+
+/**
+ * 장비만 담은 **클라이언트 안전** 산출물.
+ *
+ * 전체 카탈로그(이름·부위·별칭·근육 723종)는 gzip 10KB인데, 클라이언트가 실제로
+ * 필요로 하는 것은 `supportsPlateBreakdown`의 장비 판별 하나다. 전체를 딸려
+ * 보내면 매 페이지에 그만큼이 낭비된다(계획서 §4 G6이 막으라던 것 — 실제로
+ * 측정해 보니 그 청크의 95%가 카탈로그였다).
+ *
+ * `unknown`은 싣지 않는다 — 조회 실패의 기본값이 곧 `unknown`이라 같은 결과다.
+ */
+function renderEquipmentOutput(items) {
+  const lines = [
+    ...GENERATED_HEADER,
+    'import type { ExerciseEquipment } from "./catalog";',
+    "",
+    "/** 소문자 이름 → 장비. 장비를 아는 항목만 담는다(미수록 = unknown). */",
+    "export const OPEN_EXERCISE_EQUIPMENT: Readonly<Record<string, ExerciseEquipment>> = {",
+  ];
+  for (const item of items) {
+    if (item.equipment === "unknown") continue;
+    lines.push(`  ${JSON.stringify(item.name.toLowerCase())}: ${JSON.stringify(item.equipment)},`);
+  }
+  lines.push("};", "");
+  return lines.join("\n");
+}
+
 function renderOutput(items) {
   const lines = [
-    "// 자동 생성 — web/scripts/build-exercise-catalog.mjs",
-    "//",
-    "// 출처: free-exercise-db (https://github.com/yuhonas/free-exercise-db), Unlicense",
-    "// (퍼블릭 도메인 — 표기 의무는 없으나 출처를 남긴다).",
-    "//",
-    "// 손으로 고치지 말 것. 큐레이션이 필요하면 EXERCISE_CATALOG(수기 항목)에 넣는다 —",
-    "// 이름이 겹치면 수기 항목이 이긴다.",
+    ...GENERATED_HEADER,
+    "// ⚠️ **서버 전용**이다. 클라이언트에서 import하면 723종이 번들에 실린다 —",
+    "// 장비 판별만 필요하면 open-equipment.ts를 쓸 것.",
     "",
     'import type { ExerciseCatalogItem } from "./catalog";',
     "",
@@ -289,7 +322,11 @@ if (aliasCollisions.length > 0) {
 
 if (outPath) {
   writeFileSync(outPath, renderOutput(kept), "utf8");
-  console.log(`산출물 기록: ${outPath} (${kept.length}종)`);
+  const equipmentPath = outPath.replace(/open-catalog\.ts$/, "open-equipment.ts");
+  writeFileSync(equipmentPath, renderEquipmentOutput(kept), "utf8");
+  const knownEquipment = kept.filter((item) => item.equipment !== "unknown").length;
+  console.log(`산출물 기록: ${outPath} (${kept.length}종, 서버 전용)`);
+  console.log(`산출물 기록: ${equipmentPath} (${knownEquipment}종, 클라이언트 안전)`);
 } else {
   console.log("(--out 미지정 — 리포트만 출력했다)");
 }

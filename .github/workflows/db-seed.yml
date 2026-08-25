@@ -57,6 +57,8 @@ jobs:
           DB_SEED_TRACKED_FILES: |-
             ../packages/core/src/db/seed.ts
             ../packages/core/src/exercise/catalog.ts
+            ../packages/core/src/exercise/all-exercises.ts
+            ../packages/core/src/exercise/open-catalog.ts
             ../packages/core/src/program-store/program-registry.ts
             ../packages/core/src/program-store/madcow-blueprint.ts
             ../packages/core/src/program-store/nsuns-blueprint.ts
