@@ -127,7 +127,14 @@ test.describe("personal access tokens", () => {
 
   test("read 토큰은 공개 읽기 경로에서 동작한다", async () => {
     const api = withToken(anon, readToken);
-    for (const path of ["/api/logs", "/api/exercises", "/api/stats/volume", "/api/bodyweight"]) {
+    for (const path of [
+      "/api/logs",
+      "/api/exercises",
+      "/api/stats/volume",
+      "/api/bodyweight",
+      // 백업 스크립트가 PAT의 가장 자연스러운 용도다(§7 결정 8).
+      "/api/export",
+    ]) {
       const response = await api.get(path);
       expect(response.status(), `${path}가 read 토큰에서 막힌다`).toBe(200);
     }
@@ -142,11 +149,13 @@ test.describe("personal access tokens", () => {
 
   test("apps/api가 처리하는 비공개 경로는 401", async () => {
     const api = withToken(anon, readToken);
-    for (const path of ["/api/auth/api-tokens", "/api/settings", "/api/export"]) {
+    for (const path of ["/api/auth/api-tokens", "/api/settings", "/api/stats/ux-snapshot"]) {
       expect((await api.get(path)).status(), `${path}가 PAT에 열려 있다`).toBe(401);
     }
     // 삭제는 어느 스코프로도 열지 않는다.
     expect((await api.delete("/api/logs/00000000-0000-4000-8000-000000000001")).status()).toBe(401);
+    // export는 열었지만 **역방향은 아니다** — replace import는 전부 지운다.
+    expect((await api.post("/api/me/import", { mode: "dryRun" })).status()).toBe(401);
   });
 
   test("web이 직접 처리하는 auth 경로는 PAT로 신원이 서지 않는다", async () => {
