@@ -38,6 +38,8 @@ var settingDefs = []settingDef{
 	{label: "목표", key: "prefs.trainingGoal.primary", kind: skEnum, options: []string{"general", "strength", "hypertrophy", "endurance", "powerlifting"}},
 	{label: "체중", key: "prefs.bodyweight.kg", kind: skNumber, unit: "kg"},
 	{label: "증가단위", key: "prefs.minimumPlate.defaultKg", kind: skNumber, unit: "kg"},
+	// 저장값은 어느 쪽을 골라도 RPE 스케일이다 — 입력·표시 방향만 바뀐다.
+	{label: "강도입력", key: "prefs.intensityInput", kind: skEnum, options: []string{"RPE", "RIR"}},
 }
 
 // --- ACCOUNT section: self-service actions opened as inline password forms ---

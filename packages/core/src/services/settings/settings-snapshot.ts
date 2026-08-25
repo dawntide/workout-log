@@ -14,6 +14,7 @@ import {
   DEFAULT_REST_SECONDS,
   DEFAULT_REST_SOUND_ENABLED,
   DEFAULT_PLATE_BAR_WEIGHT_KG,
+  DEFAULT_INTENSITY_INPUT,
   DEFAULT_PLATE_PLATES_KG,
   DEFAULT_REST_WAKE_LOCK_ENABLED,
 } from "../../settings/workout-preferences";
@@ -40,6 +41,7 @@ export const DEFAULT_SETTINGS: SettingsSnapshot = {
   [SETTINGS_KEYS.restWakeLockEnabled]: DEFAULT_REST_WAKE_LOCK_ENABLED,
   [SETTINGS_KEYS.plateBarWeightKg]: DEFAULT_PLATE_BAR_WEIGHT_KG,
   [SETTINGS_KEYS.platePlatesJson]: JSON.stringify(DEFAULT_PLATE_PLATES_KG),
+  [SETTINGS_KEYS.intensityInput]: DEFAULT_INTENSITY_INPUT,
 };
 
 export async function getSettingsSnapshotForUser(

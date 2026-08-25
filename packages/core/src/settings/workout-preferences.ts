@@ -82,6 +82,14 @@ export type PlateInventoryPreference = {
   platesKg: number[];
 };
 
+/**
+ * 세트 강도를 어느 방향으로 입력·표시할지. **저장값은 항상 RPE 스케일**이고 이건
+ * 표시 설정일 뿐이다 — 세트마다 모드를 기록하면 통계·CSV·TUI로 복잡도가 번지는데
+ * 이득이 없다(계획서 docs/rir-input-plan.md 결정 4).
+ */
+export const INTENSITY_INPUTS = ["RPE", "RIR"] as const;
+export type IntensityInput = (typeof INTENSITY_INPUTS)[number];
+
 export type WorkoutPreferences = {
   locale: LocalePreference;
   theme: ThemePreference;
@@ -98,6 +106,7 @@ export type WorkoutPreferences = {
   restWakeLockEnabled: boolean;
   plateBarWeightKg: number;
   platePlatesKg: number[];
+  intensityInput: IntensityInput;
 };
 
 export type ResolvedMinimumPlateIncrement = {
@@ -121,6 +130,7 @@ export const SETTINGS_KEYS = {
   restWakeLockEnabled: "prefs.rest.wakeLockEnabled",
   plateBarWeightKg: "prefs.plate.barWeightKg",
   platePlatesJson: "prefs.plate.platesJson",
+  intensityInput: "prefs.intensityInput",
 } as const;
 
 export const DEFAULT_LOCALE_PREFERENCE: LocalePreference = "ko";
@@ -129,6 +139,7 @@ export const DEFAULT_LIGHT_COLOR_THEME: LightColorTheme = "PAPER";
 export const DEFAULT_DARK_COLOR_THEME: DarkColorTheme = "OBSIDIAN";
 export const DEFAULT_MINIMUM_PLATE_KG = 2.5;
 export const DEFAULT_BODYWEIGHT_KG: number | null = null;
+export const DEFAULT_INTENSITY_INPUT: IntensityInput = "RPE";
 export const DEFAULT_TRAINING_GOAL_PRIMARY: TrainingGoalKey = "general";
 export const DEFAULT_TRAINING_GOAL_SECONDARY: TrainingGoalKey[] = [];
 /**
@@ -217,6 +228,15 @@ export function normalizeTrainingGoal(value: unknown): TrainingGoalKey {
     return normalized as TrainingGoalKey;
   }
   return DEFAULT_TRAINING_GOAL_PRIMARY;
+}
+
+/** 미지 값은 기본(RPE)으로 떨어진다 — 구 클라이언트가 보낸 값이 화면을 깨지 못한다. */
+export function normalizeIntensityInput(value: unknown): IntensityInput {
+  const normalized = String(value ?? "").trim().toUpperCase();
+  if ((INTENSITY_INPUTS as readonly string[]).includes(normalized)) {
+    return normalized as IntensityInput;
+  }
+  return DEFAULT_INTENSITY_INPUT;
 }
 
 function isTrainingGoalKey(value: unknown): value is TrainingGoalKey {
@@ -466,6 +486,7 @@ export function readWorkoutPreferences(snapshot: SettingsSnapshot): WorkoutPrefe
     restWakeLockEnabled,
     plateBarWeightKg,
     platePlatesKg,
+    intensityInput: normalizeIntensityInput(snapshot[SETTINGS_KEYS.intensityInput]),
   };
 }
 
@@ -486,6 +507,7 @@ export function toDefaultWorkoutPreferences(): WorkoutPreferences {
     restWakeLockEnabled: DEFAULT_REST_WAKE_LOCK_ENABLED,
     plateBarWeightKg: DEFAULT_PLATE_BAR_WEIGHT_KG,
     platePlatesKg: [...DEFAULT_PLATE_PLATES_KG],
+    intensityInput: DEFAULT_INTENSITY_INPUT,
   };
 }
 

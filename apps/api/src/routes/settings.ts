@@ -12,6 +12,7 @@ import {
   DEFAULT_REST_SECONDS,
   DEFAULT_REST_SOUND_ENABLED,
   DEFAULT_PLATE_BAR_WEIGHT_KG,
+  DEFAULT_INTENSITY_INPUT,
   DEFAULT_PLATE_PLATES_KG,
   DEFAULT_REST_WAKE_LOCK_ENABLED,
 } from "@workout/core/settings/workout-preferences";
@@ -35,7 +36,8 @@ type PatchRequestBody = {
   simulateFailure?: unknown;
 };
 
-const DEFAULT_SETTINGS: SettingsSnapshot = {
+// core의 같은 이름 상수와 반드시 일치해야 한다 — settings-defaults.test.ts가 강제한다.
+export const DEFAULT_SETTINGS: SettingsSnapshot = {
   "prefs.locale": "ko",
   "prefs.theme.mode": "SYSTEM",
   [SETTINGS_KEYS.lightColorTheme]: DEFAULT_LIGHT_COLOR_THEME,
@@ -55,6 +57,7 @@ const DEFAULT_SETTINGS: SettingsSnapshot = {
   [SETTINGS_KEYS.restWakeLockEnabled]: DEFAULT_REST_WAKE_LOCK_ENABLED,
   [SETTINGS_KEYS.plateBarWeightKg]: DEFAULT_PLATE_BAR_WEIGHT_KG,
   [SETTINGS_KEYS.platePlatesJson]: JSON.stringify(DEFAULT_PLATE_PLATES_KG),
+  [SETTINGS_KEYS.intensityInput]: DEFAULT_INTENSITY_INPUT,
 };
 
 // Per-user in-memory fallback, used only if the user_setting table is missing
