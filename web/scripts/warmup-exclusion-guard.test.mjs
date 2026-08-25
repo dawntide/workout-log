@@ -27,6 +27,7 @@ const FILTERS_IN_SQL = new Set([
   "packages/core/src/stats/bundle-service.ts",
   "packages/core/src/stats/e1rm-service.ts",
   "packages/core/src/stats/endurance-service.ts",
+  "packages/core/src/stats/muscle-freshness-service.ts",
   "packages/core/src/stats/muscle-volume-service.ts",
   "packages/core/src/stats/prs-service.ts",
   "packages/core/src/stats/strength-score-service.ts",
