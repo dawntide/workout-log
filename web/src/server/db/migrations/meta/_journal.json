@@ -204,6 +204,13 @@
       "when": 1784875369470,
       "tag": "0028_workout_set_type",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1784961769470,
+      "tag": "0029_body_measurement",
+      "breakpoints": true
     }
   ]
 }

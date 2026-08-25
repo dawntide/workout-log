@@ -21,6 +21,7 @@ const CLEANUP_POLICY: Record<string, CleanupKind> = {
   plan_runtime_state: "domain-helper",
   generated_session: "domain-helper",
   workout_log: "domain-helper",
+  body_measurement: "domain-helper",
   plan_progress_event: "cascade", // plan/workout_log FK ON DELETE CASCADE
   stats_cache: "account-route", // invalidateStatsCacheForUser
   user_setting: "account-route",

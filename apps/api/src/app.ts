@@ -9,6 +9,7 @@ import { apiLogger } from "./lib/http";
 import { authRoutes } from "./routes/auth";
 import { logsRoutes } from "./routes/logs";
 import { statsRoutes } from "./routes/stats";
+import { bodyweightRoutes } from "./routes/bodyweight";
 import { exercisesRoutes } from "./routes/exercises";
 import { settingsRoutes } from "./routes/settings";
 import { plansRoutes } from "./routes/plans";
@@ -65,6 +66,7 @@ app.route("/api/logs", logsRoutes);
 // --- stats group (GET /api/stats/{e1rm,bundle,volume-series,prs,
 // strength-summary,volume}) ---
 app.route("/api/stats", statsRoutes);
+app.route("/api/bodyweight", bodyweightRoutes); // GET/POST/DELETE — 체중 기록 이력
 
 // --- exercises group (GET/POST /api/exercises, GET /api/exercises/categories,
 // POST /api/exercises/alias, PATCH/DELETE /api/exercises/:exerciseId) ---

@@ -7,6 +7,7 @@ import {
   plan,
   planModule,
   planOverride,
+  bodyMeasurement,
   planRuntimeState,
   programTemplate,
   programVersion,
@@ -125,6 +126,7 @@ async function loadExistingCounts(executor: WorkoutExecutor, userId: string) {
     existingGeneratedSessions,
     existingWorkoutSets,
     existingTemplateVersions,
+    existingBodyMeasurements,
   ] = await Promise.all([
     planIds.length
       ? executor
@@ -162,6 +164,10 @@ async function loadExistingCounts(executor: WorkoutExecutor, userId: string) {
           .from(programVersion)
           .where(inArray(programVersion.templateId, templateIds))
       : Promise.resolve([]),
+    executor
+      .select({ id: bodyMeasurement.id })
+      .from(bodyMeasurement)
+      .where(eq(bodyMeasurement.userId, userId)),
   ]);
 
   return {
@@ -178,6 +184,7 @@ async function loadExistingCounts(executor: WorkoutExecutor, userId: string) {
       generatedSession: existingGeneratedSessions.length,
       workoutLog: logIds.length,
       workoutSet: existingWorkoutSets.length,
+      bodyMeasurement: existingBodyMeasurements.length,
     },
   };
 }
@@ -196,6 +203,7 @@ function buildSummary(
     "generatedSession",
     "workoutLog",
     "workoutSet",
+    "bodyMeasurement",
   ];
   return tables.map((table) => ({
     table,
@@ -230,6 +238,8 @@ export async function importUserData(
   );
   const workoutLogs = rewriteUserId(rowsAsRecords(data.workoutLogs), userId);
   const workoutSets = rowsAsRecords(data.workoutSets);
+  // 구 export 파일에는 이 키가 없다 — 부재를 빈 배열로 다룬다(형식 거부 아님).
+  const bodyMeasurements = rewriteUserId(rowsAsRecords(data.bodyMeasurements ?? []), userId);
 
   // 자식 행이 파일 밖(=남의) 부모를 가리키면 거부한다. dryRun에서도 막아야 미리보기가
   // "괜찮다"고 답한 뒤 replace에서만 터지는 일이 없다. 삭제보다 먼저 검사한다.
@@ -259,6 +269,7 @@ export async function importUserData(
     generatedSession: generatedSessions.length,
     workoutLog: workoutLogs.length,
     workoutSet: workoutSets.length,
+    bodyMeasurement: bodyMeasurements.length,
   };
 
   if (mode === "dryRun") {
@@ -360,6 +371,16 @@ export async function importUserData(
       await tx
         .insert(workoutSet)
         .values(toInsertRows<typeof workoutSet.$inferInsert>(workoutSet, sanitizedSets));
+    }
+    if (bodyMeasurements.length > 0) {
+      await tx
+        .insert(bodyMeasurement)
+        .values(
+          toInsertRows<typeof bodyMeasurement.$inferInsert>(bodyMeasurement, bodyMeasurements, [
+            "measuredAt",
+            "createdAt",
+          ]),
+        );
     }
   });
 

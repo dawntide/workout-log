@@ -9,6 +9,7 @@ import {
   programTemplate,
   programVersion,
   workoutLog,
+  bodyMeasurement,
   workoutSet,
 } from "@workout/core/db/schema";
 
@@ -45,6 +46,7 @@ export async function deleteUserDomainData(
     await executor.delete(workoutSet).where(inArray(workoutSet.logId, logIds));
   }
   await executor.delete(workoutLog).where(eq(workoutLog.userId, userId));
+  await executor.delete(bodyMeasurement).where(eq(bodyMeasurement.userId, userId));
 
   if (planIds.length > 0) {
     await executor

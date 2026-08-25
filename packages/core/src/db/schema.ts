@@ -460,6 +460,37 @@ export const workoutSet = table(
 );
 
 /**
+ * body_measurement: 신체 측정 이력 (현재는 체중 하나)
+ *
+ * 설정의 `prefs.bodyweight.kg`는 **오늘 체중**으로 남는다 — 처방 시드·저장 스탬프·
+ * REF5 시작 입력이 그 값을 쓰고 그게 옳다. 이 테이블은 **과거에 소급 적용해야 하는**
+ * 지표(강도 점수·asymptote 모니터)가 세션 시점 체중을 찾을 수 있게 한다.
+ *
+ * `kind`는 값이 하나뿐이지만 컬럼으로 둔다 — 새 측정 항목이 생길 때 테이블을 추가하면
+ * 스키마·마이그레이션 2벌·export·import·삭제·API 8단계를 또 밟아야 하는데,
+ * 컬럼 하나가 훨씬 싸다(계획서 docs/bodyweight-timeseries-plan.md §7-1).
+ */
+export const bodyMeasurement = table(
+  "body_measurement",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => appUser.id, { onDelete: "cascade" }),
+
+    kind: text("kind").notNull().default("weight"),
+    valueKg: numeric("value_kg", { precision: 6, scale: 2, mode: "number" }).notNull(),
+    measuredAt: timestamp("measured_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    // 같은 시각 중복을 막고 upsert("고쳐 적기")를 가능하게 한다.
+    uniqueIndex("body_measurement_user_kind_at_uq").on(t.userId, t.kind, t.measuredAt),
+    index("body_measurement_user_kind_at_idx").on(t.userId, t.kind, t.measuredAt.desc()),
+  ],
+);
+
+/**
  * stats_cache: cached aggregate payloads for expensive stats queries
  */
 export const statsCache = table(

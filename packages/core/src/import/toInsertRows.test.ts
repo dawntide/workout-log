@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { planModule, workoutLog, workoutSet } from "@workout/core/db/schema";
+import { bodyMeasurement, planModule, workoutLog, workoutSet } from "@workout/core/db/schema";
 import { toInsertRows } from "./userImport";
 
 // 종전에는 파싱한 JSON을 그대로 `.values(rows as any)`로 넘겨, 무엇이 INSERT되는지
@@ -61,4 +61,26 @@ test("세트 타입이 없는 레거시 export는 컬럼을 만들어내지 않�
     { id: "set-1", logId: "log-1", exerciseName: "Back Squat" },
   ]);
   assert.ok(!("setType" in row!), "없는 키를 넣으면 컬럼 기본값(NULL=작업 세트)이 죽는다");
+});
+
+test("체중 기록의 타임스탬프 2개가 Date로 복원된다", () => {
+  // measuredAt을 문자열로 두면 삽입이 실패하거나 조용히 틀린 시각이 들어간다.
+  const [row] = toInsertRows<typeof bodyMeasurement.$inferInsert>(
+    bodyMeasurement,
+    [
+      {
+        id: "bm-1",
+        userId: "user-1",
+        kind: "weight",
+        valueKg: 72.5,
+        measuredAt: "2026-03-01T07:00:00.000Z",
+        createdAt: "2026-03-01T07:00:01.000Z",
+      },
+    ],
+    ["measuredAt", "createdAt"],
+  );
+  assert.ok(row!.measuredAt instanceof Date);
+  assert.ok(row!.createdAt instanceof Date);
+  assert.equal((row!.measuredAt as Date).toISOString(), "2026-03-01T07:00:00.000Z");
+  assert.equal(row!.valueKg, 72.5);
 });

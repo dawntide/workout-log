@@ -10,6 +10,7 @@ import {
   programTemplate,
   programVersion,
   workoutLog,
+  bodyMeasurement,
   workoutSet,
 } from "@workout/core/db/schema";
 
@@ -27,6 +28,11 @@ export type UserDataExport = {
   workoutSets: unknown[];
   exercises: unknown[];
   exerciseAliases: unknown[];
+  /**
+   * v1 이후 추가된 키. **구 export 파일에는 없다** — import는 부재를 정상으로 다뤄야
+   * 하므로 validateExportShape의 필수 배열 목록에는 넣지 않는다.
+   */
+  bodyMeasurements?: unknown[];
 };
 
 function csvCell(value: unknown): string {
@@ -123,6 +129,12 @@ export async function buildUserDataExport(userId: string): Promise<UserDataExpor
           .orderBy(asc(exerciseAlias.alias))
       : [];
 
+  const bodyMeasurements = await db
+    .select()
+    .from(bodyMeasurement)
+    .where(eq(bodyMeasurement.userId, userId))
+    .orderBy(asc(bodyMeasurement.measuredAt));
+
   return {
     version: 1,
     exportedAt: new Date().toISOString(),
@@ -137,6 +149,7 @@ export async function buildUserDataExport(userId: string): Promise<UserDataExpor
     workoutSets,
     exercises,
     exerciseAliases,
+    bodyMeasurements,
   };
 }
 
