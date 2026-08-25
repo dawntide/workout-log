@@ -1,0 +1,19 @@
+{
+  "__doc": "강도 입력 변환 골든 — TS toStoredIntensity/toDisplayIntensity(packages/core/src/settings/intensity.ts)와 Go intensityToStored/intensityToDisplay(apps/tui/internal/ui/log_model.go)가 같은 값을 내야 한다. stored는 언제나 RPE 스케일. RIR은 0~5로 클램프되므로 stored가 5~10을 벗어나지 않는다(REF5의 rpe:0 센티널 비침범).",
+  "rirCases": [
+    { "shown": 0, "stored": 10 },
+    { "shown": 0.5, "stored": 9.5 },
+    { "shown": 1, "stored": 9 },
+    { "shown": 2, "stored": 8 },
+    { "shown": 3.5, "stored": 6.5 },
+    { "shown": 5, "stored": 5 },
+    { "shown": 9, "stored": 5 },
+    { "shown": 99, "stored": 5 },
+    { "shown": -3, "stored": 10 }
+  ],
+  "rpeCases": [
+    { "shown": 5, "stored": 5 },
+    { "shown": 8.5, "stored": 8.5 },
+    { "shown": 10, "stored": 10 }
+  ]
+}

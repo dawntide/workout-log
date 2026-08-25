@@ -785,7 +785,8 @@ func (l Log) beginEdit(t editTarget) (Log, tea.Cmd) {
 			ti.SetValue(s.reps)
 		case colRPE:
 			ti.SetWidth(3)
-			ti.SetValue(s.rpe)
+			// setEntry.rpe는 언제나 RPE 스케일이다 — 편집기에만 사용자 방향으로 보인다.
+			ti.SetValue(displayIntensityText(s.rpe, l.intensity == "RIR"))
 		}
 	}
 	l.edit, l.editing, l.target = ti, true, t
@@ -820,7 +821,9 @@ func (l *Log) writeEdit() {
 		case colReps:
 			l.groups[l.gi].sets[l.si].reps = v
 		case colRPE:
-			l.groups[l.gi].sets[l.si].rpe = v
+			// 편집기 값은 사용자 방향이다. 저장 표현(RPE 스케일)으로 되돌려 넣는다 —
+			// 이렇게 하면 저장·검증·로드 경로가 전부 모드를 몰라도 된다.
+			l.groups[l.gi].sets[l.si].rpe = storedIntensityText(v, l.intensity == "RIR")
 		}
 	}
 	l.invalidateProgressionChoices()

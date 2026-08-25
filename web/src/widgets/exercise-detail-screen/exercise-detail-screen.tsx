@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { V2Card, V2Chip, V2Hairline, V2IconBtn } from "@/components/v2/primitives";
 import { AppPage } from "@/components/ui/page-layout";
 import { useLocale } from "@/components/locale-provider";
+import { toDisplayIntensity } from "@workout/core/settings/intensity";
+import type { IntensityInput } from "@/lib/settings/workout-preferences";
 import {
   E1RMInteractiveChart,
   clampIndex,
@@ -221,10 +223,14 @@ function PrHistory({
 function RecentSets({
   items,
   locale,
+  intensityMode,
 }: {
   items: ExerciseDetailSet[];
   locale: "ko" | "en";
+  intensityMode: IntensityInput;
 }) {
+  const { copy } = useLocale();
+  const isRir = intensityMode === "RIR";
   const grouped = useMemo(() => {
     const map = new Map<string, ExerciseDetailSet[]>();
     for (const set of items) {
@@ -310,11 +316,13 @@ function RecentSets({
                   {locale === "ko" ? "회" : " reps"}
                 </span>
                 <span style={{ color: "var(--v2-ink-2)" }}>
-                  {set.rpe == null
-                    ? locale === "ko"
-                      ? "RPE -"
-                      : "RPE -"
-                    : `RPE ${set.rpe}`}
+                  {(() => {
+                    const label = isRir
+                      ? copy.workoutLog.intensity.rirHeader
+                      : copy.workoutLog.intensity.rpeHeader;
+                    const shown = toDisplayIntensity(set.rpe, intensityMode);
+                    return shown == null ? `${label} -` : `${label} ${shown}`;
+                  })()}
                 </span>
               </div>
             ))}
@@ -336,8 +344,10 @@ export function ExerciseDetailScreen({
   avgRpe90d,
   rangeFrom,
   rangeTo,
-}: ExerciseDetailScreenProps) {
-  const { locale } = useLocale();
+  intensityMode,
+}: ExerciseDetailScreenProps & { intensityMode: IntensityInput }) {
+  const { locale, copy } = useLocale();
+  const isRir = intensityMode === "RIR";
   const router = useRouter();
   const [activeIndex, setActiveIndex] = useState<number>(() =>
     Math.max(0, e1rmSeries.length - 1),
@@ -453,13 +463,22 @@ export function ExerciseDetailScreen({
               icon="fitness_center"
             />
             <MetricCard
-              label={locale === "ko" ? "평균 RPE" : "Avg RPE"}
-              value={avgRpe90d == null ? "-" : avgRpe90d.toFixed(1)}
+              label={
+                isRir
+                  ? copy.workoutLog.intensity.rirAverage
+                  : copy.workoutLog.intensity.rpeAverage
+              }
+              value={
+                avgRpe90d == null
+                  ? "-"
+                  : // 평균의 선형 변환이라 "평균 RIR = 10 - 평균 RPE"가 성립한다.
+                    (isRir ? 10 - avgRpe90d : avgRpe90d).toFixed(1)
+              }
               caption={
                 avgRpe90d == null
                   ? locale === "ko"
-                    ? "RPE 기록 없음"
-                    : "No RPE entries"
+                    ? "기록 없음"
+                    : "No entries"
                   : locale === "ko"
                     ? "최근 90일 평균"
                     : "Last 90 days"
@@ -538,7 +557,7 @@ export function ExerciseDetailScreen({
             }
           />
           <V2Hairline />
-          <RecentSets items={recentSets} locale={locale} />
+          <RecentSets items={recentSets} locale={locale} intensityMode={intensityMode} />
         </section>
       </div>
     </AppPage>

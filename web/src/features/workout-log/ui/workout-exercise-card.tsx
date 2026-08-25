@@ -57,7 +57,7 @@ const TEXAS_ROLE_LABEL: Record<string, { ko: string; en: string }> = {
 };
 
 export function WorkoutExerciseCard({ exerciseId, onExerciseAction }: Props) {
-  const { locale } = useLocale();
+  const { locale, copy } = useLocale();
   const startRestTimer = useStartRestTimer();
   const [plateSheetOpen, setPlateSheetOpen] = useState(false);
   const exerciseCardAtom = useMemo(
@@ -67,6 +67,7 @@ export function WorkoutExerciseCard({ exerciseId, onExerciseAction }: Props) {
   const exerciseCard = useAtomValue(exerciseCardAtom);
   const recentLogItems = useAtomValue(recentLogItemsAtom);
   const workoutPreferences = useAtomValue(workoutPreferencesAtom);
+  const intensityMode = workoutPreferences.intensityInput;
   const focusChain = useSetRowFocusChain();
   const cardRef = useRef<HTMLElement>(null);
 
@@ -543,7 +544,9 @@ export function WorkoutExerciseCard({ exerciseId, onExerciseAction }: Props) {
             {locale === "ko" ? "반복" : "REPS"}
           </span>
           <span style={{ textAlign: "center", color: "var(--v2-c-warning)" }}>
-            RPE
+            {intensityMode === "RIR"
+              ? copy.workoutLog.intensity.rirHeader
+              : copy.workoutLog.intensity.rpeHeader}
           </span>
           <span style={{ textAlign: "center" }}>✓</span>
         </div>

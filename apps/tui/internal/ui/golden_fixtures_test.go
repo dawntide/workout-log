@@ -131,3 +131,34 @@ func TestGoldenE1rm(t *testing.T) {
 		}
 	}
 }
+
+func TestGoldenIntensityConversion(t *testing.T) {
+	var fx struct {
+		RirCases []struct {
+			Shown  float64 `json:"shown"`
+			Stored float64 `json:"stored"`
+		} `json:"rirCases"`
+		RpeCases []struct {
+			Shown  float64 `json:"shown"`
+			Stored float64 `json:"stored"`
+		} `json:"rpeCases"`
+	}
+	readFixture(t, "intensity.json", &fx)
+	if len(fx.RirCases) == 0 {
+		t.Fatal("intensity fixture rirCases 비어 있음")
+	}
+	for _, c := range fx.RirCases {
+		if got := intensityToStored(c.Shown, true); got != c.Stored {
+			t.Errorf("intensityToStored(%v, RIR) = %v, want %v", c.Shown, got, c.Stored)
+		}
+		// 저장값이 5..10을 벗어나면 REF5의 rpe:0 센티널과 충돌할 수 있다.
+		if c.Stored < 5 || c.Stored > 10 {
+			t.Errorf("RIR 저장값 %v 가 5..10 밖 — 센티널 충돌 위험", c.Stored)
+		}
+	}
+	for _, c := range fx.RpeCases {
+		if got := intensityToStored(c.Shown, false); got != c.Stored {
+			t.Errorf("intensityToStored(%v, RPE) = %v, want %v", c.Shown, got, c.Stored)
+		}
+	}
+}

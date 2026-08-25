@@ -212,6 +212,62 @@ func rpeString(rpe *float64) string {
 	return trimNum(*rpe)
 }
 
+// maxRirInput mirrors MAX_RIR in packages/core/src/settings/intensity.ts.
+//
+// rpe = 10 - rir 이므로 rir을 10까지 열면 rpe = 0이 나오는데, 그건 REF5가 "값 없음"
+// 으로 쓰는 센티널과 구별할 수 없다. 5로 막으면 저장값이 5~10이라 충돌이 없다.
+const maxRirInput = 5
+
+// intensityToStored converts what the user typed into the stored RPE scale.
+// RIR mode flips it (rir 0 = rpe 10). RPE mode passes through.
+func intensityToStored(input float64, isRir bool) float64 {
+	if !isRir {
+		return input
+	}
+	if input < 0 {
+		input = 0
+	}
+	if input > maxRirInput {
+		input = maxRirInput
+	}
+	return 10 - input
+}
+
+// intensityToDisplay is the inverse — stored RPE to what the cell shows.
+func intensityToDisplay(stored float64, isRir bool) float64 {
+	if !isRir {
+		return stored
+	}
+	return 10 - stored
+}
+
+// displayIntensityText / storedIntensityText translate the cell's text form.
+// Empty stays empty (no value), and unparseable input passes through so the
+// existing validation can report it instead of this silently eating the typo.
+func displayIntensityText(stored string, isRir bool) string {
+	trimmed := strings.TrimSpace(stored)
+	if trimmed == "" || !isRir {
+		return trimmed
+	}
+	value, err := strconv.ParseFloat(trimmed, 64)
+	if err != nil {
+		return trimmed
+	}
+	return trimNum(intensityToDisplay(value, true))
+}
+
+func storedIntensityText(shown string, isRir bool) string {
+	trimmed := strings.TrimSpace(shown)
+	if trimmed == "" || !isRir {
+		return trimmed
+	}
+	value, err := strconv.ParseFloat(trimmed, 64)
+	if err != nil {
+		return trimmed
+	}
+	return trimNum(intensityToStored(value, true))
+}
+
 // maxTrustedE1rmReps mirrors MAX_TRUSTED_REPS in packages/core/src/stats/e1rm.ts.
 const maxTrustedE1rmReps = 15
 
