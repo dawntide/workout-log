@@ -7,35 +7,15 @@ import type { MuscleVolumeResult } from "@workout/core/stats/muscle-volume-servi
 import type { StrengthScoreResult } from "@workout/core/stats/strength-score-service";
 import type { TrainingGoalKey } from "@/lib/settings/workout-preferences";
 import type { HomeData } from "@/lib/home/home-data-source";
+import {
+  MUSCLE_GROUP_LABEL_EN,
+  MUSCLE_GROUP_LABEL_KO,
+} from "@/lib/i18n/muscle-group-labels";
 
 export type GoalSectionMetrics = {
   muscleVolume: MuscleVolumeResult | null;
   strengthScore: StrengthScoreResult | null;
   endurance: EnduranceResult | null;
-};
-
-const MUSCLE_GROUP_LABEL_KO: Record<string, string> = {
-  Quad: "대퇴사두",
-  Hamstring: "햄스트링",
-  Glute: "둔근",
-  Back: "등",
-  Chest: "가슴",
-  Shoulder: "어깨",
-  Arm: "팔",
-  Core: "코어",
-  Other: "기타",
-};
-
-const MUSCLE_GROUP_LABEL_EN: Record<string, string> = {
-  Quad: "Quads",
-  Hamstring: "Hamstrings",
-  Glute: "Glutes",
-  Back: "Back",
-  Chest: "Chest",
-  Shoulder: "Shoulders",
-  Arm: "Arms",
-  Core: "Core",
-  Other: "Other",
 };
 
 const WEEKDAY_LABEL_KO = ["일", "월", "화", "수", "목", "금", "토"] as const;

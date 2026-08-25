@@ -29,6 +29,8 @@ import {
   fetchAsymptoteDriverMonitor,
   type AsymptoteMonitorResult,
 } from "@workout/core/stats/asymptote-monitor-service";
+import { fetchMuscleFreshness } from "@workout/core/stats/muscle-freshness-service";
+import type { MuscleFreshnessResult } from "@workout/core/stats/muscle-freshness";
 
 type SearchParams = Record<string, string | string[] | undefined>;
 
@@ -93,6 +95,10 @@ export type StatsPageBootstrap = {
   goalMetrics: StatsGoalMetrics;
   // 하이브리드 드라이버 e1RM 모니터. asymptote 플랜이 없으면 null(섹션 미표시).
   asymptoteMonitor: AsymptoteMonitorResult | null;
+  // 부위별 신선도. **시간 함수라 응답 시각 기준**으로 계산된다 — 부트스트랩 응답을
+  // 캐시하면 낡은 값이 굳는다. 클라이언트가 network-only로 받고 있어(
+  // STATS_BOOTSTRAP_REQUEST_OPTIONS) 지금은 안전하다.
+  muscleFreshness: MuscleFreshnessResult | null;
 };
 
 const STATS_GOAL_METRICS_RANGE_DAYS = 56;
@@ -151,14 +157,26 @@ export async function getStatsPageBootstrap(
     userId,
     bodyweightKg: prefs.bodyweightKg,
   });
+  // 신선도는 실패해도 화면 전체를 막지 않는다 — 부가 정보다.
+  const muscleFreshnessPromise = fetchMuscleFreshness({ userId, now: new Date() }).catch(
+    () => null,
+  );
 
   if (defer1rmBootstrap) {
-    const [bundle, volumeWeekly, defaultExerciseId, goalMetrics, asymptoteMonitor] = await Promise.all([
+    const [
+      bundle,
+      volumeWeekly,
+      defaultExerciseId,
+      goalMetrics,
+      asymptoteMonitor,
+      muscleFreshness,
+    ] = await Promise.all([
       fetchStatsBundle({ userId, days: 90, locale }),
       fetchWeeklyVolumeForBootstrap(userId, locale),
       fetchDefaultStatsExerciseId(userId),
       goalMetricsPromise,
       asymptoteMonitorPromise,
+      muscleFreshnessPromise,
     ]);
     return {
       initialBundle: bundle,
@@ -171,12 +189,21 @@ export async function getStatsPageBootstrap(
       goal,
       goalMetrics,
       asymptoteMonitor,
+      muscleFreshness,
     };
   }
 
   // PERF: exerciseId/exerciseName이 URL에 이미 있으면 4개 fetch를 모두 병렬로 실행
   if (selectedExerciseId || selectedExerciseName) {
-    const [bundle, filterOptions, initialE1rm, volumeWeekly, goalMetrics, asymptoteMonitor] = await Promise.all([
+    const [
+      bundle,
+      filterOptions,
+      initialE1rm,
+      volumeWeekly,
+      goalMetrics,
+      asymptoteMonitor,
+      muscleFreshness,
+    ] = await Promise.all([
       fetchStatsBundle({ userId, days: 90, locale }),
       fetchStats1RMFilterOptions(userId),
       fetchE1rmStats({
@@ -191,6 +218,7 @@ export async function getStatsPageBootstrap(
       fetchWeeklyVolumeForBootstrap(userId, locale),
       goalMetricsPromise,
       asymptoteMonitorPromise,
+      muscleFreshnessPromise,
     ]);
     return {
       initialBundle: bundle,
@@ -204,6 +232,7 @@ export async function getStatsPageBootstrap(
       goal,
       goalMetrics,
       asymptoteMonitor,
+      muscleFreshness,
     };
   }
 
@@ -212,7 +241,15 @@ export async function getStatsPageBootstrap(
   // bundle + filterOptions + e1rm + volumeWeekly를 모두 병렬로 실행
   const initialExerciseId = await fetchDefaultStatsExerciseId(userId) ?? "";
 
-  const [bundle, filterOptions, initialE1rm, volumeWeekly, goalMetrics, asymptoteMonitor] = await Promise.all([
+  const [
+    bundle,
+    filterOptions,
+    initialE1rm,
+    volumeWeekly,
+    goalMetrics,
+    asymptoteMonitor,
+    muscleFreshness,
+  ] = await Promise.all([
     fetchStatsBundle({ userId, days: 90, locale }),
     fetchStats1RMFilterOptions(userId),
     initialExerciseId
@@ -229,6 +266,7 @@ export async function getStatsPageBootstrap(
     fetchWeeklyVolumeForBootstrap(userId, locale),
     goalMetricsPromise,
     asymptoteMonitorPromise,
+    muscleFreshnessPromise,
   ]);
 
   return {
@@ -243,5 +281,6 @@ export async function getStatsPageBootstrap(
     goal,
     goalMetrics,
     asymptoteMonitor,
+    muscleFreshness,
   };
 }
