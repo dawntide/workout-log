@@ -1,4 +1,4 @@
-import { eq, getTableColumns, inArray } from "drizzle-orm";
+import { asc, eq, getTableColumns, inArray } from "drizzle-orm";
 import type { PgTable } from "drizzle-orm/pg-core";
 import { type WorkoutExecutor, db } from "@workout/core/db/client";
 import {
@@ -20,6 +20,10 @@ import { validateImportParentScope } from "./validateImportScope";
 import { deleteUserDomainData } from "../data/deleteUserData";
 import { acquireActiveAccountMutationLock } from "../auth/account-lifecycle";
 import { invalidatePersonalRecordsFrom } from "../services/workout-log/personal-records";
+import {
+  readStoredDecisionsByLogId,
+  rebuildAutoProgressionForPlan,
+} from "../progression/autoProgression";
 
 export { validateExportShape };
 
@@ -29,6 +33,12 @@ export type ImportTableSummary = {
   table: string;
   willDelete: number;
   willInsert: number;
+  /**
+   * 파일에서 복원하지 않고 import 후 **로그로부터 재계산**하는 파생 테이블 표시.
+   * 이 행의 `willInsert`는 항상 0이다 — 파일에 담기지 않으므로 삽입할 것이 없다.
+   * 이 표식이 없으면 미리보기가 `삭제 N → 삽입 0`으로 보여 데이터 손실처럼 읽힌다.
+   */
+  willRecompute?: true;
 };
 
 export type ImportPlanResult = {
@@ -189,6 +199,29 @@ async function loadExistingCounts(executor: WorkoutExecutor, userId: string) {
   };
 }
 
+/**
+ * import가 파일에서 복원하지 않고 재계산하는 테이블.
+ *
+ * `plan_runtime_state`는 로그에서 파생되는 상태다. replace import는 로그 자체를
+ * 갈아끼우므로 파일에 담긴 옛 상태를 되살리면 새 로그와 어긋난다 — 그래서 export에
+ * 넣는 대신 삽입이 끝난 뒤 `rebuildAutoProgressionForPlan`으로 다시 만든다.
+ */
+const RECOMPUTED_TABLES = new Set(["planRuntimeState"]);
+
+/**
+ * 재계산을 건너뛴 사유 중 **자동 진행 플랜인데 못 만든** 경우.
+ *
+ * `resolveAutoProgressionContext`는 `skip:disabled`(= autoProgression 미사용)를
+ * 먼저 걸러내므로, 아래 사유까지 왔다면 그 플랜은 자동 진행이 켜져 있는데 프로그램을
+ * 찾지 못한 것이다 → 진행 상태 없이 끝나므로 경고로 남긴다.
+ */
+const REBUILD_LOST_REASONS = new Set([
+  "skip:no-root-program",
+  "skip:version-missing",
+  "skip:template-missing",
+  "skip:unsupported-program",
+]);
+
 function buildSummary(
   existing: { counts: Record<string, number> },
   insertCounts: Record<string, number>,
@@ -209,6 +242,7 @@ function buildSummary(
     table,
     willDelete: existing.counts[table] ?? 0,
     willInsert: insertCounts[table] ?? 0,
+    ...(RECOMPUTED_TABLES.has(table) ? { willRecompute: true as const } : {}),
   }));
 }
 
@@ -265,6 +299,7 @@ export async function importUserData(
     plan: plans.length,
     planModule: planModules.length,
     planOverride: planOverrides.length,
+    // 파일에서 삽입하지 않는다 — import 후 로그에서 재계산한다(RECOMPUTED_TABLES).
     planRuntimeState: 0,
     generatedSession: generatedSessions.length,
     workoutLog: workoutLogs.length,
@@ -307,6 +342,12 @@ export async function importUserData(
       }
       return row;
     });
+
+    // plan을 지우면 plan_progress_event가 cascade로 함께 사라진다. 그 안의
+    // meta.targetDecisionsOverride(사용자가 세션마다 직접 고른 증감량)는 로그에서 다시
+    // 유도할 수 없으므로 삭제 전에 걷어 두고 아래 재계산에 되돌려 넣는다. 자기 export를
+    // 되돌리는 흔한 경우는 로그 id가 그대로라 결정이 그대로 살아난다.
+    const carriedDecisionsByLogId = await readStoredDecisionsByLogId(tx, userId);
 
     await deleteUserDomainData(tx, userId);
 
@@ -381,6 +422,40 @@ export async function importUserData(
             "createdAt",
           ]),
         );
+    }
+
+    // plan_runtime_state를 로그에서 다시 만든다.
+    //
+    // deleteUserDomainData가 이 테이블을 지우는데 export에는 없어서, 종전에는 replace
+    // import가 자동 진행 상태(workKg·stage·failureStreak)를 지운 뒤 복원하지 않았다 →
+    // 프로그램이 템플릿 시작 무게로 되돌아갔다. 파일에 담아 복원하는 대신 재계산하는
+    // 이유는 이게 파생 상태이기 때문이다 — replace는 로그 자체를 갈아끼우므로 파일의
+    // 옛 상태를 되살리면 새 로그와 어긋난다. plan_progress_event도 같은 이유로 옮기지
+    // 않으며, 여기서 로그와 함께 다시 만들어진다.
+    //
+    // **트랜잭션 안에서** 돈다: 재계산이 실패한 채로 커밋되면 그게 바로 위 결함이므로,
+    // 실패하면 import 전체를 롤백해 사용자의 기존 데이터를 그대로 남긴다.
+    //
+    // 순차 실행이 필수다 — 단일 커넥션 트랜잭션이라 쿼리를 병렬로 섞을 수 없다.
+    // 방금 삽입된 것을 payload가 아니라 DB에서 되읽는다(id 없는 행까지 정확히 포함).
+    const rebuildTargets = await tx
+      .select({ id: plan.id })
+      .from(plan)
+      .where(eq(plan.userId, userId))
+      .orderBy(asc(plan.createdAt), asc(plan.id));
+    for (const target of rebuildTargets) {
+      // 자동 진행이 아닌 플랜은 rebuild가 skip:disabled로 즉시 빠져나온다(쿼리 1회).
+      const rebuilt = await rebuildAutoProgressionForPlan({
+        tx,
+        userId,
+        planId: target.id,
+        carriedDecisionsByLogId,
+      });
+      if (!rebuilt.applied && REBUILD_LOST_REASONS.has(rebuilt.reason)) {
+        warnings.push(
+          `auto-progression state not rebuilt for plan ${target.id} (${rebuilt.reason})`,
+        );
+      }
     }
   });
 
