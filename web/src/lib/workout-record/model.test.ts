@@ -1065,3 +1065,72 @@ test("세트 타입: 세트를 늘려도 마지막 태그가 새 세트로 번�
   // reps·무게는 마지막 값을 이어받지만(세트 추가의 상식적 기본값), 타입은 아니다.
   assert.deepEqual(exercise.set.setTypePerSet, ["WARMUP", null, null]);
 });
+
+// ── 미입력 RPE (M2-2 PR1) ───────────────────────────────────────────────────
+// 화면 배열은 빈 셀을 0으로 들고 있다. 그 0이 그대로 저장되면 평균 RPE가 희석된다
+// (prod 실측 2026-08-25: 739세트 중 692가 rpe=0, 평균 0.16 — 실제 입력 평균은 8.00).
+
+function rpeDraft(rpePerSet: number[]) {
+  const session: GeneratedSessionLike = {
+    id: "session-rpe-null",
+    planId: "plan-rpe-null",
+    sessionKey: "2026-08-25",
+    snapshot: { sessionKey: "2026-08-25", sessionDate: "2026-08-25", week: 1, day: 1, exercises: [] },
+  };
+  const draft = addUserExercise(
+    createWorkoutRecordDraft(session, "RPE Plan", {
+      sessionDate: "2026-08-25",
+      timezone: "Asia/Seoul",
+    }),
+    {
+      exerciseId: "exercise-bench",
+      exerciseName: "Bench Press",
+      weightKg: 100,
+      repsPerSet: rpePerSet.map(() => 5),
+      memo: "",
+    },
+  );
+  const id = draft.userExercises[0]!.id;
+  return toWorkoutLogPayload(updateUserExercise(draft, id, { set: { rpePerSet } }));
+}
+
+test("미입력 RPE는 0이 아니라 null로 전송된다", () => {
+  assert.deepEqual(
+    rpeDraft([0, 0]).sets.map((set) => set.rpe),
+    [null, null],
+  );
+});
+
+test("입력한 세트와 미입력 세트가 섞여도 각자 옳게 간다", () => {
+  assert.deepEqual(
+    rpeDraft([8, 0, 9.5]).sets.map((set) => set.rpe),
+    [8, null, 9.5],
+  );
+});
+
+test("RPE를 아예 만지지 않은 운동도 null로 간다", () => {
+  // normalizeRpePerSetArray가 0으로 채운 기본 상태 — 가장 흔한 경우다.
+  const session: GeneratedSessionLike = {
+    id: "session-rpe-untouched",
+    planId: "plan-rpe-untouched",
+    sessionKey: "2026-08-25",
+    snapshot: { sessionKey: "2026-08-25", sessionDate: "2026-08-25", week: 1, day: 1, exercises: [] },
+  };
+  const draft = addUserExercise(
+    createWorkoutRecordDraft(session, "Plan", {
+      sessionDate: "2026-08-25",
+      timezone: "Asia/Seoul",
+    }),
+    {
+      exerciseId: "exercise-squat",
+      exerciseName: "Back Squat",
+      weightKg: 100,
+      repsPerSet: [5, 5, 5],
+      memo: "",
+    },
+  );
+  assert.deepEqual(
+    toWorkoutLogPayload(draft).sets.map((set) => set.rpe),
+    [null, null, null],
+  );
+});

@@ -121,7 +121,14 @@ async function fetchExerciseSummary(
     .select({
       sessions: sql<number>`count(distinct ${workoutLog.id})`,
       totalVolume: sql<number>`coalesce(sum(${workoutSet.weightKg} * ${workoutSet.reps}), 0)`,
-      avgRpe: sql<number | null>`avg(${workoutSet.rpe})`,
+      // NULLIF로 0을 걸러 avg가 무시하게 한다 — **WHERE에 넣으면 안 된다.**
+      // 같은 쿼리의 sessions·totalVolume까지 필터돼 볼륨이 통째로 사라진다
+      // (prod 실측: 세션 69→3, 볼륨 154,464→4,052kg).
+      //
+      // 0이 섞이는 이유는 두 갈래다. ① 웹이 미입력 RPE를 0으로 보내던 버그(이 커밋이
+      // 고친다) ② REF5가 canonical 세트를 rpe:0으로 명시 생성한다(의도된 센티널).
+      // 둘을 구별할 방법이 없어 기존 행은 마이그레이션하지 않고 여기서 흡수한다.
+      avgRpe: sql<number | null>`avg(nullif(${workoutSet.rpe}, 0))`,
     })
     .from(workoutLog)
     .innerJoin(workoutSet, eq(workoutSet.logId, workoutLog.id))

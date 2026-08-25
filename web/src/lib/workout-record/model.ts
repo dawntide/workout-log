@@ -6,6 +6,7 @@ import {
   validateAndClassifyRef5Outcome,
 } from "@workout/core/program-engine/ref5";
 import { estimateE1rmKg } from "@workout/core/stats/e1rm";
+import { toStoredRpe } from "@workout/core/settings/intensity";
 import {
   normalizeWorkoutSetType,
   type WorkoutSetType,
@@ -218,7 +219,8 @@ export type WorkoutLogPayload = {
     setNumber: number;
     reps: number;
     weightKg: number;
-    rpe: number;
+    /** null = 미입력. 0을 보내면 평균 RPE가 희석된다. */
+    rpe: number | null;
     isExtra: boolean;
     setType: WorkoutSetType | null;
     meta: Record<string, unknown>;
@@ -1473,7 +1475,10 @@ export function toWorkoutLogPayload(
         setNumber: index + 1,
         reps: Math.max(0, Math.round(repsValue)),
         weightKg,
-        rpe: rpePerSet[index] ?? 0,
+        // 화면 배열은 빈 셀을 0으로 들고 있다(입력 상태 표현). 저장은 "값 없음"이
+        // NULL이어야 하므로 여기 전송 경계에서 한 번만 번역한다 — 화면 배열을
+        // null 허용으로 바꾸면 입력·포커스·정규화 전부에 null 분기가 번진다.
+        rpe: toStoredRpe(rpePerSet[index]),
         isExtra: exercise.badge === "ADDED",
         setType: setTypePerSet[index] ?? null,
         meta,
