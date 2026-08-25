@@ -1,6 +1,6 @@
 # 플레이트 계산기 구현 계획 (M1-2)
 
-> 상태: **계획 확정, 미착수** (2026-08-19). 상위 문서 [`improvement-roadmap-2026-08.md`](improvement-roadmap-2026-08.md) §3 M1-2. 선행 [`rest-timer-plan.md`](rest-timer-plan.md)(M1-1)와 독립 — 병행 가능.
+> 상태: **완료** (계획 2026-08-19 → 구현 PR #677, 2026-08-24). 상위 문서 [`improvement-roadmap-2026-08.md`](improvement-roadmap-2026-08.md) §3 M1-2. 선행 [`rest-timer-plan.md`](rest-timer-plan.md)(M1-1)와 독립 — 병행 가능.
 >
 > **확정된 설계 결정** (2026-08-19 사용자 선택):
 > 1. **표시 대상** — 운동 카탈로그에 **장비 필드를 추가**한다. 자중 판정 함수만으로는 부족하기 때문(§2.3). 바벨·플레이트로드 머신에만 계산기를 노출.
