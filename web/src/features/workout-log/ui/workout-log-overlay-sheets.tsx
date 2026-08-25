@@ -51,6 +51,10 @@ type WorkoutLogOverlaySheetsProps = {
   setExerciseOptionsError: Dispatch<SetStateAction<string | null>>;
   exerciseOptionsLoading: boolean;
   filteredExerciseOptions: WorkoutLogExerciseOption[];
+  categoryFilter: string | null;
+  setCategoryFilter: Dispatch<SetStateAction<string | null>>;
+  equipmentFilter: string | null;
+  setEquipmentFilter: Dispatch<SetStateAction<string | null>>;
   selectedExerciseOption: WorkoutLogExerciseOption | null;
   onSelectExerciseOption: (option: WorkoutLogExerciseOption | null) => void;
   onCloseAddExerciseSheet: () => void;
@@ -135,6 +139,10 @@ function areWorkoutLogOverlaySheetsPropsEqual(
     previous.exerciseOptionsError === next.exerciseOptionsError &&
     previous.setExerciseOptionsError === next.setExerciseOptionsError &&
     previous.exerciseOptionsLoading === next.exerciseOptionsLoading &&
+    previous.categoryFilter === next.categoryFilter &&
+    previous.setCategoryFilter === next.setCategoryFilter &&
+    previous.equipmentFilter === next.equipmentFilter &&
+    previous.setEquipmentFilter === next.setEquipmentFilter &&
     previous.onSelectExerciseOption === next.onSelectExerciseOption &&
     previous.onCloseAddExerciseSheet === next.onCloseAddExerciseSheet &&
     previous.onAddExercise === next.onAddExercise &&
@@ -178,6 +186,10 @@ export const WorkoutLogOverlaySheets = memo(function WorkoutLogOverlaySheets({
   setExerciseOptionsError,
   exerciseOptionsLoading,
   filteredExerciseOptions,
+  categoryFilter,
+  setCategoryFilter,
+  equipmentFilter,
+  setEquipmentFilter,
   selectedExerciseOption,
   onSelectExerciseOption,
   onCloseAddExerciseSheet,
@@ -210,6 +222,10 @@ export const WorkoutLogOverlaySheets = memo(function WorkoutLogOverlaySheets({
         setExerciseOptionsError={setExerciseOptionsError}
         exerciseOptionsLoading={exerciseOptionsLoading}
         filteredExerciseOptions={filteredExerciseOptions}
+        categoryFilter={categoryFilter}
+        setCategoryFilter={setCategoryFilter}
+        equipmentFilter={equipmentFilter}
+        setEquipmentFilter={setEquipmentFilter}
         selectedExerciseOption={selectedExerciseOption}
         onSelectExerciseOption={onSelectExerciseOption}
         onClose={onCloseAddExerciseSheet}

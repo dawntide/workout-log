@@ -33,9 +33,13 @@ function valuesOf(constName) {
 
 test("장비 매핑의 결과값이 ExerciseEquipment 안에 있다", () => {
   // 오타 하나가 723종의 장비를 유령 값으로 만든다. 타입이 없는 .mjs라 여기서 막는다.
-  const declared = new Set(
-    [...CATALOG.matchAll(/^\s*\|\s*"(\w+)"$/gm)].map((m) => m[1]),
+  // 타입은 `EXERCISE_EQUIPMENTS` 값 배열에서 파생된다(런타임 검증에 그 배열이 필요해
+  // 유니온 리터럴에서 바꿨다). 스캔 대상도 그 배열이다.
+  const block = CATALOG.slice(
+    CATALOG.indexOf("export const EXERCISE_EQUIPMENTS = ["),
+    CATALOG.indexOf("] as const;", CATALOG.indexOf("export const EXERCISE_EQUIPMENTS = [")),
   );
+  const declared = new Set([...block.matchAll(/"(\w+)"/g)].map((m) => m[1]));
   assert.ok(declared.size >= 5, `ExerciseEquipment 스캔 실패(${declared.size}종)`);
   for (const value of valuesOf("EQUIPMENT_MAP")) {
     assert.ok(declared.has(value), `EQUIPMENT_MAP이 만드는 "${value}"가 타입에 없다`);

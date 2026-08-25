@@ -42,6 +42,9 @@ export function useWorkoutLogAddExerciseController({
   const [exerciseOptionsLoading, setExerciseOptionsLoading] = useState(false);
   const [exerciseOptionsError, setExerciseOptionsError] = useState<string | null>(null);
   const [addDraft, setAddDraft] = useState<AddExerciseDraft>(createDefaultAddExerciseDraft);
+  // 부위·장비 필터. 755종 사전에서 "빨리 찾기"를 위한 것이라 서버가 적용한다.
+  const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
+  const [equipmentFilter, setEquipmentFilter] = useState<string | null>(null);
   const exerciseOptionsCacheRef = useRef(new Map<string, WorkoutLogExerciseOption[]>());
   const exerciseOptionsAbortRef = useRef<AbortController | null>(null);
 
@@ -72,7 +75,9 @@ export function useWorkoutLogAddExerciseController({
     async (queryValue: string) => {
       try {
         const normalizedQuery = queryValue.trim().toLowerCase();
-        const cached = exerciseOptionsCacheRef.current.get(normalizedQuery);
+        // 필터가 캐시 키에 들어가야 한다 — 안 그러면 필터를 바꿔도 이전 결과가 나온다.
+        const cacheKey = `${normalizedQuery}|${categoryFilter ?? ""}|${equipmentFilter ?? ""}`;
+        const cached = exerciseOptionsCacheRef.current.get(cacheKey);
         if (cached) {
           setExerciseOptions(cached);
           setExerciseOptionsError(null);
@@ -84,8 +89,11 @@ export function useWorkoutLogAddExerciseController({
         exerciseOptionsAbortRef.current = controller;
         setExerciseOptionsLoading(true);
         setExerciseOptionsError(null);
-        const nextItems = await fetchWorkoutExerciseOptions(queryValue, controller.signal);
-        exerciseOptionsCacheRef.current.set(normalizedQuery, nextItems);
+        const nextItems = await fetchWorkoutExerciseOptions(queryValue, controller.signal, {
+          category: categoryFilter,
+          equipment: equipmentFilter,
+        });
+        exerciseOptionsCacheRef.current.set(cacheKey, nextItems);
         setExerciseOptions(nextItems);
       } catch (error) {
         if (error instanceof DOMException && error.name === "AbortError") return;
@@ -99,7 +107,7 @@ export function useWorkoutLogAddExerciseController({
         setExerciseOptionsLoading(false);
       }
     },
-    [locale],
+    [categoryFilter, equipmentFilter, locale],
   );
 
   useEffect(() => {
@@ -123,6 +131,10 @@ export function useWorkoutLogAddExerciseController({
     setExerciseQuery("");
     setExerciseOptionsError(null);
     setAddDraft(createDefaultAddExerciseDraft());
+    // 필터도 함께 되돌린다. 검색어는 지우면서 필터만 남기면, 다음에 시트를 열었을 때
+    // 빈 검색어에 필터만 걸린 목록이 나오고 왜 좁아졌는지 알 수 없다.
+    setCategoryFilter(null);
+    setEquipmentFilter(null);
   }, []);
 
   const closeAddExerciseSheet = useCallback(() => {
@@ -178,6 +190,10 @@ export function useWorkoutLogAddExerciseController({
     setExerciseOptionsError,
     exerciseOptionsLoading,
     filteredExerciseOptions,
+    categoryFilter,
+    setCategoryFilter,
+    equipmentFilter,
+    setEquipmentFilter,
     selectedExerciseOption,
     openAddExerciseSheet,
     closeAddExerciseSheet,

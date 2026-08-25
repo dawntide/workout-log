@@ -198,6 +198,10 @@ function WorkoutLogScreenContent({
     setExerciseOptionsError,
     exerciseOptionsLoading,
     filteredExerciseOptions,
+    categoryFilter,
+    setCategoryFilter,
+    equipmentFilter,
+    setEquipmentFilter,
     selectedExerciseOption,
     openAddExerciseSheet,
     closeAddExerciseSheet,
@@ -554,6 +558,10 @@ function WorkoutLogScreenContent({
         setExerciseOptionsError={setExerciseOptionsError}
         exerciseOptionsLoading={exerciseOptionsLoading}
         filteredExerciseOptions={filteredExerciseOptions}
+        categoryFilter={categoryFilter}
+        setCategoryFilter={setCategoryFilter}
+        equipmentFilter={equipmentFilter}
+        setEquipmentFilter={setEquipmentFilter}
         selectedExerciseOption={selectedExerciseOption}
         onSelectExerciseOption={selectExerciseOption}
         onCloseAddExerciseSheet={closeAddExerciseSheet}

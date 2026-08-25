@@ -28,6 +28,8 @@ type SearchSelectComboboxProps = {
   loading?: boolean;
   loadingText?: string;
   selectionSummary?: ReactNode;
+  /** 입력창과 결과 목록 사이에 끼우는 필터 줄. 결과에 붙어 있어야 켜 둔 걸 안다. */
+  filters?: ReactNode;
   hideOptions?: boolean;
 };
 
@@ -56,6 +58,7 @@ export function SearchSelectCombobox({
   loading = false,
   loadingText,
   selectionSummary,
+  filters,
   hideOptions = false,
 }: SearchSelectComboboxProps) {
   const { locale } = useLocale();
@@ -78,6 +81,8 @@ export function SearchSelectCombobox({
         />
 
         {selectionSummary}
+
+        {!hideOptions ? filters : null}
 
         {!hideOptions ? (
           <div

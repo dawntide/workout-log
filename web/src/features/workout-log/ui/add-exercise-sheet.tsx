@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import { memo, type Dispatch, type SetStateAction } from "react";
 import { SearchSelectCombobox } from "@/components/ui/search-select-sheet";
 import { V2Icon } from "@/components/v2/primitives/v2-icon";
+import { ExerciseFilterChips } from "@/features/workout-log/ui/exercise-filter-chips";
 import type { AddExerciseDraft, WorkoutLogExerciseOption } from "@/features/workout-log/model/types";
 import {
   areAddExerciseDraftsEqual,
@@ -29,6 +30,10 @@ type AddExerciseSheetProps = {
   setExerciseOptionsError: Dispatch<SetStateAction<string | null>>;
   exerciseOptionsLoading: boolean;
   filteredExerciseOptions: WorkoutLogExerciseOption[];
+  categoryFilter: string | null;
+  setCategoryFilter: Dispatch<SetStateAction<string | null>>;
+  equipmentFilter: string | null;
+  setEquipmentFilter: Dispatch<SetStateAction<string | null>>;
   selectedExerciseOption: WorkoutLogExerciseOption | null;
   onSelectExerciseOption: (option: WorkoutLogExerciseOption | null) => void;
   onClose: () => void;
@@ -62,6 +67,10 @@ function areAddExerciseSheetPropsEqual(
     previous.exerciseOptionsError === next.exerciseOptionsError &&
     previous.setExerciseOptionsError === next.setExerciseOptionsError &&
     previous.exerciseOptionsLoading === next.exerciseOptionsLoading &&
+    previous.categoryFilter === next.categoryFilter &&
+    previous.setCategoryFilter === next.setCategoryFilter &&
+    previous.equipmentFilter === next.equipmentFilter &&
+    previous.setEquipmentFilter === next.setEquipmentFilter &&
     previous.onSelectExerciseOption === next.onSelectExerciseOption &&
     previous.onClose === next.onClose &&
     previous.onAddExercise === next.onAddExercise &&
@@ -89,6 +98,10 @@ export const AddExerciseSheet = memo(function AddExerciseSheet({
   setExerciseOptionsError,
   exerciseOptionsLoading,
   filteredExerciseOptions,
+  categoryFilter,
+  setCategoryFilter,
+  equipmentFilter,
+  setEquipmentFilter,
   selectedExerciseOption,
   onSelectExerciseOption,
   onClose,
@@ -146,7 +159,24 @@ export const AddExerciseSheet = memo(function AddExerciseSheet({
                 onSelectExerciseOption(option);
               },
             }))}
-            emptyText={copy.noMatchingExercises}
+            filters={
+              <ExerciseFilterChips
+                locale={locale}
+                category={categoryFilter}
+                onCategoryChange={setCategoryFilter}
+                equipment={equipmentFilter}
+                onEquipmentChange={setEquipmentFilter}
+              />
+            }
+            emptyText={
+              // 필터를 켜 둔 걸 잊고 "왜 안 나오지"가 되는 게 이 화면의 실패 모드다.
+              // 결과가 0건일 때만 그 사실을 말해 준다.
+              categoryFilter || equipmentFilter
+                ? locale === "ko"
+                  ? "조건에 맞는 운동이 없습니다. 필터를 전체로 되돌려 보세요."
+                  : "No exercises match the filters. Try resetting them to All."
+                : copy.noMatchingExercises
+            }
             loading={exerciseOptionsLoading}
             loadingText={copy.exerciseSearchLoading}
             selectionSummary={
