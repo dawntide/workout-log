@@ -16,6 +16,7 @@ import {
   V2SettingsGroup,
   V2SettingsSection,
 } from "@/components/v2/settings/section";
+import { ApiTokensSection } from "./api-tokens-section";
 import { apiInvalidateCache } from "@/lib/api";
 import { isEmailRecoveryEnabled } from "@/lib/feature-flags";
 
@@ -585,6 +586,8 @@ export default function SettingsAccountPage() {
             : "Your current session is preserved; other devices must sign in again."}
         </V2SettingsFootnote>
       </section>
+
+      <ApiTokensSection />
 
       {oauthAccounts && oauthAccounts.length > 0 && !hasPassword ? (
         <section className="v2-font-display">

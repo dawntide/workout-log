@@ -92,6 +92,13 @@
       "when": 1784961611483,
       "tag": "0012_body_measurement",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1785048011483,
+      "tag": "0013_auth_api_token",
+      "breakpoints": true
     }
   ]
 }

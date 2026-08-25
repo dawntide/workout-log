@@ -5,6 +5,7 @@ import { sql } from "@workout/core/db/ops";
 import { logError } from "@workout/core/observability/logger";
 
 import { type AppEnv } from "./auth";
+import { enforceApiTokenSurface } from "./api-token-surface";
 import { apiLogger } from "./lib/http";
 import { authRoutes } from "./routes/auth";
 import { logsRoutes } from "./routes/logs";
@@ -41,6 +42,13 @@ export const app = new Hono<AppEnv>();
 
 // Request logging for every route (the Hono replacement for withApiLogging).
 app.use("*", apiLogger);
+
+// PAT 공개 표면 강제 — **라우터가 아니라 앱 최상단이다.**
+//
+// 대부분의 라우터는 `use("*", requireAuth)`로 인증을 걸지만, 그건 라우터마다
+// 기억해야 하는 규약이다. 보안 경계를 그런 규약에 맡기면 새 라우터 하나가 잊는
+// 순간 PAT에 열린다. 여기서 막으면 requireAuth를 쓰든 안 쓰든 덮인다.
+app.use("*", enforceApiTokenSurface);
 
 // --- health (no auth) — pings the DB so monitors don't read healthy while every
 // real request 500s. systemd uses process liveness (Type=simple), not this

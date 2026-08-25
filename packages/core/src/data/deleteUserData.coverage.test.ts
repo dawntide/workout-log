@@ -30,6 +30,9 @@ const CLEANUP_POLICY: Record<string, CleanupKind> = {
   password_reset_token: "account-route",
   email_verification_token: "account-route",
   auth_oauth_account: "account-route",
+  // PAT는 계정 삭제 시 FK cascade로 함께 사라진다(계획서 §7 결정 2). 세션과 달리
+  // 명시 폐기 자산이라 "전 세션 무효화"는 건드리지 않는다 — 그건 별개 계약이다.
+  auth_api_token: "cascade",
   auth_event_log: "retained-by-design", // 보안 감사 로그(ACCOUNT_DELETE 이벤트 포함) 보존
 };
 

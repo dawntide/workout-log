@@ -51,6 +51,9 @@ const MOVE_POLICY: Record<string, MoveKind> = {
   password_reset_token: "not-portable",
   email_verification_token: "not-portable",
   auth_oauth_account: "not-portable",
+  // PAT — **export에 절대 넣지 말 것.** 해시만 저장하므로 옮겨도 쓸 수 없고,
+  // 옮길 수 있게 만들면 export 파일이 자격증명 저장소가 된다.
+  auth_api_token: "not-portable",
   auth_event_log: "not-portable", // 감사 로그
   exercise: "not-portable", // 운동 카탈로그(참조 데이터) — 시드가 소유한다
   exercise_alias: "not-portable", // 운동 별칭(참조 데이터)

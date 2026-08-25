@@ -17,7 +17,9 @@ export type AuthEventType =
   | "OAUTH_LOGIN"
   | "OAUTH_LOGIN_FAIL"
   | "OAUTH_LINK"
-  | "OAUTH_SIGNUP";
+  | "OAUTH_SIGNUP"
+  | "API_TOKEN_ISSUE"
+  | "API_TOKEN_REVOKE";
 
 export type AuthEventInput = {
   userId?: string | null;
