@@ -100,6 +100,31 @@ export function readStoredDecisionsFromMeta(
   return Object.keys(out).length > 0 ? out : null;
 }
 
+/**
+ * 사용자의 모든 진행 이벤트에서 **사용자가 직접 고른 증감량 결정**만 logId별로 걷어 온다.
+ *
+ * replace import는 plan을 지우면서 plan_progress_event를 cascade로 함께 날린다. 그 결정은
+ * 로그에서 다시 유도할 수 없으므로(리듀서 기본값과 다르다는 것이 결정의 정의다), 삭제 전에
+ * 여기서 걷어 두고 재계산에 되돌려 넣는다 — `rebuildAutoProgressionForPlan`의
+ * `carriedDecisionsByLogId`.
+ */
+export async function readStoredDecisionsByLogId(
+  tx: WorkoutExecutor,
+  userId: string,
+): Promise<Map<string, Record<string, ProgressionTargetDecision>>> {
+  const rows = await tx
+    .select({ logId: planProgressEvent.logId, meta: planProgressEvent.meta })
+    .from(planProgressEvent)
+    .where(eq(planProgressEvent.userId, userId));
+  const out = new Map<string, Record<string, ProgressionTargetDecision>>();
+  for (const row of rows) {
+    if (!row.logId) continue;
+    const stored = readStoredDecisionsFromMeta(row.meta);
+    if (stored) out.set(row.logId, stored);
+  }
+  return out;
+}
+
 type AppliedProgression = {
   nextState: ProgressionRuntimeState;
   eventType: ProgressionEventType;
@@ -579,6 +604,11 @@ export async function rebuildAutoProgressionForPlan(input: {
   tx: WorkoutExecutor;
   userId: string;
   planId: string | null | undefined;
+  /**
+   * 이벤트가 **이미 사라진 뒤** 호출할 때(replace import) 밖에서 주입하는 사용자 결정.
+   * 남아 있는 이벤트에서 읽은 결정이 언제나 우선하고, 이 맵은 빈 자리만 채운다.
+   */
+  carriedDecisionsByLogId?: Map<string, Record<string, ProgressionTargetDecision>> | null;
 }) {
   const context = await resolveAutoProgressionContext(input);
   if (!context.ok) return { applied: false, reason: context.reason };
@@ -607,6 +637,10 @@ export async function rebuildAutoProgressionForPlan(input: {
     if (!row.logId) continue;
     const stored = readStoredDecisionsFromMeta(row.meta);
     if (stored) decisionsByLogId.set(row.logId, stored);
+  }
+  // 남아 있는 이벤트가 더 최신이므로 주입값은 빈 자리만 채운다.
+  for (const [logId, carried] of input.carriedDecisionsByLogId ?? []) {
+    if (!decisionsByLogId.has(logId)) decisionsByLogId.set(logId, carried);
   }
 
   await input.tx.delete(planProgressEvent).where(eq(planProgressEvent.planId, resolved.planId));
