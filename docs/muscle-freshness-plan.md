@@ -1,10 +1,41 @@
 # 근육 신선도 시각화 계획 (M5)
 
-> 상태: **계획 확정, 미착수** (2026-08-19). 상위 문서 [`improvement-roadmap-2026-08.md`](improvement-roadmap-2026-08.md) §7.
+> 상태: **PR1 구현 완료** (2026-08-25). 상위 문서 [`improvement-roadmap-2026-08.md`](improvement-roadmap-2026-08.md) §7.
 > **선행 조건**: [`exercise-catalog-plan.md`](exercise-catalog-plan.md)(M3)의 근육 매핑 커버리지 ≥ 90%. 확충된 종목이 `Other`로 떨어지면 신선도 표시가 의미를 잃는다.
 > **순서 의존**: [`set-type-plan.md`](set-type-plan.md)(M1-3)이 먼저 가야 한다 — 웜업 세트가 볼륨에서 빠진 뒤에 계산해야 이중 왜곡이 없다.
 >
 > **유령 확인 결과** (2026-08-19): 신선도·회복 추정 코드는 **없다**(`freshness|heatmap` grep 0건 — `recovery` 히트는 전부 Texas Method의 **회복일**이라 무관). 다만 **재사용할 자산이 둘 있다**: 근육군 매핑([`category-to-muscle.ts`](../packages/core/src/muscle-groups/category-to-muscle.ts))과 **막대형 히트맵 컴포넌트**([`home-goal-section.tsx:85`](../web/src/widgets/goal-aware/home-goal-section.tsx) `MuscleVolumeHeatmap`).
+
+> ## 착수 전 재검증 (2026-08-25, prod 실측)
+>
+> 계획서가 6일 묵었고 그 사이 M1-3·M3가 같은 코드를 건드렸다. **§2의 표면 서술은 전부 유효**했고(서비스 시그니처·컴포넌트 위치·`excludeWarmupSets()` 적용까지), 아래 세 가지가 갱신·교정 대상이다.
+>
+> **① 매핑 폴백이 2단 → 3단이 됐다** (개선). M3(#695)가 오픈 카탈로그의 `muscles`를 넣으면서 `resolveMuscleContribution`이 **이름 → 카탈로그 muscles → 카테고리 → `Other`** 순이 됐다. §2.1 서술을 갱신한다.
+>
+> **② §3.2의 `lookbackDays` 기본 14일은 §3.1과 어긋난다** (오류). capacity를 "최근 8주"로 정의해 놓고 14일만 조회하면 분모를 만들 수 없다. 조회 창은 `max(capacityWeeks×7, recoveryHours/24)` = **56일**이다(`freshnessLookbackDays`).
+>
+> **③ 모델 파라미터는 실데이터로 검증했고 계획서안(mean8 + 선형감쇠 + 144h)이 최선이었다.** prod 739세트·69세션·66훈련일을 흘려 capacity 정의 4종 × 감쇠 2종을 비교했다:
+>
+> | capacity | 감쇠 | 바닥(<10%) 포화 | 부위간 평균폭 |
+> |---|---|---:|---:|
+> | **8주 평균 (계획서)** | **선형** | **23%** | **20.7%p** |
+> | 8주 평균 | 지수(반감기 2일) | 18% | 19.5%p |
+> | 8주 상위25% 주 | 선형 | 0% | 15.6%p |
+> | 세션 중앙값 | 선형 | 47% | 23.2%p |
+>
+> 계획서안은 관측의 23%가 바닥에 붙지만 **분포가 6구간에 고르게 퍼지고 구별력이 가장 크다**(23/15/12/21/18/12%). 상위25%안은 포화가 없는 대신 관측의 53%가 70% 이상에 몰려 "늘 신선함"으로 읽히고, 3연속 훈련 직후에도 Quad 64%를 준다 — 믿을 수 없다. **계획서 파라미터를 그대로 채택한다.**
+>
+> **④ 실사용 데이터의 폭이 좁다.** prod는 종목 **6종**뿐이다(Tactical Barbell). 결과:
+> - **G3 `Other` 비율 = 0.0%** — 6종 전부 수기 큐레이션 매핑. 선행 조건은 충족이나 **이 계정으로는 G3가 아무것도 못 잡는다**. 유닛에서 인위적 미매칭으로 단언한다.
+> - **`Core`는 영구 100%** — 코어 운동을 한 번도 안 했다. `capacityKg === 0`이 "회복 완료"가 아니라 **"기록 없음"**이라, 표시에서 두 상태를 구분해야 한다(§7 결정 6 신설).
+> - capacity가 **디로드에 민감**하다. Quad 주간 볼륨이 8주간 293~3150kg(10배)으로 흔들린다. 모델의 성질이지 결함은 아니지만, 근거 시트가 capacity 값을 보여줘야 사용자가 납득한다.
+>
+> **⑤ 실측 출력**(prod 데이터, 2026-08-25 09:00 기준. 08-21·22·24 3연속 훈련 직후):
+> ```
+> 08-25  Quad 26%  Hams 43%  Glut 31%  Back 24%  Ches 20%  Shou 11%  Arm 16%  Core 100%
+> 08-20  전 부위 100%   (07-26~08-03 8일 휴식 뒤와 같은 형태)
+> Quad 근거: capacity 1476kg/주 | 08-24 525kg×0.85=0.30 | 08-22 743kg×0.52=0.26 | 08-21 725kg×0.35=0.17 → 0.74 → 26%
+> ```
 
 ## 1. 문제와 목표
 
@@ -31,7 +62,7 @@ Fitbod는 근육군별 신선도(0~100%)를 히트맵으로 보여주고 운동 
 
 [`muscle-groups/category-to-muscle.ts`](../packages/core/src/muscle-groups/category-to-muscle.ts):
 - `MuscleGroup`([:1-10](../packages/core/src/muscle-groups/category-to-muscle.ts)): Quad·Hamstring·Glute·Back·Chest·Shoulder·Arm·Core·**Other**
-- `resolveMuscleContribution(exerciseName, category)`([:116-131](../packages/core/src/muscle-groups/category-to-muscle.ts)): 이름 정확 매칭(`EXERCISE_CONTRIBUTIONS`) → 카테고리 매핑(`CATEGORY_PRIMARY`) → `{ Other: 1.0 }`
+- `resolveMuscleContribution(exerciseName, category)`: 이름 정확 매칭(`EXERCISE_CONTRIBUTIONS`) → **카탈로그 `muscles`**(M3 #695가 추가) → 카테고리 매핑(`CATEGORY_PRIMARY`) → `{ Other: 1.0 }`. ~~2단~~ → **3단 폴백**.
 - `MuscleContribution = Partial<Record<MuscleGroup, number>>` — **가중치 분배**가 이미 모델링돼 있다(한 운동이 여러 부위에 기여).
 
 ### 2.2 볼륨 집계 — 신선도의 입력
@@ -69,7 +100,7 @@ decay(Δt) = max(0, 1 - Δt / recoveryHours(group))
 - `workout_set` × `workout_log`을 **일 단위**로 조회한다(주 버킷이 아님, §2.2 주의).
 - ⚠️ **웜업 제외**(M1-3 선행) — 웜업이 섞이면 신선도가 과소평가된다.
 - `resolveLoggedTotalLoadKg`로 자중 종목 총부하를 환산한다(기존 관례).
-- `lookbackDays`는 `recoveryHours` 최댓값 + 여유(기본 14일)면 충분하다.
+- ~~`lookbackDays`는 `recoveryHours` 최댓값 + 여유(기본 14일)면 충분하다.~~ **오류**(2026-08-25 교정) — capacity가 8주를 보므로 조회 창은 `max(capacityWeeks×7, recoveryHours/24)` = **56일**이다. `freshnessLookbackDays()`가 이 값을 만든다.
 - 캐시: `stats_cache` metric `"muscle_freshness_v1"`. **단 신선도는 시간 함수라 캐시 TTL이 짧아야 한다** — 조회 결과(원시 부하 목록)를 캐시하고 **감쇠 계산은 매번** 하는 편이 옳다(§7 결정 3).
 
 ### 3.3 표시
@@ -114,3 +145,4 @@ decay(Δt) = max(0, 1 - Δt / recoveryHours(group))
 3. **캐시 전략** → 원시 부하 조회만 `stats_cache`(`muscle_freshness_v1`), 감쇠 계산은 요청마다. TTL은 짧게.
 4. **운동 카드 신선도 배지** → 1차 제외. M1-1·M1-2가 같은 영역을 쓰므로 정보 과밀을 피한다.
 5. **`Other` 부위 표시** → 목록에서 숨기되 근거 시트에는 노출한다. 사용자가 매핑 공백을 인지할 수 있어야 한다.
+6. **`capacityKg === 0`은 "100% 신선"이 아니라 "기록 없음"** (2026-08-25 신설) → 모델은 둘 다 `freshnessPct: 100`을 주지만 `capacityKg`로 구분된다. prod에서 `Core`가 이 상태라 **전 화면에 상시 노출되는 케이스**다. 게이지를 채워 "회복 완료"로 읽히게 두면 거짓말이 된다 — PR2에서 별도 표기한다.
