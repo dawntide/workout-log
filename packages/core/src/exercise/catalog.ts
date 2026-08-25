@@ -50,8 +50,28 @@ export type ExerciseEquipment =
   | "bodyweight"
   | "unknown";
 
+/**
+ * 프로그램 처방이 참조하는 **안정적 식별자**. seed가 `EXERCISE_NAMES.highBarBackSquat`
+ * 처럼 심볼로 쓰므로 타입 검사가 오타를 잡아 준다.
+ *
+ * 이 집합은 의도적으로 좁게 유지한다 — 수록 카탈로그를 수백 종으로 늘려도 여기는
+ * 늘지 않는다. "프로그램이 쓰는 운동"과 "고를 수 있는 운동"은 다른 개념이다.
+ */
+export type ProgramExerciseName = (typeof EXERCISE_NAMES)[keyof typeof EXERCISE_NAMES];
+
+/**
+ * 수록 카탈로그 항목.
+ *
+ * `name`이 `ProgramExerciseName` 리터럴 유니온이 아닌 이유: 카탈로그는 오픈 데이터로
+ * 수백 종까지 늘어날 자리인데, 그 이름들을 리터럴 유니온에 묶으면 타입이 폭발하고
+ * 프로그램이 실제로 쓰는 종목과 단순 수록 종목의 구분이 사라진다
+ * (계획서 docs/exercise-catalog-plan.md §3.2).
+ *
+ * 타입이 보장하던 "처방 식별자는 전부 카탈로그에 있다"는 계약은
+ * `catalog.test.ts`가 대신 지킨다.
+ */
 export type ExerciseCatalogItem = {
-  name: (typeof EXERCISE_NAMES)[keyof typeof EXERCISE_NAMES];
+  name: string;
   category: string;
   aliases: readonly string[];
   equipment: ExerciseEquipment;
