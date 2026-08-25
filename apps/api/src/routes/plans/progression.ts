@@ -25,6 +25,7 @@ import {
 } from "@workout/core/progression/last-events";
 import { applyManualRuntimeAdjustment } from "@workout/core/progression/autoProgression";
 import { buildProgressionFeedbackFromEvent } from "@workout/core/progression/feedback-catalog";
+import { readJudgmentHistory } from "@workout/core/progression/event-history";
 import { invalidateStatsCacheForUser } from "@workout/core/stats/cache";
 import {
   extractRef5DomainSnapshot,
@@ -125,8 +126,12 @@ export function registerProgressionRoutes(plansRoutes: Hono<AppEnv>) {
           .orderBy(desc(planProgressEvent.createdAt))
           .limit(1);
         const lastEventRow = lastEventRows[0] ?? null;
+        // 누적 판정 이력 — 카드는 다음 세션에서 소멸하므로 지나간 판정을 되짚을
+        // 자리가 필요하다. 문구는 카드와 같은 조립기를 경유한다(복제 금지).
+        const judgmentHistory = await readJudgmentHistory({ planId, locale });
         return c.json({
           program: "ref5",
+          judgmentHistory,
           state,
           ref5Status: buildRef5Status(state, initialDirectStandardsKg),
           effectiveRules: null,
@@ -242,7 +247,20 @@ export function registerProgressionRoutes(plansRoutes: Hono<AppEnv>) {
         locale === "ko" ? "ko" : "en",
       );
 
-      return c.json({ program, state, effectiveRules, targetsLastEvent, lastEvent, feedback });
+      const judgmentHistory = await readJudgmentHistory({
+        planId,
+        locale,
+        definition: version.definition,
+      });
+      return c.json({
+        program,
+        state,
+        effectiveRules,
+        targetsLastEvent,
+        lastEvent,
+        feedback,
+        judgmentHistory,
+      });
     } catch (e) {
       return apiError(c, e, locale);
     }

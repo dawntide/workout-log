@@ -205,8 +205,8 @@ type Ref5WindowStatus struct {
 	VolumeFailures int      `json:"volumeFailures"`
 	Completed      int      `json:"completed"`
 	Increases      int      `json:"increases"`
-	GainRate       *float64 `json:"gainRate"`       // §18: increases/completed; null until a window closes
-	RecentResults  []string `json:"recentResults"`  // "INCREASE"|"MAINTAIN", oldest→newest
+	GainRate       *float64 `json:"gainRate"`      // §18: increases/completed; null until a window closes
+	RecentResults  []string `json:"recentResults"` // "INCREASE"|"MAINTAIN", oldest→newest
 }
 
 type Ref5StructureReviewStatus struct {
@@ -265,6 +265,24 @@ type PlanProgressionState struct {
 	// carries the same copy as the save response, so a judgment stays visible
 	// after the buffer is re-entered instead of only in the save that made it.
 	Feedback *ProgressionFeedback `json:"feedback"`
+	// Accumulated judgment history — the same assembled copy, one entry per past
+	// event. Accepted here so the field is not dropped at this boundary; the
+	// Programs buffer does not render it yet (the status panel is REF5-gated by
+	// construction, so showing it for every plan means a new panel, not a new
+	// section — deferred to the milestone's TUI slot).
+	JudgmentHistory []JudgmentHistoryEntry `json:"judgmentHistory"`
+}
+
+// JudgmentHistoryEntry mirrors the TS type in
+// packages/core/src/progression/event-history.ts. Rows carry text the server
+// already localized — clients never rebuild the wording.
+type JudgmentHistoryEntry struct {
+	EventID     string              `json:"eventId"`
+	CreatedAt   string              `json:"createdAt"`
+	EventType   string              `json:"eventType"`
+	ProgramSlug string              `json:"programSlug"`
+	Title       string              `json:"title"`
+	Rows        []ProgressReportRow `json:"rows"`
 }
 
 type ProgressionEffectiveRule struct {
