@@ -694,6 +694,44 @@ export const emailVerificationToken = table(
 );
 
 /**
+ * auth_api_token: 개인 액세스 토큰(PAT).
+ *
+ * **`auth_session`과 분리한다.** 세션은 브라우저·TUI 로그인이 만들고 프루닝 크론이
+ * 만료분을 지운다. PAT는 사용자가 명시 발급·폐기하는 자산이고 만료가 nullable이라
+ * 무기한일 수 있다 — 같은 테이블에 섞으면 크론이 PAT를 지우고 활성 세션 목록이
+ * 오염된다.
+ *
+ * **평문을 저장하지 않는다.** `password_reset_token`·`email_verification_token`과
+ * 같은 `token_hash` PK 패턴이다. PAT는 세션보다 장수명이라 DB 덤프가 그대로 쓸 수
+ * 있는 자격증명이 되면 안 된다. 종류 판별은 **제시된** 토큰의 접두사로 한다.
+ */
+export const authApiToken = table(
+  "auth_api_token",
+  {
+    tokenHash: text("token_hash").primaryKey(),
+    /** 목록에 보여줄 앞자리(예: `wlpat_3f9a`). 평문 복원 용도가 아니다. */
+    tokenPrefix: text("token_prefix").notNull(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => appUser.id, { onDelete: "cascade" }),
+    /** 사용자 라벨 — "MCP", "백업 스크립트" 등. */
+    name: text("name").notNull(),
+    /** `read` | `read_write`. 기본은 read — 쓰기는 명시 선택이다. */
+    scope: text("scope").notNull().default("read"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    /** null = 무기한. */
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
+    lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
+  },
+  (t) => [
+    index("auth_api_token_user_idx").on(t.userId),
+    index("auth_api_token_expires_idx").on(t.expiresAt),
+  ],
+);
+
+/**
  * auth_event_log: security audit trail. Deliberately has NO FK on user_id — an
  * audit log must retain events about users who no longer exist (the ACCOUNT_DELETE
  * event is written AFTER the app_user row is gone, and LOGIN_FAIL for an unknown

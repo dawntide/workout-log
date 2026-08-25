@@ -23,6 +23,12 @@ import {
   findActiveSession,
   findUserById,
 } from "@workout/core/auth/session";
+import {
+  ApiTokenValidationError,
+  issueApiToken,
+  listApiTokens,
+  revokeApiToken,
+} from "@workout/core/auth/api-token";
 import { claimEnvFallbackData } from "@workout/core/auth/claim-fallback";
 import { createEmailVerificationToken } from "@workout/core/auth/email-verification";
 import { createPasswordResetToken } from "@workout/core/auth/password-reset";
@@ -499,6 +505,88 @@ authRoutes.get("/sessions", requireAuth, async (c) => {
     }));
 
     return c.json({ items });
+  } catch (e) {
+    return apiError(c, e);
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 개인 액세스 토큰(PAT) — 세션과 **분리된** 자산이다.
+//
+// 세션 폐기(`DELETE /sessions`)는 PAT를 건드리지 않는다. 세션 무효화는 브라우저
+// 탈취 대응이고, PAT는 사용자가 명시 폐기하는 자산이다(계획서 §7 결정 2).
+// 계정 삭제는 FK cascade로 함께 지워진다.
+//
+// ⚠️ 이 경로들은 **세션 전용**이다 — PAT로 토큰을 발급·폐기할 수 없다
+// (`api-token-surface.ts`의 공개 표면에 없다). 토큰이 토큰을 낳으면 폐기가
+// 의미를 잃는다.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// GET /api/auth/api-tokens — 발급한 토큰 목록(평문 없음).
+authRoutes.get("/api-tokens", requireAuth, async (c) => {
+  try {
+    return c.json({ items: await listApiTokens(c.get("userId")) });
+  } catch (e) {
+    return apiError(c, e);
+  }
+});
+
+// POST /api/auth/api-tokens — 발급. **평문은 이 응답에서만** 나간다.
+authRoutes.post("/api-tokens", requireAuth, async (c) => {
+  try {
+    const userId = c.get("userId");
+    const body = (await c.req.json().catch(() => ({}))) as {
+      name?: unknown;
+      scope?: unknown;
+      expiresAt?: unknown;
+    };
+
+    let issued: Awaited<ReturnType<typeof issueApiToken>>;
+    try {
+      issued = await issueApiToken({
+        userId,
+        name: body.name,
+        scope: body.scope,
+        expiresAt: body.expiresAt,
+      });
+    } catch (e) {
+      if (e instanceof ApiTokenValidationError) {
+        return c.json({ error: e.message }, 400);
+      }
+      throw e;
+    }
+
+    await logAuthEvent({
+      userId,
+      eventType: "API_TOKEN_ISSUE",
+      req: c.req.raw,
+      success: true,
+      meta: { scope: issued.summary.scope },
+    }).catch(() => {});
+
+    return c.json({ token: issued.token, item: issued.summary }, 201);
+  } catch (e) {
+    return apiError(c, e);
+  }
+});
+
+// DELETE /api/auth/api-tokens/:tokenHash — 폐기. 다음 요청부터 즉시 401이다.
+authRoutes.delete("/api-tokens/:tokenHash", requireAuth, async (c) => {
+  try {
+    const userId = c.get("userId");
+    const tokenHash = (c.req.param("tokenHash") ?? "").trim();
+    if (!tokenHash) return c.json({ error: "Not found" }, 404);
+    const revoked = await revokeApiToken({ userId, tokenHash });
+    if (!revoked) return c.json({ error: "Not found" }, 404);
+
+    await logAuthEvent({
+      userId,
+      eventType: "API_TOKEN_REVOKE",
+      req: c.req.raw,
+      success: true,
+    }).catch(() => {});
+
+    return c.json({ ok: true });
   } catch (e) {
     return apiError(c, e);
   }

@@ -1,11 +1,59 @@
 # 공개 API와 MCP 서버 계획 (M6)
 
-> 상태: **계획 확정, 미착수** (2026-08-19). 상위 문서 [`improvement-roadmap-2026-08.md`](improvement-roadmap-2026-08.md) §9.
+> 상태: **PR1 구현 완료** (2026-08-25). 상위 문서 [`improvement-roadmap-2026-08.md`](improvement-roadmap-2026-08.md) §9.
 > **순서**: 마일스톤 마지막. 기능 표면이 안정된 뒤에 공개해야 한다 — 공개 API는 한 번 열면 계약이 되고, M1~M5가 세트 타입·체중·신선도로 표면을 바꾼다.
 >
 > **유령 확인 결과** (2026-08-19): PAT·공개 API·MCP 코드는 **없다**(`personalAccessToken|apiToken` grep 0건, `apps/`에 `api`·`tui`뿐). 신규 구축이 맞다.
 >
-> **좋은 소식**: 인증 재료가 이미 있다. `auth_session`은 **opaque 토큰 PK 테이블**([`schema.ts:602-618`](../packages/core/src/db/schema.ts))이고, apps/api는 이미 **Bearer 헤더로 세션을 읽는 경로**를 갖고 있다([`auth.ts:48-51`](../apps/api/src/routes/auth.ts) — TUI가 이 경로로 동작한다).
+> **좋은 소식**: 인증 재료가 이미 있다. `auth_session`은 **opaque 토큰 PK 테이블**([`schema.ts:640`](../packages/core/src/db/schema.ts))이고, apps/api는 이미 **Bearer 헤더로 세션을 읽는 경로**를 갖고 있다([`auth.ts`](../apps/api/src/auth.ts)의 `sessionToken()` — TUI가 이 경로로 동작한다).
+
+> ## 착수 전 재검증 (2026-08-25)
+>
+> 계획서가 6일 묵었고 그 사이 M1~M5(PR #676~#700)가 들어갔다. §2의 인증 서술과 §2.3의
+> 멱등성 주장(`hashWorkoutLogMutationPayload`)은 **유효**했고, 아래 넷이 교정 대상이다.
+>
+> **① §3.1의 평문 토큰 저장은 이 리포의 관례와 반대다** (설계 교정). 계획서는
+> `token text PK`(평문)를 제안했는데, 그건 `auth_session`의 패턴이다. 이 리포에는
+> **장수명 토큰용 해시 저장 패턴이 이미 있다** — `password_reset_token`·
+> `email_verification_token`이 `token_hash text PK`이고, [`auth/token.ts`](../packages/core/src/auth/token.ts)의
+> `generateAuthTokenPair()`(32바이트 랜덤 + SHA-256)가 그 재료다.
+> PAT는 만료가 nullable(무기한)이라 **세션보다 훨씬 장수명**이므로 더 약한 쪽이 아니라
+> 더 강한 쪽 패턴을 따라야 한다. DB 덤프가 그대로 쓸 수 있는 자격증명이 되면 안 된다.
+> 접두사 판별은 **제시된 토큰**에서 하고(DB가 아니라), 해시로 조회한다 — 계획서의
+> 접두사 판별 설계는 그대로 성립한다.
+>
+> **② §3.3의 `simulateRoadmap` 재사용은 불가능하다** (유령). `grep` 0건 —
+> M4-2에서 "이미 구현돼 있음"으로 종결되면서 그 이름의 함수는 만들어지지 않았다.
+> 실제 재료는 `GET /api/plans/:planId/cycle-overview`다.
+>
+> **③ §2.2의 라우트 파일 목록이 낡았다.** `bodyweight.ts`가 M2-1(#683)에서 추가돼
+> 10개다. `app.ts`의 마운트도 계획서가 적은 8개보다 많다 — `templates`·`home`·
+> `export`·`me/import`·`program-versions`·`generated-sessions`·`ux-events`가 더 있다.
+> 엔드포인트는 **50개**(계획서의 "59개"는 그 시점 수치). 공개 표면 결정(§7 결정 3)에
+> `bodyweight`·`export`가 후보로 추가돼야 한다 — PR2에서 판단한다.
+>
+> **④ 스코프 강제를 PR2로 미루면 위험한 창이 생긴다** (순서 교정). 계획서 §5는
+> PR1이 발급, PR2가 "스코프 강제"다. 그러면 PR1 머지 시점부터 PR2까지 **PAT가 모든
+> 경로(`/api/auth/*` 포함)에 접근 가능한 창**이 열린다. PR1에서 **기본 거부 +
+> 명시 허용목록**으로 시작한다 — PR2는 그 목록을 route-order 스냅샷으로 고정하고
+> OpenAPI를 붙인다.
+>
+> **⑤ 구현 중 드러난 사실 — `auth` 경로는 web이 직접 처리한다.** `/api/auth/me`·
+> `/sessions`·`/login` 등은 web의 자체 `route.ts`가 잡고(구체 경로가 catch-all보다
+> 우선) **`Authorization` 헤더를 아예 읽지 않는다** — `wl_session` 쿠키만 본다.
+> 결과적으로 PAT로는 그 경로에서 신원이 서지 않으며, 이는 **의도한 결과**다.
+> 다만 apps/api의 표면 강제가 닿지 않는 영역이므로 PR2의 OpenAPI에 "PAT 접근 불가"로
+> 명시해야 하고, E2E도 상태 코드가 아니라 **"내 신원이 서지 않는다"**로 단정해야
+> 한다(로컬은 env fallback 때문에 200이 나온다).
+>
+> **⑥ 웹 프록시는 쿠키가 있을 때만 `Authorization`을 덮는다.** catch-all이
+> `if (token) headers.set("authorization", ...)`이라, 쿠키 없는 PAT 요청은 헤더가
+> 그대로 통과한다 — 즉 **PAT는 web 도메인으로도 동작한다**(apps/api 직접 호출 불필요).
+> 반대로 쿠키가 있으면 세션이 이긴다. MCP·스크립트는 쿠키가 없으므로 문제되지 않는다.
+>
+> **재료 추가 발견**: route-order 스냅샷은 **이미 선례가 있다** —
+> [`plans/route-order.test.ts`](../apps/api/src/routes/plans/route-order.test.ts)가
+> Hono의 `routes` 배열을 순서까지 스냅샷한다. G2는 이 패턴을 앱 전체로 넓히면 된다.
 
 ## 1. 문제와 목표
 
@@ -54,7 +102,8 @@ Liftosaur는 공개 REST API와 **MCP 서버**를 제공해 LLM을 계정에 연
 
 ```
 auth_api_token
-  token       text PK              -- 접두사로 종류 구분 (예: wlpat_)
+  tokenHash   text PK              -- SHA-256(제시 토큰). 평문은 저장하지 않는다
+  tokenPrefix text NOT NULL        -- 목록 표시용 앞자리 (예: wlpat_3f9a…)
   userId      uuid NOT NULL -> app_user.id (cascade)
   name        text NOT NULL        -- "MCP", "스크립트" 등 사용자 라벨
   scope       text NOT NULL        -- 'read' | 'read_write'
@@ -63,7 +112,11 @@ auth_api_token
   lastUsedAt  timestamptz
 ```
 - **`auth_session`과 분리한다** — 수명·스코프·표시 방식이 다르고, 세션 프루닝 크론이 PAT를 지우면 안 된다.
-- 인증 미들웨어가 Bearer 토큰의 **접두사로 종류를 판별**해 세션/PAT 경로를 가른다.
+- ~~`token text PK`(평문)~~ → **`token_hash text PK`** (2026-08-25 교정). `password_reset_token`·
+  `email_verification_token`과 같은 패턴이다. PAT는 만료가 nullable이라 세션보다 장수명이므로
+  평문 저장은 위험이 더 크다. `generateAuthTokenPair()`를 그대로 쓴다.
+- 인증 미들웨어가 **제시된** Bearer 토큰의 접두사로 종류를 판별해 세션/PAT 경로를 가른다
+  (DB에 평문이 없어도 접두사 판별은 성립한다 — 판별 대상이 요청 값이다).
 - 발급 시 **평문은 한 번만** 보여준다. UI는 `/settings/account`의 세션 목록 옆에 배치한다.
 - 비밀번호 변경·전 세션 무효화 시 **PAT는 유지**한다(§7 결정 2).
 - rate limit은 기존 체계를 재사용한다.
@@ -77,7 +130,9 @@ auth_api_token
 ### 3.3 MCP 서버
 
 - 신규 패키지 `apps/mcp` — stdio 전송, PAT로 공개 API를 호출하는 **얇은 래퍼**. 도메인 로직 없음.
-- 도구: 세션 조회/기록, 통계 요약, 플랜 상태, **프로그램 미리보기**(M4-2의 `simulateRoadmap` 재사용).
+- 도구: 세션 조회/기록, 통계 요약, 플랜 상태, **프로그램 미리보기**
+  (~~M4-2의 `simulateRoadmap`~~ → **`GET /api/plans/:planId/cycle-overview`**. 그 이름의
+  함수는 만들어진 적이 없다 — M4-2가 "이미 구현돼 있음"으로 종결됐다).
 - 경계: `apps/mcp`는 core를 import하지 않는다 — HTTP로만 말한다. 그래야 배포·버전이 독립적이다.
 
 ## 4. 안전장치
@@ -93,8 +148,8 @@ auth_api_token
 
 | # | 제목(안) | 내용 | 리스크 | 게이트 |
 |---|---|---|---|---|
-| **1** | `feat(auth): 개인 액세스 토큰을 발급한다` | `auth_api_token` 테이블 + 마이그레이션 2벌 + 접두사 판별 미들웨어 + `/settings/account` 발급·폐기 UI | 중 | G1·G3·G4 |
-| **2** | `feat(api): 공개 표면을 고정한다` | 공개 서브셋 선언 + route-order 스냅샷 + 스코프 강제 | 중 | G2·G5 |
+| **1** | `feat(auth): 개인 액세스 토큰을 발급한다` | `auth_api_token` 테이블 + 마이그레이션 + 접두사 판별 미들웨어 + **기본 거부 허용목록** + `/settings/account` 발급·폐기 UI | 중 | G1·G3·G4 |
+| **2** | `feat(api): 공개 표면을 고정한다` | 허용목록을 route-order 스냅샷으로 고정 + 공개 서브셋 재검토(`bodyweight`·`export`) | 중 | G2·G5 |
 | **3** | `docs(api): OpenAPI 스펙을 게시한다` | `docs/api/` 스펙 + 멱등성·rate limit 명시 | 낮 | — |
 | **4** | `feat(mcp): MCP 서버를 추가한다` | `apps/mcp` 패키지 + 도구 5종 + 스모크 | 중 | G5·G6 |
 
@@ -116,3 +171,7 @@ auth_api_token
 3. **공개 범위** → `logs`(읽기·쓰기) · `stats`(읽기) · `plans`(읽기) · `exercises`(읽기). `settings`는 제외 — 설정 변경은 앱에서만.
 4. **MCP 전송 방식** → stdio 1차. HTTP 전송은 원격 접근 수요가 생기면.
 5. **착수 시점** → M1~M5 완료 후. 표면이 흔들리는 동안 공개하면 계약을 두 번 만든다.
+6. **토큰 저장 형태** → **해시(SHA-256)** (2026-08-25 교정, §착수 전 재검증 ①). 평문 저장은
+   `auth_session`의 패턴이고 PAT에는 맞지 않다.
+7. **허용목록은 PR1부터** (2026-08-25 교정, §착수 전 재검증 ④). 기본 거부로 시작해
+   PR2가 고정한다. 스코프 강제를 뒤로 미루면 PAT가 전 경로에 열린 창이 생긴다.
