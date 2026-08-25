@@ -35,8 +35,12 @@ const SERVER_ONLY_IMPORTERS = new Set([
   "packages/core/src/db/seed.ts", // 전역 exercise 테이블 채우기
   "packages/core/src/muscle-groups/category-to-muscle.ts", // 근육군 해석(통계 서비스)
   "packages/core/src/exercise/resolve.ts", // 기록 저장·통계의 이름 해석
+  // Hono 라우트. web에 인프로세스로 마운트돼도 진입점이 route handler라
+  // (web/src/app/api/[...path]/route.ts) 클라이언트 번들에서는 도달할 수 없다.
+  "apps/api/src/routes/exercises.ts", // 장비 필터 — 장비가 DB가 아니라 카탈로그에 있다
   "packages/core/src/exercise/catalog.test.ts",
   "packages/core/src/exercise/catalog.equipment.test.ts",
+  "packages/core/src/exercise/search-filters.test.ts",
 ]);
 
 function grep(pattern, pathspecs) {

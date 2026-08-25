@@ -45,13 +45,16 @@ export const EXERCISE_NAMES = {
  * 프로그램 스토어의 장비 필터·통계 분해에도 쓸 수 있게 종류를 나눠 둔다.
  * 카탈로그에 없는 사용자 생성 운동은 `unknown`으로 떨어진다.
  */
-export type ExerciseEquipment =
-  | "barbell"
-  | "dumbbell"
-  | "machine"
-  | "cable"
-  | "bodyweight"
-  | "unknown";
+export const EXERCISE_EQUIPMENTS = [
+  "barbell",
+  "dumbbell",
+  "machine",
+  "cable",
+  "bodyweight",
+  "unknown",
+] as const;
+
+export type ExerciseEquipment = (typeof EXERCISE_EQUIPMENTS)[number];
 
 /**
  * 프로그램 처방이 참조하는 **안정적 식별자**. seed가 `EXERCISE_NAMES.highBarBackSquat`

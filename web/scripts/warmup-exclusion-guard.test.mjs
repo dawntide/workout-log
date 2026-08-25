@@ -52,6 +52,7 @@ const INCLUDES_ALL_SETS = new Map([
   ["packages/core/src/progression/ref5-auto-progression.ts", "REF5는 웜업을 애초에 기록하지 않는다(spec §11.3)"],
   ["packages/core/src/stats/ux-snapshot-service.ts", "UX 텔레메트리 — 실제 기록량을 세는 게 목적"],
   ["apps/api/src/routes/logs.ts", "로그 조회 — 사용자가 기록한 세트를 전부 보여준다"],
+  ["apps/api/src/routes/exercises.ts", "\"이 종목을 해 본 적 있나\" 판정 — 웜업으로만 해 봤어도 아는 종목이라 검색 상단에 와야 한다"],
   ["web/src/server/services/workout-log/load-workout-log-context.ts", "편집 화면 — 전체 세트가 필요하다"],
   ["web/src/server/db/backfillExerciseIds.ts", "일회성 백필 스크립트"],
   ["web/src/server/db/verifyProgramWorkflows.ts", "점검 스크립트"],
