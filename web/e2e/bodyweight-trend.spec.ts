@@ -82,7 +82,11 @@ test.describe("bodyweight trend", () => {
     await expect(heading).toBeVisible({ timeout: 30_000 });
 
     // 1) 빈 상태 — 설정 단일값을 점 하나로 그리지 않는다.
-    await expect(page.getByText(/기록이 없습니다/)).toBeVisible();
+    // **카드 안으로 좁힌다.** 통계 화면에는 빈 상태를 가진 카드가 여럿이라
+    // (신선도 카드도 "최근 기록이 없습니다"라고 말한다) 전역 텍스트 매치는
+    // 이웃 카드가 하나 늘 때마다 strict 위반으로 깨진다.
+    const bodyweightCard = heading.locator("xpath=ancestor::*[self::section or self::div][3]");
+    await expect(bodyweightCard.getByText(/기록이 없습니다/)).toBeVisible();
     await expect(page.getByRole("img", { name: "체중 추이 차트" })).toHaveCount(0);
 
     // 2) 기록 -> 차트 등장

@@ -14,6 +14,7 @@ import { GoalSection } from "@/widgets/goal-aware/home-goal-section";
 import { WeeklyVolumeSection } from "./weekly-volume-section";
 import { AsymptoteMonitorSection } from "./asymptote-monitor-section";
 import { BodyweightTrendSection } from "./bodyweight-trend-section";
+import { MuscleFreshnessSection } from "./muscle-freshness-section";
 
 const Stats1RMDetailed = dynamic(
   () =>
@@ -257,6 +258,7 @@ export function StatsScreen({
   goal,
   goalMetrics,
   asymptoteMonitor,
+  muscleFreshness,
 }: StatsScreenProps) {
   const { locale } = useLocale();
   const searchParams = useSearchParams();
@@ -365,6 +367,9 @@ export function StatsScreen({
         </header>
 
         <GoalSection goal={goal} metrics={goalMetrics} />
+
+        {/* "오늘 뭘 할 수 있나"에 답하는 카드라 추세 섹션들보다 앞이다. */}
+        <MuscleFreshnessSection data={muscleFreshness} locale={locale} />
 
         {asymptoteMonitor ? (
           <AsymptoteMonitorSection data={asymptoteMonitor} locale={locale} />
