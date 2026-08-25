@@ -1,5 +1,32 @@
 # 판정 이력 확장과 주차 로드맵 공개 계획 (M4)
 
+> ## 🔴 M4-2도 대부분 이미 구현돼 있었다 (2026-08-26 착수 시 실측)
+>
+> M4-1과 같은 일이 M4-2에서도 났다. §3.2가 설계한 `simulateRoadmap`은
+> **`GET /api/plans/:planId/cycle-overview`와 중복**이다:
+>
+> | §3.2 설계 | 이미 있는 것 |
+> |---|---|
+> | `simulateRoadmap(week×day 격자 반복)` | [`cycle-overview.ts:366`](../apps/api/src/routes/plans/cycle-overview.ts)이 `previewSessionExercises`를 `for w / for d`로 이미 반복한다 |
+> | `RoadmapWeek { week, days[{ day, exercises }] }` | `CycleOverviewSession { week, day, exercises[{ sets[{reps,weightKg,percent,rpe,note}] }] }` |
+> | "현 상태 유지 전개" | 현재 `runtimeState`를 그대로 넘긴다 — 같은 계약 |
+> | 주차 아코디언 UI | [`workout-log-summary-sheet.tsx`](../web/src/features/workout-log/ui/workout-log-summary-sheet.tsx)가 주차별 그룹 + DONE/TODAY/PLANNED로 렌더한다 |
+>
+> 사이클 전체(`for w = 1..totalWeeksInCycle`)를 덮으므로 "남은 주차 전개"도 충족한다.
+>
+> **실제로 빠져 있던 것은 하나뿐이었다** — 계약 캡션. 격자가 확정 스케줄로 오해되지
+> 않게 "현 상태 기준"임을 밝히는 문구인데, §3.2가 "정직한 계약"이라 부른 바로 그
+> 부분이다. 그것만 추가했다.
+>
+> **판별 불가로 드러난 것**: 디로드·테스트 주차 배지. DSL·엔진 어디에도 `deload`
+> 표식이 없다(grep 0건). §3.2의 "정의에서 판별 가능한 경우만"이라는 단서가 실제로
+> 걸린 셈이다.
+>
+> **남긴 판단**: `/plans/manage`에서도 개요를 여는 진입점은 만들지 않았다. 시트가
+> `workout-log` feature에 있어 `plans-manage` 위젯이 쓰려면 feature 간 import가
+> 생긴다(레이어 규칙 위반). 중복 진입점은 갭이 아니라 편의라 그 비용을 치를 이유가
+> 없다고 봤다 — 필요해지면 공용 위치로 승격하는 별도 작업이다.
+
 > 상태: **계획 확정, 미착수** (2026-08-19). 상위 문서 [`improvement-roadmap-2026-08.md`](improvement-roadmap-2026-08.md) §5.
 >
 > ## 🔴 로드맵 M4-1은 이미 구현된 항목이었다 — 재정의함

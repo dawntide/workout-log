@@ -169,7 +169,11 @@ Strong 패턴(그룹 컬러 바 + A1→B1→A2→B2 자동 순회)이 표준이�
 - **함정**: PATCH 재계산·replay 경로에서 과거 이벤트(근거 없음)와 혼재 — 근거 필드는 optional, 없으면 기존 표시로 폴백. program-seed-guide 문서 동반 갱신. 이벤트 스키마가 export에 포함되는지 확인 후 validator 갱신.
 - **DoD**: family별 reducer 유닛에 근거 어서션 추가 / 골든: 결정 자체는 출력 불변(근거만 추가) / E2E: 저장→판정 카드 표출 1개 family.
 
-### M4-2 주차 로드맵 전면 공개 — 규모 M ([계획서](judgment-history-and-roadmap-plan.md))
+### ~~M4-2 주차 로드맵 전면 공개 — 규모 M~~ → **대부분 구현돼 있었음 (2026-08-26 실측)** ([계획서](judgment-history-and-roadmap-plan.md))
+
+> `GET /api/plans/:planId/cycle-overview`가 주차×세션 격자를 현 상태 기준으로 이미 전개하고, 운동 기록 화면의 사이클 개요 시트가 주차별로 렌더한다. 실제로 없던 것은 **"현 상태 기준" 계약 캡션 하나**뿐이라 그것만 추가했다. 디로드 배지는 DSL에 표식이 없어 판별 불가.
+>
+> **M4-1에 이어 두 번째 유령이다.** 벤치마킹으로 만든 항목은 "시장에 없다"와 "우리에게 없다"를 따로 검증해야 한다는 교훈이 다시 확인됐다.
 
 > **확인**: `previewSessionExercises`가 **DB를 안 건드리는 순수 함수이고 `week`·`day`를 명시 지정할 수 있어** N주 전개의 기반이 이미 있다. 단 `schedule.weeks`가 optional이라 주차 수를 모르는 프로그램이 있다 → 전개 상한 12주로 확정.
 
@@ -234,7 +238,7 @@ Strong 패턴(그룹 컬러 바 + A1→B1→A2→B2 자동 순회)이 표준이�
 - **단계**:
   1. **PAT(개인 액세스 토큰)** — 규모 M: 설정 > 계정에 토큰 발급/폐기 UI. `auth_session`과 구분되는 토큰 종류(prefix 구분, 만료 선택, 스코프 `read` / `read+write`). apps/api Bearer 수용 경로에 토큰 종류 판별 추가. 세션 목록 화면에 발급 토큰 병기. rate limit 기존 체계 재사용.
   2. **공개 API 표면 확정** — 규모 M: 59개 중 공개 서브셋 선별(logs 읽기/쓰기, stats 읽기, plans 읽기, exercises 읽기 — auth·ops·마이그레이션 제외). OpenAPI 스펙 문서 생성(수기 or hono 스키마 기반), `docs/api/` 게시. **route-order 스냅샷 테스트로 공개 표면 고정**(프로덕션 프로브로 라우트 검증 불가 — 메모리 참조).
-  3. **MCP 서버** — 규모 M: 신규 패키지 `apps/mcp`(stdio, PAT 사용, 공개 API 호출 래퍼). 도구: 세션 조회/기록, 통계 요약, 플랜 상태, 프로그램 미리보기(M4-2 시뮬레이션 재사용). LLM 활용은 여기로 전부 외부화(엔진 결정론 유지).
+  3. **MCP 서버** — 규모 M: 신규 패키지 `apps/mcp`(stdio, PAT 사용, 공개 API 호출 래퍼). 도구: 세션 조회/기록, 통계 요약, 플랜 상태, 프로그램 미리보기(cycle-overview 재사용). LLM 활용은 여기로 전부 외부화(엔진 결정론 유지).
 - **함정**: PAT는 비밀번호 변경/전 세션 무효화 시 처리 정책 결정 필요(폐기 vs 유지). prod의 env 인증 fallback 차단 유지. write 스코프의 저장 멱등성 계약(요청 해시)을 API 문서에 명시. apps/api `lint:boundary` 준수(next/react 금지).
 - **TUI**: PAT를 TUI 로그인 대안으로 수용 가능(스키마 동시 — 토큰 판별이 서버측이므로 TUI 변경은 선택).
 - **DoD**: PAT 발급→API 호출→폐기 E2E / 스코프 위반 401·403 유닛 / OpenAPI 문서 / MCP 도구 스모크(로컬).
