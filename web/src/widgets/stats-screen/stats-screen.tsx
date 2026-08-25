@@ -13,6 +13,7 @@ import { APP_ROUTES } from "@/lib/app-routes";
 import { GoalSection } from "@/widgets/goal-aware/home-goal-section";
 import { WeeklyVolumeSection } from "./weekly-volume-section";
 import { AsymptoteMonitorSection } from "./asymptote-monitor-section";
+import { BodyweightTrendSection } from "./bodyweight-trend-section";
 
 const Stats1RMDetailed = dynamic(
   () =>
@@ -370,6 +371,8 @@ export function StatsScreen({
         ) : null}
 
         <WeeklyVolumeSection data={initialVolumeWeekly} locale={locale} />
+
+        <BodyweightTrendSection locale={locale} />
 
         <section
           style={{
