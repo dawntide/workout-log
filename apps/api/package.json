@@ -13,6 +13,7 @@
     "typecheck": "tsc --noEmit",
     "test": "DATABASE_URL=\"${DATABASE_URL:-postgres://test:test@127.0.0.1:5432/test}\" tsx --test $(find src -name '*.test.ts' | sort)",
     "lint:boundary": "node scripts/lint-boundary.mjs",
+    "build:openapi": "tsx scripts/build-openapi.mts",
     "lint:no-any": "node ../../script/any-ratchet.mjs src .any-allowlist.json"
   },
   "dependencies": {
