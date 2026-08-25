@@ -31,10 +31,17 @@ func (c *Client) ExportData(ctx context.Context, format string) ([]byte, error) 
 }
 
 // ImportSummaryRow is one table's import preview (rows to delete vs insert).
+//
+// WillRecompute marks a table the file does not carry: it is deleted and then
+// rebuilt from the logs after the import (plan_runtime_state today). Its
+// WillInsert is always 0, so a count-only summary reads as plain data loss.
+// Absent on servers older than that field, which decodes to false — the
+// pre-existing count-only rendering.
 type ImportSummaryRow struct {
-	Table      string `json:"table"`
-	WillDelete int    `json:"willDelete"`
-	WillInsert int    `json:"willInsert"`
+	Table         string `json:"table"`
+	WillDelete    int    `json:"willDelete"`
+	WillInsert    int    `json:"willInsert"`
+	WillRecompute bool   `json:"willRecompute"`
 }
 
 // ImportResult is the /api/me/import response. summary is the per-table preview

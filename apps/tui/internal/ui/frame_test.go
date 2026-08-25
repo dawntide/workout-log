@@ -122,3 +122,33 @@ func TestFrameGlobalHintsShowKeymapEntry(t *testing.T) {
 		t.Errorf("global hints should surface the ? 키맵 entry:\n%s", out)
 	}
 }
+
+// 파괴적 확인에서 **답하는 방법(y/n)이 먼저 잘리면 안 된다.**
+//
+// 종전에는 프롬프트와 힌트를 이어붙인 뒤 통째로 잘라서, 요약이 길면 힌트가 화면 밖으로
+// 나갔다 — 프로덕션 규모 요약(plan·workoutLog·workoutSet)이면 w=80에서 이미 "아니오"가
+// 사라져 있었고, 가져오기 요약에 재계산 태그가 붙으면서 w=100까지 번졌다. 이제 프롬프트를
+// 먼저 줄여 오른쪽 앵커를 지킨다.
+func TestConfirmLineKeepsAnswerHints(t *testing.T) {
+	f := NewFrame(nil, nil)
+	f.overlay = overlayConfirm
+	f.confirmPrompt = "기존 데이터 삭제 후 가져옴 (plan 1 · workoutLog 65 · workoutSet 739 · " +
+		recomputeTag + ")"
+
+	for _, w := range []int{80, 100, 120} {
+		out := renderFrame(f, w, 20)
+		for _, want := range []string{"y", "예", "n", "아니오"} {
+			if !strings.Contains(out, want) {
+				t.Errorf("w=%d: 확인 힌트 %q가 잘렸다 — 답할 방법이 화면에 없다: %s", w, want, out)
+			}
+		}
+	}
+
+	// 프롬프트가 짧으면 종전처럼 전부 보인다(줄이기가 공짜로 켜지지 않는다).
+	short := NewFrame(nil, nil)
+	short.overlay = overlayConfirm
+	short.confirmPrompt = "삭제할까요?"
+	if out := renderFrame(short, 80, 20); !strings.Contains(out, "삭제할까요?") {
+		t.Errorf("짧은 프롬프트가 잘렸다: %s", out)
+	}
+}
