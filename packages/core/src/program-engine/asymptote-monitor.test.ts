@@ -5,6 +5,7 @@ import assert from "node:assert/strict";
 import {
   ASYMPTOTE_MONITOR_WINDOW,
   aggregateDriverExposures,
+  constantBodyweight,
   asymptoteDriverTrend,
   type DriverExposure,
   type LoggedSetRow,
@@ -87,7 +88,7 @@ test("aggregateDriverExposures: 드라이버 버킷팅 + 일자별 탑세트 + �
     { performedAt: "2026-06-01", exerciseName: "Bicep Curl", weightKg: 15, reps: 12 }, // 비드라이버 → 무시
     { performedAt: "2026-06-03", exerciseName: "Back Squat", weightKg: 92.5, reps: 3 },
   ];
-  const out = aggregateDriverExposures(rows, 70);
+  const out = aggregateDriverExposures(rows, constantBodyweight(70));
 
   assert.equal(out.SQUAT.length, 2, "스쿼트 2일");
   assert.equal(out.SQUAT[0]!.weightKg, 90, "6-01 탑세트 = 90×3 (e1rm 99 > 80×5의 93.3)");
@@ -102,7 +103,7 @@ test("aggregateDriverExposures: bodyweightKg 없으면 풀업도 추중량만", 
   const rows: LoggedSetRow[] = [
     { performedAt: "2026-06-01", exerciseName: "Weighted Pull-Up", weightKg: 20, reps: 5 },
   ];
-  const out = aggregateDriverExposures(rows, null);
+  const out = aggregateDriverExposures(rows, constantBodyweight(null));
   assert.equal(out.PULL[0]!.bodyweightKg, undefined);
 });
 
@@ -114,4 +115,30 @@ test("정렬: 입력 순서 무관하게 performedAt 오름차순 처리", () =>
   ]));
   assert.equal(out.points[0]!.performedAt, "2026-06-01");
   assert.equal(out.points[2]!.performedAt, "2026-06-03");
+});
+
+test("aggregateDriverExposures: 노출마다 그 날의 체중을 쓴다", () => {
+  // 180일치 노출에 오늘 체중 하나를 적용하면 체중이 변한 사용자의 PULL 추세가
+  // 통째로 틀린다 — 이 마일스톤이 고치는 문제다.
+  const byDay: Record<string, number> = {
+    "2026-01-10": 68,
+    "2026-06-01": 74,
+  };
+  const rows: LoggedSetRow[] = [
+    { performedAt: "2026-01-10", exerciseName: "Weighted Pull-Up", weightKg: 10, reps: 5 },
+    { performedAt: "2026-06-01", exerciseName: "Weighted Pull-Up", weightKg: 10, reps: 5 },
+  ];
+  const out = aggregateDriverExposures(rows, (day) => byDay[day] ?? null);
+
+  assert.equal(out.PULL.length, 2);
+  assert.equal(out.PULL[0]!.bodyweightKg, 68, "1월 노출은 1월 체중");
+  assert.equal(out.PULL[1]!.bodyweightKg, 74, "6월 노출은 6월 체중");
+});
+
+test("aggregateDriverExposures: 그 날 체중을 모르면 추중량만 쓴다", () => {
+  const rows: LoggedSetRow[] = [
+    { performedAt: "2026-01-10", exerciseName: "Weighted Pull-Up", weightKg: 10, reps: 5 },
+  ];
+  const out = aggregateDriverExposures(rows, () => null);
+  assert.equal(out.PULL[0]!.bodyweightKg, undefined);
 });
