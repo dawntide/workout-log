@@ -24,7 +24,10 @@ const Stats1RMDetailed = dynamic(
   { ssr: false },
 );
 
-type StatsScreenProps = StatsPageBootstrap;
+type StatsScreenProps = StatsPageBootstrap & {
+  /** 서버 재계산이 필요한 설정이 바뀌었을 때 부트스트랩을 다시 받게 한다. */
+  onDataChanged: () => void;
+};
 
 function formatKg(value: number) {
   if (value >= 1000) return `${(value / 1000).toFixed(1)}t`;
@@ -259,6 +262,7 @@ export function StatsScreen({
   goalMetrics,
   asymptoteMonitor,
   muscleFreshness,
+  onDataChanged,
 }: StatsScreenProps) {
   const { locale } = useLocale();
   const searchParams = useSearchParams();
@@ -369,7 +373,11 @@ export function StatsScreen({
         <GoalSection goal={goal} metrics={goalMetrics} />
 
         {/* "오늘 뭘 할 수 있나"에 답하는 카드라 추세 섹션들보다 앞이다. */}
-        <MuscleFreshnessSection data={muscleFreshness} locale={locale} />
+        <MuscleFreshnessSection
+          data={muscleFreshness}
+          locale={locale}
+          onDataChanged={onDataChanged}
+        />
 
         {asymptoteMonitor ? (
           <AsymptoteMonitorSection data={asymptoteMonitor} locale={locale} />

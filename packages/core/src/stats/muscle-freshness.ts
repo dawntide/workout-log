@@ -4,6 +4,7 @@ import {
   type MuscleGroup,
   resolveMuscleContribution,
 } from "@workout/core/muscle-groups/category-to-muscle";
+import { MUSCLE_FRESHNESS_DEFAULTS } from "./muscle-freshness-constants";
 
 /**
  * 근육군별 신선도 추정 — **파라미터 공개형 결정론 모델**.
@@ -20,12 +21,9 @@ import {
  * **`now`는 항상 인자로 받는다.** 내부에서 Date.now()를 부르면 시간 의존 단언이
  * 불가능해진다.
  */
-export const MUSCLE_FRESHNESS_DEFAULTS = {
-  /** 완전 회복까지의 시간. 6일 — Fitbod 공개 파라미터를 초기값으로 삼았다. */
-  recoveryHours: 144,
-  /** capacity 산출 창. 8주. */
-  capacityWeeks: 8,
-} as const;
+// 상수는 의존성 0인 leaf에 산다 — 설정(클라이언트 진입점)이 기본값을 참조해야 하는데
+// 이 파일은 카탈로그를 끌고 오기 때문이다. 자세한 사정은 그 파일 주석 참조.
+export { MUSCLE_FRESHNESS_DEFAULTS } from "./muscle-freshness-constants";
 
 const HOUR_MS = 3_600_000;
 const DAY_MS = 86_400_000;
