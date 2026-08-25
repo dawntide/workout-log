@@ -99,11 +99,24 @@ function toDayKey(performedAt: string | Date): string {
   return Number.isNaN(d.getTime()) ? String(performedAt).slice(0, 10) : d.toISOString().slice(0, 10);
 }
 
+/**
+ * 그 세션 날짜의 체중을 돌려주는 함수. 모르면 null.
+ *
+ * 단일 값을 받던 것을 함수로 바꿨다 — 180일치 노출에 오늘 체중 하나를 적용하면
+ * 체중이 변한 사용자의 PULL 추세가 통째로 틀린다(계획서 §2.3).
+ */
+export type BodyweightResolver = (performedAtDay: string) => number | null;
+
+/** 이력이 없던 시절의 호출 형태를 살려 둔다 — 값 하나를 모든 날짜에 적용한다. */
+export function constantBodyweight(bodyweightKg: number | null): BodyweightResolver {
+  return () => bodyweightKg;
+}
+
 // 로그 세트들을 드라이버(SQ/BP/PULL)별 "일자별 탑세트(최대 e1RM)" 노출 시계열로 집계한다.
-// 풀업은 bodyweightKg를 더해 총중량으로 환산(BW 미설정이면 추중량만). 비-드라이버 종목은 무시.
+// 풀업은 그 날의 체중을 더해 총중량으로 환산(모르면 추중량만). 비-드라이버 종목은 무시.
 export function aggregateDriverExposures(
   rows: LoggedSetRow[],
-  bodyweightKg: number | null,
+  resolveBodyweight: BodyweightResolver,
 ): Record<DriverKey, DriverExposure[]> {
   const bestByDriverDay = new Map<string, { driver: DriverKey; exposure: DriverExposure; e1rm: number }>();
   for (const row of rows) {
@@ -112,8 +125,9 @@ export function aggregateDriverExposures(
     const weightKg = Number(row.weightKg ?? 0);
     const reps = Number(row.reps ?? 0);
     if (!(weightKg > 0) || !(reps > 0)) continue;
-    const bw = target === "PULL" && bodyweightKg && bodyweightKg > 0 ? bodyweightKg : undefined;
     const day = toDayKey(row.performedAt);
+    const dayBodyweight = target === "PULL" ? resolveBodyweight(day) : null;
+    const bw = dayBodyweight && dayBodyweight > 0 ? dayBodyweight : undefined;
     const exposure: DriverExposure = { performedAt: day, weightKg, reps, bodyweightKg: bw };
     const e1rm = exposureE1rm(exposure);
     const key = `${target}|${day}`;

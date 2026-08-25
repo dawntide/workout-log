@@ -4,12 +4,15 @@
 
 import { and, desc, eq, gte, or, sql } from "drizzle-orm";
 import { db } from "@workout/core/db/client";
+import { bodyweightAsOf } from "@workout/core/stats/bodyweight-timeline";
+import { loadBodyweightTimeline } from "@workout/core/stats/bodyweight-service";
 import { excludeWarmupSets } from "@workout/core/stats/set-type-filter";
 import { plan, programTemplate, programVersion, workoutLog, workoutSet } from "@workout/core/db/schema";
 import {
   ASYMPTOTE_DRIVERS,
   ASYMPTOTE_MONITOR_WINDOW,
   aggregateDriverExposures,
+  type BodyweightResolver,
   asymptoteDriverTrend,
   type DriverKey,
   type DriverTrendDirection,
@@ -88,7 +91,13 @@ export async function fetchAsymptoteDriverMonitor(input: {
     .orderBy(workoutLog.performedAt)
     .limit(5000);
 
-  const exposuresByDriver = aggregateDriverExposures(rows as LoggedSetRow[], input.bodyweightKg);
+  // 그 세션 날짜의 체중을 쓴다. 이력이 없거나 첫 기록보다 이전인 노출은 설정의
+  // 현재값으로 떨어진다(기록 이전 체중을 지어내지 않는다).
+  const timeline = await loadBodyweightTimeline(input.userId);
+  const resolveBodyweight: BodyweightResolver = (day) =>
+    bodyweightAsOf(timeline, new Date(`${day}T23:59:59.999Z`)) ?? input.bodyweightKg;
+
+  const exposuresByDriver = aggregateDriverExposures(rows as LoggedSetRow[], resolveBodyweight);
 
   const drivers: AsymptoteMonitorDriver[] = ASYMPTOTE_DRIVERS.map((target) => {
     const exposures = exposuresByDriver[target];

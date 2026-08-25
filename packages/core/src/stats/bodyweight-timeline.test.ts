@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   bodyweightAsOf,
+  bodyweightTimelineSignature,
   normalizeBodyweightPoints,
   type BodyweightPoint,
 } from "./bodyweight-timeline";
@@ -72,4 +73,30 @@ test("numeric이 문자열로 오는 Postgres 응답을 받는다", () => {
     { measuredAt: new Date("2026-01-01T00:00:00Z"), valueKg: "70.25" },
   ]);
   assert.equal(fromDb[0]!.valueKg, 70.25);
+});
+
+test("서명은 개수·최신 시각·최신 값이 바뀌면 달라진다", () => {
+  const base = normalizeBodyweightPoints([
+    { measuredAt: "2026-01-01T00:00:00Z", valueKg: 70 },
+    { measuredAt: "2026-03-01T00:00:00Z", valueKg: 74 },
+  ]);
+  const signature = bodyweightTimelineSignature(base);
+
+  const added = normalizeBodyweightPoints([
+    { measuredAt: "2026-01-01T00:00:00Z", valueKg: 70 },
+    { measuredAt: "2026-03-01T00:00:00Z", valueKg: 74 },
+    { measuredAt: "2026-06-01T00:00:00Z", valueKg: 72 },
+  ]);
+  const corrected = normalizeBodyweightPoints([
+    { measuredAt: "2026-01-01T00:00:00Z", valueKg: 70 },
+    { measuredAt: "2026-03-01T00:00:00Z", valueKg: 75 },
+  ]);
+
+  assert.notEqual(bodyweightTimelineSignature(added), signature);
+  assert.notEqual(bodyweightTimelineSignature(corrected), signature);
+  assert.equal(bodyweightTimelineSignature(base), signature, "같은 입력은 같은 서명");
+});
+
+test("서명: 기록이 없으면 안정적인 상수", () => {
+  assert.equal(bodyweightTimelineSignature([]), "none");
 });

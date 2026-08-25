@@ -56,3 +56,17 @@ export function bodyweightAsOf(points: readonly BodyweightPoint[], asOf: Date): 
   }
   return found === -1 ? null : points[found]!.valueKg;
 }
+
+/**
+ * 캐시 키에 넣을 이력 서명. 값이 바뀌면 문자열이 바뀐다.
+ *
+ * 체중 쓰기·삭제·설정 변경이 모두 `invalidateStatsCacheForUser`를 부르므로 지금은
+ * 없어도 동작한다. 그래도 넣는 이유는 **의존을 키에 드러내기 위해서**다 — 원격
+ * 무효화 호출 하나에 정확성이 걸려 있으면, 그 호출이 사라졌을 때 증상이
+ * "지표가 안 바뀜"으로 조용히 나타난다.
+ */
+export function bodyweightTimelineSignature(points: readonly BodyweightPoint[]): string {
+  if (points.length === 0) return "none";
+  const latest = points[points.length - 1]!;
+  return `${points.length}:${latest.measuredAt.getTime()}:${latest.valueKg}`;
+}
