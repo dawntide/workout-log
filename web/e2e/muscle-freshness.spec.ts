@@ -98,6 +98,15 @@ async function freshnessRows(page: Page): Promise<Array<{ label: string; value: 
   );
 }
 
+/** 근거 시트를 연다. 각 테스트가 스스로 열어 앞 테스트의 UI 상태에 기대지 않는다. */
+async function openEvidenceSheet(page: Page) {
+  await openFreshnessCard(page);
+  await page.getByRole("button", { name: "신선도 계산 근거" }).click();
+  const sheet = page.getByRole("dialog", { name: "신선도 계산 근거" });
+  await expect(sheet).toBeVisible();
+  return sheet;
+}
+
 test.describe.configure({ mode: "serial" });
 
 test.describe("muscle freshness", () => {
@@ -160,5 +169,48 @@ test.describe("muscle freshness", () => {
 
     // 매핑되지 않은 부위 버킷은 목록에 내밀지 않는다(계획서 §7 결정 5).
     expect(rows.some((row) => row.label === "기타")).toBe(false);
+  });
+
+  test("근거 시트가 식·기여 세션·매핑 공백을 연다", async () => {
+    const sheet = await openEvidenceSheet(page);
+
+    // 식 자체가 보여야 한다 — 이 시트의 존재 이유다.
+    await expect(sheet.locator("pre")).toContainText("신선도 = 1 -");
+    await expect(sheet.locator("pre")).toContainText("144h");
+
+    // 기여 세션은 "부하 × 감쇠 = 피로" 형태로 총합을 설명해야 한다.
+    await expect(sheet.getByText(/합계 피로/).first()).toBeVisible();
+
+    // Other는 목록에서 숨기되 여기서는 비율을 밝힌다(계획서 §7 결정 5).
+    await expect(sheet.getByText(/부위를 특정하지 못한 세트/)).toBeVisible();
+  });
+
+  test("회복 시간을 바꾸면 저장되고 서버가 다시 계산한다", async () => {
+    // **앞 테스트가 열어 둔 시트에 기대지 않는다.** serial 스위트라 통과하긴 하지만,
+    // 한 건만 골라 돌리면(--grep) 시트가 닫힌 채로 시작해 엉뚱한 자리에서 깨진다.
+    const sheet = await openEvidenceSheet(page);
+    await expect(sheet.locator("pre")).toContainText("144h");
+
+    await sheet.getByRole("radio", { name: "192h" }).click();
+
+    // 식이 바뀐다 = 설정 저장 → 서버 재계산 → 부트스트랩 재수신이 전부 돌았다는 뜻.
+    // 클라이언트에서 숫자만 바꾸는 구현이면 여기까지 오지 못한다.
+    await expect(sheet.locator("pre")).toContainText("192h", { timeout: 20_000 });
+    await expect(sheet.getByRole("radio", { name: "192h" })).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
+
+    const stored = await page.evaluate(async () => {
+      const res = await fetch("/api/settings");
+      const body = (await res.json()) as Record<string, unknown> & {
+        settings?: Record<string, unknown>;
+      };
+      return (body.settings ?? body)["prefs.freshness.recoveryHours"];
+    });
+    expect(Number(stored)).toBe(192);
+
+    // 기본값 안내는 현재 값이 아니라 **기본값**을 말해야 한다.
+    await expect(sheet.getByText(/기본 6일/)).toBeVisible();
   });
 });

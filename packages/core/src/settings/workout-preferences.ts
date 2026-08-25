@@ -2,6 +2,11 @@ import {
   computeBodyweightTotalLoadKg,
   isBodyweightExerciseName,
 } from "@workout/core/bodyweight-load";
+import {
+  FRESHNESS_RECOVERY_HOURS_OPTIONS,
+  MUSCLE_FRESHNESS_DEFAULTS,
+  type FreshnessRecoveryHours,
+} from "@workout/core/stats/muscle-freshness-constants";
 
 export type SettingValue = string | number | boolean | null;
 export type SettingsSnapshot = Record<string, SettingValue>;
@@ -107,6 +112,7 @@ export type WorkoutPreferences = {
   plateBarWeightKg: number;
   platePlatesKg: number[];
   intensityInput: IntensityInput;
+  freshnessRecoveryHours: FreshnessRecoveryHours;
 };
 
 export type ResolvedMinimumPlateIncrement = {
@@ -131,6 +137,7 @@ export const SETTINGS_KEYS = {
   plateBarWeightKg: "prefs.plate.barWeightKg",
   platePlatesJson: "prefs.plate.platesJson",
   intensityInput: "prefs.intensityInput",
+  freshnessRecoveryHours: "prefs.freshness.recoveryHours",
 } as const;
 
 export const DEFAULT_LOCALE_PREFERENCE: LocalePreference = "ko";
@@ -140,6 +147,9 @@ export const DEFAULT_DARK_COLOR_THEME: DarkColorTheme = "OBSIDIAN";
 export const DEFAULT_MINIMUM_PLATE_KG = 2.5;
 export const DEFAULT_BODYWEIGHT_KG: number | null = null;
 export const DEFAULT_INTENSITY_INPUT: IntensityInput = "RPE";
+/** 신선도 모델의 회복 시간. 값은 `muscle-freshness-constants.ts`가 진실원이다. */
+export const DEFAULT_FRESHNESS_RECOVERY_HOURS: FreshnessRecoveryHours =
+  MUSCLE_FRESHNESS_DEFAULTS.recoveryHours;
 export const DEFAULT_TRAINING_GOAL_PRIMARY: TrainingGoalKey = "general";
 export const DEFAULT_TRAINING_GOAL_SECONDARY: TrainingGoalKey[] = [];
 /**
@@ -231,6 +241,34 @@ export function normalizeTrainingGoal(value: unknown): TrainingGoalKey {
 }
 
 /** 미지 값은 기본(RPE)으로 떨어진다 — 구 클라이언트가 보낸 값이 화면을 깨지 못한다. */
+/**
+ * 신선도 회복 시간을 허용 눈금으로 맞춘다.
+ *
+ * ⚠️ **`null`·`undefined`는 기본값이다.** 숫자 정규화에서 빈 값을 `Number()`에
+ * 그대로 넘기면 `0`이 되고, 범위 클램프가 그걸 하한으로 붙잡아 "설정한 적 없는데
+ * 최솟값이 켜져 있는" 상태가 된다(`normalizeRestSeconds`에서 실제로 겪었다).
+ *
+ * 범위 안의 값은 **가장 가까운 눈금으로 스냅**한다 — API로 직접 넣은 값이나 눈금이
+ * 바뀐 뒤의 옛 값을 기본값으로 되돌리면 사용자 의도가 통째로 사라진다.
+ */
+export function normalizeFreshnessRecoveryHours(value: unknown): FreshnessRecoveryHours {
+  if (value === null || value === undefined || value === "") {
+    return DEFAULT_FRESHNESS_RECOVERY_HOURS;
+  }
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) return DEFAULT_FRESHNESS_RECOVERY_HOURS;
+  let best: FreshnessRecoveryHours = FRESHNESS_RECOVERY_HOURS_OPTIONS[0];
+  let bestDistance = Number.POSITIVE_INFINITY;
+  for (const option of FRESHNESS_RECOVERY_HOURS_OPTIONS) {
+    const distance = Math.abs(option - parsed);
+    if (distance < bestDistance) {
+      best = option;
+      bestDistance = distance;
+    }
+  }
+  return best;
+}
+
 export function normalizeIntensityInput(value: unknown): IntensityInput {
   const normalized = String(value ?? "").trim().toUpperCase();
   if ((INTENSITY_INPUTS as readonly string[]).includes(normalized)) {
@@ -487,6 +525,9 @@ export function readWorkoutPreferences(snapshot: SettingsSnapshot): WorkoutPrefe
     plateBarWeightKg,
     platePlatesKg,
     intensityInput: normalizeIntensityInput(snapshot[SETTINGS_KEYS.intensityInput]),
+    freshnessRecoveryHours: normalizeFreshnessRecoveryHours(
+      snapshot[SETTINGS_KEYS.freshnessRecoveryHours],
+    ),
   };
 }
 
@@ -508,6 +549,7 @@ export function toDefaultWorkoutPreferences(): WorkoutPreferences {
     plateBarWeightKg: DEFAULT_PLATE_BAR_WEIGHT_KG,
     platePlatesKg: [...DEFAULT_PLATE_PLATES_KG],
     intensityInput: DEFAULT_INTENSITY_INPUT,
+    freshnessRecoveryHours: DEFAULT_FRESHNESS_RECOVERY_HOURS,
   };
 }
 

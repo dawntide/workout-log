@@ -24,12 +24,18 @@ import {
   serializeRestPresets,
   normalizeLightColorTheme,
   normalizeIntensityInput,
+  normalizeFreshnessRecoveryHours,
+  DEFAULT_FRESHNESS_RECOVERY_HOURS,
   normalizeTrainingGoal,
   parseTrainingGoalSecondary,
   readWorkoutPreferences,
   serializeTrainingGoalSecondary,
   toDefaultWorkoutPreferences,
 } from "./workout-preferences";
+import {
+  FRESHNESS_RECOVERY_HOURS_OPTIONS,
+  MUSCLE_FRESHNESS_DEFAULTS,
+} from "../stats/muscle-freshness-constants";
 
 test("color theme normalizers accept known values and reject unknown values", () => {
   for (const theme of LIGHT_COLOR_THEMES) {
@@ -381,4 +387,53 @@ test("intensityInput은 스냅샷에서 읽히고 기본값이 RPE다", () => {
     "RIR",
   );
   assert.equal(readWorkoutPreferences({}).intensityInput, "RPE");
+});
+
+test("신선도 회복 시간: 빈 값은 기본값이다 — 0으로 떨어지지 않는다", () => {
+  // normalizeRestSeconds가 null을 하한(5초)으로 붙잡던 결함과 같은 자리다.
+  // "설정한 적 없는데 최솟값이 켜져 있는" 상태가 되면 모델이 통째로 달라진다.
+  for (const empty of [null, undefined, ""]) {
+    assert.equal(
+      normalizeFreshnessRecoveryHours(empty),
+      DEFAULT_FRESHNESS_RECOVERY_HOURS,
+      `${JSON.stringify(empty)}가 기본값으로 안 떨어진다`,
+    );
+  }
+  assert.equal(DEFAULT_FRESHNESS_RECOVERY_HOURS, 144);
+});
+
+test("신선도 회복 시간: 눈금 값은 그대로, 사이 값은 가장 가까운 눈금으로", () => {
+  for (const option of FRESHNESS_RECOVERY_HOURS_OPTIONS) {
+    assert.equal(normalizeFreshnessRecoveryHours(option), option);
+  }
+  assert.equal(normalizeFreshnessRecoveryHours(130), 120);
+  assert.equal(normalizeFreshnessRecoveryHours(140), 144);
+  assert.equal(normalizeFreshnessRecoveryHours("168"), 168);
+  // 범위 밖은 양 끝으로 붙는다 — 기본값으로 되돌리면 사용자 의도가 사라진다.
+  assert.equal(normalizeFreshnessRecoveryHours(24), 96);
+  assert.equal(normalizeFreshnessRecoveryHours(1000), 192);
+});
+
+test("신선도 회복 시간: 숫자가 아니거나 0 이하면 기본값", () => {
+  for (const bad of ["abc", NaN, Infinity, 0, -100, {}, []]) {
+    assert.equal(normalizeFreshnessRecoveryHours(bad), DEFAULT_FRESHNESS_RECOVERY_HOURS);
+  }
+});
+
+test("신선도 기본값이 모델 상수와 같다 — 두 곳이 어긋나면 설정 화면이 거짓말을 한다", () => {
+  assert.equal(DEFAULT_FRESHNESS_RECOVERY_HOURS, MUSCLE_FRESHNESS_DEFAULTS.recoveryHours);
+  assert.ok(
+    (FRESHNESS_RECOVERY_HOURS_OPTIONS as readonly number[]).includes(
+      MUSCLE_FRESHNESS_DEFAULTS.recoveryHours,
+    ),
+    "기본값이 선택 가능한 눈금에 없다 — 화면에서 아무것도 선택되지 않는다",
+  );
+});
+
+test("readWorkoutPreferences가 신선도 회복 시간을 읽는다", () => {
+  const prefs = readWorkoutPreferences({
+    [SETTINGS_KEYS.freshnessRecoveryHours]: 96,
+  });
+  assert.equal(prefs.freshnessRecoveryHours, 96);
+  assert.equal(readWorkoutPreferences({}).freshnessRecoveryHours, 144);
 });

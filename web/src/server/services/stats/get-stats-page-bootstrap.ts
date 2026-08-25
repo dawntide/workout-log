@@ -158,9 +158,12 @@ export async function getStatsPageBootstrap(
     bodyweightKg: prefs.bodyweightKg,
   });
   // 신선도는 실패해도 화면 전체를 막지 않는다 — 부가 정보다.
-  const muscleFreshnessPromise = fetchMuscleFreshness({ userId, now: new Date() }).catch(
-    () => null,
-  );
+  const muscleFreshnessPromise = fetchMuscleFreshness({
+    userId,
+    now: new Date(),
+    // 사용자가 근거 시트에서 조정한 회복 시간. 모델의 유일한 가변 파라미터다.
+    recoveryHours: prefs.freshnessRecoveryHours,
+  }).catch(() => null);
 
   if (defer1rmBootstrap) {
     const [

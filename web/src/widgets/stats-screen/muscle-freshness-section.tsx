@@ -1,8 +1,10 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { V2Card } from "@/components/v2/primitives";
+import { V2Icon } from "@/components/v2/primitives/v2-icon";
 import { muscleGroupLabel } from "@/lib/i18n/muscle-group-labels";
+import { MuscleFreshnessEvidenceSheet } from "./muscle-freshness-evidence-sheet";
 import type {
   MuscleFreshnessGroup,
   MuscleFreshnessResult,
@@ -118,10 +120,14 @@ function FreshnessRow({
 export function MuscleFreshnessSection({
   data,
   locale,
+  onDataChanged,
 }: {
   data: MuscleFreshnessResult | null;
   locale: "ko" | "en";
+  /** 근거 시트에서 회복 시간을 바꾸면 서버가 다시 계산해야 한다. */
+  onDataChanged: () => void;
 }) {
+  const [evidenceOpen, setEvidenceOpen] = useState(false);
   const rows = useMemo(() => {
     if (!data) return [];
     return data.groups
@@ -142,16 +148,47 @@ export function MuscleFreshnessSection({
 
   return (
     <V2Card>
-      <div style={{ padding: "0px 0px var(--v2-s-3)" }}>
-        <p className="v2-label">{locale === "ko" ? "부위별 신선도" : "Muscle Freshness"}</p>
-        <p
-          className="v2-small"
-          style={{ marginTop: "var(--v2-s-1)", color: "var(--v2-ink-3)" }}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "flex-start",
+          justifyContent: "space-between",
+          gap: "var(--v2-s-2)",
+          padding: "0px 0px var(--v2-s-3)",
+        }}
+      >
+        <div>
+          <p className="v2-label">{locale === "ko" ? "부위별 신선도" : "Muscle Freshness"}</p>
+          <p
+            className="v2-small"
+            style={{ marginTop: "var(--v2-s-1)", color: "var(--v2-ink-3)" }}
+          >
+            {locale === "ko"
+              ? `최근 ${data.capacityWeeks}주 주간 평균 볼륨 기준 · ${recoveryDays}일이면 완전 회복`
+              : `Against your ${data.capacityWeeks}-week average weekly volume · full recovery in ${recoveryDays} days`}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setEvidenceOpen(true)}
+          aria-label={locale === "ko" ? "신선도 계산 근거" : "How freshness is calculated"}
+          className="v2-pressable"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            width: "44px",
+            height: "44px",
+            margin: "-10px -10px 0px 0px",
+            background: "none",
+            border: "none",
+            cursor: "pointer",
+            color: "var(--v2-ink-3)",
+            flexShrink: 0,
+          }}
         >
-          {locale === "ko"
-            ? `최근 ${data.capacityWeeks}주 주간 평균 볼륨 기준 · ${recoveryDays}일이면 완전 회복`
-            : `Against your ${data.capacityWeeks}-week average weekly volume · full recovery in ${recoveryDays} days`}
-        </p>
+          <V2Icon name="function" style={{ fontSize: "var(--v2-t-18)" }} />
+        </button>
       </div>
 
       {!anyRecord ? (
@@ -173,6 +210,16 @@ export function MuscleFreshnessSection({
           ))}
         </div>
       )}
+
+      {evidenceOpen ? (
+        <MuscleFreshnessEvidenceSheet
+          open={evidenceOpen}
+          onClose={() => setEvidenceOpen(false)}
+          data={data}
+          locale={locale}
+          onRecoveryHoursSaved={onDataChanged}
+        />
+      ) : null}
     </V2Card>
   );
 }

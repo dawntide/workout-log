@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { apiGet, isAbortError } from "@/lib/api";
 import { useLocale } from "@/components/locale-provider";
@@ -16,6 +16,11 @@ export function StatsContainer() {
   const searchParams = useSearchParams();
   const [bootstrap, setBootstrap] = useState<StatsPageBootstrap | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // 신선도 회복 시간처럼 **서버가 다시 계산해야 하는** 설정이 바뀌면 이 값을 올려
+  // 부트스트랩을 다시 받는다. 클라이언트 재계산으로는 감쇠 창 밖으로 밀려난 세션을
+  // 되살릴 수 없어(응답에 없다) 창을 늘리는 방향이 틀어진다.
+  const [reloadToken, setReloadToken] = useState(0);
+  const reload = useCallback(() => setReloadToken((token) => token + 1), []);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -39,7 +44,7 @@ export function StatsContainer() {
         );
       });
     return () => controller.abort();
-  }, [locale, searchParams]);
+  }, [locale, reloadToken, searchParams]);
 
   if (error) {
     return (
@@ -61,5 +66,5 @@ export function StatsContainer() {
     );
   }
 
-  return <StatsScreen {...bootstrap} />;
+  return <StatsScreen {...bootstrap} onDataChanged={reload} />;
 }
