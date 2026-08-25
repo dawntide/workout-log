@@ -10,8 +10,11 @@ import * as schema from "@workout/core/db/schema";
 // 강제한다. 여기는 그 짝인 "데이터 이동" 축을 맡는다 — 세 곳(export·import·삭제)을
 // 손으로 맞추는 구조라 하나만 빠지는 일이 실제로 일어났다:
 //
-//   plan_runtime_state는 삭제와 import에는 있는데 **export에는 없다.**
-//   → replace import가 자동 진행 상태를 지우고 복원하지 않는다(중량·단계 리셋).
+//   plan_runtime_state는 삭제와 import에는 있는데 **export에는 없었다.**
+//   → replace import가 자동 진행 상태를 지우고 복원하지 않았다(중량·단계 리셋).
+//
+// 그 결함은 export 등재가 아니라 **import 후 재계산**으로 고쳤다(kind: recomputed).
+// 파생 상태라 파일의 옛 값을 되살리면 방금 갈아끼운 로그와 어긋나기 때문이다.
 //
 // 새 테이블이 같은 비대칭에 빠지지 않도록, 스키마에 user-scoped 테이블을 추가하면
 // 여기서 분류를 강제받는다. 계획서: docs/bodyweight-timeseries-plan.md §2.5
@@ -23,7 +26,7 @@ const SHAPE_SOURCE = readFileSync(new URL("../import/validateExportShape.ts", im
 type MoveKind =
   | "portable" // export·import 양쪽에 등재 — 사용자가 만든 데이터
   | "not-portable" // 옮기지 않는다(파생·인증·텔레메트리·참조)
-  | "known-gap"; // 옮겨야 하는데 아직 안 됨. 새 테이블을 여기 넣지 말 것.
+  | "recomputed"; // 파일로 옮기지 않고 import가 로그에서 다시 만든다.
 
 const MOVE_POLICY: Record<string, MoveKind> = {
   plan: "portable",
@@ -36,9 +39,11 @@ const MOVE_POLICY: Record<string, MoveKind> = {
   program_template: "portable",
   program_version: "portable",
 
-  plan_runtime_state: "known-gap",
+  // 자동 진행 상태 — 로그에서 파생된다. userImport가 삽입 후
+  // rebuildAutoProgressionForPlan으로 다시 만든다(아래 recomputed 테스트).
+  plan_runtime_state: "recomputed",
 
-  plan_progress_event: "not-portable", // 진행 이벤트 로그 — 로그에서 재계산 가능
+  plan_progress_event: "not-portable", // 진행 이벤트 로그 — plan 삭제에 cascade되고 위 재계산이 다시 만든다
   stats_cache: "not-portable", // 파생 캐시
   user_setting: "not-portable", // 설정 — 계정 라이프사이클이 다룬다
   ux_event_log: "not-portable", // 텔레메트리
@@ -129,15 +134,27 @@ test("portable 테이블은 export와 import 양쪽에 등재돼 있다", () => 
   );
 });
 
-test("known-gap은 정말 누락 상태다 — 고쳤으면 portable로 옮길 것", () => {
-  const fixed = Object.entries(MOVE_POLICY)
-    .filter(([, kind]) => kind === "known-gap")
-    .map(([tableName]) => tableName)
-    .filter((tableName) => mentionsIdentifier(EXPORT_SOURCE, camel(tableName)));
+test("recomputed 테이블은 export에 없고, import가 재계산을 호출한다", () => {
+  const recomputed = Object.entries(MOVE_POLICY)
+    .filter(([, kind]) => kind === "recomputed")
+    .map(([tableName]) => tableName);
+  assert.ok(recomputed.length > 0, "recomputed 테이블이 없다 — 분류/테스트가 어긋났다");
+
+  // export 등재는 "고침"이 아니라 **회귀**다. 파생 상태를 파일에서 되살리면 replace가
+  // 방금 갈아끼운 로그와 어긋난 옛 값을 심는다. 고치는 방법은 재계산 하나뿐이다.
+  const leaked = recomputed.filter((t) => mentionsIdentifier(EXPORT_SOURCE, camel(t)));
   assert.deepEqual(
-    fixed,
+    leaked,
     [],
-    `known-gap인데 이미 export에 등재된 테이블: ${fixed.join(", ")} — portable로 옮길 것`,
+    `recomputed인데 export에 등재된 테이블: ${leaked.join(", ")} — ` +
+      "파생 상태는 파일로 옮기지 않고 import 후 로그에서 재계산한다",
+  );
+
+  // 재계산 호출이 사라지면 삭제만 남아 원래 결함으로 되돌아간다.
+  assert.ok(
+    mentionsIdentifier(IMPORT_SOURCE, "rebuildAutoProgressionForPlan"),
+    "import가 rebuildAutoProgressionForPlan을 호출하지 않는다 — " +
+      "replace가 plan_runtime_state를 지운 채 복원하지 않는다(데이터 손실)",
   );
 });
 

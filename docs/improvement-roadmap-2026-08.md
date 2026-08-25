@@ -120,7 +120,7 @@ M6 공개 API / MCP        (차별화 4)                       ← 기능 표면
 
 ### M2-1 체중 시계열 — 규모 M ([계획서](bodyweight-timeseries-plan.md))
 
-> **교정**: "`validateImportScope`에 등재"는 **오류**다 — `body_measurement`는 자체 `userId` 컬럼을 가지므로 그 파일의 ScopeRule 대상이 아니다(규칙은 부모로만 소유자가 정해지는 자식 테이블용). 실제로 필요한 것은 `rewriteUserId` 적용과 **`userExport.ts` 등재**이며, 후자는 `planRuntimeState`가 이미 빠뜨려 **replace import 시 삭제만 되고 복원되지 않는** 실재 함정이다.
+> **교정**: "`validateImportScope`에 등재"는 **오류**다 — `body_measurement`는 자체 `userId` 컬럼을 가지므로 그 파일의 ScopeRule 대상이 아니다(규칙은 부모로만 소유자가 정해지는 자식 테이블용). 실제로 필요한 것은 `rewriteUserId` 적용과 **`userExport.ts` 등재**이며, 후자는 `planRuntimeState`가 빠뜨려 **replace import 시 삭제만 되고 복원되지 않던** 실재 함정이다(그쪽은 파생 상태라 export 등재가 아니라 import 후 재계산으로 해소했다).
 
 - **배경**: 체중이 설정의 단일 현재값. Hevy(+사진)·Liftosaur·Strong(PRO)·Alpha 전원 시계열 보유. 우리 앱은 strength score(체중 대비 배율)와 자중 종목 로드가 이미 체중을 소비하므로 **단일값 → 시계열 전환의 정확도 효용이 큼**(과거 세션의 e1RM·볼륨이 당시 체중으로 계산됨).
 - **목표 UX**: 홈 또는 통계 덱에서 체중 기록(날짜+값), 추이 차트(기존 e1RM 차트 UI 재사용), 설정의 현재값은 "최근 기록"의 뷰가 됨. 진행 사진·둘레는 비채택(§8, 개인 도구·범위 통제).

@@ -22,6 +22,8 @@ type ImportSummaryItem = {
   table: string;
   willDelete: number;
   willInsert: number;
+  /** 파일에서 복원하지 않고 import 후 로그에서 재계산하는 테이블(예: planRuntimeState). */
+  willRecompute?: boolean;
 };
 
 type ImportResponse = {
@@ -230,8 +232,16 @@ export default function SettingsDataExportPage() {
     }
   };
 
+  // 재계산 행은 자기 숫자가 0이어도 보여 준다 — "지워지고 끝"이 아님을 알리는 것이
+  // 이 행의 유일한 목적이라 0/0에서 숨으면 의미가 없다. 다만 아무것도 안 바뀌는
+  // import에서 이 행만 홀로 뜨면 그게 더 헷갈리므로, 다른 행에 변화가 있을 때만 낀다.
+  const importChangesSomething =
+    importPreview?.summary.some((row) => row.willDelete > 0 || row.willInsert > 0) ?? false;
   const importSummaryRows = importPreview?.summary.filter(
-    (row) => row.willDelete > 0 || row.willInsert > 0,
+    (row) =>
+      row.willDelete > 0 ||
+      row.willInsert > 0 ||
+      (row.willRecompute === true && importChangesSomething),
   );
 
   return (
@@ -370,9 +380,13 @@ export default function SettingsDataExportPage() {
                 key={row.table}
                 label={row.table}
                 description={
-                  locale === "ko"
-                    ? `삭제 ${row.willDelete} → 삽입 ${row.willInsert}`
-                    : `delete ${row.willDelete} → insert ${row.willInsert}`
+                  row.willRecompute
+                    ? locale === "ko"
+                      ? `삭제 ${row.willDelete} → 로그에서 재계산`
+                      : `delete ${row.willDelete} → recomputed from logs`
+                    : locale === "ko"
+                      ? `삭제 ${row.willDelete} → 삽입 ${row.willInsert}`
+                      : `delete ${row.willDelete} → insert ${row.willInsert}`
                 }
                 value={
                   importPreview?.applied

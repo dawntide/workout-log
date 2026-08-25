@@ -80,7 +80,10 @@
 | 삭제 | [`deleteUserData.ts`](../packages/core/src/data/deleteUserData.ts) `deleteUserDomainData()` — 계정 삭제와 replace import 양쪽이 쓴다 |
 | API | [`apps/api/src/routes/`](../apps/api/src/routes) 신설 + [`app.ts`](../apps/api/src/app.ts) `app.route(...)` 등록. web은 캐치올 프록시라 라우트 신설 불필요 |
 
-🔴 **선례 함정 (실측 확인)**: `planRuntimeState`는 `deleteUserData.ts`(4곳)와 `userImport.ts`(7곳)에는 있는데 **`userExport.ts`에는 없다**. 즉 replace import 시 **삭제만 되고 복원되지 않는다.** 새 테이블이 같은 비대칭에 빠지지 않도록 **export/import 왕복 테스트를 DoD에 넣는다.**
+✅ **선례 함정 (해소됨)**: `planRuntimeState`는 `deleteUserData.ts`에는 있는데 `userExport.ts`에는 없어서, replace import가 **삭제만 하고 복원하지 않았다**.
+고친 방법은 **export 등재가 아니라 import 후 재계산**이다 — 파생 상태라 파일의 옛 값을 되살리면 방금 갈아끼운 로그와 어긋난다.
+`userImport.ts`가 삽입 뒤 플랜마다 `rebuildAutoProgressionForPlan`을 돌리고, `export-import-coverage.test.ts`가 이 테이블을 `recomputed`로 분류해
+"export에 등재하는 것은 고침이 아니라 회귀"임을 강제한다. **새 테이블은 이 경로가 아니라 export/import 양쪽 등재(`portable`)가 정답이며, 왕복 테스트를 DoD에 넣는다.**
 
 ## 3. 설계
 
@@ -144,7 +147,7 @@ function bodyweightAsOf(points: BodyweightPoint[], asOf: Date): number | null;
 
 ## 6. 리스크 / 하지 말 것
 
-1. **`userExport.ts` 등재를 빠뜨리지 말 것** — `planRuntimeState`가 정확히 이 함정에 빠져 있다. 삭제·import에만 넣으면 replace import가 데이터를 조용히 날린다.
+1. **`userExport.ts` 등재를 빠뜨리지 말 것** — `planRuntimeState`가 정확히 이 함정에 빠졌었다(§2.5). 삭제·import에만 넣으면 replace import가 데이터를 조용히 날린다. `body_measurement`는 파생이 아니라 사용자가 입력한 원본이므로 재계산이라는 도피처가 없다 — 반드시 export에 넣어야 한다.
 2. **`deleteUserDomainData` 등재를 빠뜨리지 말 것** — 계정 삭제가 고아 행을 남긴다(GDPR 경로).
 3. **`validateImportScope`에 규칙을 추가하지 말 것** — 자체 `userId` 컬럼이 있는 테이블은 그 파일의 대상이 아니다. 필요한 건 `rewriteUserId`다.
 4. **설정 단일값을 제거하지 말 것** — 처방 시드·저장 스탬프·REF5 시작 입력이 "오늘 체중"을 쓰고, 그게 옳다.
