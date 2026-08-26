@@ -58,6 +58,8 @@ jobs:
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/workout_log_ci
           WORKOUT_AUTH_USER_ID: 00000000-0000-4000-8000-000000c1c1c1
+          # ci.yml과 같은 이유 — 폴백 계정이 관리자여야 관리자 표면 스펙이 돈다.
+          WORKOUT_SEED_ADMIN_FALLBACK: "1"
         run: pnpm db:seed
 
       # ⚠️ 이 레인은 **분리형(프록시) 토폴로지 전용 게이트**다. ci.yml의 E2E는

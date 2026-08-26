@@ -218,6 +218,13 @@
       "when": 1785048169470,
       "tag": "0030_auth_api_token",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1785134569470,
+      "tag": "0031_app_user_role",
+      "breakpoints": true
     }
   ]
 }

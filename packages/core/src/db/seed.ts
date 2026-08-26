@@ -1247,15 +1247,47 @@ export async function runSeed(options: SeedRunOptions = {}) {
   // unconditionally (not just with demo plans): CI's `db:seed` seeds no demo plans yet the
   // WORKOUT_AUTH_USER_ID fallback path writes data, and every domain/auth user_id now FKs
   // app_user(id). onConflictDoNothing keeps it a no-op when the id is a real account.
+  // 로그인 불가를 뜻하는 센티널. 실계정의 password_hash는 항상 PBKDF2 결과라 이 리터럴과
+  // 겹치지 않는다 — 아래 승격이 "합성 폴백 신원"만 건드린다는 보장이 여기서 나온다.
+  const FALLBACK_PASSWORD_SENTINEL = "local-dev-no-login";
+
+  // 폴백 신원에 관리자 권한을 주는 것은 **명시 opt-in**이다.
+  //
+  // 이 시드는 프로덕션에도 돈다(db-seed.yml의 prod 매트릭스는 db-migrate 성공 후 자동
+  // 실행). 거기서 자동 승격되면, 지금은 로그인이 불가능해 닿을 수 없는 이 계정이
+  // "폴백 플래그가 실수로 prod env에 들어가는 날" 일반 사용자가 아니라 **관리자**가 된다.
+  // dev-fallback.ts가 지키려는 성질이 정확히 그 반대라(들어와도 아무 일이 없어야 한다),
+  // 같은 방식으로 한 번 더 잠근다. E2E 레인만 이 플래그를 세운다.
+  const grantFallbackAdmin = process.env.WORKOUT_SEED_ADMIN_FALLBACK === "1";
+
   await db
     .insert(appUser)
     .values({
       id: devUserId,
       email: `local-dev-fallback+${devUserId}@localhost`,
-      passwordHash: "local-dev-no-login",
+      passwordHash: FALLBACK_PASSWORD_SENTINEL,
       displayName: "Local Dev Fallback",
+      role: grantFallbackAdmin ? "admin" : "user",
     })
     .onConflictDoNothing({ target: appUser.id });
+
+  // 이미 존재하는 폴백 행은 위 insert가 no-op이라 예전 권한 그대로 남는다. 재시드로
+  // 승격되게 하되 **센티널이 일치하는 폴백 신원만** 건드린다 — WORKOUT_AUTH_USER_ID가
+  // 실계정을 가리킬 때 시드가 그 계정을 관리자로 만드는 일은 없어야 한다.
+  //
+  // 이메일이 아니라 password_hash로 좁히는 이유: 폴백 이메일은 한 번 형식이 바뀐 적이
+  // 있어(`local-dev-fallback@localhost` → `+<uuid>` 형) 이메일로 맞추면 구형 DB에서
+  // 조용히 no-op이 된다. 센티널은 그 변경을 견뎠다.
+  //
+  // 강등은 하지 않는다 — 수동으로 승격해 둔 로컬 계정을 시드가 되돌리면 안 된다.
+  if (grantFallbackAdmin) {
+    await db
+      .update(appUser)
+      .set({ role: "admin" })
+      .where(
+        and(eq(appUser.id, devUserId), eq(appUser.passwordHash, FALLBACK_PASSWORD_SENTINEL)),
+      );
+  }
 
   if (includeDemoPlans) {
     if (templateOperatorV1?.id) {

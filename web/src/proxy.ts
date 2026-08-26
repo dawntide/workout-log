@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import {
   findActiveSession,
+  findUserRole,
   SESSION_COOKIE_NAME,
 } from "@workout/core/auth/session";
 import { registerVercelFluidPoolLifecycle } from "@/server/db/vercel-fluid-pool";
@@ -41,6 +42,27 @@ function isPublicPath(pathname: string): boolean {
   return PUBLIC_PATH_PREFIXES.some((p) => pathname.startsWith(p));
 }
 
+// 관리자 전용 **페이지**. 라우트가 자기 가드를 들고 있어도(page.tsx의 isAdminRequest)
+// /settings 레이아웃이 먼저 스트리밍돼 응답 상태가 200으로 굳는다 — 본문은 not-found인데
+// 상태만 200인 상태를 실측으로 확인했다. 존재를 숨기려면 렌더가 시작되기 전에 끊어야 한다.
+//
+// 관리자 API는 여기 없다. 라우트 핸들러가 requireAdminUserId로 403을 돌려주며, 그쪽은
+// 스트리밍 문제가 없어 상태가 정직하게 나간다.
+const ADMIN_PAGE_PREFIXES = ["/settings/debug"];
+
+function isAdminPage(pathname: string): boolean {
+  return ADMIN_PAGE_PREFIXES.some(
+    (p) => pathname === p || pathname.startsWith(`${p}/`),
+  );
+}
+
+/** 존재하지 않는 경로로 rewrite해 앱의 404를 그대로 쓴다(상태·본문 모두 진짜 404). */
+function notFoundRewrite(req: NextRequest): NextResponse {
+  const url = req.nextUrl.clone();
+  url.pathname = "/_admin-not-found";
+  return NextResponse.rewrite(url);
+}
+
 function redirectToLogin(req: NextRequest): NextResponse {
   const url = req.nextUrl.clone();
   url.pathname = "/login";
@@ -64,13 +86,22 @@ export async function proxy(req: NextRequest) {
     // a real active-session check before RSC rendering starts; otherwise a
     // revoked/expired cookie passes this proxy and becomes an error boundary.
     if (pathname.startsWith("/api/")) return NextResponse.next();
-    if (await findActiveSession(token)) return NextResponse.next();
-    return redirectToLogin(req);
+    // 권한은 이 조회에 이미 실려 온다 — 관리자 판정에 추가 쿼리가 들지 않는다.
+    const session = await findActiveSession(token);
+    if (!session) return redirectToLogin(req);
+    if (isAdminPage(pathname) && session.role !== "admin") return notFoundRewrite(req);
+    return NextResponse.next();
   }
 
   // 3. Dev fallback: no cookie + 개발용 폴백이 유효 → skip session check.
   // 프로덕션 런타임에서는 명시 opt-in 없이는 죽어 있다(devFallbackUserId 주석 참조).
-  if (devFallbackUserId()) {
+  const fallbackUserId = devFallbackUserId();
+  if (fallbackUserId) {
+    // 세션이 없어 권한을 계정에서 직접 읽는다. 이 조회는 폴백 경로(로컬·CI)에만 든다 —
+    // 쿠키가 있는 프로덕션 요청은 위 분기에서 이미 권한을 들고 나간다.
+    if (isAdminPage(pathname) && (await findUserRole(fallbackUserId)) !== "admin") {
+      return notFoundRewrite(req);
+    }
     return NextResponse.next();
   }
 
