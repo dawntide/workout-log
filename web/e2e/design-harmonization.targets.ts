@@ -19,6 +19,13 @@ export type DesignHarmonizationTarget = {
    */
   redirectsTo?: string;
   expectsBottomSheet?: boolean;
+  /**
+   * 이 화면이 반드시 렌더해야 하는 `V2Card` 톤들(카드 첫 줄 텍스트로 식별).
+   *
+   * 카탈로그가 톤을 빼면 감사가 **조용히 커버리지를 잃는다** — 카드는 여전히 있으니
+   * 셀렉터 가드도 안 울린다. 여기 적어 두면 그때 테스트가 말한다.
+   */
+  expectsCardTones?: readonly string[];
 };
 
 export const designHarmonizationTargets: DesignHarmonizationTarget[] = [
@@ -64,4 +71,15 @@ export const designHarmonizationTargets: DesignHarmonizationTarget[] = [
   { id: "settings-data-modal", title: "설정 데이터 모달", path: "/settings/data", expectsBottomSheet: true },
   { id: "settings-link-entry", title: "설정 딥링크 엔트리", path: "/settings/link?key=settings.theme", redirectsTo: "/settings" },
   { id: "settings-link-invalid", title: "설정 딥링크 에러", path: "/settings/link/settings.unknown", expectsBottomSheet: true },
+  // 사용자 화면이 아니라 **프리미티브 카탈로그**다. 여기를 넣는 이유는 하나 —
+  // `V2Card`의 6개 톤(accent·danger·success 포함)이 **실제로 렌더되는 유일한 곳**이라,
+  // 토큰 계산이 아니라 컴포넌트가 톤을 제대로 입히는지까지 잰다.
+  {
+    id: "design-system",
+    title: "프리미티브 카탈로그",
+    path: "/design-system",
+    // 의미 톤(accent·danger·success)이 **실제로 렌더되는 유일한 곳**이다. 나머지
+    // 사용처 6곳은 전부 상호작용·상태 뒤에 있어 이 감사가 닿지 못한다.
+    expectsCardTones: ["paper", "inset", "strong", "accent", "danger", "success"],
+  },
 ];

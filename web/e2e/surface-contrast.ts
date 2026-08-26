@@ -73,6 +73,32 @@ export const SEMANTIC_TONE_BG: Record<string, string> = {
   success: "color-mix(in srgb, var(--v2-c-success) 10%, var(--v2-paper))",
 };
 
+/** `V2Card`의 6개 톤 전부. 의미 톤 3개 + 사다리 톤 3개. */
+export const CARD_TONE_BG: Record<string, string> = {
+  paper: "var(--v2-paper)",
+  inset: "var(--v2-paper-2)",
+  strong: "var(--v2-paper-3)",
+  ...SEMANTIC_TONE_BG,
+};
+
+/**
+ * 두 색이 **같은 색인가**(동일성 비교). 지각 거리가 아니라 성분을 본다.
+ *
+ * `deltaE`를 쓰면 안 된다 — 그쪽은 반투명 색을 일부러 거부하는데, 동일성 비교에는
+ * 알파도 비교 대상이다(다크 테마의 `--v2-accent-weak`이 그렇다).
+ */
+export function sameColor(left: string, right: string) {
+  const l = parseColor(left);
+  const r = parseColor(right);
+  if (!l || !r) return false;
+  return (
+    Math.abs(l[0] - r[0]) < 1 &&
+    Math.abs(l[1] - r[1]) < 1 &&
+    Math.abs(l[2] - r[2]) < 1 &&
+    Math.abs(l[3] - r[3]) < 0.01
+  );
+}
+
 /** r·g·b는 0..255, a는 0..1. */
 export type Rgba = readonly [number, number, number, number];
 

@@ -1,6 +1,9 @@
 name: E2E Nightly (full suite)
 
 # 감사 2026-07 §4.2(R3): 14개 Playwright 스펙 중 smoke 1개만 CI 게이트였다.
+# (2026-08-26) color-themes·design-harmonization은 **PR 게이트로 승격**됐다 — 이 둘을
+# 고칠 때 nightly를 수동으로 돌릴 필요가 없다. nightly가 여전히 유일하게 덮는 것은
+# 프록시 모드와 나머지 여정 스펙이다.
 # 나머지(auth-recovery·data-export-import·oauth·pr-history·workout-log-rpe·
 # stats-1rm-async-continuity·design-harmonization 등)를 nightly로 편입해 커버리지
 # 공백을 표면화한다. PR 게이트에는 넣지 않는다(비침습) — 실패는 트리아지 대상이며
