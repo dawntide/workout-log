@@ -91,17 +91,11 @@ export const CalendarSelectedDateSection = memo(
     onMoveDateCommit,
     onDeleteLog,
   }: CalendarSelectedDateSectionProps) {
-    const moveDateOpenValueRef = useRef(selectedDate);
     const moveDatePendingValueRef = useRef(selectedDate);
 
-    const handleMoveDateFocus = useCallback(
-      (event: React.FocusEvent<HTMLInputElement>) => {
-        const currentValue = event.currentTarget.value || selectedDate;
-        moveDateOpenValueRef.current = currentValue;
-        moveDatePendingValueRef.current = currentValue;
-      },
-      [selectedDate],
-    );
+    const handleMoveDateFocus = useCallback(() => {
+      moveDatePendingValueRef.current = selectedDate;
+    }, [selectedDate]);
 
     const handleMoveDateChange = useCallback(
       (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -114,12 +108,16 @@ export const CalendarSelectedDateSection = memo(
       (event: React.FocusEvent<HTMLInputElement>) => {
         const nextDate =
           moveDatePendingValueRef.current || event.currentTarget.value;
-        const previousDate = moveDateOpenValueRef.current;
-        moveDatePendingValueRef.current = previousDate;
-        if (!nextDate || nextDate === previousDate) return;
+        // 비교 기준은 **선택된 날짜**다. 예전에는 "포커스 시점의 입력 값"을 기준으로
+        // 삼았는데, 값이 프로그램으로 바뀌면 브라우저가 date 입력의 focus를 한 번 더
+        // 발화해 기준이 **새 값으로 덮이고**, 그러면 nextDate === previousDate가 되어
+        // 이동이 조용히 취소됐다(E2E 계측으로 확인). 자동 완성·보조기술도 같은
+        // 경로다. `selectedDate`는 언제나 진실이므로 기준으로 삼기에 맞다.
+        moveDatePendingValueRef.current = selectedDate;
+        if (!nextDate || nextDate === selectedDate) return;
         onMoveDateCommit(nextDate);
       },
-      [onMoveDateCommit],
+      [onMoveDateCommit, selectedDate],
     );
 
     const isToday = selectedDate === today;

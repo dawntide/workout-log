@@ -1095,6 +1095,51 @@ test("REF5 과거 로그 수정·삭제 후 정방향 재계산", async ({ page 
     "href",
     new RegExp(thirdLogId),
   );
+  // ── 날짜 이동 충돌 ─────────────────────────────────────────────────────────
+  // 자동 진행 플랜은 기록 순서가 판정에 영향을 주므로, 이동 구간 안에 다른 기록이
+  // 있으면 이동을 **막고** 안내한다. 이 여정의 기록은 2026 기준 14·22·30일 전이라,
+  // 선택된 최신 기록을 25일 전으로 옮기면 22일 전 기록을 가로지른다.
+  // 충돌이면 PATCH가 나가지 않아(이동 취소) 뒤따르는 삭제 흐름에 영향이 없다.
+  const conflictAt = new Date();
+  conflictAt.setDate(conflictAt.getDate() - 25);
+  const conflictDate = [
+    conflictAt.getFullYear(),
+    String(conflictAt.getMonth() + 1).padStart(2, "0"),
+    String(conflictAt.getDate()).padStart(2, "0"),
+  ].join("-");
+
+  // 값 입력은 `fill()`로 충분하다 — 앱이 "이전 날짜"를 selectedDate에서 읽으므로
+  // date 입력의 focus가 몇 번 발화하든 기준이 흔들리지 않는다. 세그먼트 순서(로케일)에
+  // 기대는 키보드 타이핑은 쓰지 않는다 — CI는 로케일이 달라 `60801-02-02`가 나왔다.
+  const moveDateInput = page
+    .locator("label")
+    .filter({ hasText: "날짜 이동" })
+    .locator('input[type="date"]');
+  await moveDateInput.fill(conflictDate);
+  expect(await moveDateInput.inputValue()).toBe(conflictDate);
+  // 이동은 blur에서 커밋된다 — 다른 요소를 눌러 포커스를 뺀다.
+  await page.getByRole("heading", { name: "캘린더" }).click();
+
+  const moveConflictSheet = page.getByRole("dialog", { name: "날짜 이동 불가" });
+  await expect(moveConflictSheet).toBeVisible({ timeout: 20_000 });
+  await expect(
+    moveConflictSheet.getByText("이동할 날짜 사이에 다른 기록이 있습니다.", { exact: false }),
+  ).toBeVisible();
+  // 표면 감사 — danger 카드가 시트 배경 위에서 구분되는지. 이 시트는 기록 2건 이상과
+  // 가로지르는 이동이 있어야 떠서 감사 스펙이 만들 수 없는 상태다.
+  await expectSurfaceContrast(page, {
+    context: "캘린더 날짜 이동 충돌 안내",
+    expectTones: ["danger"],
+  });
+  // 시트 상단 닫기와 하단 확인 버튼이 같은 이름이라 첫 번째로 특정한다.
+  await moveConflictSheet.getByRole("button", { name: "확인", exact: true }).first().click();
+  await expect(moveConflictSheet).toBeHidden();
+  // 이동이 실제로 막혔는지 — 선택 날짜가 그대로여야 한다.
+  await expect(page.getByRole("link", { name: "기록수정" })).toHaveAttribute(
+    "href",
+    new RegExp(thirdLogId),
+  );
+
   await page.getByRole("button", { name: "기록 삭제", exact: true }).click();
   // 확인 시트: 질문문은 본문, 버튼은 행동 라벨 — 카드의 트리거 버튼과 이름이 같으므로
   // dialog 안으로 스코프해서 누른다.
