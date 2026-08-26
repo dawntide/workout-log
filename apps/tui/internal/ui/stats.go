@@ -3,8 +3,11 @@ package ui
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
+	"time"
 
+	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
@@ -29,6 +32,11 @@ type statsE1rmMsg struct {
 	err  error
 }
 
+type statsBodyweightMsg struct {
+	items []api.BodyweightEntry
+	err   error
+}
+
 type statsFreshnessMsg struct {
 	f   *api.MuscleFreshness
 	err error
@@ -45,7 +53,28 @@ const (
 	vwE1rm statsView = iota
 	vwVolume
 	vwFreshness
+	vwBodyweight
 )
+
+// statsViewCount is the cycle length for `v`.
+const statsViewCount = 4
+
+func statsBodyweightCmd(c *api.Client) tea.Cmd {
+	return func() tea.Msg {
+		items, err := c.Bodyweight(context.Background(), 365)
+		return statsBodyweightMsg{items: items, err: err}
+	}
+}
+
+func recordBodyweightCmd(c *api.Client, kg float64) tea.Cmd {
+	return func() tea.Msg {
+		if _, err := c.RecordBodyweight(context.Background(), kg, time.Now()); err != nil {
+			return statsBodyweightMsg{err: err}
+		}
+		items, err := c.Bodyweight(context.Background(), 365)
+		return statsBodyweightMsg{items: items, err: err}
+	}
+}
 
 func statsFreshnessCmd(c *api.Client) tea.Cmd {
 	return func() tea.Msg {
@@ -85,6 +114,10 @@ type Stats struct {
 	volume    *api.VolumeSeries
 	view      statsView
 	freshness *api.MuscleFreshness
+	weights   []api.BodyweightEntry
+	weightsOK bool // 로드 완료 — nil 슬라이스와 "아직 안 옴"을 구분한다
+	bwInput   textinput.Model
+	bwEditing bool
 	lift      int
 	rangeIdx  int
 	braille   bool
@@ -108,6 +141,10 @@ func (s Stats) currentLift() string {
 }
 
 func (s Stats) reload() (Stats, tea.Cmd) {
+	if s.view == vwBodyweight {
+		s.weights, s.weightsOK = nil, false
+		return s, statsBodyweightCmd(s.client)
+	}
 	if s.view == vwFreshness {
 		// 매번 다시 받는다 — 신선도는 시간 함수라 캐시가 곧 거짓이 된다.
 		s.freshness = nil
@@ -159,6 +196,13 @@ func (s Stats) Update(msg tea.Msg) (Screen, tea.Cmd) {
 		}
 		s.freshness, s.err = m.f, ""
 		return s, nil
+	case statsBodyweightMsg:
+		if m.err != nil {
+			s.err = humanizeAuthErr(m.err)
+			return s, nil
+		}
+		s.weights, s.weightsOK, s.err = m.items, true, ""
+		return s, nil
 	case pickedMsg:
 		if m.tag == "exercise" && strings.TrimSpace(m.value) != "" {
 			s.custom, s.e1rm = m.value, nil
@@ -172,15 +216,18 @@ func (s Stats) Update(msg tea.Msg) (Screen, tea.Cmd) {
 }
 
 func (s Stats) handleKey(m tea.KeyPressMsg) (Screen, tea.Cmd) {
+	if s.bwEditing {
+		return s.handleBodyweightInput(m)
+	}
 	n := 0
 	if s.bundle != nil {
 		n = len(s.bundle.Prs90d)
 	}
 	switch m.String() {
 	case "v":
-		// e1RM → 볼륨 → 신선도 → e1RM. 뷰가 셋이 됐지만 키는 그대로 하나다 —
+		// e1RM → 볼륨 → 신선도 → 체중 → e1RM. 뷰가 넷이 됐지만 키는 그대로 하나다 —
 		// 새 바인딩을 만들면 외울 것이 늘고, 순환은 이미 있는 관습이다.
-		s.view = (s.view + 1) % 3
+		s.view = (s.view + 1) % statsViewCount
 		return s.reload()
 	case "/":
 		if s.view == vwE1rm {
@@ -201,23 +248,56 @@ func (s Stats) handleKey(m tea.KeyPressMsg) (Screen, tea.Cmd) {
 	case "]", "l":
 		// 신선도는 범위 개념이 없다(모델이 8주 창을 고정으로 쓴다). 눌러도 반응하지
 		// 않는 편이 낫다 — 범위를 바꾸는 척하고 같은 화면을 다시 그리면 거짓말이다.
-		if s.view == vwFreshness {
+		if s.view == vwFreshness || s.view == vwBodyweight {
 			return s, nil
 		}
 		s.rangeIdx = (s.rangeIdx + 1) % len(statsRanges)
 		return s.reload()
 	case "[", "h":
-		if s.view == vwFreshness {
+		if s.view == vwFreshness || s.view == vwBodyweight {
 			return s, nil
 		}
 		s.rangeIdx = (s.rangeIdx - 1 + len(statsRanges)) % len(statsRanges)
 		return s.reload()
+	case "a":
+		// `n`은 이미 "다음 운동"이라 못 쓴다. `a`(add)로 연다 — exercises 버퍼도
+		// 추가 계열에 이 자리를 쓰고 있어 손가락이 헷갈리지 않는다.
+		if s.view == vwBodyweight {
+			ti := textinput.New()
+			ti.Placeholder = "72.5"
+			ti.SetWidth(8)
+			s.bwInput, s.bwEditing = ti, true
+			return s, ti.Focus()
+		}
 	case "b":
 		s.braille = !s.braille
 	case "R":
 		return s, statsBundleCmd(s.client)
 	}
 	return s, nil
+}
+
+// handleBodyweightInput drives the inline weight entry.
+func (s Stats) handleBodyweightInput(m tea.KeyPressMsg) (Screen, tea.Cmd) {
+	switch m.String() {
+	case "esc":
+		s.bwEditing = false
+		return s, nil
+	case "enter":
+		raw := strings.TrimSpace(s.bwInput.Value())
+		s.bwEditing = false
+		kg, err := strconv.ParseFloat(raw, 64)
+		if err != nil || kg <= 0 {
+			// 잘못된 입력은 조용히 버리지 않는다 — 왜 아무 일도 안 났는지 알려 준다.
+			s.err = "체중은 숫자여야 합니다 (예: 72.5)"
+			return s, nil
+		}
+		s.err = ""
+		return s, recordBodyweightCmd(s.client, kg)
+	}
+	var cmd tea.Cmd
+	s.bwInput, cmd = s.bwInput.Update(m)
+	return s, cmd
 }
 
 func (s Stats) Mode() Mode {
@@ -228,6 +308,9 @@ func (s Stats) Mode() Mode {
 }
 
 func (s Stats) Context() string {
+	if s.view == vwBodyweight {
+		return "체중 추이"
+	}
 	if s.view == vwFreshness {
 		return "신선도"
 	}
@@ -246,6 +329,12 @@ func (s Stats) StatusRight() string {
 	}
 	// 신선도 뷰에서는 범위 라벨이 의미가 없다 — 모델이 8주 창을 고정으로 쓴다.
 	// 그대로 두면 `[`·`]`가 먹히는 것처럼 보인다.
+	if s.view == vwBodyweight {
+		if !s.weightsOK {
+			return ""
+		}
+		return fmt.Sprintf("%d건", len(s.weights))
+	}
 	if s.view == vwFreshness {
 		if s.freshness == nil {
 			return ""
@@ -255,14 +344,19 @@ func (s Stats) StatusRight() string {
 	return statsRanges[s.rangeIdx].label
 }
 
-func (s Stats) Editing() bool { return false }
+func (s Stats) Editing() bool { return s.bwEditing }
 
 func (s Stats) Hints() []hintItem {
+	if s.bwEditing {
+		return []hintItem{{"⏎", "기록"}, {"esc", "취소"}}
+	}
 	switch s.view {
 	case vwVolume:
 		return []hintItem{{"v", "신선도"}, {"[ ]", "범위"}, {"b", "차트"}}
 	case vwFreshness:
-		return []hintItem{{"v", "e1RM"}}
+		return []hintItem{{"v", "체중"}}
+	case vwBodyweight:
+		return []hintItem{{"v", "e1RM"}, {"a", "기록"}, {"b", "차트"}}
 	}
 	return []hintItem{{"jk", "운동"}, {"/", "검색"}, {"[ ]", "범위"}, {"b", "차트"}, {"v", "볼륨"}}
 }
@@ -275,6 +369,16 @@ func (s Stats) Body(w, h int) string {
 		return centered("불러오는 중…", theme.Dim, w, h)
 	}
 	pad := bodyPad(h)
+	if s.view == vwBodyweight {
+		if !s.weightsOK {
+			return centered("불러오는 중…", theme.Dim, w, h)
+		}
+		body := bodyweightBody(s.weights, w-2, h-2*pad, s.braille)
+		if s.bwEditing {
+			body = "체중(kg): " + s.bwInput.View() + "\n\n" + body
+		}
+		return lipgloss.NewStyle().Width(w).Height(h).Padding(pad, 1).Render(body)
+	}
 	if s.view == vwFreshness {
 		if s.freshness == nil {
 			return centered("불러오는 중…", theme.Dim, w, h)
