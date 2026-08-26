@@ -53,6 +53,11 @@ const DESCRIPTIONS = {
     summary: "볼륨 시계열",
     description: "주 단위 볼륨 추이.",
   },
+  "GET /api/stats/muscle-freshness": {
+    summary: "부위별 신선도",
+    description:
+      "결정론 감쇠 모델로 추정한 부위별 회복도. `groups[].contributions`에 그 값을 만든 세션이 함께 온다 — 점수만 주고 근거를 숨기지 않는다. `capacityKg === 0`은 **회복 완료가 아니라 기록 없음**이다.",
+  },
   "GET /api/plans": { summary: "플랜 목록", description: "보유한 플랜과 진행 상태." },
   "GET /api/plans/:planId/cycle-overview": {
     summary: "사이클 개요",

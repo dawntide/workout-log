@@ -61,6 +61,7 @@ test("공개 표면 스냅샷 — 바뀌면 의도적 결정을 강제한다", (
       "GET /api/stats/strength-summary",
       "GET /api/stats/volume",
       "GET /api/stats/volume-series",
+      "GET /api/stats/muscle-freshness",
       "GET /api/plans",
       "GET /api/plans/:planId/cycle-overview",
       "GET /api/plans/:planId/progression-state",

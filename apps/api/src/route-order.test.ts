@@ -69,6 +69,7 @@ const EXPECTED = [
   "GET /api/stats/ref5-start-recommendation",
   "GET /api/stats/strength-summary",
   "GET /api/stats/volume",
+  "GET /api/stats/muscle-freshness",
   "GET /api/stats/ux-snapshot",
   "GET /api/bodyweight",
   "POST /api/bodyweight",
