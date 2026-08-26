@@ -3,7 +3,12 @@ package api
 import (
 	"context"
 	"net/url"
+	"strconv"
 )
+
+// ExerciseFetchLimit is the server-side cap on a dictionary search.
+// 받은 개수가 이 값이면 **더 있다는 뜻**이다 — 화면이 "전체"라고 말하면 안 된다.
+const ExerciseFetchLimit = 200
 
 // Exercise is a canonical exercise from the dictionary.
 type Exercise struct {
@@ -13,13 +18,30 @@ type Exercise struct {
 	Aliases  []string `json:"aliases,omitempty"`
 }
 
-// Exercises searches the exercise dictionary (empty query = all, up to 200).
-func (c *Client) Exercises(ctx context.Context, query string) ([]Exercise, error) {
+// ExerciseSearch narrows a dictionary lookup. 빈 필드는 보내지 않는다.
+type ExerciseSearch struct {
+	Query     string
+	Category  string
+	Equipment string
+}
+
+// Exercises searches the exercise dictionary.
+//
+// ⚠️ **서버가 limit 200으로 자른다.** 카탈로그가 755종이라 빈 검색어로는 사전순
+// 앞 200개(알파벳 D까지)밖에 못 받는다 — 나머지 555종은 **검색어를 서버로 보내야만**
+// 닿는다. 받아 온 목록을 클라이언트에서 거르는 방식으로는 영원히 안 보인다.
+func (c *Client) Exercises(ctx context.Context, search ExerciseSearch) ([]Exercise, error) {
 	q := url.Values{}
-	if query != "" {
-		q.Set("query", query)
+	if search.Query != "" {
+		q.Set("query", search.Query)
 	}
-	q.Set("limit", "200")
+	if search.Category != "" {
+		q.Set("category", search.Category)
+	}
+	if search.Equipment != "" {
+		q.Set("equipment", search.Equipment)
+	}
+	q.Set("limit", strconv.Itoa(ExerciseFetchLimit))
 	var out struct {
 		Items []Exercise `json:"items"`
 	}

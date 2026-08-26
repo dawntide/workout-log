@@ -34,9 +34,18 @@ type exActionMsg struct {
 	err error
 }
 
-func exercisesLoadCmd(c *api.Client) tea.Cmd {
+// exercisesLoadCmd fetches from the **server** with the parsed search.
+//
+// 클라이언트 필터만으로는 안 된다 — 서버가 limit 200으로 자르고 카탈로그는 755종이라
+// 빈 검색어로는 알파벳 D까지만 온다. "Zercher"·"Romanian"은 받아 온 목록에 아예
+// 없어서 아무리 걸러도 안 나온다(실측: TUI 0건 / 서버 1건·2건).
+func exercisesLoadCmd(c *api.Client, q exerciseQuery) tea.Cmd {
 	return func() tea.Msg {
-		items, err := c.Exercises(context.Background(), "")
+		items, err := c.Exercises(context.Background(), api.ExerciseSearch{
+			Query:     q.Term,
+			Category:  q.Category,
+			Equipment: q.Equipment,
+		})
 		return exercisesLoadedMsg{items: items, err: err}
 	}
 }
@@ -82,9 +91,10 @@ func createExerciseCmd(c *api.Client, name string) tea.Cmd {
 type Exercises struct {
 	client  *api.Client
 	all     []api.Exercise
-	view    []int // indices into all after the query filter
-	query   string
-	sel     int // index into view
+	view    []int         // indices into all after the query filter
+	query   string        // 입력 중인 원문(로컬 좁히기용)
+	applied exerciseQuery // 서버에 보낸 검색 — 상태줄이 이걸 보여준다
+	sel     int           // index into view
 	mode    exMode
 	input   textinput.Model
 	loaded  bool
@@ -96,7 +106,7 @@ type Exercises struct {
 
 func NewExercises(c *api.Client) Exercises { return Exercises{client: c} }
 
-func (s Exercises) Init() tea.Cmd { return exercisesLoadCmd(s.client) }
+func (s Exercises) Init() tea.Cmd { return exercisesLoadCmd(s.client, exerciseQuery{}) }
 
 func (s Exercises) Editing() bool { return s.mode != exBrowse }
 
@@ -120,7 +130,7 @@ func (s Exercises) Update(msg tea.Msg) (Screen, tea.Cmd) {
 			return s, nil
 		}
 		s.flash, s.flashOk = m.ok, true
-		return s, exercisesLoadCmd(s.client) // refetch the dictionary
+		return s, exercisesLoadCmd(s.client, s.applied) // refetch, keeping the filter
 	case tea.KeyPressMsg:
 		if s.mode != exBrowse {
 			return s.updateInput(m)
@@ -189,6 +199,13 @@ func (s Exercises) updateInput(m tea.KeyPressMsg) (Screen, tea.Cmd) {
 		if s.mode == exSearch {
 			s.query = ""
 			s.refilter()
+			// 필터가 걸려 있었으면 서버 목록도 되돌린다 — 화면만 비우면 이후 로컬
+			// 좁히기가 걸러진 목록 위에서 돌아 "왜 안 나오지"가 된다.
+			if s.applied != (exerciseQuery{}) {
+				s.applied = exerciseQuery{}
+				s.mode = exBrowse
+				return s, exercisesLoadCmd(s.client, exerciseQuery{})
+			}
 		}
 		s.mode = exBrowse
 		return s, nil
@@ -210,7 +227,12 @@ func (s Exercises) submitInput() (Screen, tea.Cmd) {
 	s.mode = exBrowse
 	switch mode {
 	case exSearch:
-		return s, nil
+		// **Enter가 서버 검색을 커밋한다.** 타이핑 중에는 이미 받아 온 목록을 로컬로
+		// 좁혀 즉시 반응하고(체감 지연 0), 확정 시점에만 서버를 부른다 — 키 입력마다
+		// 요청하면 디바운스 기계가 필요해지고, 터미널에서는 Enter가 커밋이라는 관습이
+		// 이미 있다.
+		s.applied = parseExerciseQuery(val)
+		return s, exercisesLoadCmd(s.client, s.applied)
 	case exRename:
 		ex, ok := s.current()
 		if !ok || val == "" || val == ex.Name {
@@ -233,7 +255,9 @@ func (s Exercises) submitInput() (Screen, tea.Cmd) {
 }
 
 func (s *Exercises) refilter() {
-	q := strings.ToLower(strings.TrimSpace(s.query))
+	// 로컬 좁히기는 **자유 검색어만** 본다. `cat:legs`를 통째로 이름과 비교하면
+	// 필터를 치는 동안 목록이 0건으로 비어 버린다(서버가 답하기 전까지).
+	q := strings.ToLower(strings.TrimSpace(parseExerciseQuery(s.query).Term))
 	s.view = s.view[:0]
 	for i, e := range s.all {
 		if q == "" || strings.Contains(strings.ToLower(e.Name), q) || strings.Contains(strings.ToLower(e.Category), q) {
@@ -289,8 +313,17 @@ func (s Exercises) StatusRight() string {
 	if !s.loaded {
 		return ""
 	}
+	// 걸려 있는 서버 필터를 먼저 보여준다 — 켜 둔 걸 잊고 "왜 안 나오지"가 되는 것이
+	// 이 화면의 실패 모드다(웹에서 같은 이유로 빈 상태 문구를 넣었다).
+	if summary := s.applied.summary(); summary != "" {
+		return fmt.Sprintf("%s · %d", summary, len(s.view))
+	}
 	if s.query != "" {
 		return fmt.Sprintf("%d/%d", len(s.view), len(s.all))
+	}
+	// 서버가 200으로 자르므로 "전체"라고 말하지 않는다 — 200이면 더 있다는 뜻이다.
+	if len(s.all) >= api.ExerciseFetchLimit {
+		return fmt.Sprintf("%d+ 운동", len(s.all))
 	}
 	return fmt.Sprintf("%d 운동", len(s.all))
 }
@@ -298,7 +331,8 @@ func (s Exercises) StatusRight() string {
 func (s Exercises) Hints() []hintItem {
 	switch s.mode {
 	case exSearch:
-		return []hintItem{{"⏎", "완료"}, {"esc", "지움"}}
+		// 문법을 힌트에 적는다 — 칩 줄이 없으니 여기가 유일한 발견 지점이다.
+		return []hintItem{{"⏎", "검색"}, {"cat:", "부위"}, {"eq:", "장비"}, {"esc", "지움"}}
 	case exRename:
 		return []hintItem{{"⏎", "이름변경"}, {"esc", "취소"}}
 	case exAlias:

@@ -292,7 +292,7 @@ func TestLiveExercises(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("CreateLog: %v", err)
 	}
-	exs, err := c.Exercises(ctx, "")
+	exs, err := c.Exercises(ctx, ExerciseSearch{})
 	if err != nil {
 		t.Fatalf("Exercises: %v", err)
 	}
@@ -718,7 +718,7 @@ func TestLiveExerciseCRUD(t *testing.T) {
 	}
 
 	find := func(name string) (Exercise, bool) {
-		exs, _ := c.Exercises(ctx, name)
+		exs, _ := c.Exercises(ctx, ExerciseSearch{Query: name})
 		for _, e := range exs {
 			if e.ID == id {
 				return e, true
@@ -902,4 +902,66 @@ func TestLiveSettings(t *testing.T) {
 	if loc != "en" {
 		t.Errorf("after PATCH, prefs.locale = %q, want en", loc)
 	}
+}
+
+// TestLiveExerciseReach proves the dictionary search reaches the WHOLE catalog.
+//
+// M3(#695)가 카탈로그를 32종 → 755종으로 늘렸는데 TUI는 빈 검색어로 한 번만 받아
+// (서버 상한 200) 클라이언트에서 걸렀다. 그러면 알파벳 D까지 200개만 보이고
+// **555종이 영원히 안 보인다** — "Zercher"·"Romanian"은 TUI에서 0건이었다.
+//
+// 검색어를 서버로 보내면 닿는다. 이 테스트가 그 계약을 실서버로 확인한다.
+//
+//	IRONLOG_SPIKE_URL=http://127.0.0.1:8787 go test -run TestLiveExerciseReach -v ./internal/api
+func TestLiveExerciseReach(t *testing.T) {
+	base := os.Getenv("IRONLOG_SPIKE_URL")
+	if base == "" {
+		t.Skip("set IRONLOG_SPIKE_URL to run the live exercise reach test")
+	}
+	ctx := context.Background()
+	c, err := New(base)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// 빈 검색어는 상한에 걸린다 — 이게 "전체"가 아니라는 증거다.
+	all, err := c.Exercises(ctx, ExerciseSearch{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(all) < ExerciseFetchLimit {
+		t.Skipf("카탈로그가 %d종뿐이라 상한 문제가 재현되지 않는다", len(all))
+	}
+
+	// 상한 밖에 있는 종목은 **검색어를 보내야만** 나온다.
+	for _, kw := range []string{"Zercher", "Romanian"} {
+		found, err := c.Exercises(ctx, ExerciseSearch{Query: kw})
+		if err != nil {
+			t.Fatalf("%s: %v", kw, err)
+		}
+		if len(found) == 0 {
+			t.Fatalf("%q가 서버 검색으로도 안 나온다", kw)
+		}
+		inFirstPage := 0
+		for _, e := range all {
+			if strings.Contains(strings.ToLower(e.Name), strings.ToLower(kw)) {
+				inFirstPage++
+			}
+		}
+		t.Logf("%-10s 서버검색 %d건 / 첫 페이지에는 %d건", kw, len(found), inFirstPage)
+	}
+
+	// 필터가 실제로 좁힌다.
+	wide, err := c.Exercises(ctx, ExerciseSearch{Query: "press"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	narrow, err := c.Exercises(ctx, ExerciseSearch{Query: "press", Equipment: "dumbbell"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(narrow) >= len(wide) {
+		t.Fatalf("장비 필터가 안 좁힌다: 무필터 %d건, 덤벨 %d건", len(wide), len(narrow))
+	}
+	t.Logf("press 무필터 %d건 → eq:dumbbell %d건", len(wide), len(narrow))
 }
