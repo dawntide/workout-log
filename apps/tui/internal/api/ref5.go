@@ -266,10 +266,9 @@ type PlanProgressionState struct {
 	// after the buffer is re-entered instead of only in the save that made it.
 	Feedback *ProgressionFeedback `json:"feedback"`
 	// Accumulated judgment history — the same assembled copy, one entry per past
-	// event. Accepted here so the field is not dropped at this boundary; the
-	// Programs buffer does not render it yet (the status panel is REF5-gated by
-	// construction, so showing it for every plan means a new panel, not a new
-	// section — deferred to the milestone's TUI slot).
+	// event. Programs 버퍼의 `v` 패널이 렌더한다: REF5 플랜은 엔진 상태 패널이
+	// 이미 판정 표면이라 그대로 두고, **그 외 플랜은 이 이력이 유일한 표면**이다
+	// (그전에는 비REF5 플랜에서 `v` 자체가 열리지 않았다).
 	JudgmentHistory []JudgmentHistoryEntry `json:"judgmentHistory"`
 }
 

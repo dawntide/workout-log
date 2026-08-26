@@ -99,7 +99,7 @@ func TestRef5StatusPanelRendersRecentChanges(t *testing.T) {
 		plans:          []api.Plan{uiRef5Plan()},
 		showRef5Status: true,
 		statusPlanID:   "plan-ref5",
-		ref5Status:     status,
+		planState:      &api.PlanProgressionState{Ref5Status: status},
 	}
 
 	out := ansi.Strip(s.renderRef5Status(72, 40))
