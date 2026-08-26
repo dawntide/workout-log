@@ -239,6 +239,12 @@ test.describe("design harmonization: full-screen audit", () => {
         await page.goto(target.path, { waitUntil: "domcontentloaded" });
         await settleRoute(page, target);
 
+        if (target.prepare) {
+          await target.prepare(page);
+          // 상호작용 뒤에도 렌더가 멎을 때까지 기다린다 — 시트는 열리는 도중이 있다.
+          await waitForRenderedContent(page);
+        }
+
         if (target.expectsBottomSheet) {
           await expect(page.locator(AUDITED_SELECTORS.sheetPanel).first()).toBeVisible();
         }
