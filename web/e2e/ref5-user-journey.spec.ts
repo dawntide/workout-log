@@ -2,6 +2,7 @@ import { expect, test, type Page, type TestInfo } from "@playwright/test";
 import { REF5_PROTOCOL_VERSION } from "@workout/core/program-engine/ref5";
 
 import { observeBrowser } from "./browser-failures";
+import { expectSurfaceContrast } from "./surface-audit";
 
 const PASSWORD = "Ref5-e2e-password-17!";
 
@@ -98,6 +99,12 @@ async function activateRef5ProgramThroughUi(
   }
   await expect(page.getByText(/계산된 첫 처방/)).toBeVisible();
   await expect(page.getByText(/SQ · 3×3 82\.5kg/)).toBeVisible();
+  // 표면 감사 — accent 카드(첫 처방)가 시트 배경 위에서 구분되는지. 이 화면은
+  // 보정을 끝내야 뜨므로 design-harmonization이 닿지 못한다.
+  await expectSurfaceContrast(page, {
+    context: "REF5 시작 기준 설정(계산된 첫 처방)",
+    expectTones: ["accent"],
+  });
   if (capture) {
     await page.screenshot({ path: testInfo.outputPath("ref5-start-calibration.png"), fullPage: true });
   }
@@ -1096,6 +1103,12 @@ test("REF5 과거 로그 수정·삭제 후 정방향 재계산", async ({ page 
   await expect(
     deleteConfirmSheet.getByText("이 운동 기록을 삭제하시겠습니까?"),
   ).toBeVisible();
+  // 표면 감사 — danger 카드가 시트 배경 위에서 구분되는지. 이 시트는 기록이 있어야
+  // 열리는데 시드는 workoutLog를 비우므로 감사 스펙에서는 닿지 못한다.
+  await expectSurfaceContrast(page, {
+    context: "캘린더 기록 삭제 확인 시트",
+    expectTones: ["danger"],
+  });
   await deleteConfirmSheet.getByRole("button", { name: "기록 삭제", exact: true }).click();
 
   await expect

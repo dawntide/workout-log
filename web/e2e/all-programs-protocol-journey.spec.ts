@@ -3,6 +3,7 @@ import { expect, test, type Locator, type Page, type TestInfo } from "@playwrigh
 import { EXERCISE_NAMES } from "@workout/core/exercise/catalog";
 
 import { observeBrowser } from "./browser-failures";
+import { expectSurfaceContrast } from "./surface-audit";
 
 const PASSWORD = "All-protocols-e2e-password-17!";
 
@@ -256,6 +257,12 @@ async function openSession(page: Page, planId: string, date: string) {
 
   const bodyweightPrompt = page.getByText("중량풀업 · 체중 확인", { exact: true });
   if (await bodyweightPrompt.isVisible().catch(() => false)) {
+    // 표면 감사 — accent 배너가 배경 위에서 구분되는지. 이 배너는 마지막 체중 확인
+    // 후 14일이 지난 중량풀업 세션에서만 떠서 감사 스펙이 만들 수 없는 상태다.
+    await expectSurfaceContrast(page, {
+      context: "중량풀업 체중 확인 배너",
+      expectTones: ["accent"],
+    });
     await page.getByLabel("오늘 체중(kg)").fill("75");
     await page.getByRole("button", { name: "업데이트", exact: true }).click();
     await expect(bodyweightPrompt).toBeHidden();
@@ -389,6 +396,13 @@ async function assertFeedback(
   await expect(status).toBeVisible({ timeout: 20_000 });
   const text = (await status.innerText()).replace(/\s+/g, " ").trim();
   for (const pattern of patterns) expect(text).toMatch(pattern);
+  // 표면 감사 — 이 자리에는 블록 판정 카드(accent)와 일반 세션 공지(paper 계열)가
+  // 번갈아 온다. 특정 톤을 요구하지 않고 **대비만** 본다 — 어느 쪽이 와도 덮인다.
+  // 전 프로그램의 판정 카드가 이 한 지점을 지나므로 커버리지가 가장 넓다.
+  await expectSurfaceContrast(page, {
+    context: `세션 피드백 배너(${date})`,
+    requireSurfaces: true,
+  });
   if (testInfo && screenshotName) {
     await page.screenshot({ path: testInfo.outputPath(screenshotName), fullPage: true });
   }

@@ -1,26 +1,14 @@
 import { expect, test, type Page } from "@playwright/test";
 import { designHarmonizationTargets, type DesignHarmonizationTarget } from "./design-harmonization.targets";
-import { CARD_TONE_BG, MIN_SURFACE_DELTA_E, deltaE, flattenStack, sameColor } from "./surface-contrast";
+import { expectSurfaceContrast, freezeMotion } from "./surface-audit";
 
 type ColorScheme = "light" | "dark";
-/**
- * 보이는 카드 하나와 **그 아래 색 스택**.
- *
- * 최근접 조상 하나만 잡으면 안 된다 — 그 조상이 반투명하면(다크 테마의
- * `--v2-accent-weak`은 전부 알파 0.14~0.17이다) 실제로 눈에 보이는 색은 더 아래까지
- * 합성해야 나온다. `stack[0]`이 카드, 나머지가 배경 스택이며 **불투명한 색을 만나면
- * 멈춘다.**
- */
-type CardSurface = { stack: string[]; label: string };
 type AuditMetrics = {
   htmlBg: string;
   bodyBg: string;
   mainBg: string;
   mainPresent: boolean;
   cardCount: number;
-  cardSurfaces: CardSurface[];
-  /** `CARD_TONE_BG`의 각 톤을 이 화면에서 계산한 실제 색. */
-  toneColors: Record<string, string>;
   bottomSheetVisible: boolean;
   bottomSheetPanelBg: string | null;
 };
@@ -100,113 +88,26 @@ async function waitForRenderedContent(page: Page) {
   }
 }
 
-async function addFreezeStyle(page: Page) {
-  for (let attempt = 0; attempt < 3; attempt += 1) {
-    try {
-      await page.addStyleTag({
-        content:
-          "*,:before,:after{animation:none!important;transition:none!important;caret-color:transparent!important;}.program-list-card{content-visibility:visible!important;contain-intrinsic-size:auto!important;}",
-      });
-      return;
-    } catch (error) {
-      // settleRoute가 경로를 확정한 뒤라 여기까지 오는 일은 드물다 — 하이드레이션과
-      // 겹치는 경우를 위한 백스톱이지, 더는 주 메커니즘이 아니다.
-      if (!contextDestroyedPattern.test(String(error))) throw error;
-      await page.waitForTimeout(220);
-    }
-  }
-}
-
 async function readAuditMetrics(page: Page) {
   for (let attempt = 0; attempt < 3; attempt += 1) {
     try {
       // 셀렉터를 인자로 넘긴다 — 여기에 문자열을 다시 적으면 썩음 가드가 감시하는
       // 이름과 실제로 읽는 이름이 갈라져, 가드가 엉뚱한 셀렉터를 지키게 된다.
-      return await page.evaluate((input): AuditMetrics => {
-        const selectors = input.selectors;
+      return await page.evaluate((selectors): AuditMetrics => {
         const NONE = "rgba(0, 0, 0, 0)";
         const main = document.querySelector<HTMLElement>(selectors.main);
         const firstPanel = document.querySelector<HTMLElement>(selectors.sheetPanel);
 
-        // 안 보이는 표면은 감사하지 않는다 — 닫힌 시트·접힌 아코디언의 카드까지
-        // 재면 "화면에서 구분되는가"라는 질문과 무관한 실패가 난다.
-        const isVisible = (element: HTMLElement) => {
-          const rect = element.getBoundingClientRect();
-          if (rect.width <= 0 || rect.height <= 0) return false;
-          if (element.closest("[inert]") || element.closest("[aria-hidden='true']")) return false;
-          let node: HTMLElement | null = element;
-          while (node) {
-            const style = window.getComputedStyle(node);
-            if (style.display === "none" || style.visibility === "hidden" || Number(style.opacity) === 0) {
-              return false;
-            }
-            node = node.parentElement;
-          }
-          return true;
-        };
-
-        // 완전 불투명한 색인지(브라우저는 항상 rgb()/rgba()/color()로 돌려준다).
-        const opaque = (color: string) => {
-          if (color === NONE) return false;
-          const alpha = color.match(/[\d.]+\s*\)$/);
-          if (!color.includes("rgba") && !color.includes("/")) return true;
-          return alpha ? Number(alpha[0].slice(0, -1)) >= 0.999 : true;
-        };
-
-        const cards = Array.from(document.querySelectorAll<HTMLElement>(selectors.card));
-        const cardSurfaces = [];
-        for (const card of cards) {
-          if (!isVisible(card)) continue;
-          const cardBg = window.getComputedStyle(card).backgroundColor;
-          // 투명한 카드는 표면을 만들지 않는다(순수 레이아웃 래퍼) — 비교 대상이 아니다.
-          if (cardBg === NONE) continue;
-          // 배경 스택은 **카드 자신의 불투명도와 무관하게** 모은다 — 불투명한 조상을
-          // 만날 때까지. 카드가 불투명한지로 루프를 막으면(초기 구현이 그랬다) 거의
-          // 모든 카드가 스택 길이 1이 되어 통째로 건너뛰어진다.
-          const stack = [cardBg];
-          let node: HTMLElement | null = card.parentElement;
-          while (node) {
-            const bg = window.getComputedStyle(node).backgroundColor;
-            if (bg !== NONE) {
-              stack.push(bg);
-              if (opaque(bg)) break;
-            }
-            node = node.parentElement;
-          }
-          // 배경이 하나도 없으면(스택 길이 1) 비교 대상이 없다.
-          if (stack.length < 2) continue;
-          cardSurfaces.push({
-            stack,
-            label: (card.innerText || "").trim().replace(/\s+/g, " ").slice(0, 40),
-          });
-        }
-
-        // 톤 배경식을 이 화면의 테마로 계산한다 — 렌더된 카드가 그 색인지 대조하려면
-        // 텍스트가 아니라 **색**이 기준이어야 한다(라벨은 다른 카드와 겹친다).
-        const toneProbe = document.createElement("div");
-        toneProbe.style.position = "fixed";
-        toneProbe.style.left = "-9999px";
-        document.body.appendChild(toneProbe);
-        const toneColors: Record<string, string> = {};
-        for (const [tone, expr] of Object.entries(input.toneBg)) {
-          toneProbe.style.backgroundColor = "";
-          toneProbe.style.backgroundColor = expr;
-          toneColors[tone] = window.getComputedStyle(toneProbe).backgroundColor;
-        }
-        toneProbe.remove();
-
         return {
-          toneColors,
           htmlBg: window.getComputedStyle(document.documentElement).backgroundColor,
           bodyBg: window.getComputedStyle(document.body).backgroundColor,
           mainBg: main ? window.getComputedStyle(main).backgroundColor : NONE,
           mainPresent: Boolean(main),
-          cardCount: cards.length,
-          cardSurfaces,
+          cardCount: document.querySelectorAll(selectors.card).length,
           bottomSheetVisible: Boolean(firstPanel && firstPanel.getBoundingClientRect().height > 0),
           bottomSheetPanelBg: firstPanel ? window.getComputedStyle(firstPanel).backgroundColor : null,
         };
-      }, { selectors: AUDITED_SELECTORS, toneBg: CARD_TONE_BG });
+      }, AUDITED_SELECTORS);
     } catch (error) {
       if (!contextDestroyedPattern.test(String(error))) throw error;
       await page.waitForTimeout(220);
@@ -220,12 +121,12 @@ function countHit(selector: string) {
   selectorHits.set(selector, (selectorHits.get(selector) ?? 0) + 1);
 }
 
-function recordSelectorHits(metrics: AuditMetrics) {
+function recordSelectorHits(metrics: AuditMetrics, measuredSurfaces: number) {
   if (metrics.mainPresent) countHit(AUDITED_SELECTORS.main);
   // **찾은 카드가 아니라 실제로 잰 표면을 센다.** 초기 구현은 `cardCount > 0`을 셌는데,
   // 스택 수집 버그로 모든 카드가 비교에서 건너뛰어졌는데도 카드는 여전히 "찾아졌기"
   // 때문에 가드가 조용히 통과했다. 가드는 단언되는 것을 세야 한다.
-  if (metrics.cardSurfaces.length > 0) countHit(AUDITED_SELECTORS.card);
+  if (measuredSurfaces > 0) countHit(AUDITED_SELECTORS.card);
   if (metrics.bottomSheetPanelBg !== null) countHit(AUDITED_SELECTORS.sheetPanel);
 }
 
@@ -249,10 +150,8 @@ test.describe("design harmonization: full-screen audit", () => {
           await expect(page.locator(AUDITED_SELECTORS.sheetPanel).first()).toBeVisible();
         }
 
-        await addFreezeStyle(page);
+        await freezeMotion(page);
         const metrics = await readAuditMetrics(page);
-        recordSelectorHits(metrics);
-        auditedTargetIds.add(target.id);
 
         // 표면색은 html·body·main 중 어디서 와도 되지만, 아무 데도 없으면 배경이
         // 뚫려 뷰어의 바탕이 비친다.
@@ -261,41 +160,16 @@ test.describe("design harmonization: full-screen audit", () => {
         );
         expect(hasSurfaceBg, "html·body·main 어디에도 배경색이 없다").toBe(true);
 
-        // 카드 표면 대비 — No-Line Rule의 유일한 계층 구분 수단이 배경색이라,
-        // 카드가 그 뒤 배경과 같아지면 카드 자체가 사라진다. 첫 카드만 보던 옛
-        // 구현과 달리 **보이는 카드를 전부** 본다(중첩 카드가 정확히 그 함정이었다).
-        for (const surface of metrics.cardSurfaces) {
-          // 카드가 반투명하면 아래 스택과 합성해야 실제로 보이는 색이 나온다.
-          const cardColor = flattenStack(surface.stack);
-          const backdropColor = flattenStack(surface.stack.slice(1));
-          const distance = cardColor && backdropColor ? deltaE(cardColor, backdropColor) : null;
-          expect(
-            distance,
-            `색 스택을 평탄화하지 못했다: ${surface.stack.join(" over ")}` +
-              (surface.label ? ` — "${surface.label}"` : ""),
-          ).not.toBeNull();
-          if (distance === null) continue;
-          expect(
-            distance,
-            `카드가 뒷배경과 구분되지 않는다 (ΔE ${distance.toFixed(2)} < ${MIN_SURFACE_DELTA_E}): ` +
-              `${cardColor} on ${backdropColor}` +
-              (surface.label ? ` — "${surface.label}"` : "") +
-              "\n중첩 카드라면 표면 사다리를 한 칸 내릴 것(paper → inset).",
-          ).toBeGreaterThanOrEqual(MIN_SURFACE_DELTA_E);
-        }
-
-        // **텍스트가 아니라 색으로 대조한다.** 라벨로 찾으면 우연히 같은 단어로 시작하는
-        // 다른 카드가 매치돼 가드가 무력해진다(실측: success 톤을 카탈로그에서 빼도
-        // "SUCCESS 12,480 kg" 메트릭 카드가 대신 잡혀 통과했다).
-        for (const tone of target.expectsCardTones ?? []) {
-          const expected = metrics.toneColors[tone];
-          expect(expected, `${tone} 톤의 배경식을 계산하지 못했다`).toBeTruthy();
-          expect(
-            metrics.cardSurfaces.some((surface) => sameColor(surface.stack[0], expected)),
-            `${tone} 톤(${expected}) 카드가 렌더되지 않아 측정되지 않았다 — ` +
-              "카탈로그에서 빠졌거나 V2Card가 톤을 안 입히는지 확인할 것",
-          ).toBe(true);
-        }
+        // 카드 표면 대비 — 측정·단언은 여정 스펙과 **같은 모듈**을 쓴다.
+        // 두 벌로 두면 한쪽만 고쳐지고 다른 쪽이 조용히 낡는다.
+        const { surfaces } = await expectSurfaceContrast(page, {
+          context: `${target.id} (${colorScheme})`,
+          expectTones: target.expectsCardTones,
+          // 카드가 없는 화면(예: /plans)도 감사 대상이라 여기서는 요구하지 않는다.
+          requireSurfaces: false,
+        });
+        recordSelectorHits(metrics, surfaces.length);
+        auditedTargetIds.add(target.id);
 
         if (target.expectsBottomSheet) {
           expect(metrics.bottomSheetVisible).toBe(true);
