@@ -47,7 +47,7 @@ test("REF5 plan creation falls back only when starts are absent and rejects part
   assert.equal(partial.ok, false, "explicit partial input must not be filled silently");
 });
 
-test("REF5 plan creation threads ohpMicroloading and accepts a 1.25 kg OHP start (§5.1)", () => {
+test("REF5 plan creation rejects a 1.25 kg OHP start, flag or no flag (§5.1)", () => {
   const starts = {
     sqH3Kg: 82.5,
     bpFocusKg: 82.5,
@@ -55,25 +55,23 @@ test("REF5 plan creation threads ohpMicroloading and accepts a 1.25 kg OHP start
     deadliftKg: 72.5,
     ohpKg: 31.25,
   };
-  const on = resolveRef5PlanStartConfig(
+  // The withdrawn option is ignored, so a stored flag cannot reopen the 1.25 grid.
+  const withFlag = resolveRef5PlanStartConfig(
     { ref5: { startingValuesKg: starts, ohpMicroloading: true } },
     defaults,
   );
-  assert.equal(on.ok, true);
-  if (on.ok) {
-    assert.equal(on.value.ohpMicroloading, true);
-    assert.equal(on.value.startingValuesKg.ohpKg, 31.25);
-  }
+  assert.equal(withFlag.ok, false, "a stored ohpMicroloading flag does not reopen the 1.25 kg grid");
 
-  // The same 1.25 kg OHP start is off-grid without the toggle.
-  const off = resolveRef5PlanStartConfig(
-    { ref5: { startingValuesKg: starts } },
+  const withoutFlag = resolveRef5PlanStartConfig({ ref5: { startingValuesKg: starts } }, defaults);
+  assert.equal(withoutFlag.ok, false);
+
+  const onGrid = resolveRef5PlanStartConfig(
+    { ref5: { startingValuesKg: { ...starts, ohpKg: 32.5 } } },
     defaults,
   );
-  assert.equal(off.ok, false, "1.25 kg OHP start requires ohpMicroloading");
-
-  // Falling back to defaults leaves ohpMicroloading off.
-  const fallback = resolveRef5PlanStartConfig({}, defaults);
-  assert.equal(fallback.ok, true);
-  if (fallback.ok) assert.equal(fallback.value.ohpMicroloading, false);
+  assert.equal(onGrid.ok, true);
+  if (onGrid.ok) {
+    assert.equal(onGrid.value.startingValuesKg.ohpKg, 32.5);
+    assert.equal("ohpMicroloading" in onGrid.value, false);
+  }
 });

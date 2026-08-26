@@ -218,9 +218,7 @@ export function readRef5StartConfigFromTemplate(
   ) {
     return null;
   }
-  const validated = validateRef5StartConfig(starts, {
-    ohpMicroloading: raw?.ohpMicroloading === true,
-  });
+  const validated = validateRef5StartConfig(starts);
   return validated.ok ? validated.value : null;
 }
 
@@ -231,9 +229,7 @@ export function readRef5StartConfigFromPlanParams(params: unknown): Ref5StartCon
   const nested = root.ref5 && typeof root.ref5 === "object" && !Array.isArray(root.ref5)
     ? (root.ref5 as Record<string, unknown>)
     : {};
-  const validated = validateRef5StartConfig(nested.startingValuesKg, {
-    ohpMicroloading: nested.ohpMicroloading === true,
-  });
+  const validated = validateRef5StartConfig(nested.startingValuesKg);
   return validated.ok ? validated.value : null;
 }
 
@@ -241,12 +237,10 @@ export function ref5StartConfigValidationMessage(
   config: Ref5StartConfig,
   locale: "ko" | "en",
 ): string | null {
-  const result = validateRef5StartConfig(config.startingValuesKg, {
-    ohpMicroloading: config.ohpMicroloading,
-  });
+  const result = validateRef5StartConfig(config.startingValuesKg);
   if (result.ok) return null;
   const starts = config.startingValuesKg;
-  const caps = deriveRef5AuxiliaryCaps(starts, config.ohpMicroloading);
+  const caps = deriveRef5AuxiliaryCaps(starts);
   if (starts.deadliftKg > caps.deadliftMaxKg) {
     return locale === "ko"
       ? `DL 시작 중량은 현재 SQ 기준 상한 ${caps.deadliftMaxKg}kg 이하여야 합니다.`
@@ -257,14 +251,9 @@ export function ref5StartConfigValidationMessage(
       ? `OHP 시작 중량은 현재 BP 기준 상한 ${caps.ohpMaxKg}kg 이하여야 합니다.`
       : `OHP must not exceed the ${caps.ohpMaxKg} kg cap derived from BP.`;
   }
-  // OHP alone may use the 1.25 kg grid when microloading is enabled (§5.1).
   return locale === "ko"
-    ? config.ohpMicroloading
-      ? "시작 중량은 2.5~500kg 범위에서 2.5kg 단위(OHP는 1.25kg 허용)로 입력하세요."
-      : "각 시작 중량은 2.5~500kg 범위에서 2.5kg 단위로 입력하세요."
-    : config.ohpMicroloading
-      ? "Enter starts on the 2.5 kg grid from 2.5 to 500 kg (OHP may use 1.25 kg)."
-      : "Enter each starting load on the 2.5 kg grid from 2.5 to 500 kg.";
+    ? "각 시작 중량은 2.5~500kg 범위에서 2.5kg 단위로 입력하세요."
+    : "Enter each starting load on the 2.5 kg grid from 2.5 to 500 kg.";
 }
 
 export function ref5E1rmValidationMessage(
@@ -325,9 +314,7 @@ export function buildRef5StartPlanParams(input: {
   today: string;
   config: Ref5StartConfig;
 }) {
-  const validated = validateRef5StartConfig(input.config.startingValuesKg, {
-    ohpMicroloading: input.config.ohpMicroloading,
-  });
+  const validated = validateRef5StartConfig(input.config.startingValuesKg);
   if (!validated.ok) throw new Error(validated.errors.join("; "));
   return {
     timezone: input.timezone,
@@ -337,19 +324,6 @@ export function buildRef5StartPlanParams(input: {
     protocolVersion: validated.value.protocolVersion,
     ref5: validated.value,
   };
-}
-
-/**
- * Carries the plan-level ohpMicroloading choice onto a start config recomputed
- * from e1RM/recommendations. Without this, a toggle set before the async
- * recommendation lands (or before an e1RM edit) is silently reset, because the
- * recomputed config always starts from the 2.5 kg default (§5.1).
- */
-export function preserveRef5OhpMicroloading(
-  next: Ref5StartConfig,
-  previous: Ref5StartConfig | null,
-): Ref5StartConfig {
-  return { ...next, ohpMicroloading: previous?.ohpMicroloading ?? next.ohpMicroloading };
 }
 
 function normalizeExerciseLookupKey(value: string) {
@@ -739,7 +713,7 @@ export function useProgramStoreStartProgramController({
             ref5Calibration: calibration.ok ? calibration.value : null,
             ref5Config:
               calibration.ok && prev.ref5SetupMode === "E1RM"
-                ? preserveRef5OhpMicroloading(calibration.value.startConfig, prev.ref5Config)
+                ? calibration.value.startConfig
                 : prev.ref5Config,
             recommendationStatus: "ready",
             recommendationMessage:
@@ -1023,10 +997,7 @@ export function useProgramStoreStartProgramController({
         ...prev,
         ref5SetupMode: mode,
         ref5Calibration: calibration.ok ? calibration.value : null,
-        // ohpMicroloading is a plan-level choice, preserved when e1RM recomputes starts.
-        ref5Config: calibration.ok
-          ? preserveRef5OhpMicroloading(calibration.value.startConfig, prev.ref5Config)
-          : prev.ref5Config,
+        ref5Config: calibration.ok ? calibration.value.startConfig : prev.ref5Config,
       };
     });
   }, []);
@@ -1043,17 +1014,8 @@ export function useProgramStoreStartProgramController({
         ...prev,
         ref5E1rmInputs,
         ref5Calibration: calibration.ok ? calibration.value : null,
-        ref5Config: calibration.ok
-          ? preserveRef5OhpMicroloading(calibration.value.startConfig, prev.ref5Config)
-          : prev.ref5Config,
+        ref5Config: calibration.ok ? calibration.value.startConfig : prev.ref5Config,
       };
-    });
-  }, []);
-
-  const updateRef5OhpMicroloading = useCallback((enabled: boolean) => {
-    setStartProgramDraft((prev) => {
-      if (!prev?.ref5Config || prev.restartMode !== "NEW") return prev;
-      return { ...prev, ref5Config: { ...prev.ref5Config, ohpMicroloading: enabled } };
     });
   }, []);
 
@@ -1219,7 +1181,6 @@ export function useProgramStoreStartProgramController({
     updateRef5StartingValue,
     updateRef5SetupMode,
     updateRef5E1rmInput,
-    updateRef5OhpMicroloading,
     applyRecommendation,
     submitStartProgram,
   };

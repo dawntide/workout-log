@@ -714,7 +714,6 @@ type Ref5ReplayPlanContext = {
   userId: string;
   protocolVersion: Ref5ProtocolVersion;
   initialDirectStandardsKg: Ref5DirectStandardsKg;
-  initialOhpMicroloading: boolean;
 };
 
 async function resolveRef5ReplayPlan(
@@ -743,7 +742,6 @@ async function resolveRef5ReplayPlan(
     userId: row.userId,
     protocolVersion,
     initialDirectStandardsKg: startConfig.startingValuesKg,
-    initialOhpMicroloading: startConfig.ohpMicroloading,
   };
 }
 
@@ -894,12 +892,9 @@ function foldRef5ReplaySource(input: {
   planId: string;
   planProtocolVersion: Ref5ProtocolVersion;
   initialDirectStandardsKg: Ref5DirectStandardsKg;
-  initialOhpMicroloading: boolean;
   source: Ref5ReplaySource;
 }): Ref5ReplayFold {
-  let runningState = createInitialRef5State(input.initialDirectStandardsKg, {
-    ohpMicroloading: input.initialOhpMicroloading,
-  });
+  let runningState = createInitialRef5State(input.initialDirectStandardsKg);
   const auditRows: Array<typeof planProgressEvent.$inferInsert> = [];
   const completedGeneratedSessionIds: string[] = [];
   for (const session of input.source.sessions) {
@@ -1115,7 +1110,6 @@ export async function deriveRef5StateBeforeStart(
     planId: input.planId,
     planProtocolVersion: planContext.protocolVersion,
     initialDirectStandardsKg: planContext.initialDirectStandardsKg,
-    initialOhpMicroloading: planContext.initialOhpMicroloading,
     source,
   });
   return {
@@ -1148,7 +1142,6 @@ export async function rebuildRef5ProgressionForPlan(
     planId,
     planProtocolVersion: planContext.protocolVersion,
     initialDirectStandardsKg: planContext.initialDirectStandardsKg,
-    initialOhpMicroloading: planContext.initialOhpMicroloading,
     source,
   });
   const appendedAuditEventCount = await appendMissingRef5AuditRows({
