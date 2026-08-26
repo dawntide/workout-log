@@ -2,9 +2,11 @@ import { Hono } from "hono";
 
 import { db } from "@workout/core/db/client";
 import { eq } from "@workout/core/db/ops";
-import { userSetting } from "@workout/core/db/schema";
+import { userSetting, uxEventLog } from "@workout/core/db/schema";
 import { invalidateStatsCacheForUser } from "@workout/core/stats/cache";
 import { runSeed } from "@workout/core/db/seed";
+import { deleteUserDomainData } from "@workout/core/data/deleteUserData";
+import { findUserRole } from "@workout/core/auth/session";
 import {
   DEFAULT_DARK_COLOR_THEME,
   DEFAULT_LIGHT_COLOR_THEME,
@@ -238,7 +240,26 @@ settingsRoutes.post("/app-reset", async (c) => {
       );
     }
 
-    const result = await runSeed({ shouldHardReset: true, includeDemoPlans: false });
+    // **호출자 본인 데이터만** 지운다.
+    //
+    // 종전에는 runSeed({shouldHardReset:true})를 불렀는데, 그 안의 hardResetSeedData는
+    // where 없이 workout_log·plan·user_setting·stats_cache·ux_event_log를 통째로 비운다.
+    // 단일 사용자 시절 코드가 멀티유저 격리 때 갱신되지 않고 남은 것으로, 한 사람의
+    // "앱 데이터 초기화"가 **전 사용자의 기록**을 지웠다. 공용 카탈로그(exercise·
+    // programTemplate)까지 지우고 다시 심느라 그 사이 모두의 조회가 흔들리기도 했다.
+    //
+    // 정리 범위는 계정 삭제와 같은 정책을 쓴다(deleteUserData.coverage.test.ts의
+    // CLEANUP_POLICY) — 인증 자산만 빼고. 계정은 남고 데이터만 비우는 동작이라
+    // auth_session 등은 건드리지 않는다.
+    await db.transaction(async (tx) => {
+      await deleteUserDomainData(tx, userId);
+      await tx.delete(userSetting).where(eq(userSetting.userId, userId));
+      await tx.delete(uxEventLog).where(eq(uxEventLog.userId, userId));
+    });
+    await invalidateStatsCacheForUser(userId).catch(() => {});
+
+    // 공용 카탈로그는 지우지 않고, 비어 있을 때를 대비한 멱등 upsert만 돌린다.
+    const result = await runSeed({ shouldHardReset: false, includeDemoPlans: false });
 
     return c.json({
       ok: true,
@@ -247,6 +268,48 @@ settingsRoutes.post("/app-reset", async (c) => {
         baseTemplateCount: result.baseTemplateCount,
         baseExerciseCount: result.baseExerciseCount,
         includeDemoPlans: result.includeDemoPlans,
+      },
+    });
+  } catch (e) {
+    return apiError(c, e, locale);
+  }
+});
+
+// POST /api/settings/seed-demo-plans — 테스트 계정에 데모 플랜을 채운다.
+//
+// **테스트 계정 전용이다.** 실계정에 데모 데이터를 쏟아붓는 사고를 값으로 막는다 —
+// 관리자가 전환(role='test')한 동안에만 닿는 표면이고, 그 판정은 UI가 아니라 여기서 한다.
+settingsRoutes.post("/seed-demo-plans", async (c) => {
+  const userId = c.get("userId");
+  const locale = resolveLocale(c);
+  try {
+    const role = await findUserRole(userId);
+    if (role !== "test") {
+      return c.json(
+        {
+          error:
+            locale === "ko"
+              ? "테스트 계정에서만 사용할 수 있습니다."
+              : "Available only on a test account.",
+        },
+        403,
+      );
+    }
+
+    // 기존 플랜을 지우지 않는다 — 이름 기준 upsert라 반복 실행이 중복을 만들지 않고,
+    // 사용자가 테스트 계정에서 만든 것도 그대로 남는다.
+    const result = await runSeed({
+      devUserId: userId,
+      includeDemoPlans: true,
+      shouldHardReset: false,
+    });
+
+    return c.json({
+      ok: true,
+      summary: {
+        userId,
+        baseTemplateCount: result.baseTemplateCount,
+        baseExerciseCount: result.baseExerciseCount,
       },
     });
   } catch (e) {

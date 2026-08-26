@@ -145,4 +145,43 @@ test.describe("관리자 표면 경계", () => {
     expect(me.user?.role).toBe("admin");
     expect(me.user?.impersonating).toBe(false);
   });
+
+  test("데모 플랜 시드는 테스트 계정에서만 돈다", async ({ page }) => {
+    const suffix = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    await page.request.post("/api/auth/signup", {
+      data: { email: `demo-seed-denied-${suffix}@example.com`, password: "demo-seed-pw-123" },
+    });
+
+    // 일반 계정에 데모 데이터를 쏟아붓지 못한다.
+    const denied = await page.request.post("/api/settings/seed-demo-plans", { data: {} });
+    expect(denied.status()).toBe(403);
+    expect((await page.request.get("/api/plans")).ok()).toBe(true);
+  });
+
+  test("테스트 계정을 초기화해도 관리자 데이터는 남는다", async ({ page }) => {
+    // app-reset은 where 없이 workout_log·plan·user_setting을 통째로 비웠다 — 한 사람의
+    // "초기화"가 전 사용자의 기록을 지웠다. 관리자 설정을 심어 두고, 테스트 계정에서
+    // 초기화한 뒤에도 살아 있는지로 스코프를 잰다(설정은 지워지던 테이블 중 하나다).
+    const patched = await page.request.patch("/api/settings", {
+      data: { key: "prefs.autoSync", value: false },
+    });
+    expect(patched.ok()).toBe(true);
+
+    expect((await page.request.post("/api/admin/impersonate")).status()).toBe(200);
+    const seeded = await page.request.post("/api/settings/seed-demo-plans", { data: {} });
+    expect(seeded.status()).toBe(200);
+    // 시드가 실제로 플랜을 만들었는지 — 0건이면 아래 초기화 단언이 공허해진다.
+    const seededPlans = await (await page.request.get("/api/plans")).json();
+    expect(Array.isArray(seededPlans.items) ? seededPlans.items.length : 0).toBeGreaterThan(0);
+
+    const reset = await page.request.post("/api/settings/app-reset", {
+      data: { confirmToken: "RESET_APP_DATA" },
+    });
+    expect(reset.status()).toBe(200);
+
+    expect((await page.request.post("/api/admin/impersonate/return")).status()).toBe(200);
+
+    const settings = await (await page.request.get("/api/settings")).json();
+    expect(settings.settings?.["prefs.autoSync"]).toBe(false);
+  });
 });
