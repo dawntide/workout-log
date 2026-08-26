@@ -1,13 +1,17 @@
 import { expect, test, type Page } from "@playwright/test";
 import { designHarmonizationTargets, type DesignHarmonizationTarget } from "./design-harmonization.targets";
+import { MIN_SURFACE_DELTA_E, deltaE } from "./surface-contrast";
 
 type ColorScheme = "light" | "dark";
+/** 보이는 카드 하나와 그 **바로 뒤에 깔린 색**(투명하지 않은 최근접 조상). */
+type CardSurface = { cardBg: string; backdropBg: string; label: string };
 type AuditMetrics = {
   htmlBg: string;
   bodyBg: string;
   mainBg: string;
   mainPresent: boolean;
   cardCount: number;
+  cardSurfaces: CardSurface[];
   bottomSheetVisible: boolean;
   bottomSheetPanelBg: string | null;
 };
@@ -110,15 +114,59 @@ async function readAuditMetrics(page: Page) {
       // 셀렉터를 인자로 넘긴다 — 여기에 문자열을 다시 적으면 썩음 가드가 감시하는
       // 이름과 실제로 읽는 이름이 갈라져, 가드가 엉뚱한 셀렉터를 지키게 된다.
       return await page.evaluate((selectors): AuditMetrics => {
+        const NONE = "rgba(0, 0, 0, 0)";
         const main = document.querySelector<HTMLElement>(selectors.main);
         const firstPanel = document.querySelector<HTMLElement>(selectors.sheetPanel);
+
+        // 안 보이는 표면은 감사하지 않는다 — 닫힌 시트·접힌 아코디언의 카드까지
+        // 재면 "화면에서 구분되는가"라는 질문과 무관한 실패가 난다.
+        const isVisible = (element: HTMLElement) => {
+          const rect = element.getBoundingClientRect();
+          if (rect.width <= 0 || rect.height <= 0) return false;
+          if (element.closest("[inert]") || element.closest("[aria-hidden='true']")) return false;
+          let node: HTMLElement | null = element;
+          while (node) {
+            const style = window.getComputedStyle(node);
+            if (style.display === "none" || style.visibility === "hidden" || Number(style.opacity) === 0) {
+              return false;
+            }
+            node = node.parentElement;
+          }
+          return true;
+        };
+
+        const cards = Array.from(document.querySelectorAll<HTMLElement>(selectors.card));
+        const cardSurfaces = [];
+        for (const card of cards) {
+          if (!isVisible(card)) continue;
+          const cardBg = window.getComputedStyle(card).backgroundColor;
+          // 투명한 카드는 표면을 만들지 않는다(순수 레이아웃 래퍼) — 비교 대상이 아니다.
+          if (cardBg === NONE) continue;
+          let node: HTMLElement | null = card.parentElement;
+          let backdropBg = NONE;
+          while (node) {
+            const bg = window.getComputedStyle(node).backgroundColor;
+            if (bg !== NONE) {
+              backdropBg = bg;
+              break;
+            }
+            node = node.parentElement;
+          }
+          if (backdropBg === NONE) continue;
+          cardSurfaces.push({
+            cardBg,
+            backdropBg,
+            label: (card.innerText || "").trim().replace(/\s+/g, " ").slice(0, 40),
+          });
+        }
 
         return {
           htmlBg: window.getComputedStyle(document.documentElement).backgroundColor,
           bodyBg: window.getComputedStyle(document.body).backgroundColor,
-          mainBg: main ? window.getComputedStyle(main).backgroundColor : "rgba(0, 0, 0, 0)",
+          mainBg: main ? window.getComputedStyle(main).backgroundColor : NONE,
           mainPresent: Boolean(main),
-          cardCount: document.querySelectorAll(selectors.card).length,
+          cardCount: cards.length,
+          cardSurfaces,
           bottomSheetVisible: Boolean(firstPanel && firstPanel.getBoundingClientRect().height > 0),
           bottomSheetPanelBg: firstPanel ? window.getComputedStyle(firstPanel).backgroundColor : null,
         };
@@ -167,6 +215,22 @@ test.describe("design harmonization: full-screen audit", () => {
           (value) => value !== TRANSPARENT,
         );
         expect(hasSurfaceBg, "html·body·main 어디에도 배경색이 없다").toBe(true);
+
+        // 카드 표면 대비 — No-Line Rule의 유일한 계층 구분 수단이 배경색이라,
+        // 카드가 그 뒤 배경과 같아지면 카드 자체가 사라진다. 첫 카드만 보던 옛
+        // 구현과 달리 **보이는 카드를 전부** 본다(중첩 카드가 정확히 그 함정이었다).
+        for (const surface of metrics.cardSurfaces) {
+          const distance = deltaE(surface.cardBg, surface.backdropBg);
+          expect(distance, `색을 파싱하지 못했다: ${surface.cardBg} / ${surface.backdropBg}`).not.toBeNull();
+          if (distance === null) continue;
+          expect(
+            distance,
+            `카드가 뒷배경과 구분되지 않는다 (ΔE ${distance.toFixed(2)} < ${MIN_SURFACE_DELTA_E}): ` +
+              `${surface.cardBg} on ${surface.backdropBg}` +
+              (surface.label ? ` — "${surface.label}"` : "") +
+              "\n중첩 카드라면 표면 사다리를 한 칸 내릴 것(paper → inset).",
+          ).toBeGreaterThanOrEqual(MIN_SURFACE_DELTA_E);
+        }
 
         if (target.expectsBottomSheet) {
           expect(metrics.bottomSheetVisible).toBe(true);

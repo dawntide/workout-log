@@ -102,21 +102,26 @@ export function PlansManageScreen({ initialPlans }: { initialPlans: Plan[] }) {
                 gap: "var(--v2-s-2)",
               }}
             >
+              {/* surface="inset" — 히어로가 paper라 타일도 paper면 ΔE=0으로 사라진다.
+                  사다리를 한 칸 내려 paper-2에 올린다. */}
               <V2MetricCard
                 label={totalLabel}
                 value={heroMetrics.total}
                 size="sm"
+                surface="inset"
               />
               <V2MetricCard
                 label={recentLabel}
                 value={heroMetrics.recent}
                 tone="success"
                 size="sm"
+                surface="inset"
               />
               <V2MetricCard
                 label={idleLabel}
                 value={heroMetrics.untouched}
                 size="sm"
+                surface="inset"
               />
             </div>
 
