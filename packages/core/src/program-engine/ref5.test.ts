@@ -878,52 +878,49 @@ test("historical START keeps frozen prescription metadata but reconstructs the c
 
 // ── v1.3 protocol regressions (§25) ───────────────────────────────────────────
 
-test("v1.3 start config v2 allows OHP on the 1.25 kg grid only under ohpMicroloading (§5.1)", () => {
-  const base = { sqH3Kg: 82.5, bpFocusKg: 82.5, pullFocusTotalKg: 87.5, deadliftKg: 72.5, ohpKg: 31.25 };
-  const on = validateRef5StartConfig(base, { ohpMicroloading: true });
-  assert.equal(on.ok, true);
-  if (on.ok) {
-    assert.equal(on.value.ohpMicroloading, true);
-    assert.equal(on.value.initializationVersion, 2);
-    assert.equal(on.value.startingValuesKg.ohpKg, 31.25);
+test("the withdrawn OHP microloading option leaves every lift on the 2.5 kg grid (§5.1, §13.3)", () => {
+  const base = { sqH3Kg: 82.5, bpFocusKg: 82.5, pullFocusTotalKg: 87.5, deadliftKg: 72.5, ohpKg: 32.5 };
+  const ok = validateRef5StartConfig(base);
+  assert.equal(ok.ok, true);
+  if (ok.ok) {
+    assert.equal(ok.value.initializationVersion, 2);
+    assert.equal(ok.value.startingValuesKg.ohpKg, 32.5);
+    assert.equal("ohpMicroloading" in ok.value, false, "the option is gone from the start config");
   }
-  // The same 1.25 kg OHP start is off-grid without microloading.
-  const off = validateRef5StartConfig(base, { ohpMicroloading: false });
-  assert.equal(off.ok, false);
-  if (!off.ok) assert.ok(off.errors.some((error) => error.includes("ohpKg must use the 2.5 kg grid")));
-  // Non-OHP lifts stay on the 2.5 kg grid even when microloading is on.
-  const offGridSquat = validateRef5StartConfig({ ...base, sqH3Kg: 83.75 }, { ohpMicroloading: true });
+  // A 1.25 kg OHP start is off-grid: the plate that would make it real is
+  // 0.625 kg per side, which is not what gyms stock.
+  const microOhp = validateRef5StartConfig({ ...base, ohpKg: 31.25 });
+  assert.equal(microOhp.ok, false);
+  if (!microOhp.ok) assert.ok(microOhp.errors.some((error) => error.includes("ohpKg must use the 2.5 kg grid")));
+  const offGridSquat = validateRef5StartConfig({ ...base, sqH3Kg: 83.75 });
   assert.equal(offGridSquat.ok, false);
   if (!offGridSquat.ok) assert.ok(offGridSquat.errors.some((error) => error.includes("sqH3Kg must use the 2.5 kg grid")));
-  // The plan option round-trips through the plan-params reader.
-  assert.equal(
-    readRef5PlanStartConfig({ ref5: { startingValuesKg: base, ohpMicroloading: true } }).ohpMicroloading,
-    true,
-  );
-  assert.equal(
-    readRef5PlanStartConfig({ ref5: { startingValuesKg: { ...base, ohpKg: 32.5 } } }).ohpMicroloading,
-    false,
-    "absent option defaults to off",
-  );
+  // Plans created while the option existed still carry the field; it is ignored.
+  const legacy = readRef5PlanStartConfig({ ref5: { startingValuesKg: base, ohpMicroloading: true } });
+  assert.equal("ohpMicroloading" in legacy, false);
+  assert.equal(legacy.startingValuesKg.ohpKg, 32.5);
 });
 
-test("v1.3 OHP microloading cap: default +1.25 (33.75) is denied while headroom starts allow 31.25 (§6.4)", () => {
-  // The cap inequality is REF-based and grid-free; only the candidate step is 1.25.
-  assert.equal(ref5AuxiliaryCandidateIsWithinCap("OHP", 33.75, { ...REF5_INITIAL_DIRECT_STANDARDS_KG }), false);
+test("REF5 auxiliary cap is REF-based, so the OHP 2.5 kg step waits for BP (§6.4)", () => {
+  assert.equal(ref5AuxiliaryCandidateIsWithinCap("OHP", 35, { ...REF5_INITIAL_DIRECT_STANDARDS_KG }), false);
   const headroom = { ...REF5_INITIAL_DIRECT_STANDARDS_KG, ohpKg: 30, bpFocusKg: 80 };
-  assert.equal(ref5AuxiliaryCandidateIsWithinCap("OHP", 31.25, headroom), true);
   assert.equal(
     ref5AuxiliaryCandidateIsWithinCap("OHP", 32.5, headroom),
     false,
-    "the 2.5 kg step overshoots the cap that the 1.25 kg step clears",
+    "BP 80 caps the OHP control REF below the 32.5 kg candidate",
+  );
+  assert.equal(
+    ref5AuxiliaryCandidateIsWithinCap("OHP", 32.5, { ...headroom, bpFocusKg: 82.5 }),
+    true,
+    "the same step clears once BP advances to 82.5",
   );
 });
 
-function ohpImmediateDecrease(ohpMicroloading: boolean): number {
+function ohpImmediateDecrease(): number {
   // OHP only appears in normal BP-focus sessions; sessions 1 and 3 (4-day spaced,
   // hard + normal) give two consecutive OHP exposures. Failing both immediately
-  // decreases OHP by the plan grid.
-  let state = createInitialRef5State(undefined, { ohpMicroloading });
+  // decreases OHP by the single 2.5 kg grid.
+  let state = createInitialRef5State();
   const base = "2026-01-01T09:00:00.000Z";
   for (let index = 0; index < 4; index += 1) {
     state = runSession(state, sessionInput(`ohp-${index}`, at(base, index * 4 * DAY)), { OHP: "FAIL" }).state;
@@ -931,9 +928,8 @@ function ohpImmediateDecrease(ohpMicroloading: boolean): number {
   return state.directStandardsKg.ohpKg;
 }
 
-test("ohpMicroloading changes only the OHP grid: immediate decrease is 1.25 kg on, 2.5 kg off (§13.3)", () => {
-  assert.equal(ohpImmediateDecrease(false), 30, "off uses the 2.5 kg grid (v1.2-identical)");
-  assert.equal(ohpImmediateDecrease(true), 31.25, "on uses the 1.25 kg grid");
+test("OHP immediate decrease steps on the single 2.5 kg grid (§13.3)", () => {
+  assert.equal(ohpImmediateDecrease(), 30);
 });
 
 test("normal and micro volume fail streams are independent but both veto the focus window (§13.2, §14)", () => {

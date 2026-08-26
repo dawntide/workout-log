@@ -25,14 +25,14 @@ export const REF5_PROGRAM_VERSION = 3 as const;
 export const REF5_START_CONFIG_VERSION = 2 as const;
 export const REF5_LEGACY_ENGINE_VERSION = 511 as const;
 
-/** 1.25 kg microplate grid, allowed for OHP only when a plan opts in (§13.3). */
+/**
+ * Every lift steps on one 2.5 kg grid. The v1.3 OHP microloading option (a
+ * 1.25 kg grid) is withdrawn (§13.3): the grid is a whole-bar step, so 1.25 kg
+ * needs a 0.625 kg plate per side, while the smallest plate gyms actually stock
+ * is 1.25 kg per side — which is one 2.5 kg step. Plans that stored the option
+ * keep the field in their params; it is ignored.
+ */
 export const REF5_DEFAULT_GRID_KG = 2.5 as const;
-export const REF5_OHP_MICRO_GRID_KG = 1.25 as const;
-
-/** OHP progresses on a 1.25 kg grid only when the plan enabled ohpMicroloading. */
-export function ref5OhpGridKg(ohpMicroloading: boolean): number {
-  return ohpMicroloading ? REF5_OHP_MICRO_GRID_KG : REF5_DEFAULT_GRID_KG;
-}
 
 export type Ref5ProtocolVersion = typeof REF5_PROTOCOL_VERSION;
 
@@ -135,11 +135,6 @@ export interface Ref5StartConfig {
   protocolVersion: typeof REF5_PROTOCOL_VERSION;
   startingValuesKg: Ref5DirectStandardsKg;
   controlRefsKg: Ref5ControlRefsKg;
-  /**
-   * Start config v2 option (§5.1). When true the OHP grid/step becomes 1.25 kg;
-   * every other lift stays on the 2.5 kg grid. Immutable after plan creation.
-   */
-  ohpMicroloading: boolean;
 }
 
 export const REF5_START_LOAD_MIN_KG = 2.5;
@@ -226,16 +221,13 @@ export function deriveRef5ControlRefs(direct: Ref5DirectStandardsKg): Ref5Contro
   };
 }
 
-export function deriveRef5AuxiliaryCaps(
-  direct: Ref5DirectStandardsKg,
-  ohpMicroloading = false,
-): Ref5AuxiliaryCapsKg {
+export function deriveRef5AuxiliaryCaps(direct: Ref5DirectStandardsKg): Ref5AuxiliaryCapsKg {
   const refs = deriveRef5ControlRefs(direct);
   return {
     deadliftMaxKg: floorRef5To2p5((refs.sqKg * 72.5) / 100),
     // The REF inequality below is grid-free; only the displayed working-weight
-    // cap floors to the OHP grid so a microloading plan shows a 1.25 kg value.
-    ohpMaxKg: floorRef5ToGrid(((refs.bpKg * 0.5) * 32.5) / 50, ref5OhpGridKg(ohpMicroloading)),
+    // cap floors to the 2.5 kg grid.
+    ohpMaxKg: floorRef5To2p5(((refs.bpKg * 0.5) * 32.5) / 50),
     deadliftControlRefMaxKg: refs.sqKg,
     ohpControlRefMaxKg: cleanKg(refs.bpKg * 0.5),
   };
@@ -254,20 +246,11 @@ function ref5Record(value: unknown): Record<string, unknown> {
   return value as Record<string, unknown>;
 }
 
-export interface Ref5StartConfigOptions {
-  /** OHP-only 1.25 kg grid (§5.1). Every other lift stays on 2.5 kg. */
-  ohpMicroloading?: boolean;
-}
-
 /** Validates plan-creation loads. Runtime progression still owns later changes. */
-export function validateRef5StartConfig(
-  value: unknown,
-  options: Ref5StartConfigOptions = {},
-): Ref5StartConfigValidationResult {
+export function validateRef5StartConfig(value: unknown): Ref5StartConfigValidationResult {
   const source = ref5Record(value);
   const errors: string[] = [];
   const startingValuesKg = {} as Ref5DirectStandardsKg;
-  const ohpMicroloading = options.ohpMicroloading === true;
 
   if (Object.keys(source).length === 0) {
     return { ok: false, errors: ["REF5 startingValuesKg must be an object"] };
@@ -284,16 +267,14 @@ export function validateRef5StartConfig(
         `${key} must be between ${REF5_START_LOAD_MIN_KG} and ${REF5_START_LOAD_MAX_KG} kg`,
       );
     }
-    // Only OHP on a microloading plan may use the 1.25 kg grid; all else 2.5.
-    const gridKg = key === "ohpKg" ? ref5OhpGridKg(ohpMicroloading) : REF5_DEFAULT_GRID_KG;
-    if (Math.abs(raw - nearestRef5ToGrid(raw, gridKg)) > 1e-9) {
-      errors.push(`${key} must use the ${gridKg} kg grid`);
+    if (Math.abs(raw - nearestRef5To2p5(raw)) > 1e-9) {
+      errors.push(`${key} must use the ${REF5_DEFAULT_GRID_KG} kg grid`);
     }
     startingValuesKg[key] = cleanKg(raw);
   }
 
   if (errors.length === 0) {
-    const caps = deriveRef5AuxiliaryCaps(startingValuesKg, ohpMicroloading);
+    const caps = deriveRef5AuxiliaryCaps(startingValuesKg);
     if (startingValuesKg.deadliftKg > caps.deadliftMaxKg + 1e-9) {
       errors.push(`deadliftKg exceeds the ${caps.deadliftMaxKg} kg REF5 auxiliary cap`);
     }
@@ -311,16 +292,12 @@ export function validateRef5StartConfig(
       protocolVersion: REF5_PROTOCOL_VERSION,
       startingValuesKg,
       controlRefsKg: deriveRef5ControlRefs(startingValuesKg),
-      ohpMicroloading,
     },
   };
 }
 
-export function normalizeRef5StartConfig(
-  value: unknown,
-  options: Ref5StartConfigOptions = {},
-): Ref5StartConfig {
-  const result = validateRef5StartConfig(value, options);
+export function normalizeRef5StartConfig(value: unknown): Ref5StartConfig {
+  const result = validateRef5StartConfig(value);
   if (!result.ok) throw new Ref5ValidationError(result.errors);
   return result.value;
 }
@@ -328,9 +305,7 @@ export function normalizeRef5StartConfig(
 export function readRef5PlanStartConfig(planParams: unknown): Ref5StartConfig {
   const params = ref5Record(planParams);
   const nested = ref5Record(params.ref5);
-  return normalizeRef5StartConfig(nested.startingValuesKg, {
-    ohpMicroloading: nested.ohpMicroloading === true,
-  });
+  return normalizeRef5StartConfig(nested.startingValuesKg);
 }
 
 export function ref5AuxiliaryCandidateIsWithinCap(
@@ -590,8 +565,6 @@ export interface Ref5RuntimeState {
   protocolVersion: typeof REF5_PROTOCOL_VERSION;
   revision: number;
   directStandardsKg: Ref5DirectStandardsKg;
-  /** Plan-fixed OHP grid selector (§13.3). Immutable for the plan's lifetime. */
-  ohpMicroloading: boolean;
   nextFocus: Ref5Focus;
   nextSquatHard: Exclude<Ref5SquatPrescription, "V">;
   startedSessions: Ref5StartedSessionSummary[];
@@ -664,7 +637,6 @@ function initialStagnation(basisKg: number): Ref5StagnationState {
 
 export function createInitialRef5State(
   standards: Ref5DirectStandardsKg = { ...REF5_INITIAL_DIRECT_STANDARDS_KG },
-  options: { ohpMicroloading?: boolean } = {},
 ): Ref5RuntimeState {
   const directStandardsKg = { ...standards };
   return {
@@ -672,7 +644,6 @@ export function createInitialRef5State(
     protocolVersion: REF5_PROTOCOL_VERSION,
     revision: 0,
     directStandardsKg,
-    ohpMicroloading: options.ohpMicroloading === true,
     nextFocus: "PULL",
     nextSquatHard: "H3",
     startedSessions: [],
@@ -1267,7 +1238,7 @@ export function generateRef5Session(state: Ref5RuntimeState, input: Ref5SessionI
     directStandardsKg: direct,
     derivedStandardsKg: derived,
     controlRefsKg: deriveRef5ControlRefs(direct),
-    auxiliaryCapsKg: deriveRef5AuxiliaryCaps(direct, state.ohpMicroloading),
+    auxiliaryCapsKg: deriveRef5AuxiliaryCaps(direct),
     pullContext,
     exercises,
     totalWorkingSets: exercises.reduce((sum, item) => sum + item.sets.length, 0),
@@ -1894,9 +1865,8 @@ export function reduceRef5Completion(
       window.exposures = [];
     }
     const key = lift === "DL" ? "deadliftKg" : "ohpKg";
-    // OHP steps on the plan's 1.25 kg grid when microloading is enabled (§13.3);
-    // DL and 2.5-grid OHP keep the v1.2 candidates exactly.
-    const gridKg = lift === "OHP" ? ref5OhpGridKg(next.ohpMicroloading) : REF5_DEFAULT_GRID_KG;
+    // Both auxiliaries step on the single 2.5 kg grid (§13.3).
+    const gridKg = REF5_DEFAULT_GRID_KG;
     const beforeKg = next.directStandardsKg[key];
     const immediate = immediateCauses[lift] ?? [];
     let ownCandidateKg = immediate.length > 0 ? cleanKg(beforeKg - gridKg) : beforeKg;

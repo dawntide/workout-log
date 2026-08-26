@@ -181,7 +181,6 @@ export function ProgramStoreScreen({
     updateRef5StartingValue,
     updateRef5SetupMode,
     updateRef5E1rmInput,
-    updateRef5OhpMicroloading,
     applyRecommendation,
     submitStartProgram,
   } = useProgramStoreStartProgramController({
@@ -373,7 +372,6 @@ export function ProgramStoreScreen({
         onChangeRef5StartingValue={updateRef5StartingValue}
         onChangeRef5SetupMode={updateRef5SetupMode}
         onChangeRef5E1rmInput={updateRef5E1rmInput}
-        onChangeRef5OhpMicroloading={updateRef5OhpMicroloading}
         onApplyRecommendation={applyRecommendation}
       />
 

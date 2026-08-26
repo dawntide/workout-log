@@ -790,8 +790,6 @@ export async function runSeed(options: SeedRunOptions = {}) {
     protocolVersion: REF5_IDENTIFIERS.protocolVersion,
     startingValuesKg: { ...REF5_INITIAL_DIRECT_STANDARDS_KG },
     controlRefsKg: deriveRef5ControlRefs({ ...REF5_INITIAL_DIRECT_STANDARDS_KG }),
-    // Start config v2 (§5.1): OHP 1.25 kg microloading is off by default.
-    ohpMicroloading: false,
   } as const;
 
   const templateRef5 = await upsertTemplate(REF5_IDENTIFIERS.slug, {
@@ -837,7 +835,7 @@ export async function runSeed(options: SeedRunOptions = {}) {
     },
     defaults: { ref5: ref5StartConfig },
     changelog:
-      "Protocol v1.3 — two-set upper-body volume (10-set normal session), OHP microloading option (1.25 kg grid), normal/micro volume fail-stream split, gain-rate surfacing",
+      "Protocol v1.3 — two-set upper-body volume (10-set normal session), single 2.5 kg grid for every lift (the OHP microloading option is withdrawn), normal/micro volume fail-stream split, gain-rate surfacing",
   });
 
   const templateGreyskull = await upsertTemplate("greyskull-lp", {

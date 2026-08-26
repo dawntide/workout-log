@@ -51,7 +51,7 @@
 
 [`weight-rules.ts:58`](../web/src/lib/workout-record/weight-rules.ts)이 `if (sourceDraft.session.ref5) return sourceDraft;`로 **REF5 스냅샷에는 사용자 무게 규칙을 재적용하지 않는다**(스냅샷 불변 원칙). 계산기는 표시 전용이므로 REF5 세션에서도 보여줄 수 있으나, **저장·스냅 경로와는 절대 연결하지 않는다.**
 
-별개로 REF5의 MICRO 1.25kg 그리드([`ref5.ts:29-35`](../packages/core/src/program-engine/ref5.ts) `REF5_OHP_MICRO_GRID_KG`, `ref5OhpGridKg`)는 **OHP 진행 그리드 전용**이고 `minimumPlateRules`와 완전히 분리된 축이다. 두 시스템을 연결하는 코드는 없으며, 이번에도 연결하지 않는다. (⚠️ `Ref5SessionType = "NORMAL"|"MICRO"`([`ref5.ts:52`](../packages/core/src/program-engine/ref5.ts))는 **세션 유형**이며 무게 그리드와 무관 — 이름이 겹치니 주의.)
+별개로 REF5의 진행 그리드([`ref5.ts`](../packages/core/src/program-engine/ref5.ts) `REF5_DEFAULT_GRID_KG`)는 **진행 전용**이고 `minimumPlateRules`와 완전히 분리된 축이다. 두 시스템을 연결하는 코드는 없으며, 이번에도 연결하지 않는다. (v1.3이 잠깐 두었던 OHP 1.25kg 마이크로 그리드는 철회됐다 — 그 그리드가 실제 원판으로 조립 불가였다는 것이 두 축을 분리해 둔 대가다.) (⚠️ `Ref5SessionType = "NORMAL"|"MICRO"`([`ref5.ts:52`](../packages/core/src/program-engine/ref5.ts))는 **세션 유형**이며 무게 그리드와 무관 — 이름이 겹치니 주의.)
 
 ### 2.5 이미 계산되지만 아무도 안 쓰는 슬롯
 
