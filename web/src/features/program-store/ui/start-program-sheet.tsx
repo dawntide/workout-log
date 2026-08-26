@@ -191,7 +191,9 @@ export const StartProgramSheet = memo(function StartProgramSheet({
           ) : null}
 
           {isContinue ? (
-            <V2Card padding="var(--v2-s-4)">
+            // tone="inset" — 시트 패널이 --v2-paper라 기본 톤(paper)이면 ΔE=0으로
+            // 카드가 사라진다. 시트 안에서는 사다리를 한 칸 내린다.
+            <V2Card padding="var(--v2-s-4)" tone="inset">
               <div style={{ display: "flex", flexDirection: "column", gap: "var(--v2-s-2)" }}>
                 <span className="v2-eyebrow" style={{ color: "var(--v2-ink-2)" }}>
                   {locale === "ko" ? "현재 진행 상태" : "Current Progress"}

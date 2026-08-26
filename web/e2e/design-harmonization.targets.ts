@@ -1,3 +1,5 @@
+import type { Page } from "@playwright/test";
+
 export type DesignHarmonizationTarget = {
   id: string;
   title: string;
@@ -26,6 +28,15 @@ export type DesignHarmonizationTarget = {
    * 셀렉터 가드도 안 울린다. 여기 적어 두면 그때 테스트가 말한다.
    */
   expectsCardTones?: readonly string[];
+  /**
+   * 감사 전에 화면을 **그 상태로 만든다**(시트 열기 등).
+   *
+   * 의미 톤 카드(accent·danger)의 실제 사용처는 전부 상호작용 뒤에 있어, 경로만
+   * 열어서는 닿지 않는다. `/design-system` 카탈로그 감사는 **프리미티브가 톤을
+   * 입히는지**까지만 보장하고, 그 카드가 **올바른 배경 위에 놓였는지**는 못 본다 —
+   * 실제로 시작 시트를 열어 보니 기본 톤 카드가 paper 시트 위에 얹혀 ΔE=0이었다.
+   */
+  prepare?: (page: Page) => Promise<void>;
 };
 
 export const designHarmonizationTargets: DesignHarmonizationTarget[] = [
@@ -82,4 +93,28 @@ export const designHarmonizationTargets: DesignHarmonizationTarget[] = [
     // 사용처 6곳은 전부 상호작용·상태 뒤에 있어 이 감사가 닿지 못한다.
     expectsCardTones: ["paper", "inset", "strong", "accent", "danger", "success"],
   },
+  // ── 상호작용으로만 닿는 표면 ──────────────────────────────────────────────
+  // 카탈로그가 못 보는 것을 본다: 톤 카드가 **어떤 배경 위에 놓였는가**.
+  {
+    id: "program-store-start-sheet",
+    title: "프로그램 시작 시트",
+    path: "/program-store",
+    expectsBottomSheet: true,
+    expectsCardTones: ["accent"],
+    // ⚠️ 첫 번째 `시작하기`를 누르면 안 된다 — 스토어 정렬에 개인화가 붙어 있어
+    // 어느 프로그램이 걸릴지 실행마다 달라진다. 이름으로 특정한다.
+    prepare: async (page) => {
+      await page.getByPlaceholder(/프로그램명, 설명, 태그 검색/).fill("REF5");
+      await page
+        .locator(".program-list-card")
+        .filter({ hasText: "REF5 Adaptive Strength" })
+        .first()
+        .getByRole("button", { name: /시작하기/ })
+        .click();
+    },
+  },
+  // ❌ 캘린더 기록 삭제 확인 시트(danger)는 **넣을 수 없다.** 시드가 `workoutLog`를
+  // 비우므로(seed.ts) CI 캘린더에는 삭제할 세션이 없다 — 로컬 dev DB에만 있어서
+  // 로컬 3회 통과 뒤 CI에서 처음 드러났다. 감사가 세션을 만들어 채우는 건 선을 넘는다.
+  // danger 톤 자체는 카탈로그 감사(렌더)와 색테마 게이트(14테마 토큰)가 덮는다.
 ];
