@@ -37,7 +37,7 @@ async function signupThroughUi(page: Page) {
  * 이후 화면이 오버레이에 가려 아무것도 못 찾는다. 나타날 때까지 잠깐 기다린다.
  */
 async function dismissOnboarding(page: Page) {
-  const dismiss = page.getByRole("button", { name: /닫기/ });
+  const dismiss = page.getByRole("button", { name: "닫기", exact: true });
   const appeared = await dismiss
     .waitFor({ state: "visible", timeout: 8_000 })
     .then(() => true)

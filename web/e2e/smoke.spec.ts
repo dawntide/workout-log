@@ -106,7 +106,14 @@ test.describe("smoke — core navigation flow", () => {
     // 빈 CI seed에서는 첫 방문 온보딩이 정상 노출된다. 실제 닫기 흐름을 거쳐
     // 온보딩 상태 저장과 홈 복귀까지 확인한 뒤 하단 내비게이션을 검증한다.
     if (new URL(page.url()).pathname === "/onboarding") {
-      await page.getByRole("button", { name: /닫기|Close/ }).click();
+      // 정규식으로 묶으면 "인증 배너 닫기" 같은 다른 버튼까지 잡는다 —
+      // 로케일별 정확 매칭을 or로 잇는다(e2e-onboarding-matcher-guard 참고).
+      // 정규식으로 묶으면 "인증 배너 닫기" 같은 다른 버튼까지 잡는다 —
+      // 로케일별 정확 매칭을 or로 잇는다(e2e-onboarding-matcher-guard 참고).
+      await page
+        .getByRole("button", { name: "닫기", exact: true })
+        .or(page.getByRole("button", { name: "Close", exact: true }))
+        .click();
       await expect(page).toHaveURL(/\/$/);
     }
 
