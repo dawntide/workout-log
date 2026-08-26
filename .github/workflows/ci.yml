@@ -283,7 +283,11 @@ jobs:
 
       # PLAYWRIGHT_SERVER_MODE=prod → webServer가 `pnpm build && pnpm start`(프로덕션 런타임).
       # build가 migrate를 재실행하나 멱등(위 seed는 여전히 필요). prod 렌더 크래시를 여기서 게이트.
-      - name: Run smoke + accessibility + theme E2E tests (prod build, in-process API)
+      # design-harmonization을 여기 넣는 이유: 이 스펙이 **디자인 회귀를 잡는 유일한
+      # 게이트**인데 nightly 전용이라, 고치는 사람이 머지 전에 확인하려면 nightly를
+      # 수동으로 돌려 10분 넘게 기다려야 했다(실제로 그렇게 했다). 잡 시간이 ~2.5분
+      # 늘지만, 디자인 변경이 PR에서 판정된다.
+      - name: Run smoke + accessibility + theme + design E2E tests (prod build, in-process API)
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/workout_log_ci
           WORKOUT_AUTH_USER_ID: 00000000-0000-4000-8000-000000c1c1c1
@@ -299,7 +303,7 @@ jobs:
           WORKOUT_ALLOW_INSECURE_COOKIES: "1"
           WORKOUT_DISABLE_RATE_LIMIT: "1"
           CI: "true"
-        run: pnpm exec playwright test e2e/smoke.spec.ts e2e/program-start-smoke.spec.ts e2e/a11y-runtime.spec.ts e2e/stale-session-redirect.spec.ts e2e/color-themes.spec.ts e2e/pull-to-refresh.spec.ts e2e/link-navigation.spec.ts --project chromium
+        run: pnpm exec playwright test e2e/smoke.spec.ts e2e/program-start-smoke.spec.ts e2e/a11y-runtime.spec.ts e2e/stale-session-redirect.spec.ts e2e/color-themes.spec.ts e2e/design-harmonization.spec.ts e2e/pull-to-refresh.spec.ts e2e/link-navigation.spec.ts --project chromium
 
       # 실패 시 trace/screenshot/video를 artifact로 보관
       - name: Upload Playwright artifacts
