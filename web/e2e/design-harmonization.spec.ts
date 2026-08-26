@@ -1,10 +1,17 @@
 import { expect, test, type Page } from "@playwright/test";
 import { designHarmonizationTargets, type DesignHarmonizationTarget } from "./design-harmonization.targets";
-import { MIN_SURFACE_DELTA_E, deltaE } from "./surface-contrast";
+import { MIN_SURFACE_DELTA_E, deltaE, flattenStack } from "./surface-contrast";
 
 type ColorScheme = "light" | "dark";
-/** 보이는 카드 하나와 그 **바로 뒤에 깔린 색**(투명하지 않은 최근접 조상). */
-type CardSurface = { cardBg: string; backdropBg: string; label: string };
+/**
+ * 보이는 카드 하나와 **그 아래 색 스택**.
+ *
+ * 최근접 조상 하나만 잡으면 안 된다 — 그 조상이 반투명하면(다크 테마의
+ * `--v2-accent-weak`은 전부 알파 0.14~0.17이다) 실제로 눈에 보이는 색은 더 아래까지
+ * 합성해야 나온다. `stack[0]`이 카드, 나머지가 배경 스택이며 **불투명한 색을 만나면
+ * 멈춘다.**
+ */
+type CardSurface = { stack: string[]; label: string };
 type AuditMetrics = {
   htmlBg: string;
   bodyBg: string;
@@ -135,6 +142,14 @@ async function readAuditMetrics(page: Page) {
           return true;
         };
 
+        // 완전 불투명한 색인지(브라우저는 항상 rgb()/rgba()/color()로 돌려준다).
+        const opaque = (color: string) => {
+          if (color === NONE) return false;
+          const alpha = color.match(/[\d.]+\s*\)$/);
+          if (!color.includes("rgba") && !color.includes("/")) return true;
+          return alpha ? Number(alpha[0].slice(0, -1)) >= 0.999 : true;
+        };
+
         const cards = Array.from(document.querySelectorAll<HTMLElement>(selectors.card));
         const cardSurfaces = [];
         for (const card of cards) {
@@ -142,20 +157,19 @@ async function readAuditMetrics(page: Page) {
           const cardBg = window.getComputedStyle(card).backgroundColor;
           // 투명한 카드는 표면을 만들지 않는다(순수 레이아웃 래퍼) — 비교 대상이 아니다.
           if (cardBg === NONE) continue;
+          // 불투명한 색을 만날 때까지 조상을 모은다. 반투명 배경 위의 카드는
+          // 아래까지 합성해야 실제로 보이는 색이 나온다.
+          const stack = [cardBg];
           let node: HTMLElement | null = card.parentElement;
-          let backdropBg = NONE;
-          while (node) {
+          while (node && !opaque(stack[stack.length - 1])) {
             const bg = window.getComputedStyle(node).backgroundColor;
-            if (bg !== NONE) {
-              backdropBg = bg;
-              break;
-            }
+            if (bg !== NONE) stack.push(bg);
             node = node.parentElement;
           }
-          if (backdropBg === NONE) continue;
+          // 배경이 하나도 없으면(스택 길이 1) 비교 대상이 없다.
+          if (stack.length < 2) continue;
           cardSurfaces.push({
-            cardBg,
-            backdropBg,
+            stack,
             label: (card.innerText || "").trim().replace(/\s+/g, " ").slice(0, 40),
           });
         }
@@ -220,13 +234,20 @@ test.describe("design harmonization: full-screen audit", () => {
         // 카드가 그 뒤 배경과 같아지면 카드 자체가 사라진다. 첫 카드만 보던 옛
         // 구현과 달리 **보이는 카드를 전부** 본다(중첩 카드가 정확히 그 함정이었다).
         for (const surface of metrics.cardSurfaces) {
-          const distance = deltaE(surface.cardBg, surface.backdropBg);
-          expect(distance, `색을 파싱하지 못했다: ${surface.cardBg} / ${surface.backdropBg}`).not.toBeNull();
+          // 카드가 반투명하면 아래 스택과 합성해야 실제로 보이는 색이 나온다.
+          const cardColor = flattenStack(surface.stack);
+          const backdropColor = flattenStack(surface.stack.slice(1));
+          const distance = cardColor && backdropColor ? deltaE(cardColor, backdropColor) : null;
+          expect(
+            distance,
+            `색 스택을 평탄화하지 못했다: ${surface.stack.join(" over ")}` +
+              (surface.label ? ` — "${surface.label}"` : ""),
+          ).not.toBeNull();
           if (distance === null) continue;
           expect(
             distance,
             `카드가 뒷배경과 구분되지 않는다 (ΔE ${distance.toFixed(2)} < ${MIN_SURFACE_DELTA_E}): ` +
-              `${surface.cardBg} on ${surface.backdropBg}` +
+              `${cardColor} on ${backdropColor}` +
               (surface.label ? ` — "${surface.label}"` : "") +
               "\n중첩 카드라면 표면 사다리를 한 칸 내릴 것(paper → inset).",
           ).toBeGreaterThanOrEqual(MIN_SURFACE_DELTA_E);
