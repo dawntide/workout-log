@@ -89,7 +89,7 @@ func TestRef5BodiesDoNotOverflowFortyColumns(t *testing.T) {
 		programs.plans = []api.Plan{plan}
 		programs.showRef5Status = true
 		programs.statusPlanID = plan.ID
-		programs.ref5Status = &api.Ref5Status{
+		programs.planState = &api.PlanProgressionState{Ref5Status: &api.Ref5Status{
 			Revision:      17,
 			NextFocus:     "PULL",
 			NextSquatHard: "H3",
@@ -110,7 +110,7 @@ func TestRef5BodiesDoNotOverflowFortyColumns(t *testing.T) {
 				WindowID: "pull-window-very-long-identifier", FocusTargetTotalKg: 90, VolumeTargetTotalKg: 82.5,
 			},
 			StartedSessionCount: 12, CompletedSessionCount: 11,
-		}
+		}}
 		body := programs.Body(width, height)
 		if !strings.Contains(ansi.Strip(body), "REF5 STATUS") {
 			t.Fatalf("status body missing status heading:\n%s", ansi.Strip(body))

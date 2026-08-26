@@ -351,14 +351,19 @@ func isIANATimezone(value string) bool {
 
 type ref5StatusLoadedMsg struct {
 	planID string
-	status *api.Ref5Status
+	state  *api.PlanProgressionState
 	err    error
 }
 
-func ref5StatusLoadCmd(c *api.Client, planID string) tea.Cmd {
+// planStatusLoadCmd fetches the **whole** progression state.
+//
+// 예전에는 `Ref5PlanStatus`가 같은 응답을 받아 REF5 부분만 남기고 버렸다. 그런데
+// 같은 응답에 `judgmentHistory`(전 프로그램 판정 이력, #691)가 함께 온다 —
+// 버릴 이유가 없다. 상태 패널이 REF5 전용이던 것도 여기서 풀린다.
+func planStatusLoadCmd(c *api.Client, planID string) tea.Cmd {
 	return func() tea.Msg {
-		status, err := c.Ref5PlanStatus(context.Background(), planID)
-		return ref5StatusLoadedMsg{planID: planID, status: status, err: err}
+		state, err := c.PlanProgressionState(context.Background(), planID)
+		return ref5StatusLoadedMsg{planID: planID, state: state, err: err}
 	}
 }
 
@@ -384,7 +389,7 @@ type Programs struct {
 	err                    string
 	showRef5Status         bool
 	statusPlanID           string
-	ref5Status             *api.Ref5Status
+	planState              *api.PlanProgressionState
 	statusLoading          bool
 	statusErr              string
 	pendingRef5TemplateID  string
@@ -425,7 +430,7 @@ func (s Programs) Update(msg tea.Msg) (Screen, tea.Cmd) {
 		if s.sel >= len(s.plans) {
 			s.sel = 0
 		}
-		if s.showRef5Status && (len(s.plans) == 0 || s.plans[s.sel].ID != s.statusPlanID || !s.plans[s.sel].IsRef5()) {
+		if s.showRef5Status && (len(s.plans) == 0 || s.plans[s.sel].ID != s.statusPlanID) {
 			s.closeRef5Status()
 		}
 		return s, nil
@@ -438,12 +443,12 @@ func (s Programs) Update(msg tea.Msg) (Screen, tea.Cmd) {
 			s.statusErr = humanizeAuthErr(m.err)
 			return s, nil
 		}
-		if m.status == nil {
-			s.statusErr = "REF5 상태를 사용할 수 없습니다"
+		if m.state == nil {
+			s.statusErr = "플랜 상태를 사용할 수 없습니다"
 			return s, nil
 		}
 		s.statusErr = ""
-		s.ref5Status = m.status
+		s.planState = m.state
 		return s, nil
 	case planDeletedMsg:
 		if m.err != nil {
@@ -831,12 +836,12 @@ func (s Programs) handleKey(m tea.KeyPressMsg) (Screen, tea.Cmd) {
 			s.closeRef5Status()
 			return s, nil
 		case "R":
-			if len(s.plans) == 0 || !s.plans[s.sel].IsRef5() {
+			if len(s.plans) == 0 {
 				return s, nil
 			}
 			s.statusLoading = true
 			s.statusErr = ""
-			return s, ref5StatusLoadCmd(s.client, s.statusPlanID)
+			return s, planStatusLoadCmd(s.client, s.statusPlanID)
 		}
 		return s, nil
 	}
@@ -871,16 +876,18 @@ func (s Programs) handleKey(m tea.KeyPressMsg) (Screen, tea.Cmd) {
 	case "r":
 		return s.beginRename()
 	case "v":
-		if len(s.plans) == 0 || !s.plans[s.sel].IsRef5() {
+		// **모든 플랜에서 연다.** REF5는 엔진 상태를, 나머지는 판정 이력을 보여준다 —
+		// "이 플랜이 지금 뭘 하고 있나"는 프로그램 종류와 무관한 질문이다.
+		if len(s.plans) == 0 {
 			return s, nil
 		}
 		p := s.plans[s.sel]
 		s.showRef5Status = true
 		s.statusPlanID = p.ID
-		s.ref5Status = nil
+		s.planState = nil
 		s.statusLoading = true
 		s.statusErr = ""
-		return s, ref5StatusLoadCmd(s.client, p.ID)
+		return s, planStatusLoadCmd(s.client, p.ID)
 	}
 	return s, nil
 }
@@ -888,7 +895,7 @@ func (s Programs) handleKey(m tea.KeyPressMsg) (Screen, tea.Cmd) {
 func (s *Programs) closeRef5Status() {
 	s.showRef5Status = false
 	s.statusPlanID = ""
-	s.ref5Status = nil
+	s.planState = nil
 	s.statusLoading = false
 	s.statusErr = ""
 }
@@ -952,8 +959,11 @@ func (s Programs) StatusRight() string {
 	if len(s.plans) == 0 {
 		return ""
 	}
-	if s.showRef5Status && s.ref5Status != nil {
-		return fmt.Sprintf("REF5 REV %d", s.ref5Status.Revision)
+	if s.showRef5Status && s.planState != nil {
+		if st := s.planState.Ref5Status; st != nil {
+			return fmt.Sprintf("REF5 REV %d", st.Revision)
+		}
+		return fmt.Sprintf("판정 %d건", len(s.planState.JudgmentHistory))
 	}
 	return fmt.Sprintf("%d 플랜", len(s.plans))
 }
@@ -968,7 +978,9 @@ func (s Programs) Hints() []hintItem {
 		return []hintItem{{"v/esc", "목록"}, {"R", "새로고침"}}
 	}
 	hints := []hintItem{{"jk", "이동"}, {"⏎", "활성"}, {"r", "이름"}, {"n", "새플랜"}, {"d", "삭제"}}
-	if len(s.plans) > 0 && s.plans[s.sel].IsRef5() {
+	if len(s.plans) > 0 {
+		// REF5는 엔진 상태, 나머지는 판정 이력 — 둘 다 "이 플랜이 지금 뭘 하고
+		// 있나"라 라벨을 나누지 않는다.
 		hints = append(hints, hintItem{"v", "상태"})
 	}
 	return hints
@@ -1030,11 +1042,15 @@ func (s Programs) renderRef5Status(w, h int) string {
 	if s.statusErr != "" {
 		return centered(theme.GlyphFail+" "+s.statusErr, theme.Red, w, h)
 	}
-	if s.ref5Status == nil {
-		return centered("REF5 상태를 사용할 수 없습니다", theme.Dim, w, h)
+	if s.planState == nil {
+		return centered("플랜 상태를 사용할 수 없습니다", theme.Dim, w, h)
+	}
+	// REF5가 아니면 엔진 상태 패널이 없다 — 판정 이력만 보여준다.
+	if s.planState.Ref5Status == nil {
+		return s.renderJudgmentHistory(w, h)
 	}
 
-	status := s.ref5Status
+	status := s.planState.Ref5Status
 	name := "REF5"
 	if len(s.plans) > 0 {
 		name = s.plans[s.sel].Name

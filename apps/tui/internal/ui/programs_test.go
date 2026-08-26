@@ -512,16 +512,61 @@ func TestProgramsRef5StatusToggleAndRefresh(t *testing.T) {
 	}
 }
 
-func TestProgramsNonRef5HasNoStatusToggle(t *testing.T) {
+// 일반 플랜도 `v`로 상태를 연다 — REF5는 엔진 상태를, 나머지는 판정 이력을
+// 보여준다. "이 플랜이 지금 뭘 하고 있나"는 프로그램 종류와 무관한 질문이다.
+// (M4 후행분 전에는 REF5만 열렸다.)
+func TestProgramsOrdinaryPlanOpensJudgmentHistory(t *testing.T) {
 	pr := samplePrograms()
 	scr, cmd := pr.handleKey(tea.KeyPressMsg{Code: 'v', Text: "v"})
-	if scr.(Programs).showRef5Status || cmd != nil {
-		t.Fatal("ordinary plan entered REF5 status flow")
+	got := scr.(Programs)
+	if !got.showRef5Status || cmd == nil {
+		t.Fatal("일반 플랜에서 v가 상태를 열지 않는다")
 	}
+	exposed := false
 	for _, h := range pr.Hints() {
 		if h.key == "v" {
-			t.Fatal("ordinary plan exposed REF5 status hint")
+			exposed = true
 		}
+	}
+	if !exposed {
+		t.Fatal("일반 플랜에 v 힌트가 없다")
+	}
+}
+
+func TestProgramsOrdinaryPlanRendersJudgmentHistory(t *testing.T) {
+	pr := samplePrograms()
+	pr.showRef5Status = true
+	pr.statusPlanID = pr.plans[pr.sel].ID
+	pr.planState = &api.PlanProgressionState{
+		JudgmentHistory: []api.JudgmentHistoryEntry{
+			{
+				EventID:   "e1",
+				CreatedAt: "2026-08-20T10:00:00Z",
+				Title:     "스쿼트 리셋",
+				Rows:      []api.ProgressReportRow{{Text: "100kg → 90kg (실패 3회)"}},
+			},
+		},
+	}
+	out := ansi.Strip(pr.Body(60, 20))
+	for _, want := range []string{"판정 이력", "스쿼트 리셋", "08-20", "100kg → 90kg"} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("%q가 없다 | %s", want, out)
+		}
+	}
+	// REF5 패널이 아니다 — 엔진 상태 라벨이 섞이면 안 된다.
+	if strings.Contains(out, "REF5 STATUS") {
+		t.Fatalf("일반 플랜에 REF5 패널이 그려졌다 | %s", out)
+	}
+}
+
+func TestProgramsJudgmentHistoryEmptyStateExplains(t *testing.T) {
+	pr := samplePrograms()
+	pr.showRef5Status = true
+	pr.statusPlanID = pr.plans[pr.sel].ID
+	pr.planState = &api.PlanProgressionState{}
+	out := ansi.Strip(pr.Body(60, 20))
+	if !strings.Contains(out, "세션을 저장하면") {
+		t.Fatalf("빈 상태가 이유를 안 밝힌다 | %s", out)
 	}
 }
 
@@ -531,7 +576,7 @@ func TestProgramsRef5StatusRendersOpenEndedState(t *testing.T) {
 	pr.plans = []api.Plan{ref5ProgramsPlan()}
 	pr.showRef5Status = true
 	pr.statusPlanID = "plan-ref5"
-	pr.ref5Status = &api.Ref5Status{
+	pr.planState = &api.PlanProgressionState{Ref5Status: &api.Ref5Status{
 		Revision:      5,
 		NextFocus:     "PULL",
 		NextSquatHard: "H3",
@@ -555,7 +600,7 @@ func TestProgramsRef5StatusRendersOpenEndedState(t *testing.T) {
 		},
 		StartedSessionCount:   4,
 		CompletedSessionCount: 3,
-	}
+	}}
 
 	out := ansi.Strip(pr.Body(60, 18))
 	for _, want := range []string{
