@@ -255,14 +255,10 @@ async function openSession(page: Page, planId: string, date: string) {
   await responsePromise.catch(() => null);
   await expect(page.locator('input[aria-label*="반복"]').first()).toBeVisible({ timeout: 30_000 });
 
+  // 배너 표면 감사는 아래 전용 테스트가 맡는다 — 여기서 조건부로 재면 배너가 안 뜨는
+  // 실행에서는 **아무 경고 없이 커버리지가 사라진다.** 여기서는 흐름을 위해 넘긴다.
   const bodyweightPrompt = page.getByText("중량풀업 · 체중 확인", { exact: true });
   if (await bodyweightPrompt.isVisible().catch(() => false)) {
-    // 표면 감사 — accent 배너가 배경 위에서 구분되는지. 이 배너는 마지막 체중 확인
-    // 후 14일이 지난 중량풀업 세션에서만 떠서 감사 스펙이 만들 수 없는 상태다.
-    await expectSurfaceContrast(page, {
-      context: "중량풀업 체중 확인 배너",
-      expectTones: ["accent"],
-    });
     await page.getByLabel("오늘 체중(kg)").fill("75");
     await page.getByRole("button", { name: "업데이트", exact: true }).click();
     await expect(bodyweightPrompt).toBeHidden();
@@ -417,6 +413,43 @@ function failExercise(name: RegExp) {
       ? Math.max(0, context.plannedReps - 1)
       : context.plannedReps;
 }
+
+/**
+ * 중량풀업 체중 확인 배너 — **조건부가 아니라 결정적이다.**
+ *
+ * 표출 조건은 셋이고(`use-bodyweight-check.ts`) 신규 계정에서는 전부 확정된다:
+ * 마지막 확인 시각이 없으므로 항상 stale, 세션에 중량풀업이 있으면 표출, 그리고
+ * 확인/유지 즉시 14일간 다시 묻지 않는다. 즉 **중량풀업을 포함한 첫 세션에 정확히
+ * 한 번** 뜬다(실측: Operator 19세션 중 첫 세션에서만 true).
+ *
+ * 그래서 `openSession`의 조건부 분기 안에서 재지 않는다 — 배너가 안 뜨는 실행에서는
+ * 아무 경고 없이 커버리지가 사라지기 때문이다. 여기서 **반드시 뜬다**고 단언한다.
+ */
+test("중량풀업 체중 확인 배너: 첫 세션에 반드시 뜨고 표면이 구분된다", async ({ page }) => {
+  const browserFailures = observeBrowser(page);
+  await signup(page, "bodyweight-banner");
+  const { planId, startDate } = await activateProgram(page, PROGRAM.operator);
+
+  await page.goto(
+    `/workout/log?planId=${encodeURIComponent(planId)}&date=${startDate}`,
+  );
+  await expect(page.locator('input[aria-label*="반복"]').first()).toBeVisible({
+    timeout: 30_000,
+  });
+
+  const bodyweightPrompt = page.getByText("중량풀업 · 체중 확인", { exact: true });
+  await expect(bodyweightPrompt).toBeVisible({ timeout: 20_000 });
+  await expectSurfaceContrast(page, {
+    context: "중량풀업 체중 확인 배너",
+    expectTones: ["accent"],
+  });
+
+  // 확인하면 사라지고, 같은 세션에서 다시 묻지 않는다.
+  await page.getByLabel("오늘 체중(kg)").fill("75");
+  await page.getByRole("button", { name: "업데이트", exact: true }).click();
+  await expect(bodyweightPrompt).toBeHidden();
+  expect(browserFailures).toEqual([]);
+});
 
 test("Manual: A/B 고정 세션과 자동 진행 없음이 화면·상태에서 일치", async ({ page }, testInfo) => {
   const browserFailures = observeBrowser(page);

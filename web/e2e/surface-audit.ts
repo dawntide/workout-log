@@ -25,6 +25,10 @@ export type SurfaceSample = { stack: string[]; label: string };
 
 const CONTEXT_DESTROYED = /Execution context was destroyed/i;
 
+/** 기대 상태가 될 때까지 다시 재는 예산(3초). 안정되면 즉시 빠져나온다. */
+const SETTLE_POLL_MS = 150;
+const SETTLE_ATTEMPTS = 20;
+
 /**
  * 애니메이션·트랜지션을 멈춘다. 전환 중간 색을 재면 실패가 무작위로 난다.
  * 시트가 열리는 도중이 정확히 그 경우다.
@@ -130,8 +134,22 @@ export async function expectSurfaceContrast(
     requireSurfaces = expectTones.length > 0,
   }: { context: string; expectTones?: readonly string[]; requireSurfaces?: boolean },
 ) {
-  await freezeMotion(page);
-  const { surfaces, toneColors } = await readCardSurfaces(page);
+  // **한 번만 샘플링하면 안 된다.** 시트가 열리는 동안(앞 시트가 닫히는 중이면 특히)
+  // 카드가 아직 0높이거나 [inert] 안에 있어 측정에서 빠진다. Playwright 단언이
+  // 자동 재시도하는 것과 같은 이유로 여기서도 **기대 상태가 될 때까지 다시 잰다.**
+  // nightly에서 삭제 확인 시트가 이 이유로 간헐 실패했다(#720에서 교정).
+  let surfaces: SurfaceSample[] = [];
+  let toneColors: Record<string, string> = {};
+  for (let attempt = 0; attempt < SETTLE_ATTEMPTS; attempt += 1) {
+    await freezeMotion(page);
+    ({ surfaces, toneColors } = await readCardSurfaces(page));
+    const tonesPresent = expectTones.every((tone) =>
+      surfaces.some((surface) => sameColor(surface.stack[0], toneColors[tone])),
+    );
+    const enough = !requireSurfaces || surfaces.length > 0;
+    if (tonesPresent && enough) break;
+    await page.waitForTimeout(SETTLE_POLL_MS);
+  }
 
   if (requireSurfaces) {
     expect(surfaces.length, `${context}: 잴 수 있는 카드 표면이 하나도 없다`).toBeGreaterThan(0);
