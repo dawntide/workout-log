@@ -19,7 +19,11 @@ export type AuthEventType =
   | "OAUTH_LINK"
   | "OAUTH_SIGNUP"
   | "API_TOKEN_ISSUE"
-  | "API_TOKEN_REVOKE";
+  | "API_TOKEN_REVOKE"
+  // 관리자가 테스트 계정으로 전환/복귀. userId는 **전환을 실행한 관리자**로 남기고
+  // 대상 계정은 meta.targetUserId에 둔다 — 감사에서 물어야 할 질문이 "누가 했나"라서다.
+  | "IMPERSONATE_START"
+  | "IMPERSONATE_END";
 
 export type AuthEventInput = {
   userId?: string | null;

@@ -8,6 +8,7 @@ import { ApiCacheWarmer } from "@/components/api-cache-warmer";
 import { PullToRefresh } from "@/components/pull-to-refresh";
 import { V2AppUpdateBanner } from "@/components/v2/app-update-banner";
 import { V2EmailVerificationBanner } from "@/components/v2/auth/v2-email-verification-banner";
+import { V2ImpersonationBanner } from "@/components/v2/auth/v2-impersonation-banner";
 import type { AppLocale } from "@/lib/i18n/messages";
 import { usePathname, useRouter } from "next/navigation";
 
@@ -15,6 +16,20 @@ const NAV_HIDDEN_PATH_PREFIXES = [
   "/login",
   "/signup",
   "/onboarding",
+  "/forgot-password",
+  "/reset-password",
+];
+
+/**
+ * 전환 배너만 따로 쓰는 숨김 목록 — 미인증 화면에서만 숨긴다.
+ *
+ * 온보딩이 빠진 것이 핵심이다. 갓 만들어진 테스트 계정으로 전환하면 첫 화면이 바로
+ * 온보딩인데, 다른 배너와 같이 숨겼더니 **돌아갈 길이 없는 화면에 떨어졌다**(실측).
+ * 전환 중에는 인증된 상태이므로 온보딩에서도 배너가 떠야 한다.
+ */
+const IMPERSONATION_BANNER_HIDDEN_PREFIXES = [
+  "/login",
+  "/signup",
   "/forgot-password",
   "/reset-password",
 ];
@@ -41,6 +56,9 @@ export function AppShell({
   const router = useRouter();
   const pathname = usePathname() ?? "";
   const hideNav = NAV_HIDDEN_PATH_PREFIXES.some((p) => pathname.startsWith(p));
+  const hideImpersonationBanner = IMPERSONATION_BANNER_HIDDEN_PREFIXES.some((p) =>
+    pathname.startsWith(p),
+  );
 
   // PERF: 앱 마운트 시 주요 경로 prefetch (300ms 지연 후 → 초기 렌더 차단 방지)
   useEffect(() => {
@@ -92,6 +110,9 @@ export function AppShell({
         <div className="app-shell v2-frame flex flex-col min-h-screen">
           {!hideNav && <PullToRefresh />}
           {!hideNav && <V2AppUpdateBanner />}
+          {/* 전환 배너는 다른 배너보다 위에 둔다 — "지금 누구인가"가 나머지 알림보다
+              먼저 읽혀야 한다. 숨김 조건도 다르다(위 상수 주석 참조). */}
+          {!hideImpersonationBanner && <V2ImpersonationBanner />}
           {!hideNav && <V2EmailVerificationBanner />}
           <main className="app-main flex-1 flex flex-col overflow-x-hidden">
             <div className="container app-shell__content">

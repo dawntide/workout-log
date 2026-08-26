@@ -13,6 +13,7 @@ import {
   mergeRowSubtitle,
 } from "@/components/v2/settings/section";
 import { apiInvalidateCache, apiPost } from "@/lib/api";
+import { clearLocalAppState } from "@/lib/local-app-state";
 
 type ResetAppDataResponse = {
   ok: boolean;
@@ -23,41 +24,6 @@ type ResetAppDataResponse = {
     includeDemoPlans: boolean;
   };
 };
-
-const LOCAL_STORAGE_PREFIXES = ["workout-log.setting.v1."];
-const LOCAL_STORAGE_KEYS = [
-  "workout-log.pending-logs.v1",
-  "workoutlog:ux-events",
-  "workoutlog:ux-events-synced-ids",
-  "workoutlog:focus-mode",
-] as const;
-
-function clearLocalAppState() {
-  apiInvalidateCache();
-  if (typeof window === "undefined") return;
-
-  try {
-    const removeKeys: string[] = [];
-    for (let index = 0; index < window.localStorage.length; index += 1) {
-      const key = window.localStorage.key(index);
-      if (!key) continue;
-      if (LOCAL_STORAGE_KEYS.includes(key as (typeof LOCAL_STORAGE_KEYS)[number])) {
-        removeKeys.push(key);
-        continue;
-      }
-      if (LOCAL_STORAGE_PREFIXES.some((prefix) => key.startsWith(prefix))) {
-        removeKeys.push(key);
-      }
-    }
-    for (const key of removeKeys) {
-      window.localStorage.removeItem(key);
-    }
-  } catch {
-    // noop
-  }
-
-
-}
 
 export default function SettingsDataPage() {
   const { locale } = useLocale();
