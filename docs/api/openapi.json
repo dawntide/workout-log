@@ -375,6 +375,35 @@
         }
       }
     },
+    "/api/stats/muscle-freshness": {
+      "get": {
+        "summary": "부위별 신선도",
+        "description": "결정론 감쇠 모델로 추정한 부위별 회복도. `groups[].contributions`에 그 값을 만든 세션이 함께 온다 — 점수만 주고 근거를 숨기지 않는다. `capacityKg === 0`은 **회복 완료가 아니라 기록 없음**이다.",
+        "security": [
+          {
+            "personalAccessToken": []
+          }
+        ],
+        "x-required-scopes": [
+          "read",
+          "read_write"
+        ],
+        "responses": {
+          "200": {
+            "description": "성공"
+          },
+          "401": {
+            "description": "토큰이 없거나, 폐기됐거나, 이 경로가 공개 표면 밖이다(기본은 거부)."
+          },
+          "403": {
+            "description": "토큰 스코프가 이 작업을 허용하지 않는다(read 토큰의 쓰기)."
+          },
+          "429": {
+            "description": "요청 한도 초과. 읽기 120/분, 쓰기 30/분. `Retry-After` 헤더를 볼 것."
+          }
+        }
+      }
+    },
     "/api/plans": {
       "get": {
         "summary": "플랜 목록",

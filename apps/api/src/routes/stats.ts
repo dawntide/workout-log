@@ -32,6 +32,9 @@ import {
 
 import { requireAuth, type AppEnv } from "../auth";
 import { apiError, resolveLocale } from "../lib/http";
+import { fetchMuscleFreshness } from "@workout/core/stats/muscle-freshness-service";
+import { getSettingsSnapshotForUser } from "@workout/core/services/settings/settings-snapshot";
+import { readWorkoutPreferences } from "@workout/core/settings/workout-preferences";
 
 /** The request's raw URLSearchParams (parseDateRangeFromSearchParams takes one). */
 function searchParams(c: { req: { url: string } }): URLSearchParams {
@@ -572,6 +575,31 @@ statsRoutes.get("/volume", async (c) => {
 // (debug dashboard). Ported from the web route; the Next-free logic lives in the
 // shared ux-snapshot-service. Next-isms swapped: NextResponse→c.json/c.body,
 // after()→fire-forget, resolveRequestLocale→resolveLocale, cookie auth→requireAuth.
+// GET /api/stats/muscle-freshness — 부위별 신선도(결정론 감쇠 모델).
+//
+// 이 지표는 원래 web의 stats 부트스트랩 안에만 있었다. TUI·MCP처럼 부트스트랩을
+// 안 쓰는 클라이언트가 부를 곳이 없어 여기로 꺼낸다 — **계산은 core가 그대로 한다.**
+//
+// 회복 시간은 사용자 설정에서 읽는다. 여기서 기본값을 쓰면 웹과 다른 숫자를
+// 보여주게 되고, 같은 모델이 클라이언트마다 다르게 말하는 순간 근거가 무의미해진다.
+statsRoutes.get("/muscle-freshness", async (c) => {
+  try {
+    const userId = c.get("userId");
+    const settings = await getSettingsSnapshotForUser(userId);
+    const prefs = readWorkoutPreferences(settings);
+    const result = await fetchMuscleFreshness({
+      userId,
+      now: new Date(),
+      recoveryHours: prefs.freshnessRecoveryHours,
+    });
+    // 신선도는 시간 함수다 — 캐시가 걸리면 낡은 값이 굳는다(#696과 같은 이유).
+    c.header("Cache-Control", "private, no-store");
+    return c.json(result);
+  } catch (e) {
+    return apiError(c, e);
+  }
+});
+
 statsRoutes.get("/ux-snapshot", async (c) => {
   const locale = resolveLocale(c);
   try {

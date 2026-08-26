@@ -58,6 +58,7 @@ const READ_SURFACE: SurfaceRule[] = [
   { method: "GET", path: "/api/stats/strength-summary" },
   { method: "GET", path: "/api/stats/volume" },
   { method: "GET", path: "/api/stats/volume-series" },
+  { method: "GET", path: "/api/stats/muscle-freshness" },
   { method: "GET", path: "/api/plans" },
   { method: "GET", path: "/api/plans/:planId/cycle-overview" },
   { method: "GET", path: "/api/plans/:planId/progression-state" },

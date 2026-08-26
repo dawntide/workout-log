@@ -29,6 +29,11 @@ type statsE1rmMsg struct {
 	err  error
 }
 
+type statsFreshnessMsg struct {
+	f   *api.MuscleFreshness
+	err error
+}
+
 type statsVolumeMsg struct {
 	volume *api.VolumeSeries
 	err    error
@@ -39,7 +44,15 @@ type statsView int
 const (
 	vwE1rm statsView = iota
 	vwVolume
+	vwFreshness
 )
+
+func statsFreshnessCmd(c *api.Client) tea.Cmd {
+	return func() tea.Msg {
+		f, err := c.MuscleFreshness(context.Background())
+		return statsFreshnessMsg{f: f, err: err}
+	}
+}
 
 func statsVolumeCmd(c *api.Client, rangeDays int) tea.Cmd {
 	return func() tea.Msg {
@@ -66,17 +79,18 @@ func statsE1rmCmd(c *api.Client, exercise string, rangeDays int) tea.Cmd {
 // selected range, plus a summary. Lifts come from the stats bundle (your
 // tracked PRs); cycle them with j/k, range with [ ], chart style with b.
 type Stats struct {
-	client   *api.Client
-	bundle   *api.StatsBundle
-	e1rm     *api.E1rmResult
-	volume   *api.VolumeSeries
-	view     statsView
-	lift     int
-	rangeIdx int
-	braille  bool
-	custom   string // exercise chosen via the picker (overrides the prs cycle)
-	err      string
-	w, h     int
+	client    *api.Client
+	bundle    *api.StatsBundle
+	e1rm      *api.E1rmResult
+	volume    *api.VolumeSeries
+	view      statsView
+	freshness *api.MuscleFreshness
+	lift      int
+	rangeIdx  int
+	braille   bool
+	custom    string // exercise chosen via the picker (overrides the prs cycle)
+	err       string
+	w, h      int
 }
 
 func NewStats(c *api.Client) Stats { return Stats{client: c, braille: true, rangeIdx: 2} }
@@ -94,6 +108,11 @@ func (s Stats) currentLift() string {
 }
 
 func (s Stats) reload() (Stats, tea.Cmd) {
+	if s.view == vwFreshness {
+		// 매번 다시 받는다 — 신선도는 시간 함수라 캐시가 곧 거짓이 된다.
+		s.freshness = nil
+		return s, statsFreshnessCmd(s.client)
+	}
 	if s.view == vwVolume {
 		s.volume = nil
 		return s, statsVolumeCmd(s.client, statsRanges[s.rangeIdx].days)
@@ -133,6 +152,13 @@ func (s Stats) Update(msg tea.Msg) (Screen, tea.Cmd) {
 		}
 		s.volume, s.err = m.volume, ""
 		return s, nil
+	case statsFreshnessMsg:
+		if m.err != nil {
+			s.err = humanizeAuthErr(m.err)
+			return s, nil
+		}
+		s.freshness, s.err = m.f, ""
+		return s, nil
 	case pickedMsg:
 		if m.tag == "exercise" && strings.TrimSpace(m.value) != "" {
 			s.custom, s.e1rm = m.value, nil
@@ -152,11 +178,9 @@ func (s Stats) handleKey(m tea.KeyPressMsg) (Screen, tea.Cmd) {
 	}
 	switch m.String() {
 	case "v":
-		if s.view == vwE1rm {
-			s.view = vwVolume
-		} else {
-			s.view = vwE1rm
-		}
+		// e1RM → 볼륨 → 신선도 → e1RM. 뷰가 셋이 됐지만 키는 그대로 하나다 —
+		// 새 바인딩을 만들면 외울 것이 늘고, 순환은 이미 있는 관습이다.
+		s.view = (s.view + 1) % 3
 		return s.reload()
 	case "/":
 		if s.view == vwE1rm {
@@ -175,9 +199,17 @@ func (s Stats) handleKey(m tea.KeyPressMsg) (Screen, tea.Cmd) {
 			return s.reload()
 		}
 	case "]", "l":
+		// 신선도는 범위 개념이 없다(모델이 8주 창을 고정으로 쓴다). 눌러도 반응하지
+		// 않는 편이 낫다 — 범위를 바꾸는 척하고 같은 화면을 다시 그리면 거짓말이다.
+		if s.view == vwFreshness {
+			return s, nil
+		}
 		s.rangeIdx = (s.rangeIdx + 1) % len(statsRanges)
 		return s.reload()
 	case "[", "h":
+		if s.view == vwFreshness {
+			return s, nil
+		}
 		s.rangeIdx = (s.rangeIdx - 1 + len(statsRanges)) % len(statsRanges)
 		return s.reload()
 	case "b":
@@ -196,6 +228,9 @@ func (s Stats) Mode() Mode {
 }
 
 func (s Stats) Context() string {
+	if s.view == vwFreshness {
+		return "신선도"
+	}
 	if s.view == vwVolume {
 		return "주간 볼륨"
 	}
@@ -209,14 +244,25 @@ func (s Stats) StatusRight() string {
 	if s.bundle == nil {
 		return ""
 	}
+	// 신선도 뷰에서는 범위 라벨이 의미가 없다 — 모델이 8주 창을 고정으로 쓴다.
+	// 그대로 두면 `[`·`]`가 먹히는 것처럼 보인다.
+	if s.view == vwFreshness {
+		if s.freshness == nil {
+			return ""
+		}
+		return fmt.Sprintf("%d주 창", s.freshness.CapacityWeeks)
+	}
 	return statsRanges[s.rangeIdx].label
 }
 
 func (s Stats) Editing() bool { return false }
 
 func (s Stats) Hints() []hintItem {
-	if s.view == vwVolume {
-		return []hintItem{{"v", "e1RM"}, {"[ ]", "범위"}, {"b", "차트"}}
+	switch s.view {
+	case vwVolume:
+		return []hintItem{{"v", "신선도"}, {"[ ]", "범위"}, {"b", "차트"}}
+	case vwFreshness:
+		return []hintItem{{"v", "e1RM"}}
 	}
 	return []hintItem{{"jk", "운동"}, {"/", "검색"}, {"[ ]", "범위"}, {"b", "차트"}, {"v", "볼륨"}}
 }
@@ -229,6 +275,13 @@ func (s Stats) Body(w, h int) string {
 		return centered("불러오는 중…", theme.Dim, w, h)
 	}
 	pad := bodyPad(h)
+	if s.view == vwFreshness {
+		if s.freshness == nil {
+			return centered("불러오는 중…", theme.Dim, w, h)
+		}
+		return lipgloss.NewStyle().Width(w).Height(h).Padding(pad, 1).
+			Render(freshnessBody(s.freshness, w-2))
+	}
 	chartH := h - 4 - 2*pad // header(1)+blank(1)+summary(1)+1 slack; pad takes 2
 	var b strings.Builder
 	if s.view == vwVolume {
