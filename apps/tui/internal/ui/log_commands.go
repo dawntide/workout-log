@@ -608,7 +608,7 @@ func exercisePickerCmd(c *api.Client, prompt, tag string) tea.Cmd {
 
 func exercisePickerCmdOwned(c *api.Client, prompt, tag string, owner ViewKind) tea.Cmd {
 	return func() tea.Msg {
-		exs, _ := c.Exercises(context.Background(), "")
+		exs, _ := c.Exercises(context.Background(), api.ExerciseSearch{})
 		items := make([]pickerItem, len(exs))
 		for i, e := range exs {
 			items[i] = pickerItem{label: e.Name, value: e.Name}
