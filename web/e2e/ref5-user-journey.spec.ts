@@ -1108,22 +1108,14 @@ test("REF5 과거 로그 수정·삭제 후 정방향 재계산", async ({ page 
     String(conflictAt.getDate()).padStart(2, "0"),
   ].join("-");
 
-  // ⚠️ **키보드로 입력해야 한다.** 값을 프로그램으로 넣으면(fill·네이티브 setter)
-  // 포커스된 date 입력에서 브라우저가 focus를 한 번 더 발화하고, 앱의 onFocus가 그
-  // 새 값을 "이전 값"으로 잡아 blur에서 nextDate === previousDate가 되어 이동이
-  // **조용히 취소된다**(실측: 커밋 자체가 호출되지 않았다). 실제 사용자는 포커스한
-  // 뒤 고르므로 이 순서가 제품 동작과도 일치한다.
-  // 세그먼트는 자동 이동하지 않으므로 ArrowRight로 넘긴다(lang="ko" → YYYY→MM→DD).
+  // 값 입력은 `fill()`로 충분하다 — 앱이 "이전 날짜"를 selectedDate에서 읽으므로
+  // date 입력의 focus가 몇 번 발화하든 기준이 흔들리지 않는다. 세그먼트 순서(로케일)에
+  // 기대는 키보드 타이핑은 쓰지 않는다 — CI는 로케일이 달라 `60801-02-02`가 나왔다.
   const moveDateInput = page
     .locator("label")
     .filter({ hasText: "날짜 이동" })
     .locator('input[type="date"]');
-  await moveDateInput.focus();
-  await page.keyboard.type(conflictDate.slice(0, 4));
-  await page.keyboard.press("ArrowRight");
-  await page.keyboard.type(conflictDate.slice(5, 7));
-  await page.keyboard.press("ArrowRight");
-  await page.keyboard.type(conflictDate.slice(8, 10));
+  await moveDateInput.fill(conflictDate);
   expect(await moveDateInput.inputValue()).toBe(conflictDate);
   // 이동은 blur에서 커밋된다 — 다른 요소를 눌러 포커스를 뺀다.
   await page.getByRole("heading", { name: "캘린더" }).click();
