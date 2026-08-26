@@ -5,6 +5,7 @@ import type { SettingsSnapshot } from "@/server/services/settings/get-settings-s
 import { SavePolicySection } from "./_sections/save-policy-section";
 import { SelectionTemplateSection } from "./_sections/selection-template-section";
 import { SystemStatsSection } from "./_sections/system-stats-section";
+import { TestAccountSection } from "./_sections/test-account-section";
 import { UxThresholdsSection } from "./_sections/ux-thresholds-section";
 
 type Plan = {
@@ -49,6 +50,12 @@ export function DebugContent({ initialSnapshot, initialPlans }: Props) {
             : "Operator / QA only — system stats, thresholds, save-policy, and selection demos in one place."}
         </p>
       </header>
+
+      <DebugBlock
+        title={locale === "ko" ? "개발 모드" : "Development Mode"}
+      >
+        <TestAccountSection />
+      </DebugBlock>
 
       <DebugBlock
         title={locale === "ko" ? "시스템 통계" : "System Stats"}
