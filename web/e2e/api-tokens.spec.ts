@@ -21,7 +21,7 @@ function uniqueEmail() {
 }
 
 async function dismissOnboarding(page: Page) {
-  const dismiss = page.getByRole("button", { name: /닫기/ });
+  const dismiss = page.getByRole("button", { name: "닫기", exact: true });
   const appeared = await dismiss
     .waitFor({ state: "visible", timeout: 8_000 })
     .then(() => true)

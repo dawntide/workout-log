@@ -87,7 +87,7 @@ async function signup(page: Page) {
   await expect(page).not.toHaveURL(/\/signup/, { timeout: 30_000 });
 
   if (new URL(page.url()).pathname === "/onboarding") {
-    await page.getByRole("button", { name: /닫기/ }).click();
+    await page.getByRole("button", { name: "닫기", exact: true }).click();
     await expect(page).toHaveURL(/\/$/);
   }
 }

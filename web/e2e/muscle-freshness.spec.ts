@@ -29,7 +29,7 @@ function uniqueEmail() {
  * 가려져 "요소 없음"으로 실패한다. 실제로 이 스펙이 그렇게 한 번 깨졌다.
  */
 async function dismissOnboarding(page: Page) {
-  const dismiss = page.getByRole("button", { name: /닫기/ });
+  const dismiss = page.getByRole("button", { name: "닫기", exact: true });
   const appeared = await dismiss
     .waitFor({ state: "visible", timeout: 8_000 })
     .then(() => true)

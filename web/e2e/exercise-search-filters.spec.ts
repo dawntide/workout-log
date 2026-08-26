@@ -33,7 +33,7 @@ async function signupThroughUi(page: Page) {
   await expect(page).not.toHaveURL(/\/signup/, { timeout: 20_000 });
 
   if (new URL(page.url()).pathname === "/onboarding") {
-    const close = page.getByRole("button", { name: /닫기/ });
+    const close = page.getByRole("button", { name: "닫기", exact: true });
     await close.waitFor({ state: "visible", timeout: 15_000 });
     await close.click();
     await expect(page).toHaveURL(/\/$/);
