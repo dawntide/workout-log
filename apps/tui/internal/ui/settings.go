@@ -47,11 +47,12 @@ var settingDefs = []settingDef{
 const (
 	actEmail = iota
 	actSessions
+	actTokens
 	actChangePassword
 	actDeleteAccount
 )
 
-var accountActions = []string{"이메일", "세션", "비밀번호", "계정 삭제"}
+var accountActions = []string{"이메일", "세션", "액세스 토큰", "비밀번호", "계정 삭제"}
 
 // settingsForm is the inline overlay opened on an ACCOUNT row.
 type settingsForm int
@@ -60,6 +61,7 @@ const (
 	formNone settingsForm = iota
 	formPassword
 	formDelete
+	formTokens
 )
 
 // --- messages ---
@@ -191,6 +193,7 @@ type Settings struct {
 	pending bool // account request in flight
 	loaded  bool
 	acct    accountInfo
+	tok     tokenPanel // ACCESS TOKENS overlay (formTokens)
 	err     string
 	flash   string
 	flashOk bool
@@ -257,8 +260,37 @@ func (s Settings) Update(msg tea.Msg) (Screen, tea.Cmd) {
 			return s, accountLoadCmd(s.client)
 		}
 		return s, nil
+	case tokensLoadedMsg:
+		s.tok.loaded = true
+		if m.err != nil {
+			s.tok.err = "토큰 목록을 불러오지 못했습니다"
+			return s, nil
+		}
+		s.tok.err, s.tok.items = "", m.items
+		if s.tok.sel >= len(s.tok.items) {
+			s.tok.sel = max(0, len(s.tok.items)-1)
+		}
+		return s, nil
+	case tokenIssuedMsg:
+		s.pending = false
+		if m.err != nil {
+			s.tok.err = humanizeAccountErr(m.err)
+			return s, nil
+		}
+		// 평문은 여기서만 화면에 올라간다. flash로 흘리지 않는다 — flash는 사라진다.
+		s.tok.err, s.tok.issued, s.tok.copied = "", m.token, false
+		return s, nil
+	case tokenRevokedMsg:
+		if m.err != nil {
+			s.setFlash("토큰 폐기에 실패했습니다", false)
+			return s, nil
+		}
+		s.setFlash("토큰을 폐기했습니다", true)
+		return s, tokensLoadCmd(s.client)
 	case tea.KeyPressMsg:
 		switch {
+		case s.form == formTokens:
+			return s.updateTokens(m)
 		case s.form != formNone:
 			return s.updateForm(m)
 		case s.editing:
@@ -268,6 +300,14 @@ func (s Settings) Update(msg tea.Msg) (Screen, tea.Cmd) {
 		}
 	}
 	// passive updates to the focused textinput
+	if s.form == formTokens {
+		if s.tok.naming {
+			var cmd tea.Cmd
+			s.tok.name, cmd = s.tok.name.Update(msg)
+			return s, cmd
+		}
+		return s, nil
+	}
 	if s.form != formNone && s.ffocus < len(s.pw) {
 		var cmd tea.Cmd
 		s.pw[s.ffocus], cmd = s.pw[s.ffocus].Update(msg)
@@ -366,6 +406,10 @@ func (s Settings) triggerAccount() (Screen, tea.Cmd) {
 		return s.triggerEmail()
 	case actSessions:
 		return s.triggerSessions()
+	case actTokens:
+		s.form = formTokens
+		s.tok = tokenPanel{}
+		return s, tokensLoadCmd(s.client)
 	case actChangePassword:
 		return s.beginPasswordForm()
 	case actDeleteAccount:
@@ -514,6 +558,18 @@ func (s Settings) Mode() Mode {
 	if s.form == formDelete {
 		return Mode{Label: "DELETE", Tone: theme.Red}
 	}
+	if s.form == formTokens {
+		switch {
+		case s.tok.issued != "":
+			// 평문이 떠 있다는 사실 자체가 지금 할 일이다 — 닫으면 사라진다.
+			return Mode{Label: "ISSUED", Tone: theme.Amber}
+		case s.tok.naming:
+			return Mode{Label: "INSERT", Tone: theme.Amber}
+		default:
+			// 목록 탐색은 타이핑이 아니다. INSERT로 두면 상태 표시가 거짓말이 된다.
+			return Mode{Label: "TOKENS", Tone: theme.Cyan}
+		}
+	}
 	if s.editing || s.form != formNone {
 		return Mode{Label: "INSERT", Tone: theme.Amber}
 	}
@@ -526,6 +582,8 @@ func (s Settings) Context() string {
 		return "비밀번호 변경"
 	case formDelete:
 		return "계정 삭제"
+	case formTokens:
+		return "액세스 토큰"
 	}
 	if s.isAccountRow() {
 		switch s.accountIdx() {
@@ -533,6 +591,8 @@ func (s Settings) Context() string {
 			return "이메일 인증"
 		case actSessions:
 			return "활성 세션"
+		case actTokens:
+			return "액세스 토큰"
 		case actChangePassword:
 			return "비밀번호 변경"
 		default:
@@ -546,6 +606,8 @@ func (s Settings) StatusRight() string { return "" }
 
 func (s Settings) Hints() []hintItem {
 	switch s.form {
+	case formTokens:
+		return s.tokenHints()
 	case formPassword:
 		return []hintItem{{"⏎", "변경"}, {"tab", "이동"}, {"esc", "취소"}}
 	case formDelete:
@@ -561,6 +623,8 @@ func (s Settings) Hints() []hintItem {
 			action = "인증메일"
 		case actSessions:
 			action = "세션종료"
+		case actTokens:
+			action = "토큰관리"
 		case actDeleteAccount:
 			action = "삭제"
 		}
@@ -579,6 +643,8 @@ func (s Settings) Body(w, h int) string {
 		return centered("불러오는 중…", theme.Dim, w, h)
 	}
 	switch s.form {
+	case formTokens:
+		return s.tokensBody(w, h)
 	case formPassword:
 		return s.passwordFormBody(w, h)
 	case formDelete:
@@ -651,6 +717,10 @@ func (s Settings) actionValue(ai int) (string, color.Color) {
 			return fmt.Sprintf("활성 %d · 타 %d", s.acct.active, s.acct.other), theme.Amber
 		}
 		return fmt.Sprintf("활성 %d", s.acct.active), theme.Cyan
+	case actTokens:
+		// 개수를 미리 세지 않는다 — 목록은 이 행을 열 때 처음 불린다. 설정 진입마다
+		// 토큰 목록까지 받아 오는 것은 대부분의 진입에서 낭비다.
+		return "관리", theme.Cyan
 	case actChangePassword:
 		return "변경", theme.Cyan
 	default: // actDeleteAccount
