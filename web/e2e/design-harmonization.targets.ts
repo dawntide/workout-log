@@ -113,16 +113,8 @@ export const designHarmonizationTargets: DesignHarmonizationTarget[] = [
         .click();
     },
   },
-  {
-    id: "calendar-delete-sheet",
-    title: "캘린더 기록 삭제 확인",
-    path: "/calendar",
-    expectsBottomSheet: true,
-    expectsCardTones: ["danger"],
-    prepare: async (page) => {
-      // 기록이 있는 날짜의 세션 칩 → 삭제. 시드에 기록이 있어야 닿는다.
-      await page.getByRole("button", { name: /check_circle/ }).first().click();
-      await page.getByRole("button", { name: "기록 삭제" }).click();
-    },
-  },
+  // ❌ 캘린더 기록 삭제 확인 시트(danger)는 **넣을 수 없다.** 시드가 `workoutLog`를
+  // 비우므로(seed.ts) CI 캘린더에는 삭제할 세션이 없다 — 로컬 dev DB에만 있어서
+  // 로컬 3회 통과 뒤 CI에서 처음 드러났다. 감사가 세션을 만들어 채우는 건 선을 넘는다.
+  // danger 톤 자체는 카탈로그 감사(렌더)와 색테마 게이트(14테마 토큰)가 덮는다.
 ];
