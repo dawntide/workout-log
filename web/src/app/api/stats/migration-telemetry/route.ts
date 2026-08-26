@@ -3,7 +3,7 @@ import path from "node:path";
 import { NextResponse, after } from "next/server";
 import { sql } from "drizzle-orm";
 import { db } from "@workout/core/db/client";
-import { requireAuthenticatedUserId } from "@/server/auth/user";
+import { requireAdminUserId } from "@/server/auth/user";
 import { readMigrationLedgerSnapshot } from "@/server/db/migrationLedger";
 import { withApiLogging } from "@/server/observability/apiRoute";
 import { logError } from "@workout/core/observability/logger";
@@ -165,7 +165,9 @@ async function readLocalMigrationCount() {
 async function GETImpl(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
-    const userId = await requireAuthenticatedUserId();
+    // 이 라우트가 읽는 migration_run_log는 사용자별 데이터가 아니라 배포 인프라 이력이다
+    // (러너·호스트명·실패 메시지). 로그인만 하면 보이던 표면이라 관리자로 좁힌다.
+    const userId = await requireAdminUserId();
     const lookbackMinutes = parseBoundedInt(searchParams.get("lookbackMinutes"), 720, 30, 10080);
     const limit = parseBoundedInt(searchParams.get("limit"), 8, 1, 50);
     const runStatus = parseRunStatusFilter(searchParams.get("runStatus"));

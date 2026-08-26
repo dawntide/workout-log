@@ -3,12 +3,15 @@
 import { useEffect, useState } from "react";
 
 import { apiGet } from "@/lib/api";
+import type { UserRole } from "@workout/core/db/schema";
 import type { SettingsSnapshot } from "@/server/services/settings/get-settings-snapshot";
 
 export type MeUser = {
   id: string;
   email: string | null;
   displayName: string | null;
+  /** 관리자 전용 행의 노출 판단용. 실제 접근 경계는 서버가 잡는다(UI 숨김은 경계가 아니다). */
+  role?: UserRole;
   fallback?: boolean;
 } | null;
 

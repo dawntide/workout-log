@@ -595,6 +595,23 @@ export const migrationRunLog = table(
 );
 
 /**
+ * 계정 권한. 관리자 표면(디버그 도구·운영 텔레메트리)을 가르는 단일 판정 소스다.
+ *
+ * env 목록(WORKOUT_ADMIN_USER_IDS 류)이 아니라 DB 컬럼인 이유: web과 apps/api는
+ * 호스팅 모드에 따라 서로 다른 프로세스일 수 있어(APPS_API_BASE) env는 한쪽만
+ * 갱신되는 드리프트가 난다. 권한은 두 런타임이 같이 읽는 곳에 있어야 한다.
+ *
+ * - user:  기본값. 앱의 일반 사용자.
+ * - admin: 관리자 표면 접근 + (후속) 테스트 계정 전환 권한.
+ * - test:  전환 대상 전용 계정. 실사용자 계정으로의 전환을 값으로 막기 위해 존재한다.
+ *
+ * 허용값은 DB의 CHECK 제약(app_user_role_check)이 강제한다 — 승격 경로가 수기 SQL이라
+ * 오타('Admin')를 DB가 거부해야 한다. pg enum이 아닌 text인 건 set_type과 같은 이유로
+ * 값 추가에 ALTER TYPE이 필요 없게 하기 위함이다.
+ */
+export type UserRole = "user" | "admin" | "test";
+
+/**
  * app_user: 인증된 사용자.
  *
  * 기존에는 WORKOUT_AUTH_USER_ID 환경변수로 단일 사용자였지만,
@@ -610,6 +627,7 @@ export const appUser = table(
     email: text("email").notNull(),
     passwordHash: text("password_hash").notNull(),
     displayName: text("display_name"),
+    role: text("role").$type<UserRole>().default("user").notNull(),
     emailVerifiedAt: timestamp("email_verified_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .defaultNow()

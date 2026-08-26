@@ -113,6 +113,7 @@ pnpm -C web build
 - **테마 경계**: 웹 테마는 동일한 컴포넌트 트리·레이아웃을 유지하고 색상 토큰만 교체한다. 테마별 조건부 화면·셸·컴포넌트 포크 금지.
 - **SWR 캐시**: 데이터 fetch는 `apiGet`/`apiPost` ([web/src/lib/api.ts](web/src/lib/api.ts)) 사용.
 - **Auth**: 이메일/비밀번호 + PBKDF2 해시 + `wl_session` httpOnly cookie 세션. `WORKOUT_AUTH_USER_ID`는 로컬/dev fallback으로만 유지 — **프로덕션 런타임에서는 web·apps/api 양쪽 다 기본 차단**이라 이 값만 배포 env에 들어가도 아무 일이 없다. 되살리려면 명시 opt-in이 따로 필요하다(web `WORKOUT_WEB_ALLOW_ENV_AUTH=1` · apps/api `WORKOUT_API_ALLOW_ENV_AUTH=1`). E2E는 prod 빌드로 돌아 CI에서만 이 플래그를 세운다. 상세: [`dev-fallback.ts`](web/src/server/auth/dev-fallback.ts).
+- **Auth 권한(role)**: `app_user.role` — `user`(기본)/`admin`/`test`, text + CHECK 제약. 세션 조회(`findActiveSession`)가 join으로 이미 실어 오므로 판정에 추가 쿼리가 없다. 강제 지점 3곳: **페이지**는 [`proxy.ts`](web/src/proxy.ts)의 `ADMIN_PAGE_PREFIXES`가 렌더 전에 404로 접고(RSC `notFound()`만으로는 레이아웃이 먼저 스트리밍돼 상태가 200으로 굳는다), **API**는 `requireAdminUserId()`가 403, **UI 노출**은 `/api/auth/me`의 role. 승격은 수기 SQL(`update app_user set role='admin' where email=...`). 시드가 폴백 계정을 관리자로 올리는 것은 `WORKOUT_SEED_ADMIN_FALLBACK=1`일 때뿐 — E2E 레인만 세우고 **prod 시드 잡(db-seed.yml)은 세우지 않는다**(폴백 플래그가 새도 관리자가 되지 않게).
 - **Auth recovery**: `RESEND_API_KEY`, `RESEND_FROM`로 비밀번호 재설정/이메일 인증 링크 발송(`WORKOUT_APP_URL`은 OAuth 콜백에도 쓰이니 별도 유지). dev에서 Resend 미설정 시 서버 로그에 링크 출력. **UI는 `NEXT_PUBLIC_EMAIL_RECOVERY_ENABLED`(기본 off)로 게이트** — 프로덕션은 Resend 미설정이라 로그인 "비밀번호 잊음" 링크·이메일 인증 배너/설정 섹션·`/forgot-password`·`/reset-password` 페이지를 모두 숨긴다(코드는 유지). 활성화: 발송 도메인 인증 → `RESEND_*` + `NEXT_PUBLIC_EMAIL_RECOVERY_ENABLED=1` 세팅 + 재배포(코드 변경 불필요). 상세 [`feature-flags.ts`](web/src/lib/feature-flags.ts).
 - **Auth OAuth**: Google 로그인(SDK 없이 fetch + PKCE 자체 구현, [`oauth-google.ts`](web/src/server/auth/oauth-google.ts)). `GOOGLE_OAUTH_CLIENT_ID`/`GOOGLE_OAUTH_CLIENT_SECRET` 둘 다 설정 시 활성, redirect_uri는 `WORKOUT_APP_URL`(미설정 시 요청 origin) + `/api/auth/google/callback`. `auth_oauth_account` 테이블로 federated identity 연결. ⚠️ Vercel **preview는 도메인이 매 배포마다 달라** 고정 콜백과 어긋나 state 쿠키를 못 읽으므로(state_mismatch) `VERCEL_ENV==='preview'`에서 버튼을 자동 숨김 — preview는 이메일/비밀번호로 로그인 테스트, OAuth는 로컬/production에서 검증.
 - **Auth API**: `/api/auth/{signup,login,logout,me,password}`, `/api/auth/google/{start,callback}`, `/api/auth/oauth/{status,accounts}`, `/api/auth/password/reset/{request,confirm}`, `/api/auth/email/verification/request`, `/api/auth/email/verify`.
@@ -126,6 +127,7 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
 WORKOUT_AUTH_USER_ID=00000000-0000-4000-8000-000000c1c1c1  # app_user.id(uuid) FK 대상 — uuid만 허용, seed가 이 계정 생성
 NEXT_PUBLIC_DISABLE_SW=1
 # NEXT_PUBLIC_EMAIL_RECOVERY_ENABLED=1  # (선택) 이메일 복구 UI 노출 — RESEND_*와 함께일 때만 켤 것
+# WORKOUT_SEED_ADMIN_FALLBACK=1  # (선택) db:seed가 폴백 계정을 admin으로 승격 — 로컬에서 관리자 표면(디버그 도구)을 보려면
 # DB_SCHEMA=dev   # (선택) prod 인스턴스의 dev 스키마로 격리 개발 시 — DATABASE_URL을 prod 풀러로 두고 함께 설정
 ```
 

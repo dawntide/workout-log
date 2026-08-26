@@ -2,7 +2,7 @@ import { randomUUID } from "crypto";
 import { NextResponse } from "next/server";
 import { logError, logInfo } from "@workout/core/observability/logger";
 import { checkIpRateLimit } from "@/server/security/rateLimit";
-import { UnauthorizedError } from "@/server/auth/user";
+import { ForbiddenError, UnauthorizedError } from "@/server/auth/user";
 
 export type ApiRouteHandler<TContext = unknown> = (
   req: Request,
@@ -67,21 +67,28 @@ export function withApiLogging<TContext = unknown>(handler: ApiRouteHandler<TCon
       });
       return responseWithId;
     } catch (error) {
-      // 미인증은 401로 매핑하고 info 레벨로 기록 (서버 에러가 아님).
-      if (error instanceof UnauthorizedError) {
-        const unauthorized = NextResponse.json(
-          { error: "Unauthorized", requestId },
-          { status: 401 },
+      // 미인증(401)·권한 부족(403)은 서버 에러가 아니다 — 해당 status로 매핑하고
+      // info 레벨로 기록한다. 500으로 새어 나가면 정상 거부가 장애로 보인다.
+      const authStatus =
+        error instanceof UnauthorizedError
+          ? 401
+          : error instanceof ForbiddenError
+            ? 403
+            : null;
+      if (authStatus !== null) {
+        const denied = NextResponse.json(
+          { error: authStatus === 401 ? "Unauthorized" : "Forbidden", requestId },
+          { status: authStatus },
         );
-        unauthorized.headers.set("x-request-id", requestId);
+        denied.headers.set("x-request-id", requestId);
         logInfo("api.request", {
           requestId,
           method,
           route,
-          status: 401,
+          status: authStatus,
           latencyMs: elapsedMs(startedAt),
         });
-        return unauthorized;
+        return denied;
       }
 
       logError("api.error", {

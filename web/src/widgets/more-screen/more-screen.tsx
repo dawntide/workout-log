@@ -161,20 +161,24 @@ export function MoreScreen() {
         />
       </Section>
 
-      {/* ── ADVANCED ─────────────────────────────────────── */}
-      <Section title={locale === "ko" ? "고급" : "Advanced"}>
-        <V2NavRow
-          as="a"
-          href="/settings/debug"
-          icon="bug_report"
-          label={locale === "ko" ? "디버그 도구" : "Debug Tools"}
-          description={
-            locale === "ko"
-              ? "시스템 통계 · 임계값 · 데모"
-              : "System stats · thresholds · demos"
-          }
-        />
-      </Section>
+      {/* ── ADMIN (관리자 계정에만 보인다) ────────────────── */}
+      {/* 서버가 같은 판정으로 페이지·API를 막는다(isAdminRequest·requireAdminUserId).
+          여기 숨김은 노출 정리일 뿐 경계가 아니다 — 링크를 지워도 URL은 남는다. */}
+      {me?.role === "admin" && (
+        <Section title={locale === "ko" ? "관리자" : "Admin"}>
+          <V2NavRow
+            as="a"
+            href="/settings/debug"
+            icon="bug_report"
+            label={locale === "ko" ? "디버그 도구" : "Debug Tools"}
+            description={
+              locale === "ko"
+                ? "시스템 통계 · 임계값 · 데모"
+                : "System stats · thresholds · demos"
+            }
+          />
+        </Section>
+      )}
 
       {/* ── FOOTER (App info + logout + onboarding replay) ── */}
       <div

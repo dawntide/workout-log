@@ -17,6 +17,9 @@ export async function GET() {
         id: userId,
         email: null,
         displayName: null,
+        // 계정 행이 없으면 권한도 없다. 클라이언트의 관리자 UI 노출 판단이 이 값을
+        // 쓰지만, 실제 경계는 서버(requireAdminUserId·isAdminRequest)가 잡는다.
+        role: "user",
         emailVerifiedAt: null,
         fallback: true,
       },
@@ -27,6 +30,7 @@ export async function GET() {
       id: user.id,
       email: user.email,
       displayName: user.displayName,
+      role: user.role,
       emailVerifiedAt: user.emailVerifiedAt,
       fallback: false,
     },

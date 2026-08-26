@@ -267,6 +267,10 @@ jobs:
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/workout_log_ci
           WORKOUT_AUTH_USER_ID: 00000000-0000-4000-8000-000000c1c1c1
+          # E2E의 신원은 이 폴백 계정 하나뿐이라, 관리자 표면(/settings/debug 등)을
+          # 훑는 스펙이 돌려면 관리자여야 한다. 시드는 이 플래그가 있을 때만 승격하며
+          # prod 시드 잡(db-seed.yml)은 세우지 않는다 — packages/core/src/db/seed.ts 참조.
+          WORKOUT_SEED_ADMIN_FALLBACK: "1"
         run: pnpm db:seed
 
       # 데이터 라우트(/api/plans 등)는 catch-all이 처리한다. APPS_API_BASE를 주지
@@ -287,6 +291,10 @@ jobs:
       # 게이트**인데 nightly 전용이라, 고치는 사람이 머지 전에 확인하려면 nightly를
       # 수동으로 돌려 10분 넘게 기다려야 했다(실제로 그렇게 했다). 잡 시간이 ~2.5분
       # 늘지만, 디자인 변경이 PR에서 판정된다.
+      #
+      # admin-surface-boundary도 같은 이유로 PR 게이트다 — 관리자 표면(디버그 페이지·
+      # 마이그레이션 텔레메트리)이 일반 계정에 열리는 회귀는 머지 후에 발견하면 늦다.
+      # 이 레인은 실계정 가입이 도는 조건(쿠키·레이트리밋 완화)을 이미 갖췄다.
       - name: Run smoke + accessibility + theme + design E2E tests (prod build, in-process API)
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/workout_log_ci
@@ -303,7 +311,7 @@ jobs:
           WORKOUT_ALLOW_INSECURE_COOKIES: "1"
           WORKOUT_DISABLE_RATE_LIMIT: "1"
           CI: "true"
-        run: pnpm exec playwright test e2e/smoke.spec.ts e2e/program-start-smoke.spec.ts e2e/a11y-runtime.spec.ts e2e/stale-session-redirect.spec.ts e2e/color-themes.spec.ts e2e/design-harmonization.spec.ts e2e/pull-to-refresh.spec.ts e2e/link-navigation.spec.ts --project chromium
+        run: pnpm exec playwright test e2e/smoke.spec.ts e2e/program-start-smoke.spec.ts e2e/a11y-runtime.spec.ts e2e/stale-session-redirect.spec.ts e2e/color-themes.spec.ts e2e/design-harmonization.spec.ts e2e/pull-to-refresh.spec.ts e2e/link-navigation.spec.ts e2e/admin-surface-boundary.spec.ts --project chromium
 
       # 실패 시 trace/screenshot/video를 artifact로 보관
       - name: Upload Playwright artifacts

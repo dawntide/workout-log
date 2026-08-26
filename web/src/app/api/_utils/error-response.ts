@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { resolveRequestLocale } from "@/lib/i18n/messages";
-import { UnauthorizedError } from "@/server/auth/user";
+import { ForbiddenError, UnauthorizedError } from "@/server/auth/user";
 
 type ApiErrorResponseInit = {
   status?: number;
@@ -18,9 +18,14 @@ export async function apiErrorResponse(error: unknown, init?: ApiErrorResponseIn
       ? (init?.fallback?.ko ?? "알 수 없는 오류가 발생했습니다.")
       : (init?.fallback?.en ?? "An unknown error occurred.");
 
-  // 미인증은 명시 status가 없으면 401로 매핑 (그 외는 500).
+  // 미인증은 401, 권한 부족은 403으로 매핑 (그 외는 500). 명시 status가 우선한다.
   const status =
-    init?.status ?? (error instanceof UnauthorizedError ? 401 : 500);
+    init?.status ??
+    (error instanceof UnauthorizedError
+      ? 401
+      : error instanceof ForbiddenError
+        ? 403
+        : 500);
 
   return NextResponse.json(
     {
