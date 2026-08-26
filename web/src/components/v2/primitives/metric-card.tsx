@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { V2Card } from "./card";
+import { V2Card, type V2CardTone } from "./card";
 import { V2Icon } from "./v2-icon";
 
 export type V2MetricTone =
@@ -29,6 +29,7 @@ export function V2MetricCard({
   unit,
   sub,
   tone = "neutral",
+  surface = "paper",
   trend,
   size = "md",
 }: {
@@ -36,7 +37,16 @@ export function V2MetricCard({
   value: ReactNode;
   unit?: string;
   sub?: ReactNode;
+  /** 숫자 색만 바꾼다 — 표면색은 `surface`가 정한다. */
   tone?: V2MetricTone;
+  /**
+   * 카드 표면. **다른 카드 안에 넣을 때는 사다리를 한 칸 내려야 한다**(보통 `inset`).
+   *
+   * No-Line Rule이라 계층 구분 수단이 배경색뿐이다. paper 카드 안에 paper 타일을
+   * 넣으면 ΔE=0이라 타일이 통째로 안 보인다 — `/plans/manage` 히어로의 통계 타일
+   * 3개가 실제로 그 상태였다(2026-08-26 실측, design-harmonization 감사가 검출).
+   */
+  surface?: V2CardTone;
   trend?: { direction: "up" | "down" | "flat"; text: string };
   size?: "sm" | "md" | "lg";
 }) {
@@ -45,7 +55,7 @@ export function V2MetricCard({
   const fg = TONE_FG[tone];
 
   return (
-    <V2Card tone="paper" padding="var(--v2-s-4)">
+    <V2Card tone={surface} padding="var(--v2-s-4)">
       <p className="v2-label" style={{ marginBottom: 6 }}>
         {label}
       </p>
