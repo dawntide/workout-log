@@ -60,20 +60,21 @@ export default function SettingsDataPage() {
       setError(null);
       setNotice(null);
 
-      await apiPost("/api/settings/seed-demo-plans", {});
+      await apiPost("/api/settings/seed-demo-data", {});
       // 플랜·프로그램 목록이 통째로 바뀐다 — 캐시를 비워야 새 데이터가 보인다.
       apiInvalidateCache();
 
       setNotice(
         locale === "ko"
-          ? "데모 플랜을 시드했습니다."
-          : "Demo plans have been seeded.",
+          ? "데모 데이터를 시드했습니다."
+          : "Demo data has been seeded.",
       );
-      window.location.assign("/plans");
+      // 기록이 생겼으니 통계로 보낸다 — 시드 결과가 가장 잘 드러나는 화면이다.
+      window.location.assign("/stats");
     } catch (e) {
       setError(
         errorMessage(e) ??
-          (locale === "ko" ? "데모 플랜 시드에 실패했습니다." : "Failed to seed demo plans."),
+          (locale === "ko" ? "데모 데이터 시드에 실패했습니다." : "Failed to seed demo data."),
       );
       setSeeding(false);
     }
@@ -221,8 +222,8 @@ export default function SettingsDataPage() {
             title={locale === "ko" ? "데모 데이터" : "Demo Data"}
             description={
               locale === "ko"
-                ? "테스트 계정에만 보이는 항목입니다. 16개 프로그램의 예시 플랜을 채워 실제에 가까운 상태로 확인합니다."
-                : "Visible on test accounts only. Fills in example plans for 16 programs so you can try the app with realistic data."
+                ? "테스트 계정에만 보이는 항목입니다. 예시 플랜과 12주치 운동 기록을 채워 통계·캘린더까지 실제에 가까운 상태로 확인합니다."
+                : "Visible on test accounts only. Fills in example plans plus 12 weeks of workout history so stats and the calendar look realistic."
             }
           />
           <V2SettingsGroup ariaLabel={locale === "ko" ? "데모 데이터" : "Demo data"}>
@@ -231,10 +232,10 @@ export default function SettingsDataPage() {
               label={locale === "ko" ? "만들어지는 데이터" : "Data Created"}
               description={
                 locale === "ko"
-                  ? "Operator · 5/3/1 · nSuns · GZCLP 등 프로그램별 예시 플랜"
-                  : "Example plans per program — Operator, 5/3/1, nSuns, GZCLP, and more"
+                  ? "프로그램별 예시 플랜 · 주 3회 12주 운동 기록 · 주간 체중 기록"
+                  : "Example plans per program, 12 weeks of 3x/week workouts, and weekly bodyweight entries"
               }
-              value={locale === "ko" ? "플랜" : "Plans"}
+              value={locale === "ko" ? "플랜 · 기록" : "Plans · History"}
               trailing="none"
             />
           </V2SettingsGroup>
@@ -251,13 +252,13 @@ export default function SettingsDataPage() {
                 ? "시드 중..."
                 : "Seeding..."
               : locale === "ko"
-                ? "데모 플랜 시드"
-                : "Seed Demo Plans"}
+                ? "데모 데이터 시드"
+                : "Seed Demo Data"}
           </V2SecondaryBtn>
           <V2SettingsFootnote>
             {locale === "ko"
-              ? "이름 기준으로 덮어쓰므로 여러 번 눌러도 중복되지 않고, 직접 만든 플랜은 지워지지 않습니다."
-              : "Plans are upserted by name — repeat runs create no duplicates, and plans you made yourself are kept."}
+              ? "여러 번 눌러도 중복되지 않습니다. 플랜은 이름 기준으로 덮어쓰고, 기록은 데모가 만든 것만 갈아 끼웁니다 — 직접 만든 플랜과 직접 남긴 기록은 그대로 남습니다."
+              : "Repeat runs create no duplicates: plans are upserted by name and only demo-tagged history is replaced. Anything you created yourself is kept."}
           </V2SettingsFootnote>
         </section>
       )}
