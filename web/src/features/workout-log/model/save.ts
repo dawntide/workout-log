@@ -4,6 +4,10 @@ import type { FailureProtocolDecision } from "@/components/ui/failure-protocol-s
 import { submitWorkoutLogAction } from "../actions/submit-workout-log";
 import { apiInvalidateCache } from "@/lib/api";
 import { clearWorkoutDraft } from "@/lib/storage/workoutDraftStore";
+import {
+  consumeNextSaveFailure,
+  SIMULATED_SAVE_FAILURE_MESSAGE,
+} from "@/lib/debug-flags";
 
 // 세션 저장으로 서버 상태가 바뀌는 GET 경로들. 저장은 **서버 액션**이라 apiMutate 를 거치지
 // 않으므로(=자동 무효화 대상이 아니다) 이 목록을 여기서 직접 지운다. 특히
@@ -26,6 +30,13 @@ export async function submitWorkoutLogDraft({
     bodyweightKg: bodyweightKg ?? null,
     isBodyweightExercise: isBodyweightExerciseName,
   });
+
+  // 디버그 도구의 "다음 저장 1회 실패". **액션 호출 직전**에 끊어야 진짜 실패와 같은
+  // 모양이 된다 — 초안도 캐시도 그대로 남고, 호출부는 아래 `!result.success`와 똑같이
+  // throw를 받는다. 저장은 서버 액션이라 API 바디에 플래그를 실을 자리가 없어 여기서 한다.
+  if (consumeNextSaveFailure()) {
+    throw new Error(SIMULATED_SAVE_FAILURE_MESSAGE);
+  }
 
   const result = await submitWorkoutLogAction({
     logId: draft.session.logId ?? undefined,
