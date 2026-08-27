@@ -1,13 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useAppDialog } from "@/components/ui/app-dialog-provider";
 import { useLocale } from "@/components/locale-provider";
 import { V2Icon } from "@/components/v2/primitives/v2-icon";
 import { errorMessage } from "@/lib/error-message";
 import { clearClientStateForAccountSwitch } from "@/lib/local-app-state";
 
 type MeResponse = {
-  user: null | { email: string | null; impersonating?: boolean };
+  user: null | { id: string; email: string | null; impersonating?: boolean };
 };
 
 type Point = { x: number; y: number };
@@ -65,9 +66,14 @@ function defaultPosition(): Point {
 
 export function V2ImpersonationDock() {
   const { locale } = useLocale();
+  const { confirm } = useAppDialog();
   const ko = locale === "ko";
   const [visible, setVisible] = useState(false);
   const [email, setEmail] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
+  /** 한 번에 하나만 돈다 — 시드 도중 초기화가 끼어들면 결과가 뒤섞인다. */
+  const [busy, setBusy] = useState<null | "seed" | "reset" | "cache" | "copy">(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [position, setPosition] = useState<Point | null>(null);
   const [expanded, setExpanded] = useState(false);
   const [returning, setReturning] = useState(false);
@@ -90,6 +96,7 @@ export function V2ImpersonationDock() {
         const body = (await res.json()) as MeResponse;
         if (!cancelled && body.user?.impersonating) {
           setEmail(body.user.email);
+          setUserId(body.user.id);
           // **이미 자리가 정해졌으면 덮지 않는다.** 이 효과는 두 번 돌 수 있고(dev의
           // StrictMode 이중 실행, 재마운트), 두 번째 응답이 드래그 뒤에 도착하면 방금
           // 끌어 둔 위치를 기본값으로 되돌린다.
@@ -121,6 +128,23 @@ export function V2ImpersonationDock() {
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
   }, [visible]);
+
+  // 펼치면 패널이 알약보다 훨씬 높아진다 — 하단 근처에서 열면 아래로 잘려 초기화·돌아가기
+  // 버튼이 화면 밖으로 나간다(실측). 열리는 순간 세로만 다시 안으로 밀어 넣는다.
+  //
+  // 가로는 건드리지 않는다. 오른쪽 절반에서는 패널을 translateX로 이미 왼쪽으로 펴므로,
+  // 변환 전 좌표까지 클램프하면 알약이 화면 왼쪽으로 크게 튄다.
+  useEffect(() => {
+    if (!expanded) return;
+    const rect = rootRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    setPosition((prev) => {
+      if (!prev) return prev;
+      const maxY = Math.max(EDGE_MARGIN_PX, window.innerHeight - rect.height - EDGE_MARGIN_PX);
+      const nextY = Math.min(prev.y, maxY);
+      return nextY === prev.y ? prev : { x: prev.x, y: nextY };
+    });
+  }, [expanded]);
 
   // 펼친 상태에서 바깥을 누르면 접는다.
   useEffect(() => {
@@ -197,6 +221,94 @@ export function V2ImpersonationDock() {
     window.addEventListener("pointercancel", onUp);
   };
 
+  /**
+   * 전환 중에는 role이 test라 /settings/debug도 /settings/data의 관리자용 항목도 닿지
+   * 않는다. 테스트 세션에서 실제로 필요한 도구는 그래서 여기 있어야 한다.
+   */
+  const runAction = async (
+    kind: "seed" | "reset" | "cache",
+    request: () => Promise<void>,
+    doneMessage: string,
+  ) => {
+    if (busy) return;
+    setBusy(kind);
+    setError(null);
+    setNotice(null);
+    try {
+      await request();
+      // 데이터가 바뀌었으니 이전 캐시를 끝까지 지운 뒤 다시 그린다 — 안 그러면 웜업이
+      // 옛 화면을 복원해 방금 한 일이 안 보인다.
+      await clearClientStateForAccountSwitch();
+      setNotice(doneMessage);
+      window.location.reload();
+    } catch (err) {
+      setError(errorMessage(err) ?? (ko ? "실패했습니다." : "Failed."));
+      setBusy(null);
+    }
+  };
+
+  const seedDemoData = () =>
+    runAction(
+      "seed",
+      async () => {
+        const res = await fetch("/api/settings/seed-demo-data", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: "{}",
+        });
+        if (!res.ok) throw new Error(ko ? "데모 시드에 실패했습니다." : "Seeding failed.");
+      },
+      ko ? "데모 데이터를 시드했습니다." : "Demo data seeded.",
+    );
+
+  const resetAppData = async () => {
+    if (busy) return;
+    // 되돌릴 수 없다. 테스트 계정에만 작용하지만 그 계정의 기록도 사라지므로 확인을 받는다.
+    const confirmed = await confirm({
+      title: ko ? "앱 데이터 초기화" : "Reset app data",
+      message: ko
+        ? "이 테스트 계정의 기록·플랜·설정을 지웁니다. 되돌릴 수 없습니다."
+        : "This clears this test account's logs, plans, and settings. It cannot be undone.",
+      confirmText: ko ? "초기화" : "Reset",
+      cancelText: ko ? "취소" : "Cancel",
+      tone: "danger",
+    });
+    if (!confirmed) return;
+    await runAction(
+      "reset",
+      async () => {
+        const res = await fetch("/api/settings/app-reset", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ confirmToken: "RESET_APP_DATA" }),
+        });
+        if (!res.ok) throw new Error(ko ? "초기화에 실패했습니다." : "Reset failed.");
+      },
+      ko ? "초기화했습니다." : "Reset complete.",
+    );
+  };
+
+  const clearCaches = () =>
+    runAction(
+      "cache",
+      async () => {},
+      ko ? "캐시를 비웠습니다." : "Caches cleared.",
+    );
+
+  /** uuid는 DB·로그와 대조할 때 필요하다 — 화면에는 앞 8자만, 복사는 전체를 준다. */
+  const copyUserId = async () => {
+    if (!userId || busy) return;
+    setBusy("copy");
+    try {
+      await navigator.clipboard.writeText(userId);
+      setNotice(ko ? "사용자 ID를 복사했습니다." : "User ID copied.");
+    } catch {
+      setError(ko ? "복사할 수 없습니다." : "Copy is unavailable.");
+    } finally {
+      setBusy(null);
+    }
+  };
+
   const goBack = async () => {
     if (returning) return;
     setReturning(true);
@@ -271,19 +383,71 @@ export function V2ImpersonationDock() {
             />
           </div>
 
-          <div
+          {/* 신원 — 탭하면 uuid 전체가 복사된다(DB·로그 대조용). */}
+          <button
+            type="button"
+            onClick={copyUserId}
+            disabled={!userId || busy !== null}
             className="v2-small"
             style={{
-              color: error ? "var(--v2-c-danger)" : "var(--v2-ink-2)",
               marginTop: 2,
+              width: "100%",
+              border: "none",
+              background: "transparent",
+              padding: 0,
+              textAlign: "left",
+              color: "var(--v2-ink-2)",
               fontSize: "var(--v2-t-12)",
               overflow: "hidden",
               textOverflow: "ellipsis",
               whiteSpace: "nowrap",
+              cursor: userId ? "pointer" : "default",
             }}
           >
-            {error ?? email ?? (ko ? "테스트 계정" : "Test account")}
+            {email ?? (ko ? "테스트 계정" : "Test account")}
+            {userId ? ` · ${userId.slice(0, 8)}` : ""}
+          </button>
+
+          <div style={{ marginTop: "var(--v2-s-3)", display: "grid", gap: "var(--v2-s-1)" }}>
+            <DockAction
+              icon="science"
+              label={busy === "seed" ? (ko ? "시드 중…" : "Seeding…") : ko ? "데모 데이터 시드" : "Seed demo data"}
+              disabled={busy !== null}
+              onClick={() => {
+                void seedDemoData();
+              }}
+            />
+            <DockAction
+              icon="cached"
+              label={busy === "cache" ? (ko ? "비우는 중…" : "Clearing…") : ko ? "캐시 비우고 새로고침" : "Clear caches & reload"}
+              disabled={busy !== null}
+              onClick={() => {
+                void clearCaches();
+              }}
+            />
+            <DockAction
+              icon="delete_sweep"
+              label={busy === "reset" ? (ko ? "초기화 중…" : "Resetting…") : ko ? "앱 데이터 초기화" : "Reset app data"}
+              tone="danger"
+              disabled={busy !== null}
+              onClick={() => {
+                void resetAppData();
+              }}
+            />
           </div>
+
+          {(error || notice) && (
+            <div
+              className="v2-small"
+              style={{
+                marginTop: "var(--v2-s-2)",
+                color: error ? "var(--v2-c-danger)" : "var(--v2-ink-2)",
+                fontSize: "var(--v2-t-12)",
+              }}
+            >
+              {error ?? notice}
+            </div>
+          )}
 
           <button
             type="button"
@@ -341,5 +505,49 @@ export function V2ImpersonationDock() {
         </button>
       )}
     </div>
+  );
+}
+
+/** 패널 안의 한 줄짜리 도구 항목. 앞으로 도구가 늘어도 같은 모양으로 붙는다. */
+function DockAction({
+  icon,
+  label,
+  onClick,
+  disabled,
+  tone,
+}: {
+  icon: string;
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+  tone?: "danger";
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className="v2-font-display"
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: "var(--v2-s-2)",
+        width: "100%",
+        minHeight: "var(--v2-touch)",
+        padding: "0 var(--v2-s-2)",
+        border: "none",
+        borderRadius: "var(--v2-r-1)",
+        background: "var(--v2-paper-2)",
+        color: tone === "danger" ? "var(--v2-c-danger)" : "var(--v2-ink)",
+        fontSize: "var(--v2-t-12)",
+        fontWeight: 700,
+        textAlign: "left",
+        opacity: disabled ? 0.6 : 1,
+        cursor: disabled ? "default" : "pointer",
+      }}
+    >
+      <V2Icon name={icon} style={{ fontSize: "var(--v2-t-18)" }} />
+      {label}
+    </button>
   );
 }

@@ -205,6 +205,51 @@ test.describe("관리자 표면 경계", () => {
     expect((await page.request.post("/api/admin/impersonate/return")).status()).toBe(200);
   });
 
+  test("알약 패널이 전환 중 테스트 도구를 대신 제공한다", async ({ page }) => {
+    // 전환 중에는 role이 test라 /settings/debug도, 설정의 관리자용 데이터 항목도 닿지
+    // 않는다. 그 도구들이 패널에 있어야 테스트 세션이 성립한다.
+    expect((await page.request.post("/api/admin/impersonate")).status()).toBe(200);
+
+    // 빈 상태에서 시작해야 아래 시드 단언이 공허해지지 않는다.
+    expect(
+      (
+        await page.request.post("/api/settings/app-reset", {
+          data: { confirmToken: "RESET_APP_DATA" },
+        })
+      ).status(),
+    ).toBe(200);
+
+    await page.goto("/calendar", { timeout: NAV_TIMEOUT });
+    const pill = page.getByRole("button", {
+      name: /테스트 계정 메뉴 열기|Open test account menu/,
+    });
+    await pill.hover();
+    await pill.click();
+
+    const seed = page.getByRole("button", { name: /데모 데이터 시드|Seed demo data/ });
+    await expect(seed).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: /캐시 비우고 새로고침|Clear caches/ }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: /앱 데이터 초기화|Reset app data/ }),
+    ).toBeVisible();
+
+    // 껍데기가 아닌지 — 하나는 실제로 눌러 결과를 본다.
+    await seed.click();
+    await expect
+      .poll(
+        async () => {
+          const logs = await (await page.request.get("/api/logs?limit=1")).json();
+          return Array.isArray(logs.items) ? logs.items.length : 0;
+        },
+        { timeout: 60_000 },
+      )
+      .toBeGreaterThan(0);
+
+    expect((await page.request.post("/api/admin/impersonate/return")).status()).toBe(200);
+  });
+
   test("데모 플랜 시드는 테스트 계정에서만 돈다", async ({ page }) => {
     const suffix = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
     await page.request.post("/api/auth/signup", {
