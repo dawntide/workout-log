@@ -261,6 +261,62 @@ test.describe("관리자 표면 경계", () => {
     expect((await page.request.post("/api/admin/impersonate/return")).status()).toBe(200);
   });
 
+  test("무장한 저장 실패가 실제로 저장을 끊는다", async ({ page }) => {
+    // 위 테스트는 "다음 저장 1회 실패"의 **라벨**까지만 본다 — 무장 표시가 뜨는지.
+    // 정작 기능의 요점인 "다음 저장이 정말 끊기는가"는 덮이지 않아, save.ts에서
+    // consumeNextSaveFailure 호출이 빠져도 그 부분은 초록으로 남는다. 여기서 잠근다.
+    expect((await page.request.post("/api/admin/impersonate")).status()).toBe(200);
+
+    // 저장할 것이 있어야 한다. 데모 시드가 만든 기록 하나를 편집 모드로 연다 — 새 세션은
+    // 플랜별 시작 게이트(REF5의 "SQ 첫 워크 세트 시작" 등)를 지나야 해서 이 단언과
+    // 무관한 단계가 붙는다.
+    expect(
+      (await page.request.post("/api/settings/seed-demo-data", { data: {} })).status(),
+    ).toBe(200);
+    const logs = await (await page.request.get("/api/logs?limit=1")).json();
+    const logId = logs.items?.[0]?.id;
+    expect(typeof logId).toBe("string");
+
+    await page.goto(`/workout/log?logId=${logId}`, { timeout: NAV_TIMEOUT });
+    const save = page.getByRole("button", { name: /운동기록 수정 완료|Finish editing/ });
+    await expect(save).toBeVisible({ timeout: NAV_TIMEOUT });
+
+    // ⚠️ **도착한 뒤에 무장한다.** 플래그는 메모리에만 살아서(localStorage면 켠 채 잊고
+    // 관리자로 돌아갔을 때 실계정 저장이 깨진다) 페이지를 옮기면 사라진다.
+    const pill = page.getByRole("button", {
+      name: /테스트 계정 메뉴 열기|Open test account menu/,
+    });
+    await pill.hover();
+    await pill.click();
+    await page.getByRole("button", { name: /다음 저장 1회 실패|Fail next save once/ }).click();
+    await expect(page.getByRole("button", { name: /무장됨|armed/ })).toBeVisible();
+    // 패널은 시트라 저장 버튼을 가린다. 펼치면 알약 버튼 자체가 패널로 바뀌어 다시 누를
+    // 수 없고 Escape도 안 먹는다 — **바깥을 눌러** 접는다(그게 이 컴포넌트의 계약).
+    await page.locator("body").click({ position: { x: 5, y: 5 } });
+    await expect(page.getByRole("button", { name: /무장됨|armed/ })).toBeHidden();
+
+    await save.click();
+
+    // 진짜 장애와 구분되는 문구여야 도구가 사람을 속이지 않는다. 오류는 시트로 뜬다.
+    const failureSheet = page.getByText(
+      /저장 실패를 시뮬레이션했습니다|Simulated save failure/,
+    );
+    await expect(failureSheet).toBeVisible({ timeout: NAV_TIMEOUT });
+    await page.getByRole("button", { name: /^확인$|^OK$/ }).click();
+    await expect(failureSheet).toBeHidden();
+
+    // **일회용**임을 소비 흔적으로 확인한다 — 다시 무장돼 있으면 토글이라 왜 계속
+    // 실패하는지 모르게 된다. (두 번째 저장으로 재확인하지 않는 이유: 편집 재저장은
+    // `기록 수정 시 planId는 변경할 수 없습니다`라는 별개 검증에 걸려, 이 단언과 무관한
+    // 실패가 섞인다.)
+    await pill.hover();
+    await pill.click();
+    await expect(page.getByRole("button", { name: /무장됨|armed/ })).toBeHidden();
+    await page.locator("body").click({ position: { x: 5, y: 5 } });
+
+    expect((await page.request.post("/api/admin/impersonate/return")).status()).toBe(200);
+  });
+
   test("알약 패널이 최근 API 호출을 보여준다", async ({ page }) => {
     expect((await page.request.post("/api/admin/impersonate")).status()).toBe(200);
 
