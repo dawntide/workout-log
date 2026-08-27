@@ -84,6 +84,7 @@ const EXPECTED = [
   "PATCH /api/settings",
   "POST /api/settings/clear-cache",
   "POST /api/settings/app-reset",
+  "POST /api/settings/seed-demo-plans",
   "GET /api/plans",
   "POST /api/plans",
   "PATCH /api/plans/:planId",

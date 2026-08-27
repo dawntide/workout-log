@@ -145,4 +145,69 @@ test.describe("관리자 표면 경계", () => {
     expect(me.user?.role).toBe("admin");
     expect(me.user?.impersonating).toBe(false);
   });
+
+  test("데모 플랜 시드는 테스트 계정에서만 돈다", async ({ page }) => {
+    const suffix = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    await page.request.post("/api/auth/signup", {
+      data: { email: `demo-seed-denied-${suffix}@example.com`, password: "demo-seed-pw-123" },
+    });
+
+    // 일반 계정에 데모 데이터를 쏟아붓지 못한다.
+    const denied = await page.request.post("/api/settings/seed-demo-plans", { data: {} });
+    expect(denied.status()).toBe(403);
+    expect((await page.request.get("/api/plans")).ok()).toBe(true);
+  });
+
+  test("전환한 테스트 계정에 데모 플랜이 시드된다", async ({ page }) => {
+    expect((await page.request.post("/api/admin/impersonate")).status()).toBe(200);
+
+    const seeded = await page.request.post("/api/settings/seed-demo-plans", { data: {} });
+    expect(seeded.status()).toBe(200);
+
+    const plans = await (await page.request.get("/api/plans")).json();
+    expect(Array.isArray(plans.items) ? plans.items.length : 0).toBeGreaterThan(0);
+
+    expect((await page.request.post("/api/admin/impersonate/return")).status()).toBe(200);
+  });
+
+  test("초기화는 호출자 본인 데이터만 지운다", async ({ page, playwright, baseURL }) => {
+    // app-reset은 where 없이 workout_log·plan·user_setting을 비웠다 — 한 사람의
+    // "초기화"가 전 사용자의 기록을 지웠다. 평범한 계정 둘로 그 범위를 잰다.
+    //
+    // 관리자를 쓰지 않는 이유: CI의 관리자는 쿠키 없는 env 폴백 신원인데, 그 폴백은
+    // **web에만** 열려 있고 apps/api(=/api/settings)에는 WORKOUT_API_ALLOW_ENV_AUTH가
+    // 없어 401이다. 로컬은 NODE_ENV가 production이 아니라 통과해서, 그 차이에 기댄
+    // 이전 버전이 로컬에서만 초록이었다.
+    const suffix = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    const password = "reset-scope-pw-123";
+
+    // A — 남아 있어야 하는 쪽. 설정은 종전 초기화가 통째로 비우던 테이블이다.
+    const signupA = await page.request.post("/api/auth/signup", {
+      data: { email: `reset-scope-keep-${suffix}@example.com`, password },
+    });
+    expect(signupA.status()).toBe(200);
+    expect(
+      (await page.request.patch("/api/settings", {
+        data: { key: "prefs.autoSync", value: false },
+      })).ok(),
+    ).toBe(true);
+
+    // B — 초기화를 실행하는 다른 계정. 쿠키 병을 나누려고 별도 컨텍스트를 쓴다.
+    const other = await playwright.request.newContext({ baseURL });
+    try {
+      const signupB = await other.post("/api/auth/signup", {
+        data: { email: `reset-scope-run-${suffix}@example.com`, password },
+      });
+      expect(signupB.status()).toBe(200);
+      const reset = await other.post("/api/settings/app-reset", {
+        data: { confirmToken: "RESET_APP_DATA" },
+      });
+      expect(reset.status()).toBe(200);
+    } finally {
+      await other.dispose();
+    }
+
+    const settings = await (await page.request.get("/api/settings")).json();
+    expect(settings.settings?.["prefs.autoSync"]).toBe(false);
+  });
 });
