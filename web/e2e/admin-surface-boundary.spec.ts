@@ -250,6 +250,29 @@ test.describe("관리자 표면 경계", () => {
     expect((await page.request.post("/api/admin/impersonate/return")).status()).toBe(200);
   });
 
+  test("알약 패널이 최근 API 호출을 보여준다", async ({ page }) => {
+    expect((await page.request.post("/api/admin/impersonate")).status()).toBe(200);
+
+    // 더보기 화면은 마운트 시 apiGet("/api/settings")를 부른다 — 결정적인 트리거다.
+    // (대부분의 화면 데이터는 RSC 부트스트랩으로 와서 이 로그에 잡히지 않는다.)
+    await page.goto("/settings", { timeout: NAV_TIMEOUT });
+
+    const pill = page.getByRole("button", {
+      name: /테스트 계정 메뉴 열기|Open test account menu/,
+    });
+    await pill.hover();
+    await pill.click();
+
+    const logRow = page.getByRole("button", { name: /최근 API 호출|Recent API calls/ });
+    await expect(logRow).toBeVisible();
+    await logRow.click();
+
+    // 방금 나간 호출이 경로·상태와 함께 보여야 한다.
+    await expect(page.getByText("/api/settings").first()).toBeVisible();
+
+    expect((await page.request.post("/api/admin/impersonate/return")).status()).toBe(200);
+  });
+
   test("데모 플랜 시드는 테스트 계정에서만 돈다", async ({ page }) => {
     const suffix = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
     await page.request.post("/api/auth/signup", {

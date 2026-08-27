@@ -1,3 +1,5 @@
+import { recordApiRequest } from "./api-request-log";
+
 type ApiCachePolicy = "swr" | "network-only" | "cache-only";
 
 type ApiGetOptions<T = unknown> = {
@@ -151,16 +153,38 @@ export function isAbortError(error: unknown) {
 
 async function fetchJson<T>(path: string, signal?: AbortSignal): Promise<T> {
   const endNetworkRequest = beginApiNetworkRequest();
+  // 디버그 패널이 읽는 링 버퍼(api-request-log). 네트워크 실패도 남겨야 "요청은 나갔나"에
+  // 답할 수 있으므로 성공 경로가 아니라 여기서 시각을 잰다.
+  const startedAt = Date.now();
   try {
     const res = await fetch(path, {
       cache: "no-store",
       signal,
     });
     const body = (await res.json().catch(() => null)) as unknown;
+    recordApiRequest({
+      method: "GET",
+      path,
+      status: res.status,
+      durationMs: Date.now() - startedAt,
+      ok: res.ok,
+    });
     if (!res.ok) {
       throw new Error(resolveApiErrorMessage(body, `GET ${path} failed: ${res.status}`));
     }
     return (body ?? {}) as T;
+  } catch (error) {
+    // 취소는 사용자가 화면을 떠난 것이라 진단 가치가 없다 — 목록을 채우기만 한다.
+    if (!isAbortError(error)) {
+      recordApiRequest({
+        method: "GET",
+        path,
+        status: null,
+        durationMs: Date.now() - startedAt,
+        ok: false,
+      });
+    }
+    throw error;
   } finally {
     endNetworkRequest();
   }
@@ -389,6 +413,7 @@ async function apiMutate<T>(
   }
 
   const endNetworkRequest = beginApiNetworkRequest();
+  const startedAt = Date.now();
   try {
     const res = await fetch(path, {
       method,
@@ -398,6 +423,13 @@ async function apiMutate<T>(
     });
 
     const data = (await res.json().catch(() => null)) as unknown;
+    recordApiRequest({
+      method,
+      path,
+      status: res.status,
+      durationMs: Date.now() - startedAt,
+      ok: res.ok,
+    });
     if (!res.ok) {
       throw new Error(resolveApiErrorMessage(data, `${method} ${path} failed: ${res.status}`));
     }
@@ -413,6 +445,17 @@ async function apiMutate<T>(
       }
     }
     return (data ?? {}) as T;
+  } catch (error) {
+    if (!isAbortError(error)) {
+      recordApiRequest({
+        method,
+        path,
+        status: null,
+        durationMs: Date.now() - startedAt,
+        ok: false,
+      });
+    }
+    throw error;
   } finally {
     endNetworkRequest();
   }

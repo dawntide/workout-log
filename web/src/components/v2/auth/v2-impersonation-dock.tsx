@@ -6,6 +6,11 @@ import { useLocale } from "@/components/locale-provider";
 import { V2Icon } from "@/components/v2/primitives/v2-icon";
 import { errorMessage } from "@/lib/error-message";
 import { clearClientStateForAccountSwitch } from "@/lib/local-app-state";
+import {
+  getApiRequestLog,
+  subscribeApiRequestLog,
+  type ApiRequestLogEntry,
+} from "@/lib/api-request-log";
 
 type MeResponse = {
   user: null | { id: string; email: string | null; impersonating?: boolean };
@@ -74,6 +79,8 @@ export function V2ImpersonationDock() {
   /** 한 번에 하나만 돈다 — 시드 도중 초기화가 끼어들면 결과가 뒤섞인다. */
   const [busy, setBusy] = useState<null | "seed" | "reset" | "cache" | "copy">(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [logOpen, setLogOpen] = useState(false);
+  const [log, setLog] = useState<ApiRequestLogEntry[]>([]);
   const [position, setPosition] = useState<Point | null>(null);
   const [expanded, setExpanded] = useState(false);
   const [returning, setReturning] = useState(false);
@@ -145,6 +152,14 @@ export function V2ImpersonationDock() {
       return nextY === prev.y ? prev : { x: prev.x, y: nextY };
     });
   }, [expanded]);
+
+  // 호출 로그는 **열어 둔 동안만** 구독한다. 링 버퍼는 항상 쌓이지만, 닫힌 패널이
+  // 매 요청마다 리렌더할 이유는 없다.
+  useEffect(() => {
+    if (!expanded || !logOpen) return;
+    setLog(getApiRequestLog());
+    return subscribeApiRequestLog(() => setLog(getApiRequestLog()));
+  }, [expanded, logOpen]);
 
   // 펼친 상태에서 바깥을 누르면 접는다.
   useEffect(() => {
@@ -434,7 +449,58 @@ export function V2ImpersonationDock() {
                 void resetAppData();
               }}
             />
+            <DockAction
+              icon="network_check"
+              label={
+                ko
+                  ? `최근 API 호출${log.length ? ` (${log.length})` : ""}`
+                  : `Recent API calls${log.length ? ` (${log.length})` : ""}`
+              }
+              onClick={() => setLogOpen((prev) => !prev)}
+            />
           </div>
+
+          {logOpen && (
+            <div
+              style={{
+                marginTop: "var(--v2-s-2)",
+                // 목록이 화면을 잡아먹지 않게 뷰포트 비율로 묶는다 — 토큰은 4pt 그리드라
+                // 이 용도(가변 목록 높이)에 맞는 값이 없다.
+                maxHeight: "40vh",
+                overflowY: "auto",
+                borderRadius: "var(--v2-r-1)",
+                background: "var(--v2-paper-2)",
+                padding: "var(--v2-s-2)",
+              }}
+            >
+              {log.length === 0 ? (
+                <div className="v2-small" style={{ color: "var(--v2-ink-3)", fontSize: "var(--v2-t-12)" }}>
+                  {ko ? "기록된 호출이 없습니다." : "No calls recorded yet."}
+                </div>
+              ) : (
+                log.map((entry, index) => (
+                  <div
+                    key={`${entry.at}-${index}`}
+                    className="v2-mono-label"
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "var(--v2-s-2)",
+                      fontSize: "var(--v2-t-12)",
+                      color: entry.ok ? "var(--v2-ink-2)" : "var(--v2-c-danger)",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis" }}>
+                      {entry.method} {entry.path}
+                    </span>
+                    <span>{entry.status ?? (ko ? "실패" : "ERR")}</span>
+                    <span style={{ color: "var(--v2-ink-3)" }}>{entry.durationMs}ms</span>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
 
           {(error || notice) && (
             <div
