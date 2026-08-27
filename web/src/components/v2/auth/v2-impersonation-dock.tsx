@@ -7,6 +7,11 @@ import { V2Icon } from "@/components/v2/primitives/v2-icon";
 import { errorMessage } from "@/lib/error-message";
 import { clearClientStateForAccountSwitch } from "@/lib/local-app-state";
 import {
+  isNextSaveFailureArmed,
+  setNextSaveFailureArmed,
+  subscribeDebugFlags,
+} from "@/lib/debug-flags";
+import {
   getApiRequestLog,
   subscribeApiRequestLog,
   type ApiRequestLogEntry,
@@ -83,6 +88,7 @@ export function V2ImpersonationDock() {
   const [busy, setBusy] = useState<null | "seed" | "reset" | "cache" | "copy">(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [logOpen, setLogOpen] = useState(false);
+  const [saveFailArmed, setSaveFailArmed] = useState(false);
   const [log, setLog] = useState<ApiRequestLogEntry[]>([]);
   const [position, setPosition] = useState<Point | null>(null);
   const [expanded, setExpanded] = useState(false);
@@ -163,6 +169,13 @@ export function V2ImpersonationDock() {
     setLog(getApiRequestLog());
     return subscribeApiRequestLog(() => setLog(getApiRequestLog()));
   }, [expanded, logOpen]);
+
+  // 저장이 플래그를 소비하면 스스로 꺼지므로, 패널이 열려 있는 동안 그 변화를 따라간다.
+  useEffect(() => {
+    if (!expanded) return;
+    setSaveFailArmed(isNextSaveFailureArmed());
+    return subscribeDebugFlags(() => setSaveFailArmed(isNextSaveFailureArmed()));
+  }, [expanded]);
 
   // 펼친 상태에서 바깥을 누르면 접는다.
   useEffect(() => {
@@ -442,6 +455,20 @@ export function V2ImpersonationDock() {
               onClick={() => {
                 void clearCaches();
               }}
+            />
+            <DockAction
+              icon={saveFailArmed ? "bolt" : "error_outline"}
+              label={
+                saveFailArmed
+                  ? ko
+                    ? "다음 저장 1회 실패 — 무장됨"
+                    : "Next save fails once — armed"
+                  : ko
+                    ? "다음 저장 1회 실패"
+                    : "Fail next save once"
+              }
+              tone={saveFailArmed ? "danger" : undefined}
+              onClick={() => setNextSaveFailureArmed(!saveFailArmed)}
             />
             <DockAction
               icon="delete_sweep"

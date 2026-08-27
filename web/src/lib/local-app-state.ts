@@ -8,10 +8,21 @@ import { apiInvalidateCache } from "@/lib/api";
  */
 const LOCAL_STORAGE_PREFIXES = ["workout-log.setting.v1."];
 const LOCAL_STORAGE_KEYS = [
-  "workout-log.pending-logs.v1",
   "workoutlog:ux-events",
   "workoutlog:ux-events-synced-ids",
   "workoutlog:focus-mode",
+] as const;
+
+/**
+ * **이미 삭제된 기능이 남긴 키.** 살아 있는 기능의 목록과 섞으면 없는 동작을 있는 것처럼
+ * 읽게 된다 — 실제로 `pending-logs`를 보고 "오프라인 큐가 있다"고 잘못 판단한 적이 있다.
+ *
+ * 지우기는 계속 한다. 옛 설치에 남은 찌꺼기를 치우는 값은 그대로이고 비용은 없다.
+ * 새 키를 여기 추가하지 말 것 — 여기는 묘지다.
+ */
+const LEGACY_STORAGE_KEYS = [
+  // 오프라인 로그 큐. f37a3f39에서 기능째 제거됐고 읽거나 쓰는 코드가 없다.
+  "workout-log.pending-logs.v1",
 ] as const;
 
 /** 인메모리 API 캐시 + 사용자 범위 localStorage를 지운다(동기). */
@@ -24,7 +35,10 @@ export function clearLocalAppState(): void {
     for (let index = 0; index < window.localStorage.length; index += 1) {
       const key = window.localStorage.key(index);
       if (!key) continue;
-      if (LOCAL_STORAGE_KEYS.includes(key as (typeof LOCAL_STORAGE_KEYS)[number])) {
+      if (
+        LOCAL_STORAGE_KEYS.includes(key as (typeof LOCAL_STORAGE_KEYS)[number]) ||
+        LEGACY_STORAGE_KEYS.includes(key as (typeof LEGACY_STORAGE_KEYS)[number])
+      ) {
         removeKeys.push(key);
         continue;
       }

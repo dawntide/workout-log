@@ -235,6 +235,17 @@ test.describe("관리자 표면 경계", () => {
       page.getByRole("button", { name: /앱 데이터 초기화|Reset app data/ }),
     ).toBeVisible();
 
+    // "다음 저장 1회 실패"는 무장 여부가 라벨에 드러나야 한다 — 켜 놓고 잊으면 저장이
+    // 왜 실패하는지 모르게 된다(그래서 일회용이고, 그래서 상태를 보여준다).
+    const failNextSave = page.getByRole("button", {
+      name: /다음 저장 1회 실패|Fail next save once/,
+    });
+    await expect(failNextSave).toBeVisible();
+    await failNextSave.click();
+    await expect(
+      page.getByRole("button", { name: /무장됨|armed/ }),
+    ).toBeVisible();
+
     // 껍데기가 아닌지 — 하나는 실제로 눌러 결과를 본다.
     await seed.click();
     await expect
