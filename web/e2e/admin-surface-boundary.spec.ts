@@ -9,6 +9,8 @@
  */
 import { expect, test } from "@playwright/test";
 
+import { gotoWithRole } from "./auth-state";
+
 const NAV_TIMEOUT = 30_000;
 const TELEMETRY_URL = "/api/stats/migration-telemetry?lookbackMinutes=60&limit=1";
 /** 더보기 화면의 관리자 진입점. ko/en 어느 로케일로 떠도 잡히도록 둘 다 받는다. */
@@ -43,7 +45,7 @@ test.describe("관리자 표면 경계", () => {
 
     // 진입점도 사라진다. 계정 카드에 이메일이 뜬 뒤에 확인해야 /api/auth/me가 아직
     // 안 온 순간을 "없음"으로 오독하지 않는다.
-    await page.goto("/settings", { timeout: NAV_TIMEOUT });
+    await gotoWithRole(page, "/settings");
     await expect(page.getByText(email).first()).toBeVisible();
     await expect(page.getByRole("link", { name: DEBUG_ROW_NAME })).toHaveCount(0);
   });
@@ -66,8 +68,8 @@ test.describe("관리자 표면 경계", () => {
     expect(debugPage?.status()).toBe(200);
 
     // 반대 방향 회귀 — 게이트가 과하게 걸려 관리자에게서도 진입점이 사라지면 여기서 깨진다.
-    await page.goto("/settings", { timeout: NAV_TIMEOUT });
-    await expect(page.getByRole("link", { name: DEBUG_ROW_NAME })).toBeVisible();
+    await gotoWithRole(page, "/settings");
+    await expect(page.getByRole("link", { name: DEBUG_ROW_NAME })).toBeVisible({ timeout: NAV_TIMEOUT });
   });
 
   test("일반 계정은 테스트 계정으로 전환할 수 없다", async ({ page }) => {
@@ -128,15 +130,15 @@ test.describe("관리자 표면 경계", () => {
     });
 
     // AppShell에 있으므로 화면을 옮겨도 유지된다.
-    await page.goto("/calendar", { timeout: NAV_TIMEOUT });
-    await expect(pill).toBeVisible();
+    await gotoWithRole(page, "/calendar");
+    await expect(pill).toBeVisible({ timeout: NAV_TIMEOUT });
 
     // 온보딩에서 **누른다**. 새 브라우저는 온보딩을 안 끝낸 상태라 전환 직후 여기로
     // 떨어지는데, 이 화면은 position:fixed·z-index:90 오버레이다. 알약을 그 아래 두면
     // 렌더는 되면서 가려져 눌리지 않는다(배너 시절 실측). toBeVisible()은 가림을 못 보고
     // click()은 히트 테스트를 하므로, 그 회귀는 이 클릭만이 잡는다.
-    await page.goto("/onboarding", { timeout: NAV_TIMEOUT });
-    await expect(pill).toBeVisible();
+    await gotoWithRole(page, "/onboarding");
+    await expect(pill).toBeVisible({ timeout: NAV_TIMEOUT });
     await pill.click();
 
     // 펼치면 지금 누구인지와 복귀 버튼이 나온다.
@@ -162,12 +164,12 @@ test.describe("관리자 표면 경계", () => {
 
   test("복귀 알약은 드래그로 옮기면 그 자리를 기억한다", async ({ page }) => {
     expect((await page.request.post("/api/admin/impersonate")).status()).toBe(200);
-    await page.goto("/calendar", { timeout: NAV_TIMEOUT });
+    await gotoWithRole(page, "/calendar");
 
     const pill = page.getByRole("button", {
       name: /테스트 계정 메뉴 열기|Open test account menu/,
     });
-    await expect(pill).toBeVisible();
+    await expect(pill).toBeVisible({ timeout: NAV_TIMEOUT });
 
     // **hover로 시작한다.** page.mouse는 좌표만 쏘고 액셔너빌리티 검사를 건너뛴다 —
     // 앱 시작 스플래시가 아직 덮고 있으면 눌림이 그 오버레이로 가고 드래그가 통째로
@@ -197,8 +199,8 @@ test.describe("관리자 표면 경계", () => {
     expect(after).not.toBeNull();
 
     // 다른 화면으로 옮겨도 그 자리를 기억한다(저장된 위치를 다시 읽는다).
-    await page.goto("/plans", { timeout: NAV_TIMEOUT });
-    await expect(pill).toBeVisible();
+    await gotoWithRole(page, "/plans");
+    await expect(pill).toBeVisible({ timeout: NAV_TIMEOUT });
     const restored = await pill.boundingBox();
     expect(Math.abs(restored!.y - after!.y)).toBeLessThan(4);
 
@@ -219,10 +221,11 @@ test.describe("관리자 표면 경계", () => {
       ).status(),
     ).toBe(200);
 
-    await page.goto("/calendar", { timeout: NAV_TIMEOUT });
+    await gotoWithRole(page, "/calendar");
     const pill = page.getByRole("button", {
       name: /테스트 계정 메뉴 열기|Open test account menu/,
     });
+    await expect(pill).toBeVisible({ timeout: NAV_TIMEOUT });
     await pill.hover();
     await pill.click();
 
@@ -277,7 +280,7 @@ test.describe("관리자 표면 경계", () => {
     const logId = logs.items?.[0]?.id;
     expect(typeof logId).toBe("string");
 
-    await page.goto(`/workout/log?logId=${logId}`, { timeout: NAV_TIMEOUT });
+    await gotoWithRole(page, `/workout/log?logId=${logId}`);
     const save = page.getByRole("button", { name: /운동기록 수정 완료|Finish editing/ });
     await expect(save).toBeVisible({ timeout: NAV_TIMEOUT });
 
@@ -286,6 +289,7 @@ test.describe("관리자 표면 경계", () => {
     const pill = page.getByRole("button", {
       name: /테스트 계정 메뉴 열기|Open test account menu/,
     });
+    await expect(pill).toBeVisible({ timeout: NAV_TIMEOUT });
     await pill.hover();
     await pill.click();
     await page.getByRole("button", { name: /다음 저장 1회 실패|Fail next save once/ }).click();
@@ -322,11 +326,12 @@ test.describe("관리자 표면 경계", () => {
 
     // 더보기 화면은 마운트 시 apiGet("/api/settings")를 부른다 — 결정적인 트리거다.
     // (대부분의 화면 데이터는 RSC 부트스트랩으로 와서 이 로그에 잡히지 않는다.)
-    await page.goto("/settings", { timeout: NAV_TIMEOUT });
+    await gotoWithRole(page, "/settings");
 
     const pill = page.getByRole("button", {
       name: /테스트 계정 메뉴 열기|Open test account menu/,
     });
+    await expect(pill).toBeVisible({ timeout: NAV_TIMEOUT });
     await pill.hover();
     await pill.click();
 
