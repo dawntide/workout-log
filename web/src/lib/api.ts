@@ -1,4 +1,5 @@
 import { recordApiRequest } from "./api-request-log";
+import { isOfflineModeEnabled, SIMULATED_OFFLINE_MESSAGE } from "./debug-flags";
 
 type ApiCachePolicy = "swr" | "network-only" | "cache-only";
 
@@ -157,6 +158,9 @@ async function fetchJson<T>(path: string, signal?: AbortSignal): Promise<T> {
   // 답할 수 있으므로 성공 경로가 아니라 여기서 시각을 잰다.
   const startedAt = Date.now();
   try {
+    // 디버그 도구의 오프라인 모드. 요청을 내보내기 전에 끊는다. 기록은 아래 catch가
+    // 이미 남긴다 — 무엇이 막혔는지 보이지 않으면 진단 도구가 아니라 그냥 고장이다.
+    if (isOfflineModeEnabled()) throw new Error(SIMULATED_OFFLINE_MESSAGE);
     const res = await fetch(path, {
       cache: "no-store",
       signal,
@@ -415,6 +419,7 @@ async function apiMutate<T>(
   const endNetworkRequest = beginApiNetworkRequest();
   const startedAt = Date.now();
   try {
+    if (isOfflineModeEnabled()) throw new Error(SIMULATED_OFFLINE_MESSAGE);
     const res = await fetch(path, {
       method,
       headers: Object.keys(requestHeaders).length > 0 ? requestHeaders : undefined,

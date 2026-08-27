@@ -8,7 +8,9 @@ import { errorMessage } from "@/lib/error-message";
 import { clearClientStateForAccountSwitch } from "@/lib/local-app-state";
 import {
   isNextSaveFailureArmed,
+  isOfflineModeEnabled,
   setNextSaveFailureArmed,
+  setOfflineMode,
   subscribeDebugFlags,
 } from "@/lib/debug-flags";
 import {
@@ -89,6 +91,7 @@ export function V2ImpersonationDock() {
   const [notice, setNotice] = useState<string | null>(null);
   const [logOpen, setLogOpen] = useState(false);
   const [saveFailArmed, setSaveFailArmed] = useState(false);
+  const [offline, setOffline] = useState(false);
   const [log, setLog] = useState<ApiRequestLogEntry[]>([]);
   const [position, setPosition] = useState<Point | null>(null);
   const [expanded, setExpanded] = useState(false);
@@ -173,8 +176,12 @@ export function V2ImpersonationDock() {
   // 저장이 플래그를 소비하면 스스로 꺼지므로, 패널이 열려 있는 동안 그 변화를 따라간다.
   useEffect(() => {
     if (!expanded) return;
-    setSaveFailArmed(isNextSaveFailureArmed());
-    return subscribeDebugFlags(() => setSaveFailArmed(isNextSaveFailureArmed()));
+    const sync = () => {
+      setSaveFailArmed(isNextSaveFailureArmed());
+      setOffline(isOfflineModeEnabled());
+    };
+    sync();
+    return subscribeDebugFlags(sync);
   }, [expanded]);
 
   // 펼친 상태에서 바깥을 누르면 접는다.
@@ -454,6 +461,32 @@ export function V2ImpersonationDock() {
               disabled={busy !== null}
               onClick={() => {
                 void clearCaches();
+              }}
+            />
+            <DockAction
+              icon={offline ? "cloud_off" : "cloud_queue"}
+              label={
+                offline
+                  ? ko
+                    ? "오프라인 모드 — 켜짐"
+                    : "Offline mode — on"
+                  : ko
+                    ? "오프라인 모드"
+                    : "Offline mode"
+              }
+              tone={offline ? "danger" : undefined}
+              onClick={() => {
+                const next = !offline;
+                setOfflineMode(next);
+                // 범위를 켤 때 알린다 — "진짜 오프라인"으로 오해하면 되는 것과 안 되는 것을
+                // 잘못 판단하게 된다.
+                setNotice(
+                  next
+                    ? ko
+                      ? "데이터 API 호출만 실패합니다. 화면 이동과 캐시는 그대로입니다."
+                      : "Only data API calls fail. Navigation and caches still work."
+                    : null,
+                );
               }}
             />
             <DockAction
