@@ -60,11 +60,14 @@ function readStoredPosition(): Point | null {
   }
 }
 
+/** 접힌 원의 지름. --v2-touch(44px)와 같아야 하고, 첫 배치 계산에만 쓴다. */
+const COLLAPSED_SIZE_PX = 44;
+
 /** 기본 자리: 오른쪽 아래, 바텀 네비 위. 엄지로 닿고 페이지 헤더를 가리지 않는다. */
 function defaultPosition(): Point {
   if (typeof window === "undefined") return { x: 0, y: 0 };
   return {
-    x: window.innerWidth - 108,
+    x: window.innerWidth - COLLAPSED_SIZE_PX - EDGE_MARGIN_PX,
     y: window.innerHeight - 180,
   };
 }
@@ -548,26 +551,29 @@ export function V2ImpersonationDock() {
           aria-label={openLabel}
           title={openLabel}
           onPointerDown={handlePointerDown}
-          className="v2-font-display"
           style={{
             display: "flex",
             alignItems: "center",
-            gap: "var(--v2-s-1)",
-            minHeight: "var(--v2-touch)",
-            padding: "0 var(--v2-s-3)",
+            justifyContent: "center",
+            // 정사각 + pill 반경 = 원. 한 변을 --v2-touch로 두어 아이콘만 남겨도
+            // 44×44 터치 영역이 유지된다.
+            width: "var(--v2-touch)",
+            height: "var(--v2-touch)",
+            padding: 0,
+            // 아이콘 폰트가 아직/영영 안 실리면 ligature 문자열("science")이 그대로 그려져
+            // 원 밖으로 삐져나온다 — 원형이라 클리핑이 곧 모양 보증이다.
+            overflow: "hidden",
             border: "none",
             borderRadius: "var(--v2-r-pill)",
             background: "var(--v2-c-danger)",
             color: "var(--v2-ink-on-accent)",
-            fontSize: "var(--v2-t-12)",
-            fontWeight: 800,
             boxShadow: "0 6px 18px rgba(0, 0, 0, 0.2)",
             cursor: "pointer",
             touchAction: "none",
           }}
         >
-          <V2Icon name="science" style={{ fontSize: "var(--v2-t-18)" }} />
-          TEST
+          {/* 아이콘만 남으므로 이름은 aria-label이 진다(위). */}
+          <V2Icon name="science" style={{ fontSize: "var(--v2-t-20)" }} />
         </button>
       )}
     </div>
