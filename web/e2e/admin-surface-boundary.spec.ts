@@ -118,32 +118,91 @@ test.describe("관리자 표면 경계", () => {
     expect(after.user?.impersonating).toBe(false);
   });
 
-  test("전환 중에는 복귀 배너가 화면마다 뜨고, 그 버튼으로 돌아온다", async ({ page }) => {
+  test("전환 중에는 복귀 알약이 화면마다 뜨고, 펼쳐서 돌아온다", async ({ page }) => {
     expect((await page.request.post("/api/admin/impersonate")).status()).toBe(200);
 
-    // 배너가 유일한 복귀 경로다(관리자 페이지는 전환 중 404). 안 뜨면 갇힌다 —
+    // 알약이 유일한 복귀 경로다(관리자 페이지는 전환 중 404). 안 뜨면 갇힌다 —
     // 그래서 API가 아니라 실제 렌더를 본다.
-    const banner = page
-      .getByRole("status")
-      .filter({ hasText: /테스트 계정 사용 중|Using a test account/ });
+    const pill = page.getByRole("button", {
+      name: /테스트 계정 메뉴 열기|Open test account menu/,
+    });
 
     // AppShell에 있으므로 화면을 옮겨도 유지된다.
     await page.goto("/calendar", { timeout: NAV_TIMEOUT });
-    await expect(banner).toBeVisible();
+    await expect(pill).toBeVisible();
 
     // 온보딩에서 **누른다**. 새 브라우저는 온보딩을 안 끝낸 상태라 전환 직후 여기로
-    // 떨어지는데, 이 화면은 position:fixed·z-index:90 오버레이다. 배너를 흐름에 그냥
-    // 두면 렌더는 되면서 가려져 버튼이 안 눌렸다(실측). toBeVisible()은 가림을 못 보고
+    // 떨어지는데, 이 화면은 position:fixed·z-index:90 오버레이다. 알약을 그 아래 두면
+    // 렌더는 되면서 가려져 눌리지 않는다(배너 시절 실측). toBeVisible()은 가림을 못 보고
     // click()은 히트 테스트를 하므로, 그 회귀는 이 클릭만이 잡는다.
     await page.goto("/onboarding", { timeout: NAV_TIMEOUT });
-    await expect(banner).toBeVisible();
-    await page.getByRole("button", { name: /돌아가기|Return/ }).click();
+    await expect(pill).toBeVisible();
+    await pill.click();
 
-    // 복귀 후 리로드되면 배너 조건(impersonating)이 사라진다.
-    await expect(banner).toBeHidden({ timeout: NAV_TIMEOUT });
+    // 펼치면 지금 누구인지와 복귀 버튼이 나온다.
+    await expect(
+      page.getByText(/테스트 계정 사용 중|Using a test account/),
+    ).toBeVisible();
+    await page
+      .getByRole("button", { name: /관리자로 돌아가기|Return to admin/ })
+      .click();
+
+    // 복귀는 클릭 핸들러 안에서 비동기로 끝난다(POST → 캐시 정리 → 리로드). 클릭 직후를
+    // 재면 아직 진행 중이라 impersonating이 true로 잡힌다 — 서버 상태가 뒤집힐 때까지 본다.
+    await expect
+      .poll(
+        async () => (await (await page.request.get("/api/auth/me")).json()).user?.impersonating,
+        { timeout: NAV_TIMEOUT },
+      )
+      .toBe(false);
+    await expect(pill).toBeHidden({ timeout: NAV_TIMEOUT });
     const me = await (await page.request.get("/api/auth/me")).json();
     expect(me.user?.role).toBe("admin");
-    expect(me.user?.impersonating).toBe(false);
+  });
+
+  test("복귀 알약은 드래그로 옮기면 그 자리를 기억한다", async ({ page }) => {
+    expect((await page.request.post("/api/admin/impersonate")).status()).toBe(200);
+    await page.goto("/calendar", { timeout: NAV_TIMEOUT });
+
+    const pill = page.getByRole("button", {
+      name: /테스트 계정 메뉴 열기|Open test account menu/,
+    });
+    await expect(pill).toBeVisible();
+
+    // **hover로 시작한다.** page.mouse는 좌표만 쏘고 액셔너빌리티 검사를 건너뛴다 —
+    // 앱 시작 스플래시가 아직 덮고 있으면 눌림이 그 오버레이로 가고 드래그가 통째로
+    // 무효가 된다(실측: elementFromPoint가 버튼 밖 DIV를 돌려줬다). hover는 요소가
+    // 실제로 이벤트를 받을 수 있을 때까지 기다린 뒤 중앙으로 커서를 옮긴다.
+    await pill.hover();
+    const before = await pill.boundingBox();
+    expect(before).not.toBeNull();
+
+    // 드래그 — 임계값(6px)을 넘겨 움직인다. 넘긴 뒤에는 탭으로 해석되면 안 되므로
+    // 패널이 펼쳐지지 않아야 한다(둘을 한 제스처로 구분하는 것이 이 UI의 핵심이다).
+    await page.mouse.down();
+    await page.mouse.move(before!.x + 20, before!.y - 120, { steps: 8 });
+    await page.mouse.up();
+
+    await expect(
+      page.getByRole("button", { name: /관리자로 돌아가기|Return to admin/ }),
+    ).toHaveCount(0);
+
+    // mouse.up()은 이벤트를 쏘고 바로 돌아온다 — 그 직후 boundingBox를 읽으면 React가
+    // 아직 리렌더하지 않아 옛 좌표가 잡힌다(진단 로그를 끼웠더니 통과했던 이유가 이것이다).
+    // 좌표가 실제로 바뀔 때까지 기다린다.
+    await expect
+      .poll(async () => Math.round((await pill.boundingBox())!.y), { timeout: NAV_TIMEOUT })
+      .toBeLessThan(Math.round(before!.y));
+    const after = await pill.boundingBox();
+    expect(after).not.toBeNull();
+
+    // 다른 화면으로 옮겨도 그 자리를 기억한다(저장된 위치를 다시 읽는다).
+    await page.goto("/plans", { timeout: NAV_TIMEOUT });
+    await expect(pill).toBeVisible();
+    const restored = await pill.boundingBox();
+    expect(Math.abs(restored!.y - after!.y)).toBeLessThan(4);
+
+    expect((await page.request.post("/api/admin/impersonate/return")).status()).toBe(200);
   });
 
   test("데모 플랜 시드는 테스트 계정에서만 돈다", async ({ page }) => {
