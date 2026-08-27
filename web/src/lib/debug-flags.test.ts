@@ -4,7 +4,9 @@ import test from "node:test";
 import {
   consumeNextSaveFailure,
   isNextSaveFailureArmed,
+  isOfflineModeEnabled,
   setNextSaveFailureArmed,
+  setOfflineMode,
   subscribeDebugFlags,
 } from "./debug-flags";
 
@@ -48,4 +50,38 @@ test("상태가 바뀔 때만 구독자에게 알린다", () => {
   setNextSaveFailureArmed(true);
   assert.equal(calls, 2, "구독 해제 후에는 알리지 않는다");
   setNextSaveFailureArmed(false);
+});
+
+// 오프라인 모드는 저장 실패와 달리 **토글**이다 — 켜고 여러 화면을 도는 것이 쓰임새라
+// 소비로 꺼지면 안 된다.
+
+test("오프라인 모드는 껐다 켤 수 있고 스스로 꺼지지 않는다", () => {
+  setOfflineMode(false);
+  assert.equal(isOfflineModeEnabled(), false);
+
+  setOfflineMode(true);
+  assert.equal(isOfflineModeEnabled(), true);
+  // 저장 실패 플래그를 소비해도 오프라인은 유지된다(둘은 독립이다).
+  setNextSaveFailureArmed(true);
+  assert.equal(consumeNextSaveFailure(), true);
+  assert.equal(isOfflineModeEnabled(), true);
+
+  setOfflineMode(false);
+  assert.equal(isOfflineModeEnabled(), false);
+});
+
+test("오프라인 토글도 상태가 바뀔 때만 알린다", () => {
+  setOfflineMode(false);
+  let calls = 0;
+  const unsubscribe = subscribeDebugFlags(() => {
+    calls += 1;
+  });
+
+  setOfflineMode(true);
+  assert.equal(calls, 1);
+  setOfflineMode(true);
+  assert.equal(calls, 1, "같은 값 재설정은 알리지 않는다");
+
+  unsubscribe();
+  setOfflineMode(false);
 });
