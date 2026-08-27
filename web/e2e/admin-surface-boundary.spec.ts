@@ -153,19 +153,34 @@ test.describe("관리자 표면 경계", () => {
     });
 
     // 일반 계정에 데모 데이터를 쏟아붓지 못한다.
-    const denied = await page.request.post("/api/settings/seed-demo-plans", { data: {} });
+    const denied = await page.request.post("/api/settings/seed-demo-data", { data: {} });
     expect(denied.status()).toBe(403);
     expect((await page.request.get("/api/plans")).ok()).toBe(true);
   });
 
-  test("전환한 테스트 계정에 데모 플랜이 시드된다", async ({ page }) => {
+  test("전환한 테스트 계정에 데모 플랜과 기록이 시드된다", async ({ page }) => {
     expect((await page.request.post("/api/admin/impersonate")).status()).toBe(200);
 
-    const seeded = await page.request.post("/api/settings/seed-demo-plans", { data: {} });
+    const seeded = await page.request.post("/api/settings/seed-demo-data", { data: {} });
     expect(seeded.status()).toBe(200);
+    const summary = (await seeded.json()).summary;
 
     const plans = await (await page.request.get("/api/plans")).json();
     expect(Array.isArray(plans.items) ? plans.items.length : 0).toBeGreaterThan(0);
+
+    // 플랜만 있고 기록이 없으면 통계·캘린더가 빈 화면이라 데모의 목적을 못 이룬다.
+    expect(summary?.logCount).toBeGreaterThan(0);
+    const logs = await (await page.request.get("/api/logs?limit=5")).json();
+    expect(Array.isArray(logs.items) ? logs.items.length : 0).toBeGreaterThan(0);
+
+    // 기록에서 파생되는 화면이 실제로 채워지는지 — 집계가 비어 있으면 시드가 무의미하다.
+    const strength = await (await page.request.get("/api/stats/strength-summary")).json();
+    expect(Array.isArray(strength.items) ? strength.items.length : 0).toBeGreaterThan(0);
+
+    // 재실행이 쌓이지 않는다(데모 태그 기록만 갈아 끼운다).
+    const again = await page.request.post("/api/settings/seed-demo-data", { data: {} });
+    expect(again.status()).toBe(200);
+    expect((await again.json()).summary?.logCount).toBe(summary.logCount);
 
     expect((await page.request.post("/api/admin/impersonate/return")).status()).toBe(200);
   });

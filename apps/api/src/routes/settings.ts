@@ -6,6 +6,7 @@ import { userSetting, uxEventLog } from "@workout/core/db/schema";
 import { invalidateStatsCacheForUser } from "@workout/core/stats/cache";
 import { runSeed } from "@workout/core/db/seed";
 import { deleteUserDomainData } from "@workout/core/data/deleteUserData";
+import { seedDemoHistoryForUser } from "@workout/core/db/seed-demo-history";
 import { findUserRole } from "@workout/core/auth/session";
 import {
   DEFAULT_DARK_COLOR_THEME,
@@ -275,11 +276,11 @@ settingsRoutes.post("/app-reset", async (c) => {
   }
 });
 
-// POST /api/settings/seed-demo-plans — 테스트 계정에 데모 플랜을 채운다.
+// POST /api/settings/seed-demo-data — 테스트 계정에 데모 플랜 + 예시 기록을 채운다.
 //
 // **테스트 계정 전용이다.** 실계정에 데모 데이터를 쏟아붓는 사고를 값으로 막는다 —
 // 관리자가 전환(role='test')한 동안에만 닿는 표면이고, 그 판정은 UI가 아니라 여기서 한다.
-settingsRoutes.post("/seed-demo-plans", async (c) => {
+settingsRoutes.post("/seed-demo-data", async (c) => {
   const userId = c.get("userId");
   const locale = resolveLocale(c);
   try {
@@ -304,12 +305,22 @@ settingsRoutes.post("/seed-demo-plans", async (c) => {
       shouldHardReset: false,
     });
 
+    // 플랜만으로는 앱의 절반이 빈 화면이다 — 통계·캘린더·PR·부위 신선도·체중 추이는
+    // 전부 기록에서 나온다. 데모 태그가 붙은 이전 기록만 갈아 끼운다.
+    const history = await seedDemoHistoryForUser({ userId });
+
+    // 기록이 통째로 바뀌었으니 집계 캐시를 버린다 — 안 버리면 빈 통계가 굳어 보인다.
+    await invalidateStatsCacheForUser(userId).catch(() => {});
+
     return c.json({
       ok: true,
       summary: {
         userId,
         baseTemplateCount: result.baseTemplateCount,
         baseExerciseCount: result.baseExerciseCount,
+        logCount: history.logCount,
+        setCount: history.setCount,
+        bodyweightCount: history.bodyweightCount,
       },
     });
   } catch (e) {
