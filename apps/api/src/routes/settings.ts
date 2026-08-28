@@ -7,6 +7,7 @@ import { invalidateStatsCacheForUser } from "@workout/core/stats/cache";
 import { runSeed } from "@workout/core/db/seed";
 import { deleteUserDomainData } from "@workout/core/data/deleteUserData";
 import { seedDemoHistoryForUser } from "@workout/core/db/seed-demo-history";
+import { seedDemoProgramReplay } from "@workout/core/db/seed-demo-program-replay";
 import { findUserRole } from "@workout/core/auth/session";
 import {
   DEFAULT_DARK_COLOR_THEME,
@@ -309,6 +310,15 @@ settingsRoutes.post("/seed-demo-data", async (c) => {
     // 전부 기록에서 나온다. 데모 태그가 붙은 이전 기록만 갈아 끼운다.
     const history = await seedDemoHistoryForUser({ userId });
 
+    // 평평한 기록만으로는 캘린더가 비고(캘린더는 planId로만 조회한다) 세션 전환·자동 진행을
+    // 검증할 수 없다. 그래서 한 플랜은 **진짜 엔진으로 재생**해 생성 세션·진행 이벤트까지
+    // 실제로 쌓는다. 순서가 중요하다 — 위 seedDemoHistoryForUser가 demo-seed 태그 기록을
+    // 먼저 비우므로 재생은 그 뒤에 와야 결과가 남는다.
+    const replay = await seedDemoProgramReplay({
+      userId,
+      planName: "Program Tactical Barbell Operator",
+    });
+
     // 기록이 통째로 바뀌었으니 집계 캐시를 버린다 — 안 버리면 빈 통계가 굳어 보인다.
     await invalidateStatsCacheForUser(userId).catch(() => {});
 
@@ -321,6 +331,8 @@ settingsRoutes.post("/seed-demo-data", async (c) => {
         logCount: history.logCount,
         setCount: history.setCount,
         bodyweightCount: history.bodyweightCount,
+        replayPlanId: replay.planId,
+        replaySessionCount: replay.loggedCount,
       },
     });
   } catch (e) {
