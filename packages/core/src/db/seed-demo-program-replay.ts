@@ -3,7 +3,12 @@ import { and, eq, inArray } from "drizzle-orm";
 import { db } from "./client";
 import { generatedSession, plan, planProgressEvent, planRuntimeState, workoutLog } from "./schema";
 import { generateAndSaveSession } from "../program-engine/generateSession";
-import { upsertWorkoutLogService } from "../services/workout-log/upsert-log";
+import { buildRef5LogSets } from "../program-engine/ref5-log-sets";
+import { REF5_PROTOCOL_VERSION } from "../program-engine/ref5-protocol-version";
+import {
+  upsertWorkoutLogService,
+  type WorkoutSetInput,
+} from "../services/workout-log/upsert-log";
 import { DEMO_HISTORY_TAG } from "./seed-demo-history";
 
 /**
@@ -27,6 +32,8 @@ export type ReplayPlanName =
   | "Program Tactical Barbell Operator"
   | "Program REF5 Adaptive Strength";
 
+const REF5_PLAN_NAME: ReplayPlanName = "Program REF5 Adaptive Strength";
+
 export type SeedProgramReplayOptions = {
   userId: string;
   planName: ReplayPlanName;
@@ -35,6 +42,8 @@ export type SeedProgramReplayOptions = {
   timezone?: string;
   locale?: "ko" | "en";
   now?: Date;
+  /** REF5는 세션마다 그날 체중을 입력받는다(맨몸 부하 계산에 쓰인다). */
+  bodyweightKg?: number;
 };
 
 export type SeedProgramReplaySummary = {
@@ -50,10 +59,13 @@ export type SeedProgramReplaySummary = {
  * 실패를 섞지 않는 것은 의도다 — 데모의 목적은 "정상 진행이 어떻게 보이는가"이고,
  * 실패 판정·디로드는 저장 실패 시뮬레이션처럼 **의도적으로** 만들어 봐야 의미가 있다.
  * percent만 있고 무게가 없는 세트는 기록하지 않는다(그 처방은 사용자 입력을 전제한다).
+ *
+ * REF5는 이 경로를 타지 않는다 — 세트마다 동결 처방과 대조되는 meta가 필요해서 조립
+ * 규칙이 따로 있고, 그 규칙은 검증 스크립트와 공유한다(`buildRef5LogSets`).
  */
-function toLoggedSets(snapshot: unknown): Array<Record<string, unknown>> {
+function toLoggedSets(snapshot: unknown): WorkoutSetInput[] {
   const snap = snapshot as { exercises?: Array<Record<string, any>> } | null;
-  const out: Array<Record<string, unknown>> = [];
+  const out: WorkoutSetInput[] = [];
   let sortOrder = 0;
   for (const exercise of snap?.exercises ?? []) {
     const sets: Array<Record<string, any>> = Array.isArray(exercise.sets) ? exercise.sets : [];
@@ -97,6 +109,11 @@ async function clearReplayForPlan(userId: string, planId: string): Promise<void>
   await db.delete(planRuntimeState).where(eq(planRuntimeState.planId, planId));
 }
 
+/** 세션 시작 이벤트의 식별자. 웹의 시작 패널과 같이 매 시작마다 새로 만든다. */
+function newStartEventId(): string {
+  return globalThis.crypto.randomUUID();
+}
+
 export async function seedDemoProgramReplay({
   userId,
   planName,
@@ -104,6 +121,7 @@ export async function seedDemoProgramReplay({
   timezone = "Asia/Seoul",
   locale = "ko",
   now = new Date(),
+  bodyweightKg = 73,
 }: SeedProgramReplayOptions): Promise<SeedProgramReplaySummary> {
   const [target] = await db
     .select({ id: plan.id })
@@ -116,6 +134,7 @@ export async function seedDemoProgramReplay({
 
   await clearReplayForPlan(userId, target.id);
 
+  const isRef5 = planName === REF5_PLAN_NAME;
   let loggedCount = 0;
   let skipped = 0;
 
@@ -127,17 +146,37 @@ export async function seedDemoProgramReplay({
     performedAt.setUTCDate(performedAt.getUTCDate() - daysAgo);
     performedAt.setUTCHours(9, 0, 0, 0);
 
-    // **첫 세션만 주차를 고정한다.** 런타임 상태를 비운 직후의 첫 생성은 상태가 없어
-    // sessionKeyMode="DATE" 경로로 떨어지고, 시드 플랜의 startDate가 과거라 79주차 같은
-    // 값이 나온다(실측). 이후 세션은 저장이 올린 상태를 이어받으므로 건드리지 않는다.
+    // REF5는 주차/요일이 아니라 **실제 시작 시각**에서 세션을 만든다(키가
+    // `REF5:<actualStartAt>:<startEventId>`다). 그래서 주차 고정을 적용하지 않고, 웹의
+    // 시작 패널이 보내는 것과 같은 입력을 그대로 만든다.
+    //
+    // 그 외 LOGIC 플랜은 **첫 세션만 주차를 고정한다.** 런타임 상태를 비운 직후의 첫
+    // 생성은 상태가 없어 sessionKeyMode="DATE" 경로로 떨어지고, 시드 플랜의 startDate가
+    // 과거라 79주차 같은 값이 나온다(실측). 이후 세션은 저장이 올린 상태를 이어받는다.
     const generated = (await generateAndSaveSession({
       userId,
       planId: target.id,
       timezone,
-      ...(index === 0 ? { week: 1, day: 1 } : {}),
+      ...(isRef5
+        ? {
+            ref5: {
+              protocolVersion: REF5_PROTOCOL_VERSION,
+              actualStartAt: performedAt.toISOString(),
+              todayBodyweightKg: bodyweightKg,
+              manualMicro: false,
+              startEventId: newStartEventId(),
+            },
+          }
+        : index === 0
+          ? { week: 1, day: 1 }
+          : {}),
     })) as { id: string; snapshot: unknown };
 
-    const sets = toLoggedSets(generated.snapshot);
+    // REF5 세트는 동결 처방과 대조되므로 조립 규칙이 다르다. 그 규칙은 프로그램 워크플로
+    // 검증 스크립트와 같은 함수를 쓴다 — 두 벌이 되면 한쪽만 고쳐지고 조용히 낡는다.
+    const sets = isRef5
+      ? buildRef5LogSets(generated.snapshot, { completedAt: performedAt.toISOString() })
+      : toLoggedSets(generated.snapshot);
     if (sets.length === 0) {
       // 처방이 사용자 입력을 전제하는 세션(percent만 있는 경우)은 건너뛴다.
       skipped += 1;
@@ -153,7 +192,7 @@ export async function seedDemoProgramReplay({
       performedAt,
       notes: `demo replay · ${planName}`,
       tags: [DEMO_HISTORY_TAG],
-      sets: sets as never,
+      sets,
     });
     loggedCount += 1;
   }
