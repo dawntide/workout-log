@@ -50,6 +50,7 @@ PR 열림 / 푸시
 별도 실행:
   e2e-preview.yml   Vercel Preview 배포 성공 시 자동 실행 (필수 아님)
   db-backup.yml     nightly 04:00 KST — Supabase 백업
+  db-cleanup-e2e-accounts.yml  주간 월 05:00 KST — dev 스키마의 E2E 일회용 계정 정리
 ```
 
 ### 핵심 원칙
@@ -94,6 +95,19 @@ PR 열림 / 푸시
 - **추적 파일은 `DB_SEED_TRACKED_FILES`로 명시한다.** 기본값은 `seed.ts` 하나뿐인데, seed의 내용은 그 파일이 import하는 카탈로그·blueprint·슬롯 키 헬퍼·라운딩이 함께 결정한다. seed.ts를 건드리지 않고 그쪽만 바꾸면 해시가 그대로라 **prod 시드가 조용히 스킵된다**(로그에 `seed skipped (hash unchanged)`만 남는다). 그래서 워크플로가 의존 파일까지 열거한다.
 - seed는 upsert 기반이라 재실행이 안전하다. 목록에 파일을 더 넣어 불필요하게 한 번 더 도는 비용(~1분)보다, 빠뜨려서 반영이 누락되는 쪽이 훨씬 비싸다. **seed.ts에 import를 추가하면 이 목록도 함께 갱신할 것.**
 - 시드 반영 확인은 실행 로그의 `program_template` / `exercise` 카운트로 한다(`counts ... → seed completed ...`).
+
+
+### `db-cleanup-e2e-accounts.yml` — E2E 일회용 계정 정리 (dev 전용)
+
+- **주 1회(월 05:00 KST)** 자동 실행. 수동 실행(`workflow_dispatch`)은 **기본이 dry-run**이라 눌러서 대상 수만 먼저 볼 수 있다.
+- E2E 스펙은 매 실행마다 `<이름>-<suffix>@example.com`으로 새 계정을 가입시킨다. 격리는 그 덕이지만 계정이 스스로 줄지 않는다 — 2026-09-01 최초 정리에서 **602개**가 나왔고 도메인 데이터 1만 행 이상을 끌고 있었다.
+- **CI E2E는 잔해를 남기지 않는다.** 러너 안의 임시 Postgres 컨테이너를 쓰고 잡이 끝나면 사라진다. 쌓이는 곳은 `DB_SCHEMA=dev`로 Supabase를 보는 경로(로컬 실행·프리뷰)뿐이라 주 1회면 충분하다.
+- 같은 로직을 CLI로도 부른다: `pnpm -C web db:cleanup:e2e-accounts`.
+- ⚠️ **dev 스키마 전용이다.** `cleanupE2eAccounts`가 `DB_SCHEMA !== "dev"`면 **쿼리를 내기 전에** 던진다. `DB_SCHEMA`가 비면 drizzle은 `public`(=프로덕션)을 보므로, 판정을 "dev가 아니면 거부"가 아니라 **"dev일 때만 허용"**으로 두어 미설정이 안전한 쪽으로 떨어지게 했다.
+- 술어 셋을 모두 만족해야 지운다: `@example.com` + `role='user'` + **생성 후 24시간 경과**. 마지막 조건이 없으면 **실행 중인 E2E의 계정**을 지운다. `E2E_ACCOUNT_MIN_AGE_HOURS`로 조절하고, 0·음수는 기본값으로 되돌린다.
+- `app_user`를 참조하는 FK 15개가 전부 `ON DELETE CASCADE`라 계정 행 하나로 도메인·인증 데이터가 함께 사라진다. 예외는 `auth_event_log`뿐 — 감사 로그라 의도적으로 FK가 없어 따로 지운다.
+
+---
 
 ### `deploy.yml` — 배포 확인 (마이그레이션 후)
 
@@ -164,7 +178,7 @@ GitHub → Repository Settings → Secrets and variables → Actions
 
 | Secret | 설명 | 사용처 |
 |--------|------|--------|
-| `SUPABASE_DIRECT_URL` | prod DB 직접 연결 URL (prod=`public`, dev=`dev` 스키마 공용) | db-migrate.yml, db-seed.yml |
+| `SUPABASE_DIRECT_URL` | prod DB 직접 연결 URL (prod=`public`, dev=`dev` 스키마 공용) | db-migrate.yml, db-seed.yml, db-cleanup-e2e-accounts.yml |
 | ~~`SUPABASE_DEV_DIRECT_URL`~~ | 폐기 — dev는 prod 인스턴스의 `dev` 스키마로 이전(`DB_SCHEMA=dev` matrix로 대체) | — |
 | `SUPABASE_SERVICE_ROLE_KEY` | 백업 스토리지 업로드용 | db-backup.yml |
 | `VERCEL_TOKEN` | Vercel API 인증 토큰 | deploy.yml |

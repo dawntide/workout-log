@@ -43,6 +43,7 @@
     "db:backfill:exercise": "tsx src/server/db/backfillExerciseIds.ts",
     "db:cleanup:ux-events": "tsx src/server/db/cleanupUxEventLog.ts",
     "db:cleanup:migration-log": "tsx src/server/db/cleanupMigrationRunLog.ts",
+    "db:cleanup:e2e-accounts": "tsx src/server/db/cleanupE2eAccounts.ts",
     "gen:icons": "node scripts/gen-icons.mjs",
     "dev:turbo": "next dev --turbo"
   },
