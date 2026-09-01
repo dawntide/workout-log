@@ -109,6 +109,32 @@ async function clearReplayForPlan(userId: string, planId: string): Promise<void>
   await db.delete(planRuntimeState).where(eq(planRuntimeState.planId, planId));
 }
 
+/**
+ * 재생 세션의 수행 시각. 주 3회(이틀 간격) 과거에서 현재로 오고 **마지막은 오늘**이다 —
+ * 캘린더는 오늘이 든 달로 열리므로 어제서 끊으면 월초에 시드했을 때 빈 달력이 뜬다.
+ *
+ * 미래로 새지 않도록 **두 기준 모두**에 대해 자른다: 호출자가 준 `now`와 진짜 벽시계.
+ * REF5는 시작이 미래인 세션을 거부해(`completedAt cannot precede actualStartAt`) 시드가
+ * 통째로 실패하는데, `now`만 보면 미래로 주입된 `now`가 그 함정을 그대로 연다(실측).
+ *
+ * 건너뛰지 않고 당기는 것이 중요하다 — seedDemoHistoryForUser는 미래 세션을 버리지만,
+ * 재생에서 하나를 버리면 그 세션의 진행 이벤트까지 사라져 처방 사슬에 구멍이 난다.
+ */
+export function replaySessionPerformedAt(input: {
+  now: Date;
+  sessionCount: number;
+  index: number;
+  /** 테스트에서만 주입한다. 기본은 진짜 현재 시각. */
+  wallClock?: Date;
+}): Date {
+  const { now, sessionCount, index, wallClock = new Date() } = input;
+  const at = new Date(now);
+  at.setUTCDate(at.getUTCDate() - (sessionCount - 1 - index) * 2);
+  at.setUTCHours(9, 0, 0, 0);
+  const ceiling = Math.min(now.getTime(), wallClock.getTime());
+  return at.getTime() > ceiling ? new Date(ceiling) : at;
+}
+
 /** 세션 시작 이벤트의 식별자. 웹의 시작 패널과 같이 매 시작마다 새로 만든다. */
 function newStartEventId(): string {
   return globalThis.crypto.randomUUID();
@@ -138,13 +164,8 @@ export async function seedDemoProgramReplay({
   let loggedCount = 0;
   let skipped = 0;
 
-  // 주 3회(월·수·금 간격)로 과거에서 현재로 채운다. 마지막 세션이 어제가 되도록 하루
-  // 당긴다 — 오늘로 두면 실행 시각에 따라 미래로 밀려 빠진다(데모 기록에서 겪었다).
   for (let index = 0; index < sessionCount; index += 1) {
-    const daysAgo = (sessionCount - 1 - index) * 2 + 1;
-    const performedAt = new Date(now);
-    performedAt.setUTCDate(performedAt.getUTCDate() - daysAgo);
-    performedAt.setUTCHours(9, 0, 0, 0);
+    const performedAt = replaySessionPerformedAt({ now, sessionCount, index });
 
     // REF5는 주차/요일이 아니라 **실제 시작 시각**에서 세션을 만든다(키가
     // `REF5:<actualStartAt>:<startEventId>`다). 그래서 주차 고정을 적용하지 않고, 웹의
