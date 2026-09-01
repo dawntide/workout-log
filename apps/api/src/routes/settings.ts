@@ -6,7 +6,10 @@ import { userSetting, uxEventLog } from "@workout/core/db/schema";
 import { invalidateStatsCacheForUser } from "@workout/core/stats/cache";
 import { runSeed } from "@workout/core/db/seed";
 import { deleteUserDomainData } from "@workout/core/data/deleteUserData";
-import { seedDemoHistoryForUser } from "@workout/core/db/seed-demo-history";
+import {
+  deleteDemoHistoryForUser,
+  seedDemoBodyweightForUser,
+} from "@workout/core/db/seed-demo-history";
 import {
   seedDemoProgramReplay,
   type ReplayPlanName,
@@ -324,14 +327,18 @@ settingsRoutes.post("/seed-demo-data", async (c) => {
       shouldHardReset: false,
     });
 
-    // 플랜만으로는 앱의 절반이 빈 화면이다 — 통계·캘린더·PR·부위 신선도·체중 추이는
-    // 전부 기록에서 나온다. 데모 태그가 붙은 이전 기록만 갈아 끼운다.
-    const history = await seedDemoHistoryForUser({ userId });
+    // 데모 기록을 통째로 갈아 끼운다. **재생보다 먼저** 지워야 한다 — 재생이 만드는
+    // 기록에도 같은 태그가 붙기 때문이다. 옛 평평한 로그(planId 없음)도 이 술어에 걸려
+    // 함께 사라지므로, 이미 심어 둔 계정은 다음 시드 한 번으로 정리된다.
+    await deleteDemoHistoryForUser(userId);
 
-    // 평평한 기록만으로는 캘린더가 비고(캘린더는 planId로만 조회한다) 세션 전환·자동 진행을
-    // 검증할 수 없다. 그래서 프로그램은 **진짜 엔진으로 재생**해 생성 세션·진행 이벤트까지
-    // 실제로 쌓는다. 순서가 중요하다 — 위 seedDemoHistoryForUser가 demo-seed 태그 기록을
-    // 먼저 비우므로 재생은 그 뒤에 와야 결과가 남는다.
+    // 체중은 기록에서 파생되지 않는 **독립 이력**이라 따로 심는다 — 체중 이력 화면·
+    // 강도 점수·asymptote 모니터가 세션 시점 체중을 여기서 찾는다.
+    const bodyweight = await seedDemoBodyweightForUser({ userId });
+
+    // 기록은 **진짜 엔진으로 재생**해 만든다. 예전에는 planId 없는 평평한 로그를 심었는데,
+    // 통계는 채워져도 캘린더가 비고(캘린더는 planId로만 조회한다) 세션 전환·자동 진행을
+    // 검증할 수 없었다. 재생은 생성 세션·진행 이벤트·런타임 상태까지 실제로 쌓는다.
     //
     // 흐름이 다른 둘을 함께 심는다 — Operator는 주차·요일이 정해진 고정 사이클이고,
     // REF5는 시작 시각마다 처방을 다시 계산하는 적응형이다. 하나만 심으면 나머지
@@ -355,9 +362,7 @@ settingsRoutes.post("/seed-demo-data", async (c) => {
         userId,
         baseTemplateCount: result.baseTemplateCount,
         baseExerciseCount: result.baseExerciseCount,
-        logCount: history.logCount,
-        setCount: history.setCount,
-        bodyweightCount: history.bodyweightCount,
+        bodyweightCount: bodyweight.bodyweightCount,
         replayPlans: replays,
       },
     });
