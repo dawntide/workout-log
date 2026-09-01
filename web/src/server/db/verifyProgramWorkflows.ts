@@ -22,6 +22,7 @@ import {
 import {
   REF5_IDENTIFIERS,
 } from "@workout/core/program-engine/ref5";
+import { buildRef5LogSets as buildRef5LogSetsFromSnapshot } from "@workout/core/program-engine/ref5-log-sets";
 import { REF5_PROTOCOL_VERSION } from "@workout/core/program-engine/ref5-protocol-version";
 import {
   acquireRef5PlanLock,
@@ -245,52 +246,22 @@ async function verifyRef5SeedIdempotency(userId: string) {
   }
 }
 
+/**
+ * 검증용 어댑터. 조립 자체는 core의 공유 빌더가 한다 — 이 스크립트와 데모 재생 시더가
+ * 같은 REF5 계약을 두 벌로 들고 있지 않도록.
+ */
 function buildRef5LogSets(
   session: GeneratedSessionPayload,
   options: { failFirstExercise?: boolean; completedAt?: string } = {},
 ) {
-  const snapshot = asRecord(session.snapshot);
-  const ref5 = asRecord(snapshot.ref5);
-  const protocolVersion = String(ref5.protocolVersion ?? snapshot.protocolVersion ?? "");
-  const exercises = asRecords(snapshot.exercises);
-  return exercises.flatMap((exercise, exerciseIndex) => {
-    const prescription = asRecord(exercise.ref5);
-    const sets = asRecords(exercise.sets);
-    return sets.map((set, setIndex) => {
-      const plannedReps = Number(set.plannedReps ?? set.reps ?? 0);
-      const isFailedSet = options.failFirstExercise && exerciseIndex === 0 && setIndex === 0;
-      const actualReps = isFailedSet ? Math.max(0, plannedReps - 1) : plannedReps;
-      const terminationReason =
-        options.failFirstExercise && exerciseIndex === 0
-          ? "FORCE_OR_TECHNIQUE"
-          : "NORMAL";
-      return {
-        exerciseName: String(exercise.exerciseName),
-        sortOrder: exerciseIndex,
-        setNumber: setIndex + 1,
-        reps: actualReps,
-        weightKg: Number(set.externalLoadKg ?? set.targetWeightKg ?? 0),
-        rpe: 0,
-        isExtra: false,
-        meta: {
-          ...asRecord(set.meta),
-          ref5: {
-            prescription,
-            terminationReason,
-            protocolVersion,
-            actualStartAt: ref5.actualStartAt,
-            startEventId: ref5.startEventId,
-            completionEventId: `${ref5.startEventId}:completion`,
-            runtimeRevisionBefore: ref5.runtimeRevisionBefore,
-            runtimeRevisionAfter: ref5.runtimeRevisionAfter,
-            plannedReps,
-            actualReps,
-            setIndex,
-            ...(options.completedAt ? { completedAt: options.completedAt } : {}),
-          },
-        },
-      };
-    });
+  return buildRef5LogSetsFromSnapshot(session.snapshot, {
+    completedAt: options.completedAt,
+    terminationReasonFor: ({ exerciseIndex }) =>
+      options.failFirstExercise && exerciseIndex === 0 ? "FORCE_OR_TECHNIQUE" : "NORMAL",
+    actualRepsFor: ({ exerciseIndex, setIndex, plannedReps }) =>
+      options.failFirstExercise && exerciseIndex === 0 && setIndex === 0
+        ? Math.max(0, plannedReps - 1)
+        : plannedReps,
   });
 }
 
