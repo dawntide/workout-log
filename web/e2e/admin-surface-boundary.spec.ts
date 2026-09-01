@@ -273,6 +273,9 @@ test.describe("관리자 표면 경계", () => {
     // 저장할 것이 있어야 한다. 데모 시드가 만든 기록 하나를 편집 모드로 연다 — 새 세션은
     // 플랜별 시작 게이트(REF5의 "SQ 첫 워크 세트 시작" 등)를 지나야 해서 이 단언과
     // 무관한 단계가 붙는다.
+    // 시드는 프로그램을 진짜 엔진으로 재생하느라 오래 걸린다 — 기본 30초 예산으로는
+    // 여기서 컨텍스트가 닫혀 이 스펙의 다른 테스트까지 함께 무너진다(실측).
+    test.slow();
     expect(
       (await page.request.post("/api/settings/seed-demo-data", { data: {} })).status(),
     ).toBe(200);
@@ -358,6 +361,9 @@ test.describe("관리자 표면 경계", () => {
   });
 
   test("전환한 테스트 계정에 데모 플랜과 기록이 시드된다", async ({ page }) => {
+    // 데모 시드는 프로그램 둘을 **진짜 엔진으로 재생**한다(Operator 36 + REF5 18세션).
+    // 이 테스트는 멱등성 확인 때문에 시드를 두 번 부르므로 기본 30초 예산으로는 모자란다.
+    test.slow();
     expect((await page.request.post("/api/admin/impersonate")).status()).toBe(200);
 
     const seeded = await page.request.post("/api/settings/seed-demo-data", { data: {} });
@@ -375,6 +381,24 @@ test.describe("관리자 표면 경계", () => {
     // 기록에서 파생되는 화면이 실제로 채워지는지 — 집계가 비어 있으면 시드가 무의미하다.
     const strength = await (await page.request.get("/api/stats/strength-summary")).json();
     expect(Array.isArray(strength.items) ? strength.items.length : 0).toBeGreaterThan(0);
+
+    // 평평한 기록만으로는 캘린더가 비고 세션 전환·자동 진행도 볼 수 없다 — 캘린더는
+    // planId로만 조회하는데 그때 데모 기록에는 planId가 없었다. 재생이 실제로 그
+    // 조회를 채우는지 캘린더와 **같은 질의로** 잰다.
+    expect(summary?.replayPlans?.length).toBe(2);
+    for (const replay of summary.replayPlans) {
+      expect(replay.sessionCount).toBeGreaterThan(0);
+      const planLogs = await (
+        await page.request.get(`/api/logs?planId=${replay.planId}&limit=100`)
+      ).json();
+      expect(Array.isArray(planLogs.items) ? planLogs.items.length : 0).toBe(replay.sessionCount);
+      const planSessions = await (
+        await page.request.get(`/api/generated-sessions?planId=${replay.planId}&limit=100`)
+      ).json();
+      expect(Array.isArray(planSessions.items) ? planSessions.items.length : 0).toBe(
+        replay.sessionCount,
+      );
+    }
 
     // 재실행이 쌓이지 않는다(데모 태그 기록만 갈아 끼운다).
     const again = await page.request.post("/api/settings/seed-demo-data", { data: {} });

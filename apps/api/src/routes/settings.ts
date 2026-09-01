@@ -7,7 +7,10 @@ import { invalidateStatsCacheForUser } from "@workout/core/stats/cache";
 import { runSeed } from "@workout/core/db/seed";
 import { deleteUserDomainData } from "@workout/core/data/deleteUserData";
 import { seedDemoHistoryForUser } from "@workout/core/db/seed-demo-history";
-import { seedDemoProgramReplay } from "@workout/core/db/seed-demo-program-replay";
+import {
+  seedDemoProgramReplay,
+  type ReplayPlanName,
+} from "@workout/core/db/seed-demo-program-replay";
 import { findUserRole } from "@workout/core/auth/session";
 import {
   DEFAULT_DARK_COLOR_THEME,
@@ -31,6 +34,21 @@ import { apiError, resolveLocale } from "../lib/http";
 // table-missing fallback), so it's already userId-parameterized internally — no
 // getSettingsSnapshotForUser needed. requireAuth supplies the user id.
 // ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * 데모 재생 대상. Operator(고정 사이클)와 REF5(적응형)는 세션 생성·진행 판정 경로가
+ * 달라서 한쪽만으로는 나머지를 확인할 수 없다.
+ *
+ * 세션 수가 다른 것은 **비용 때문이다.** REF5는 저장할 때마다 진행 전체를 처음부터 다시
+ * 접으므로 세션당 비용이 Operator의 네 배다(실측 1.12초 vs 0.26초, 원격 풀러 기준).
+ * 이 라우트는 프록시의 maxDuration 60초 안에 끝나야 하므로 REF5만 6주(18세션)로 줄인다.
+ * 그 길이로도 윈도 전환과 기준값 상승이 실제로 일어난다(실측: windowSequence 2,
+ * 기준값 SQ/BP/PULL 85/85/90).
+ */
+const REPLAY_PLANS: ReadonlyArray<{ name: ReplayPlanName; sessionCount: number }> = [
+  { name: "Program Tactical Barbell Operator", sessionCount: 36 },
+  { name: "Program REF5 Adaptive Strength", sessionCount: 18 },
+];
 
 type SettingValue = string | number | boolean | null;
 type SettingsSnapshot = Record<string, SettingValue>;
@@ -311,13 +329,22 @@ settingsRoutes.post("/seed-demo-data", async (c) => {
     const history = await seedDemoHistoryForUser({ userId });
 
     // 평평한 기록만으로는 캘린더가 비고(캘린더는 planId로만 조회한다) 세션 전환·자동 진행을
-    // 검증할 수 없다. 그래서 한 플랜은 **진짜 엔진으로 재생**해 생성 세션·진행 이벤트까지
+    // 검증할 수 없다. 그래서 프로그램은 **진짜 엔진으로 재생**해 생성 세션·진행 이벤트까지
     // 실제로 쌓는다. 순서가 중요하다 — 위 seedDemoHistoryForUser가 demo-seed 태그 기록을
     // 먼저 비우므로 재생은 그 뒤에 와야 결과가 남는다.
-    const replay = await seedDemoProgramReplay({
-      userId,
-      planName: "Program Tactical Barbell Operator",
-    });
+    //
+    // 흐름이 다른 둘을 함께 심는다 — Operator는 주차·요일이 정해진 고정 사이클이고,
+    // REF5는 시작 시각마다 처방을 다시 계산하는 적응형이다. 하나만 심으면 나머지
+    // 흐름은 테스트 계정에서 눌러 볼 수가 없다.
+    const replays: Array<{ name: ReplayPlanName; planId: string; sessionCount: number }> = [];
+    for (const target of REPLAY_PLANS) {
+      const replay = await seedDemoProgramReplay({
+        userId,
+        planName: target.name,
+        sessionCount: target.sessionCount,
+      });
+      replays.push({ name: target.name, planId: replay.planId, sessionCount: replay.loggedCount });
+    }
 
     // 기록이 통째로 바뀌었으니 집계 캐시를 버린다 — 안 버리면 빈 통계가 굳어 보인다.
     await invalidateStatsCacheForUser(userId).catch(() => {});
@@ -331,8 +358,7 @@ settingsRoutes.post("/seed-demo-data", async (c) => {
         logCount: history.logCount,
         setCount: history.setCount,
         bodyweightCount: history.bodyweightCount,
-        replayPlanId: replay.planId,
-        replaySessionCount: replay.loggedCount,
+        replayPlans: replays,
       },
     });
   } catch (e) {
