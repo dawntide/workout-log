@@ -374,9 +374,13 @@ test.describe("관리자 표면 경계", () => {
     expect(Array.isArray(plans.items) ? plans.items.length : 0).toBeGreaterThan(0);
 
     // 플랜만 있고 기록이 없으면 통계·캘린더가 빈 화면이라 데모의 목적을 못 이룬다.
-    expect(summary?.logCount).toBeGreaterThan(0);
-    const logs = await (await page.request.get("/api/logs?limit=5")).json();
-    expect(Array.isArray(logs.items) ? logs.items.length : 0).toBeGreaterThan(0);
+    const logs = await (await page.request.get("/api/logs?limit=100")).json();
+    const logItems: Array<{ planId: string | null }> = logs.items ?? [];
+    expect(logItems.length).toBeGreaterThan(0);
+
+    // **모든 기록에 planId가 있어야 한다.** 예전 데모는 planId 없는 평평한 로그를 심어
+    // 통계만 채우고 캘린더는 비웠다. 그 경로를 걷어냈으니 하나라도 남으면 회귀다.
+    expect(logItems.filter((item) => !item.planId)).toEqual([]);
 
     // 기록에서 파생되는 화면이 실제로 채워지는지 — 집계가 비어 있으면 시드가 무의미하다.
     const strength = await (await page.request.get("/api/stats/strength-summary")).json();
@@ -403,7 +407,9 @@ test.describe("관리자 표면 경계", () => {
     // 재실행이 쌓이지 않는다(데모 태그 기록만 갈아 끼운다).
     const again = await page.request.post("/api/settings/seed-demo-data", { data: {} });
     expect(again.status()).toBe(200);
-    expect((await again.json()).summary?.logCount).toBe(summary.logCount);
+    // 요약 필드가 아니라 **실제 기록 수**로 잰다 — 쌓이는지 아닌지는 DB가 답이다.
+    const logsAgain = await (await page.request.get("/api/logs?limit=100")).json();
+    expect((logsAgain.items ?? []).length).toBe(logItems.length);
 
     expect((await page.request.post("/api/admin/impersonate/return")).status()).toBe(200);
   });
