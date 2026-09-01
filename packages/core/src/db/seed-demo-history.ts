@@ -34,16 +34,17 @@ export type SeedDemoBodyweightSummary = {
 };
 
 /**
- * 주 1회 체중 측정 이력을 만든다.
+ * 데모 체중 격자. 주 1회, 과거에서 현재로 오며 미래 측정은 넣지 않는다.
  *
- * 미래 측정은 넣지 않는다 — 기록과 달리 체중은 하나 빠져도 이력에 구멍이 날 뿐이라,
- * 시각을 당기는 대신 건너뛴다.
+ * 기록과 달리 시각을 당기지 않고 **건너뛴다** — 체중은 하나 빠져도 이력에 구멍이 날
+ * 뿐이지만, 당기면 같은 날에 두 측정이 생겨 unique 제약에 걸린다.
  */
-export async function seedDemoBodyweightForUser({
-  userId,
-  weeks = 12,
-  now = new Date(),
-}: SeedDemoBodyweightOptions): Promise<SeedDemoBodyweightSummary> {
+export function demoBodyweightEntries(input: {
+  userId: string;
+  weeks: number;
+  now: Date;
+}): (typeof bodyMeasurement.$inferInsert)[] {
+  const { userId, weeks, now } = input;
   const startOfToday = new Date(now);
   startOfToday.setUTCHours(9, 0, 0, 0);
 
@@ -59,15 +60,35 @@ export async function seedDemoBodyweightForUser({
       measuredAt,
     });
   }
+  return values;
+}
 
-  if (values.length > 0) {
-    await db
-      .insert(bodyMeasurement)
-      .values(values)
-      .onConflictDoNothing({
-        target: [bodyMeasurement.userId, bodyMeasurement.kind, bodyMeasurement.measuredAt],
-      });
-  }
+/**
+ * 주 1회 체중 측정 이력을 **갈아 끼운다** — 이 계정의 체중 이력은 시드가 소유한다.
+ *
+ * onConflictDoNothing만으로는 쌓인다. 격자가 `오늘`에 앵커돼 있어 날짜가 하루만 바뀌어도
+ * 12개가 통째로 밀리고, 그 전부가 새 시각이라 충돌하지 않는다(실측: 12 → 24건).
+ *
+ * **창을 좁게 잡는 방법은 통하지 않는다.** 새 격자의 시작점부터 지우면 옛 격자의 첫 행이
+ * 그 앞에 남아 재시드마다 하나씩 샌다(실측: 13 → 14). 드리프트가 클수록 더 샌다 — 며칠을
+ * 여유로 두든 그만큼 안 돌린 뒤에는 다시 샌다. 그래서 창을 넓히는 대신 전부 지운다.
+ *
+ * 대가는 이 계정의 수기 체중 입력이 함께 사라진다는 것이다. 기록(deleteDemoHistoryForUser)이
+ * 태그 없는 것을 남기는 것과 다른 선택인데, 근거가 다르다 — 기록은 태그로 데모와 수기를
+ * 가를 수 있지만 body_measurement에는 그럴 컬럼이 없다. 값으로 가르는 건 같은 체중을 실제로
+ * 입력한 날 오작동한다. 로그인 불가 센티널 계정 전용이라 예측 가능한 쪽을 골랐다.
+ */
+export async function seedDemoBodyweightForUser({
+  userId,
+  weeks = 12,
+  now = new Date(),
+}: SeedDemoBodyweightOptions): Promise<SeedDemoBodyweightSummary> {
+  const values = demoBodyweightEntries({ userId, weeks, now });
+
+  await db
+    .delete(bodyMeasurement)
+    .where(and(eq(bodyMeasurement.userId, userId), eq(bodyMeasurement.kind, "weight")));
+  if (values.length > 0) await db.insert(bodyMeasurement).values(values);
 
   return { bodyweightCount: values.length };
 }
