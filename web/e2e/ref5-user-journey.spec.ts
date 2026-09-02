@@ -256,6 +256,23 @@ async function fillRef5ExerciseOutcome(
   await expect(card.getByText(expected, { exact: true })).toBeVisible();
 }
 
+/**
+ * OAP 카드의 기본 결과는 HOLD다(§7.5.4에서 중립 — 승급도 강등도 아니다).
+ *
+ * 다른 여정들은 OAP를 검사하지 않는데, 기본값을 PASS로 두면 세션을 반복하는 동안
+ * 사다리가 조용히 올라가 4단에서 네거티브가 붙고 세션이 10세트에서 11세트가 된다.
+ * 그러면 그 여정들의 `10 sets` 단언이 자기가 검사하려던 것과 무관한 이유로 깨진다.
+ * 중립을 기본값으로 두면 사다리가 멈춘 채 남고, OAP를 실제로 검사하는 여정만
+ * 좌/우 결과를 명시한다.
+ */
+function ref5DefaultOutcomeFor(exerciseName: string): Ref5OutcomeKind {
+  return exerciseName.startsWith("Assisted OAP") ||
+    exerciseName.startsWith("OAP Negative") ||
+    exerciseName.startsWith("OAP Free")
+    ? "HOLD_SLOW"
+    : "PASS";
+}
+
 async function fillCurrentRef5Session(
   page: Page,
   overrides: Record<string, Ref5OutcomeKind> = {},
@@ -266,7 +283,11 @@ async function fillCurrentRef5Session(
   for (let index = 0; index < count; index += 1) {
     const exerciseName = await cards.nth(index).getAttribute("aria-label");
     expect(exerciseName).toBeTruthy();
-    await fillRef5ExerciseOutcome(page, exerciseName!, overrides[exerciseName!] ?? "PASS");
+    await fillRef5ExerciseOutcome(
+      page,
+      exerciseName!,
+      overrides[exerciseName!] ?? ref5DefaultOutcomeFor(exerciseName!),
+    );
   }
 }
 
@@ -278,7 +299,9 @@ async function openAndPreviewRef5Session(
     bodyweightKg?: number;
     manualMicro?: boolean;
     mode: "NORMAL" | "MICRO";
-    squat: "H3" | "H2" | "V";
+    // 생략하면 스쿼트 처방을 단언하지 않는다. 하드 밀도(§9)는 세션 간격이 정하므로,
+    // 스쿼트를 검사하지 않는 여정이 굳이 그 순서를 미리 계산할 필요가 없다.
+    squat?: "H3" | "H2" | "V";
     focus?: "PULL" | "BP";
     // §7.6 되돌리기. BP 집중 차례에서만 토글이 나타나므로 미리보기 뒤에 켠다.
     oapSlotReverted?: boolean;
@@ -310,7 +333,9 @@ async function openAndPreviewRef5Session(
     await page.getByRole("button", { name: "세션 미리보기" }).click();
     await expect(page.getByText(input.mode, { exact: true })).toBeVisible({ timeout: 20_000 });
   }
-  await expect(page.getByText(`SQ ${input.squat}`, { exact: true })).toBeVisible();
+  if (input.squat) {
+    await expect(page.getByText(`SQ ${input.squat}`, { exact: true })).toBeVisible();
+  }
   if (input.focus) await expect(page.getByText(input.focus, { exact: true })).toBeVisible();
   await expect(page.getByText(`${input.setCount} sets`, { exact: true })).toBeVisible();
 }
@@ -1226,7 +1251,6 @@ test("REF5 v1.4 OAP 슬롯 — BP 집중 3번 슬롯 교체·팔별 승급·되�
   await runRef5Session(page, planId, {
     startAt: localDateTimeDaysAgo(120),
     mode: "NORMAL",
-    squat: "H3",
     focus: "PULL",
     setCount: 10,
   });
@@ -1235,7 +1259,6 @@ test("REF5 v1.4 OAP 슬롯 — BP 집중 3번 슬롯 교체·팔별 승급·되�
   await openAndPreviewRef5Session(page, planId, {
     startAt: localDateTimeDaysAgo(117),
     mode: "NORMAL",
-    squat: "H2",
     focus: "BP",
     setCount: 10,
   });
@@ -1256,8 +1279,23 @@ test("REF5 v1.4 OAP 슬롯 — BP 집중 3번 슬롯 교체·팔별 승급·되�
     page.getByRole("article", { name: OAP_LEFT_CARD, exact: true }).getByText("좌 · 2단 전완"),
   ).toBeVisible();
   await page.screenshot({ path: testInfo.outputPath("ref5-oap-slot-session.png"), fullPage: true });
-  await fillCurrentRef5Session(page);
-  await saveCurrentRef5Session(page);
+  // OAP 결과는 언제나 명시한다 — 기본값은 사다리 중립(HOLD)이다.
+  await fillCurrentRef5Session(page, {
+    [OAP_LEFT_CARD]: "PASS",
+    [OAP_RIGHT_CARD]: "PASS",
+  });
+  const oapLogId = await saveCurrentRef5Session(page);
+
+  // 페어 회계(§7.3)를 눈에 보이게 고정한다: 작업세트는 10이지만 실제로 수행하고
+  // 저장하는 세트 행은 12다(좌 2 + 우 2). 둘이 같아지면 어느 한쪽이 틀린 것이다.
+  const persisted = await (await page.request.get(`/api/logs/${oapLogId}`)).json();
+  expect(persisted.item.sets).toHaveLength(12);
+  const oapRows = persisted.item.sets.filter((row: { exerciseName: string }) =>
+    row.exerciseName.startsWith("Assisted OAP"),
+  );
+  expect(oapRows).toHaveLength(4);
+  // 스킬 슬롯은 무게가 없다 — 0으로 저장돼야 총중량 통계에 섞이지 않는다.
+  expect(oapRows.every((row: { weightKg: number }) => Number(row.weightKg) === 0)).toBe(true);
 
   status = await readRef5Status(page, planId);
   expect(status.oap.left.passStreak).toBe(1);
@@ -1271,7 +1309,6 @@ test("REF5 v1.4 OAP 슬롯 — BP 집중 3번 슬롯 교체·팔별 승급·되�
     await runRef5Session(page, planId, {
       startAt: localDateTimeDaysAgo(daysAgo + 3),
       mode: "NORMAL",
-      squat: "V",
       focus: "PULL",
       setCount: 10,
     });
@@ -1281,11 +1318,10 @@ test("REF5 v1.4 OAP 슬롯 — BP 집중 3번 슬롯 교체·팔별 승급·되�
       {
         startAt: localDateTimeDaysAgo(daysAgo),
         mode: "NORMAL",
-        squat: "V",
         focus: "BP",
         setCount: 10,
       },
-      { [OAP_RIGHT_CARD]: "FAIL" },
+      { [OAP_LEFT_CARD]: "PASS", [OAP_RIGHT_CARD]: "FAIL" },
     );
   }
 
@@ -1303,7 +1339,6 @@ test("REF5 v1.4 OAP 슬롯 — BP 집중 3번 슬롯 교체·팔별 승급·되�
   await runRef5Session(page, planId, {
     startAt: localDateTimeDaysAgo(99),
     mode: "NORMAL",
-    squat: "V",
     focus: "PULL",
     setCount: 10,
   });
@@ -1311,7 +1346,6 @@ test("REF5 v1.4 OAP 슬롯 — BP 집중 3번 슬롯 교체·팔별 승급·되�
   await openAndPreviewRef5Session(page, planId, {
     startAt: localDateTimeDaysAgo(96),
     mode: "NORMAL",
-    squat: "V",
     focus: "BP",
     oapSlotReverted: true,
     setCount: 10,
