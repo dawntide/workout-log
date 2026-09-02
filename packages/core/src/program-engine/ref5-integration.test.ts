@@ -6,7 +6,13 @@ import {
   selectRef5ResumableSession,
   toRef5GeneratedSnapshot,
 } from "./ref5-integration";
-import { createInitialRef5State, generateRef5Session } from "./ref5";
+import {
+  REF5_LEGACY_PROTOCOL_VERSION,
+  REF5_PRIOR_PROTOCOL_VERSION,
+  REF5_PROTOCOL_VERSION,
+  createInitialRef5State,
+  generateRef5Session,
+} from "./ref5";
 
 function resumableCandidate(input: {
   id: string;
@@ -48,33 +54,52 @@ test("REF5 generation always uses the plan timezone, never the caller timezone",
       planId: "plan-1",
       timezone: "America/New_York",
       ref5: {
-        protocolVersion: "1.3",
+        protocolVersion: REF5_PROTOCOL_VERSION,
         actualStartAt: "2026-07-13T23:30:00.000Z",
         todayBodyweightKg: 75,
         manualMicro: false,
+        oapSlotReverted: false,
         startEventId: "start-timezone",
       },
     },
-    { timezone: "Asia/Seoul", programFamily: "ref5", protocolVersion: "1.3" },
+    { timezone: "Asia/Seoul", programFamily: "ref5", protocolVersion: REF5_PROTOCOL_VERSION },
   );
 
   assert.equal(request.timezone, "Asia/Seoul");
   assert.equal(request.actualStartAt, "2026-07-13T23:30:00.000Z");
 });
 
-test("REF5 v1.3 rejects stale clients and every retired start input", () => {
+test("REF5 v1.4 rejects stale clients (v1.3 included) and every retired start input (§24.3)", () => {
   const base = {
-    protocolVersion: "1.3" as const,
+    protocolVersion: REF5_PROTOCOL_VERSION,
     actualStartAt: "2026-07-13T23:30:00.000Z",
     todayBodyweightKg: 75,
     manualMicro: false,
+    oapSlotReverted: false,
     startEventId: "start-version",
   };
-  const params = { timezone: "Asia/Seoul", programFamily: "ref5", protocolVersion: "1.3" };
-  assert.throws(
-    () => normalizeRef5GenerationRequest({ userId: "u", planId: "p", ref5: { ...base, protocolVersion: "1.1" as never } }, params),
-    /stale REF5 protocol version/,
-  );
+  const params = {
+    timezone: "Asia/Seoul",
+    programFamily: "ref5",
+    protocolVersion: REF5_PROTOCOL_VERSION,
+  };
+  for (const stale of [REF5_LEGACY_PROTOCOL_VERSION, REF5_PRIOR_PROTOCOL_VERSION]) {
+    assert.throws(
+      () => normalizeRef5GenerationRequest({ userId: "u", planId: "p", ref5: { ...base, protocolVersion: stale as never } }, params),
+      /stale REF5 protocol version/,
+      `client on ${stale} must be refused`,
+    );
+    // A current client against a plan still stamped with an earlier protocol is
+    // equally stale — that plan is archived, never upgraded in place.
+    assert.throws(
+      () => normalizeRef5GenerationRequest(
+        { userId: "u", planId: "p", ref5: base },
+        { ...params, protocolVersion: stale },
+      ),
+      /stale REF5 protocol version/,
+      `plan on ${stale} must be refused`,
+    );
+  }
   for (const key of [
     "climb",
     "climbing",

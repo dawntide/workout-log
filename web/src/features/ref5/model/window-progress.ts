@@ -37,6 +37,52 @@ export function formatRef5WindowFlow(
   return recentResults.map((result) => (result === "INCREASE" ? "↑" : "→")).join(" ");
 }
 
+export type Ref5OapProgressRow = {
+  key: "left" | "right";
+  label: string;
+  /** "2단 전완" / "rung 2 forearm" — 판정창 행의 무게 자리에 대응한다. */
+  rungText: string;
+  streakText: string;
+  badges: string[];
+};
+
+/**
+ * §18 OAP 표출: 좌/우 현재 단, 연속 PASS `n/3`, 해금·달성 배지.
+ *
+ * 판정창 행과 나란히 두되 같은 표에 섞지 않는다 — 이쪽은 kg 기준이 아니라 사다리 단이고,
+ * `현재/임계값`도 창 노출 수가 아니라 승급 연속이다.
+ */
+export function buildRef5OapProgressRows(
+  status: Ref5Status,
+  locale: "ko" | "en",
+): Ref5OapProgressRow[] {
+  return (["left", "right"] as const).map((arm) => {
+    const value = status.oap[arm];
+    const badges: string[] = [];
+    if (value.achieved) badges.push(locale === "ko" ? "달성" : "achieved");
+    if (value.negativesUnlocked) badges.push(locale === "ko" ? "네거티브" : "negatives");
+    return {
+      key: arm,
+      label:
+        locale === "ko"
+          ? `OAP ${arm === "left" ? "좌" : "우"}`
+          : `OAP ${arm === "left" ? "L" : "R"}`,
+      rungText:
+        locale === "ko"
+          ? `${value.rung}단 ${value.rungNameKo}`
+          : `rung ${value.rung} ${value.rungName}`,
+      streakText: `PASS ${value.passStreak}/${value.promoteThreshold}`,
+      badges,
+    };
+  });
+}
+
+export function getRef5OapProgressDescription(locale: "ko" | "en") {
+  return locale === "ko"
+    ? "OAP 스킬 슬롯은 kg가 아니라 6단 사다리를 진행합니다. 같은 단에서 3연속 PASS면 승급, 2연속 FAIL이면 강등하며 HOLD는 양쪽 연속을 모두 끊습니다. 팔마다 따로 진행하고, PULL 기준·판정창과는 무관합니다."
+    : "The OAP skill slot progresses a six-rung ladder rather than kilograms. Three straight PASSes promote, two straight FAILs demote, and a HOLD breaks both streaks. Each arm progresses on its own and neither touches the PULL standard or its window.";
+}
+
 export function buildRef5WindowProgressRows(
   status: Ref5Status,
   locale: "ko" | "en",

@@ -179,6 +179,7 @@ export function ProgramStoreScreen({
     updateRestartMode,
     updateOneRmInput,
     updateRef5StartingValue,
+    updateRef5OapStartRung,
     updateRef5SetupMode,
     updateRef5E1rmInput,
     applyRecommendation,
@@ -370,6 +371,7 @@ export function ProgramStoreScreen({
         onChangeRestartMode={updateRestartMode}
         onChangeOneRmInput={updateOneRmInput}
         onChangeRef5StartingValue={updateRef5StartingValue}
+        onChangeRef5OapStartRung={updateRef5OapStartRung}
         onChangeRef5SetupMode={updateRef5SetupMode}
         onChangeRef5E1rmInput={updateRef5E1rmInput}
         onApplyRecommendation={applyRecommendation}

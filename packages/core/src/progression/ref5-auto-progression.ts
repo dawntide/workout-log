@@ -30,14 +30,16 @@ import {
   type Ref5RawLogEvent,
   type Ref5RuntimeState,
   type Ref5ProtocolVersion,
-  type Ref5DirectStandardsKg,
+  type Ref5StartConfig,
 } from "@workout/core/program-engine/ref5";
 
 /** Kept numeric-compatible with the generation adapter without importing it. */
-// 511 is the immutable v1.1 identifier; 512 is v1.2. Active v1.3 writes use 513.
+// 511 is the immutable v1.1 identifier; 512 is v1.2, 513 is v1.3. Active v1.4
+// writes use 514.
 export const REF5_PROGRESSION_ENGINE_VERSION = 511;
 export const REF5_PROGRESSION_ENGINE_VERSION_V12 = 512;
 export const REF5_PROGRESSION_ENGINE_VERSION_V13 = 513;
+export const REF5_PROGRESSION_ENGINE_VERSION_V14 = 514;
 
 const REF5_END_REASONS = new Set<Ref5EndReason>([
   "NORMAL",
@@ -713,7 +715,9 @@ type Ref5ReplayPlanContext = {
   id: string;
   userId: string;
   protocolVersion: Ref5ProtocolVersion;
-  initialDirectStandardsKg: Ref5DirectStandardsKg;
+  // The whole start config, not just the loads: v1.4 also seeds the per-arm OAP
+  // start rungs from it (§5.2).
+  startConfig: Ref5StartConfig;
 };
 
 async function resolveRef5ReplayPlan(
@@ -736,12 +740,11 @@ async function resolveRef5ReplayPlan(
       params.protocolVersion ?? asRecord(params.ref5).protocolVersion,
     );
   }
-  const startConfig = readRef5PlanStartConfig(row.params);
   return {
     id: row.id,
     userId: row.userId,
     protocolVersion,
-    initialDirectStandardsKg: startConfig.startingValuesKg,
+    startConfig: readRef5PlanStartConfig(row.params),
   };
 }
 
@@ -891,10 +894,13 @@ function foldRef5ReplaySource(input: {
   userId: string;
   planId: string;
   planProtocolVersion: Ref5ProtocolVersion;
-  initialDirectStandardsKg: Ref5DirectStandardsKg;
+  startConfig: Ref5StartConfig;
   source: Ref5ReplaySource;
 }): Ref5ReplayFold {
-  let runningState = createInitialRef5State(input.initialDirectStandardsKg);
+  let runningState = createInitialRef5State(
+    input.startConfig.startingValuesKg,
+    input.startConfig.oap,
+  );
   const auditRows: Array<typeof planProgressEvent.$inferInsert> = [];
   const completedGeneratedSessionIds: string[] = [];
   for (const session of input.source.sessions) {
@@ -926,7 +932,7 @@ function foldRef5ReplaySource(input: {
       afterState: cloneJson(runningState),
       meta: {
         protocolVersion: replaySnapshot.protocolVersion,
-        engineVersion: REF5_PROGRESSION_ENGINE_VERSION_V13,
+        engineVersion: REF5_PROGRESSION_ENGINE_VERSION_V14,
         startEventId: session.startEventId,
         snapshotId: replaySnapshot.snapshotId,
         sessionId: replaySnapshot.sessionId,
@@ -976,7 +982,7 @@ function foldRef5ReplaySource(input: {
       afterState: cloneJson(runningState),
       meta: {
         protocolVersion: replaySnapshot.protocolVersion,
-        engineVersion: REF5_PROGRESSION_ENGINE_VERSION_V13,
+        engineVersion: REF5_PROGRESSION_ENGINE_VERSION_V14,
         startEventId: completion.startEventId,
         completionEventId: completion.completionEventId,
         completionFingerprint: completion.fingerprint,
@@ -1109,7 +1115,7 @@ export async function deriveRef5StateBeforeStart(
     userId: input.userId,
     planId: input.planId,
     planProtocolVersion: planContext.protocolVersion,
-    initialDirectStandardsKg: planContext.initialDirectStandardsKg,
+    startConfig: planContext.startConfig,
     source,
   });
   return {
@@ -1141,7 +1147,7 @@ export async function rebuildRef5ProgressionForPlan(
     userId: input.userId,
     planId,
     planProtocolVersion: planContext.protocolVersion,
-    initialDirectStandardsKg: planContext.initialDirectStandardsKg,
+    startConfig: planContext.startConfig,
     source,
   });
   const appendedAuditEventCount = await appendMissingRef5AuditRows({
@@ -1164,7 +1170,7 @@ export async function rebuildRef5ProgressionForPlan(
       .update(planRuntimeState)
       .set({
         userId: input.userId,
-        engineVersion: REF5_PROGRESSION_ENGINE_VERSION_V13,
+        engineVersion: REF5_PROGRESSION_ENGINE_VERSION_V14,
         state: folded.state,
         updatedAt: new Date(),
       })
@@ -1184,7 +1190,7 @@ export async function rebuildRef5ProgressionForPlan(
       .values({
         planId,
         userId: input.userId,
-        engineVersion: REF5_PROGRESSION_ENGINE_VERSION_V13,
+        engineVersion: REF5_PROGRESSION_ENGINE_VERSION_V14,
         state: folded.state,
       })
       .onConflictDoNothing({ target: planRuntimeState.planId })

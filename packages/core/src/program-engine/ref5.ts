@@ -1,10 +1,15 @@
 /**
- * REF5 Adaptive Strength v1.3
+ * REF5 Adaptive Strength v1.4
  *
  * Framework/DB-independent domain model.  Direct kilogram standards are the
  * canonical state; control REFs, derived prescriptions and display loads are
  * always recomputed from those standards.  No Asymptote/TM/cycle semantics are
  * shared with this module.
+ *
+ * v1.4 adds the OAP skill slot (§7.5): the BP-focus session's PULL volume slot
+ * becomes a self-assisted one-arm pull-up pair. Its ladder rung progresses per
+ * arm and is deliberately disjoint from every kilogram standard, judgment
+ * window, fail stream, focus queue and micro trigger.
  */
 
 // 버전 리터럴의 정본은 ref5-protocol-version.ts다(클라이언트가 엔진을 끌지 않고
@@ -18,11 +23,11 @@ import {
   REF5_LEGACY_PROTOCOL_VERSION,
   REF5_PROTOCOL_VERSION,
 } from "./ref5-protocol-version";
-export const REF5_RUNTIME_SCHEMA_VERSION = 3 as const;
+export const REF5_RUNTIME_SCHEMA_VERSION = 4 as const;
 export const REF5_LEGACY_RUNTIME_SCHEMA_VERSION = 1 as const;
-export const REF5_SNAPSHOT_SCHEMA_VERSION = 3 as const;
-export const REF5_PROGRAM_VERSION = 3 as const;
-export const REF5_START_CONFIG_VERSION = 2 as const;
+export const REF5_SNAPSHOT_SCHEMA_VERSION = 4 as const;
+export const REF5_PROGRAM_VERSION = 4 as const;
+export const REF5_START_CONFIG_VERSION = 3 as const;
 export const REF5_LEGACY_ENGINE_VERSION = 511 as const;
 
 /**
@@ -48,6 +53,12 @@ export const REF5_IDENTIFIERS = Object.freeze({
 export type Ref5Lift = "SQ" | "BP" | "PULL" | "DL" | "OHP";
 export type Ref5MainLift = "SQ" | "BP" | "PULL";
 export type Ref5AuxiliaryLift = "DL" | "OHP";
+/**
+ * What a prescription can name. `Ref5Lift` stays exactly five (§3.1) because
+ * `Record<Ref5Lift, …>` drives e1RM entry and calibration; OAP is a *slot*, so
+ * only prescriptions and progression changes widen to it.
+ */
+export type Ref5PrescriptionLift = Ref5Lift | "OAP";
 export type Ref5Focus = "PULL" | "BP";
 export type Ref5SessionType = "NORMAL" | "MICRO";
 export type Ref5SquatPrescription = "H3" | "H2" | "V";
@@ -82,8 +93,14 @@ export type Ref5Stream =
   | "DL"
   | "OHP";
 
-// v1.3 splits each upper-body volume slot into independent NORMAL/MICRO fail
-// streams (§14). Twelve streams total; the SQ_V split predates v1.3.
+/**
+ * Every fail stream the runtime state carries a slot for.
+ *
+ * v1.3 split each upper-body volume slot into independent NORMAL/MICRO streams
+ * (the SQ_V split predates it), giving twelve. v1.4 removes PULL_VOLUME_NORMAL
+ * from the *active* list (§14) because normal sessions no longer prescribe PULL
+ * volume, but keeps its slot here: a reverted session (§7.6) still produces it.
+ */
 export const REF5_STREAMS: readonly Ref5Stream[] = Object.freeze([
   "SQ_H3",
   "SQ_H2",
@@ -98,6 +115,104 @@ export const REF5_STREAMS: readonly Ref5Stream[] = Object.freeze([
   "DL",
   "OHP",
 ]);
+
+/**
+ * The eleven streams §14 lists for v1.4. PULL_VOLUME_NORMAL is absent: it is
+ * reverted-session-only (§7.6), not part of the normal protocol surface.
+ */
+export const REF5_ACTIVE_STREAMS: readonly Ref5Stream[] = Object.freeze(
+  REF5_STREAMS.filter((stream) => stream !== "PULL_VOLUME_NORMAL"),
+);
+
+/** The stream a reverted BP-focus session restores (§7.6). */
+export const REF5_REVERTED_ONLY_STREAM = "PULL_VOLUME_NORMAL" as const;
+
+export type Ref5OapArm = "left" | "right";
+export const REF5_OAP_ARMS: readonly Ref5OapArm[] = Object.freeze(["left", "right"]);
+
+export type Ref5OapRung = 1 | 2 | 3 | 4 | 5 | 6;
+
+/**
+ * The fixed six-rung assist ladder (§7.5.2). With no pulley available the
+ * assisting hand's grip position *is* the ordinal scale, so these definitions
+ * are what makes exposures comparable — an exposure taken outside them is
+ * recorded EXTERNAL/INVALID rather than judged.
+ */
+export const REF5_OAP_RUNGS = Object.freeze({
+  1: { name: "wrist", nameKo: "손목" },
+  2: { name: "forearm", nameKo: "전완" },
+  3: { name: "elbow", nameKo: "팔꿈치" },
+  4: { name: "upper arm", nameKo: "상박" },
+  5: { name: "shoulder", nameKo: "어깨" },
+  6: { name: "free", nameKo: "프리" },
+} as const satisfies Record<Ref5OapRung, { name: string; nameKo: string }>);
+
+export const REF5_OAP_MIN_RUNG = 1 as const;
+export const REF5_OAP_MAX_RUNG = 6 as const;
+/** Rung at which one-arm negatives unlock for that arm (§7.5.3). */
+export const REF5_OAP_NEGATIVE_RUNG = 4 as const;
+/** Consecutive valid PASS exposures that promote one rung (§7.5.4). */
+export const REF5_OAP_PROMOTE_STREAK = 3 as const;
+/** Consecutive valid FAIL exposures that demote one rung (§7.5.4). */
+export const REF5_OAP_DEMOTE_STREAK = 2 as const;
+/**
+ * After achievement the free single is prescribed at most weekly (§7.5.4). The
+ * spec pins "at most weekly" to 168 hours since the prior free exposure's START,
+ * matching the hard-density rules' elapsed-time semantics (§8.1).
+ */
+export const REF5_OAP_FREE_INTERVAL_MS = 168 * 60 * 60 * 1_000;
+
+/**
+ * OAP prescription keys. Deliberately NOT `Ref5Stream` values (§14): they never
+ * accumulate consecutive fails, never veto a window and never move a kilogram
+ * standard. Keeping them in a separate union makes `failStreams[stream]` a type
+ * error for an OAP prescription instead of a silent `undefined`.
+ *
+ * Three kinds per arm because an achieved arm's maintenance prescription is two
+ * prescriptions at once — assisted 2×3 on rung 5 *and* a free single (§7.5.4).
+ * They cannot share a key: `prescriptionId` is `${snapshotId}:${key}` and must
+ * be unique, and one exposure must sit on exactly one rung to stay comparable.
+ */
+export type Ref5OapKey =
+  | "OAP_LEFT"
+  | "OAP_RIGHT"
+  | "OAP_NEG_LEFT"
+  | "OAP_NEG_RIGHT"
+  | "OAP_FREE_LEFT"
+  | "OAP_FREE_RIGHT";
+
+export const REF5_OAP_KEYS: readonly Ref5OapKey[] = Object.freeze([
+  "OAP_LEFT",
+  "OAP_RIGHT",
+  "OAP_NEG_LEFT",
+  "OAP_NEG_RIGHT",
+  "OAP_FREE_LEFT",
+  "OAP_FREE_RIGHT",
+]);
+
+/** Which of the three per-arm OAP prescriptions this is. */
+export type Ref5OapPrescriptionKind = "LADDER" | "NEGATIVE" | "FREE";
+
+/** Assisted rung an achieved arm keeps working (§7.5.4). */
+export const REF5_OAP_MAINTENANCE_RUNG = 5 as const satisfies Ref5OapRung;
+
+/** Everything a frozen prescription can be keyed by: fail streams plus OAP. */
+export type Ref5PrescriptionKey = Ref5Stream | Ref5OapKey;
+
+export const REF5_PRESCRIPTION_KEYS: readonly Ref5PrescriptionKey[] = Object.freeze([
+  ...REF5_STREAMS,
+  ...REF5_OAP_KEYS,
+]);
+
+export function isRef5OapKey(value: Ref5PrescriptionKey): value is Ref5OapKey {
+  return (REF5_OAP_KEYS as readonly string[]).includes(value);
+}
+
+export function ref5OapKeyFor(arm: Ref5OapArm, kind: Ref5OapPrescriptionKind): Ref5OapKey {
+  if (kind === "NEGATIVE") return arm === "left" ? "OAP_NEG_LEFT" : "OAP_NEG_RIGHT";
+  if (kind === "FREE") return arm === "left" ? "OAP_FREE_LEFT" : "OAP_FREE_RIGHT";
+  return arm === "left" ? "OAP_LEFT" : "OAP_RIGHT";
+}
 
 export interface Ref5DirectStandardsKg {
   sqH3Kg: number;
@@ -129,13 +244,22 @@ export interface Ref5AuxiliaryCapsKg {
   ohpControlRefMaxKg: number;
 }
 
+/** Per-arm OAP start rung, start-config `3` (§5.2). */
+export interface Ref5OapStartConfig {
+  startRung: Ref5OapRung;
+}
+
 export interface Ref5StartConfig {
   initializationVersion: typeof REF5_START_CONFIG_VERSION;
   schemaVersion: typeof REF5_RUNTIME_SCHEMA_VERSION;
   protocolVersion: typeof REF5_PROTOCOL_VERSION;
   startingValuesKg: Ref5DirectStandardsKg;
   controlRefsKg: Ref5ControlRefsKg;
+  oap: Record<Ref5OapArm, Ref5OapStartConfig>;
 }
+
+/** Both arms start on rung 2 (forearm) unless the plan says otherwise (§5.2). */
+export const REF5_DEFAULT_OAP_START_RUNG = 2 as const satisfies Ref5OapRung;
 
 export const REF5_START_LOAD_MIN_KG = 2.5;
 export const REF5_START_LOAD_MAX_KG = 500;
@@ -246,8 +370,44 @@ function ref5Record(value: unknown): Record<string, unknown> {
   return value as Record<string, unknown>;
 }
 
-/** Validates plan-creation loads. Runtime progression still owns later changes. */
-export function validateRef5StartConfig(value: unknown): Ref5StartConfigValidationResult {
+/**
+ * Reads one arm's start rung (§5.2). Absent config means the default rung 2;
+ * a present but non-integer/out-of-range value is rejected rather than coerced,
+ * because the rung is the prescription's only intensity coordinate.
+ */
+function readRef5OapStartRung(
+  value: unknown,
+  arm: Ref5OapArm,
+  errors: string[],
+): Ref5OapRung {
+  const source = ref5Record(value);
+  if (!Object.hasOwn(source, "startRung")) return REF5_DEFAULT_OAP_START_RUNG;
+  const raw = source.startRung;
+  if (
+    typeof raw !== "number" ||
+    !Number.isInteger(raw) ||
+    raw < REF5_OAP_MIN_RUNG ||
+    raw > REF5_OAP_MAX_RUNG
+  ) {
+    errors.push(
+      `oap.${arm}.startRung must be an integer from ${REF5_OAP_MIN_RUNG} to ${REF5_OAP_MAX_RUNG}`,
+    );
+    return REF5_DEFAULT_OAP_START_RUNG;
+  }
+  return raw as Ref5OapRung;
+}
+
+/**
+ * Validates plan-creation loads and the OAP start rungs. Runtime progression
+ * still owns later changes.
+ *
+ * `oapValue` is a second argument rather than a field of the first so existing
+ * callers that pass `params.ref5.startingValuesKg` keep working unchanged.
+ */
+export function validateRef5StartConfig(
+  value: unknown,
+  oapValue?: unknown,
+): Ref5StartConfigValidationResult {
   const source = ref5Record(value);
   const errors: string[] = [];
   const startingValuesKg = {} as Ref5DirectStandardsKg;
@@ -255,6 +415,12 @@ export function validateRef5StartConfig(value: unknown): Ref5StartConfigValidati
   if (Object.keys(source).length === 0) {
     return { ok: false, errors: ["REF5 startingValuesKg must be an object"] };
   }
+
+  const oapSource = ref5Record(oapValue);
+  const oap: Record<Ref5OapArm, Ref5OapStartConfig> = {
+    left: { startRung: readRef5OapStartRung(oapSource.left, "left", errors) },
+    right: { startRung: readRef5OapStartRung(oapSource.right, "right", errors) },
+  };
 
   for (const key of REF5_DIRECT_STANDARD_KEYS) {
     const raw = source[key];
@@ -292,12 +458,13 @@ export function validateRef5StartConfig(value: unknown): Ref5StartConfigValidati
       protocolVersion: REF5_PROTOCOL_VERSION,
       startingValuesKg,
       controlRefsKg: deriveRef5ControlRefs(startingValuesKg),
+      oap,
     },
   };
 }
 
-export function normalizeRef5StartConfig(value: unknown): Ref5StartConfig {
-  const result = validateRef5StartConfig(value);
+export function normalizeRef5StartConfig(value: unknown, oapValue?: unknown): Ref5StartConfig {
+  const result = validateRef5StartConfig(value, oapValue);
   if (!result.ok) throw new Ref5ValidationError(result.errors);
   return result.value;
 }
@@ -305,7 +472,7 @@ export function normalizeRef5StartConfig(value: unknown): Ref5StartConfig {
 export function readRef5PlanStartConfig(planParams: unknown): Ref5StartConfig {
   const params = ref5Record(planParams);
   const nested = ref5Record(params.ref5);
-  return normalizeRef5StartConfig(nested.startingValuesKg);
+  return normalizeRef5StartConfig(nested.startingValuesKg, nested.oap);
 }
 
 export function ref5AuxiliaryCandidateIsWithinCap(
@@ -541,23 +708,50 @@ export interface Ref5CompletedSessionSummary {
   completionEventId: string;
   actualStartAt: string;
   completedAt: string;
-  outcomes: Partial<Record<Ref5Stream, Ref5Outcome>>;
+  outcomes: Partial<Record<Ref5PrescriptionKey, Ref5Outcome>>;
   primaryFailEventIds: string[];
 }
 
+/**
+ * One arm's ladder state (§7.5.2, §7.5.4). Entirely disjoint from the kilogram
+ * standards: nothing here reads or writes a direct standard, judgment window,
+ * fail stream or micro trigger.
+ */
+export interface Ref5OapArmState {
+  rung: Ref5OapRung;
+  passStreak: number;
+  failStreak: number;
+  negativesUnlocked: boolean;
+  achieved: boolean;
+  /** START instant of the most recent free (rung 6) single, for the 168h gate. */
+  lastFreeExposureAt: string | null;
+}
+
+export type Ref5OapState = Record<Ref5OapArm, Ref5OapArmState>;
+
 export interface Ref5ProgressionChange {
   eventId: string;
-  lift: Ref5Lift;
+  lift: Ref5PrescriptionLift;
   kind:
     | "INCREASE"
     | "MAINTAIN"
     | "IMMEDIATE_DECREASE"
     | "STAGNATION_DECREASE"
     | "AUXILIARY_CAP_DECREASE"
-    | "PULL_RELOCK";
+    | "PULL_RELOCK"
+    | "OAP_PROMOTE"
+    | "OAP_DEMOTE"
+    | "OAP_ACHIEVE";
+  /**
+   * Kilograms for every lift change. For the three OAP kinds these carry the
+   * ladder *rung*, not a weight — consumers must not append a "kg" unit to them
+   * (§7.5, D8 of the implementation plan).
+   */
   beforeKg: number;
   afterKg: number;
   causeEventIds: string[];
+  /** Present only on OAP changes. */
+  arm?: Ref5OapArm;
 }
 
 export interface Ref5RuntimeState {
@@ -583,6 +777,8 @@ export interface Ref5RuntimeState {
     windowSequence: number;
     lock: Ref5PullLockState | null;
   };
+  /** OAP skill-slot ladder, per arm (§7.5). Independent of everything above. */
+  oap: Ref5OapState;
   appliedStartEventIds: string[];
   appliedCompletionEventIds: string[];
   appliedRawLogIds: string[];
@@ -624,6 +820,19 @@ function recordRef5WindowResult(
   if (window.recentResults.length > REF5_RECENT_WINDOW_RESULTS) window.recentResults.shift();
 }
 
+function initialOapArm(startRung: Ref5OapRung): Ref5OapArmState {
+  return {
+    rung: startRung,
+    passStreak: 0,
+    failStreak: 0,
+    // A plan that starts at or above the negative rung is unlocked from the
+    // first exposure (§5.2); otherwise the unlock happens on promotion (§7.5.3).
+    negativesUnlocked: startRung >= REF5_OAP_NEGATIVE_RUNG,
+    achieved: false,
+    lastFreeExposureAt: null,
+  };
+}
+
 function initialStagnation(basisKg: number): Ref5StagnationState {
   return {
     phase: "BASELINE",
@@ -637,6 +846,7 @@ function initialStagnation(basisKg: number): Ref5StagnationState {
 
 export function createInitialRef5State(
   standards: Ref5DirectStandardsKg = { ...REF5_INITIAL_DIRECT_STANDARDS_KG },
+  oapStart?: Record<Ref5OapArm, Ref5OapStartConfig>,
 ): Ref5RuntimeState {
   const directStandardsKg = { ...standards };
   return {
@@ -659,6 +869,10 @@ export function createInitialRef5State(
     },
     forcedMicro: { failEvents: [], pending: null, consumedTokenIds: [] },
     pull: { windowSequence: 0, lock: null },
+    oap: {
+      left: initialOapArm(oapStart?.left.startRung ?? REF5_DEFAULT_OAP_START_RUNG),
+      right: initialOapArm(oapStart?.right.startRung ?? REF5_DEFAULT_OAP_START_RUNG),
+    },
     appliedStartEventIds: [],
     appliedCompletionEventIds: [],
     appliedRawLogIds: [],
@@ -737,6 +951,27 @@ export interface Ref5SessionInput {
   recent7DayMeasurementCount: number;
   recent7DayAverageKg: number | null;
   manualMicro: boolean;
+  /**
+   * §7.6 revert. Only meaningful for a normal BP-focus session, where it
+   * restores the v1.3 `PULL 볼륨 2×6` slot; every other session type ignores it.
+   * A session-start input rather than plan params, so it freezes into the
+   * snapshot and replays deterministically while plan params stay immutable.
+   */
+  oapSlotReverted?: boolean;
+}
+
+/** What the OAP slot decided for one arm this session (§7.5). */
+export interface Ref5OapArmDecision {
+  rung: Ref5OapRung;
+  negative: boolean;
+  /** The rung-6 single an achieved arm gets at most weekly (§7.5.4). */
+  free: boolean;
+}
+
+export interface Ref5OapDecision {
+  reverted: boolean;
+  left: Ref5OapArmDecision;
+  right: Ref5OapArmDecision;
 }
 
 export interface Ref5SessionDecision {
@@ -749,6 +984,8 @@ export interface Ref5SessionDecision {
     lastStartAt: string | null;
     startsIn168Hours: number;
   };
+  /** Null unless this session carries the OAP slot or its reverted form. */
+  oap: Ref5OapDecision | null;
 }
 
 export interface Ref5PullPrescriptionMetadata {
@@ -782,7 +1019,16 @@ export interface Ref5PrescriptionSet {
   totalLoadKg: number;
 }
 
-export type Ref5ExerciseRole = "SQUAT" | "FOCUS" | "VOLUME" | "AUXILIARY";
+export type Ref5ExerciseRole = "SQUAT" | "FOCUS" | "VOLUME" | "AUXILIARY" | "SKILL";
+
+/** Frozen OAP prescription coordinates. The rung *is* the intensity (§7.5.2). */
+export interface Ref5OapPrescriptionMetadata {
+  arm: Ref5OapArm;
+  rung: Ref5OapRung;
+  rungName: string;
+  rungNameKo: string;
+  kind: Ref5OapPrescriptionKind;
+}
 
 /**
  * 스트림별 권장 휴식(초) — 스펙 §19.1 "수행 운영 지침 · 휴식"의 구현체.
@@ -792,11 +1038,13 @@ export type Ref5ExerciseRole = "SQUAT" | "FOCUS" | "VOLUME" | "AUXILIARY";
  *   SQ V · BP/PULL 볼륨 · OHP = 2–3분 -> 150초
  *   DL = 2–4분 -> 180초
  *   마이크로 = 2–3분 -> 150초
+ *   OAP 스킬 슬롯 = 페어 간 2–3분 -> 150초 (팔 교대 간 30–60초는 세트 단위가
+ *     페어라 타이머로 표현하지 않는다, §19.1)
  *
  * 사용자가 운동별 프리셋을 지정하면 그쪽이 아니라 **이 처방이 우선**한다 —
  * 프로토콜이 정한 휴식은 REF5 판정의 전제이기 때문이다.
  */
-const REF5_REST_SECONDS_BY_STREAM: Record<Ref5Stream, number> = {
+const REF5_REST_SECONDS_BY_STREAM: Record<Ref5PrescriptionKey, number> = {
   SQ_H3: 240,
   SQ_H2: 240,
   SQ_V_NORMAL: 150,
@@ -809,22 +1057,33 @@ const REF5_REST_SECONDS_BY_STREAM: Record<Ref5Stream, number> = {
   PULL_VOLUME_MICRO: 150,
   DL: 180,
   OHP: 150,
+  OAP_LEFT: 150,
+  OAP_RIGHT: 150,
+  OAP_NEG_LEFT: 150,
+  OAP_NEG_RIGHT: 150,
+  OAP_FREE_LEFT: 150,
+  OAP_FREE_RIGHT: 150,
 };
 
-export function ref5RestSecondsForStream(stream: Ref5Stream): number {
+export function ref5RestSecondsForStream(stream: Ref5PrescriptionKey): number {
   return REF5_REST_SECONDS_BY_STREAM[stream];
 }
 
 export interface Ref5ExercisePrescription {
   prescriptionId: string;
-  lift: Ref5Lift;
+  lift: Ref5PrescriptionLift;
   exerciseName: string;
   role: Ref5ExerciseRole;
-  stream: Ref5Stream;
+  /**
+   * The frozen prescription's key. A `Ref5Stream` for the five lifts; a
+   * `Ref5OapKey` for the skill slot, which has no fail stream (§14).
+   */
+  stream: Ref5PrescriptionKey;
   sets: Ref5PrescriptionSet[];
   /** Canonical direct/derived progression target, total-weight based for PULL. */
   progressionTargetKg: number;
   pull?: Ref5PullPrescriptionMetadata;
+  oap?: Ref5OapPrescriptionMetadata;
 }
 
 export interface Ref5SessionSnapshot {
@@ -866,7 +1125,10 @@ function containsRef5V12RemovedField(value: unknown): boolean {
   );
 }
 
-/** Strict v1.2 decoder. Historical v1.1 data was absent at the production cutover. */
+/**
+ * Strict current-protocol decoder. Every earlier protocol — v1.3 included — is
+ * refused rather than reinterpreted (§24.3); those plans are archived.
+ */
 export function decodeRef5SessionSnapshot(value: unknown): Ref5SessionSnapshot {
   const candidate = recordValue(value);
   const protocolVersion = String(candidate.protocolVersion ?? "").trim();
@@ -962,6 +1224,9 @@ function validateSessionInput(input: Ref5SessionInput): void {
   ) {
     errors.push("recent7DayAverageKg is required when at least three measurements are available");
   }
+  if (input.oapSlotReverted !== undefined && typeof input.oapSlotReverted !== "boolean") {
+    errors.push("oapSlotReverted must be a boolean");
+  }
   if (errors.length > 0) throw new Ref5ValidationError(errors);
   // Also validates the IANA zone, including DST-aware zones.
   ref5CalendarDate(input.actualStartAt, input.timeZone);
@@ -1046,13 +1311,14 @@ function prescriptionSets(
 
 function exercise(input: {
   snapshotId: string;
-  lift: Ref5Lift;
+  lift: Ref5PrescriptionLift;
   exerciseName: string;
   role: Ref5ExerciseRole;
-  stream: Ref5Stream;
+  stream: Ref5PrescriptionKey;
   sets: Ref5PrescriptionSet[];
   progressionTargetKg: number;
   pull?: Ref5PullPrescriptionMetadata;
+  oap?: Ref5OapPrescriptionMetadata;
 }): Ref5ExercisePrescription {
   return {
     prescriptionId: `${input.snapshotId}:${input.stream}`,
@@ -1063,6 +1329,7 @@ function exercise(input: {
     sets: input.sets,
     progressionTargetKg: input.progressionTargetKg,
     ...(input.pull ? { pull: input.pull } : {}),
+    ...(input.oap ? { oap: input.oap } : {}),
   };
 }
 
@@ -1165,6 +1432,120 @@ function pullExercise(
   });
 }
 
+/**
+ * Exercise identities for the OAP slot.
+ *
+ * None of these may contain "pull-up"/"chin-up"/"풀업"/"친업": both the web and
+ * the TUI decide "is this a bodyweight lift?" by substring, and a match would
+ * pull these into total-load maths and the bodyweight prompt (§7.5.1).
+ *
+ * Every one of them must also exist in the shared exercise catalog: the REF5
+ * save path refuses a set whose exercise name it cannot resolve. Six entries
+ * rather than two because a session can prescribe the ladder, a negative and
+ * the achieved free single for the same arm at once, and a card is identified
+ * by its exercise name.
+ */
+export const REF5_OAP_EXERCISE_NAMES: Record<Ref5OapArm, Record<Ref5OapPrescriptionKind, string>> = {
+  left: {
+    LADDER: "Assisted OAP · Left",
+    NEGATIVE: "OAP Negative · Left",
+    FREE: "OAP Free · Left",
+  },
+  right: {
+    LADDER: "Assisted OAP · Right",
+    NEGATIVE: "OAP Negative · Right",
+    FREE: "OAP Free · Right",
+  },
+};
+
+/** One arm's slot decision for this session (§7.5.3–7.5.4). */
+function oapArmDecision(arm: Ref5OapArmState, actualStartAtMs: number): Ref5OapArmDecision {
+  if (arm.achieved) {
+    const free =
+      arm.lastFreeExposureAt === null ||
+      actualStartAtMs - timestampMs(arm.lastFreeExposureAt, "oap.lastFreeExposureAt") >=
+        REF5_OAP_FREE_INTERVAL_MS;
+    return { rung: REF5_OAP_MAINTENANCE_RUNG, negative: false, free };
+  }
+  return {
+    rung: arm.rung,
+    negative: arm.negativesUnlocked && arm.rung >= REF5_OAP_NEGATIVE_RUNG,
+    free: false,
+  };
+}
+
+function oapExercise(
+  snapshotId: string,
+  arm: Ref5OapArm,
+  kind: Ref5OapPrescriptionKind,
+  rung: Ref5OapRung,
+): Ref5ExercisePrescription {
+  // Assisted 2×3 (§7.5.3); the negative is 1×2 and the maintenance free is 1×1.
+  const sets =
+    kind === "LADDER"
+      ? prescriptionSets(2, 3, 0, 0)
+      : kind === "NEGATIVE"
+        ? prescriptionSets(1, 2, 0, 0)
+        : prescriptionSets(1, 1, 0, 0);
+  return exercise({
+    snapshotId,
+    lift: "OAP",
+    exerciseName: REF5_OAP_EXERCISE_NAMES[arm][kind],
+    role: "SKILL",
+    stream: ref5OapKeyFor(arm, kind),
+    sets,
+    // The ladder is an ordinal scale, not a load. Zero keeps the persisted set
+    // weight honest instead of inventing a kilogram the slot does not have.
+    progressionTargetKg: 0,
+    oap: {
+      arm,
+      rung,
+      rungName: REF5_OAP_RUNGS[rung].name,
+      rungNameKo: REF5_OAP_RUNGS[rung].nameKo,
+      kind,
+    },
+  });
+}
+
+/**
+ * The whole slot, ordered ladder pair → negative pair → free pair so each pair
+ * stays adjacent the way it is performed (left set, right set, rest).
+ */
+function oapExercises(snapshotId: string, decision: Ref5OapDecision): Ref5ExercisePrescription[] {
+  const out: Ref5ExercisePrescription[] = [];
+  for (const arm of REF5_OAP_ARMS) {
+    out.push(oapExercise(snapshotId, arm, "LADDER", decision[arm].rung));
+  }
+  for (const arm of REF5_OAP_ARMS) {
+    if (decision[arm].negative) {
+      out.push(oapExercise(snapshotId, arm, "NEGATIVE", decision[arm].rung));
+    }
+  }
+  for (const arm of REF5_OAP_ARMS) {
+    if (decision[arm].free) out.push(oapExercise(snapshotId, arm, "FREE", REF5_OAP_MAX_RUNG));
+  }
+  return out;
+}
+
+/**
+ * Working-set accounting (§7.3). OAP is counted **per pair**, not per arm: the
+ * left and right sets of one pair are one working set. Taking the max across
+ * arms keeps the count right when only one arm has negatives unlocked.
+ */
+export function ref5TotalWorkingSets(exercises: readonly Ref5ExercisePrescription[]): number {
+  let total = 0;
+  const pairSets = new Map<Ref5OapPrescriptionKind, number>();
+  for (const item of exercises) {
+    if (!item.oap) {
+      total += item.sets.length;
+      continue;
+    }
+    pairSets.set(item.oap.kind, Math.max(pairSets.get(item.oap.kind) ?? 0, item.sets.length));
+  }
+  for (const count of pairSets.values()) total += count;
+  return total;
+}
+
 function auxiliaryExercise(
   snapshotId: string,
   lift: Ref5AuxiliaryLift,
@@ -1200,12 +1581,35 @@ export function generateRef5Session(state: Ref5RuntimeState, input: Ref5SessionI
   const direct = { ...state.directStandardsKg };
   const derived = deriveRef5Standards(direct);
   const pullContext = derivePullSessionContext(state, input, derived);
+  // The OAP slot exists only in a normal BP-focus session (§7.5.1). Revert is a
+  // session input that restores the v1.3 PULL volume slot there (§7.6); every
+  // other session type ignores it outright.
+  const carriesOapSlot =
+    typeDecision.sessionType === "NORMAL" && state.nextFocus === "BP";
+  const reverted = carriesOapSlot && input.oapSlotReverted === true;
+  const startAtMs = timestampMs(input.actualStartAt, "actualStartAt");
+  const oapDecision: Ref5OapDecision | null = carriesOapSlot
+    ? reverted
+      ? {
+          reverted: true,
+          // Nothing is prescribed, so no negative/free; the rungs are carried
+          // for display only and the ladder state is untouched (§7.5.5).
+          left: { rung: state.oap.left.rung, negative: false, free: false },
+          right: { rung: state.oap.right.rung, negative: false, free: false },
+        }
+      : {
+          reverted: false,
+          left: oapArmDecision(state.oap.left, startAtMs),
+          right: oapArmDecision(state.oap.right, startAtMs),
+        }
+    : null;
   const decision: Ref5SessionDecision = {
     sessionType: typeDecision.sessionType,
     microReasons: typeDecision.microReasons,
     focus: state.nextFocus,
     squatPrescription: squatDecision.squatPrescription,
     hard: squatDecision.hard,
+    oap: oapDecision,
   };
 
   const exercises: Ref5ExercisePrescription[] = [
@@ -1220,7 +1624,11 @@ export function generateRef5Session(state: Ref5RuntimeState, input: Ref5SessionI
     exercises.push(auxiliaryExercise(input.snapshotId, "DL", direct));
   } else {
     exercises.push(bpFocusExercise(input.snapshotId, direct));
-    exercises.push(pullExercise(input.snapshotId, "VOLUME", pullContext.volume, "NORMAL"));
+    if (oapDecision && !oapDecision.reverted) {
+      exercises.push(...oapExercises(input.snapshotId, oapDecision));
+    } else {
+      exercises.push(pullExercise(input.snapshotId, "VOLUME", pullContext.volume, "NORMAL"));
+    }
     exercises.push(auxiliaryExercise(input.snapshotId, "OHP", direct));
   }
 
@@ -1241,7 +1649,7 @@ export function generateRef5Session(state: Ref5RuntimeState, input: Ref5SessionI
     auxiliaryCapsKg: deriveRef5AuxiliaryCaps(direct),
     pullContext,
     exercises,
-    totalWorkingSets: exercises.reduce((sum, item) => sum + item.sets.length, 0),
+    totalWorkingSets: ref5TotalWorkingSets(exercises),
   };
 }
 
@@ -1354,6 +1762,15 @@ export function applyRef5FirstSquatStart(
     }
   }
 
+  // The achieved-arm free single is spaced by 168 h from the previous free
+  // START (§7.5.4), so the clock starts here — the same place hard density is
+  // consumed — not at completion.
+  for (const item of snapshot.exercises) {
+    if (item.oap?.kind === "FREE") {
+      next.oap[item.oap.arm].lastFreeExposureAt = snapshot.actualStartAt;
+    }
+  }
+
   next.appliedStartEventIds.push(startEventId);
   next.revision += 1;
   return {
@@ -1370,7 +1787,7 @@ export interface Ref5SessionCompletionInput {
   completionEventId: string;
   rawLogId?: string;
   completedAt: string;
-  outcomes: Partial<Record<Ref5Stream, Ref5OutcomeInput | Ref5OutcomeRecord>>;
+  outcomes: Partial<Record<Ref5PrescriptionKey, Ref5OutcomeInput | Ref5OutcomeRecord>>;
   /**
    * Canonical full-history rebuilds retain the load/stream snapshot that was
    * actually started, even when an edited earlier log changes the reconstructed
@@ -1383,7 +1800,7 @@ export interface Ref5SessionCompletionInput {
 export interface Ref5CompletionResult {
   nextState: Ref5RuntimeState;
   applied: boolean;
-  outcomes: Partial<Record<Ref5Stream, Ref5OutcomeRecord>>;
+  outcomes: Partial<Record<Ref5PrescriptionKey, Ref5OutcomeRecord>>;
   changes: Ref5ProgressionChange[];
 }
 
@@ -1404,9 +1821,9 @@ function inputFromRecord(record: Ref5OutcomeRecord): Ref5OutcomeInput {
 function normalizeCompletionOutcomes(
   snapshot: Ref5DecodedSessionSnapshot,
   input: Ref5SessionCompletionInput,
-): Partial<Record<Ref5Stream, Ref5OutcomeRecord>> {
+): Partial<Record<Ref5PrescriptionKey, Ref5OutcomeRecord>> {
   const errors: string[] = [];
-  const normalized: Partial<Record<Ref5Stream, Ref5OutcomeRecord>> = {};
+  const normalized: Partial<Record<Ref5PrescriptionKey, Ref5OutcomeRecord>> = {};
   const expectedStreams = new Set(snapshot.exercises.map((item) => item.stream));
 
   for (const item of snapshot.exercises) {
@@ -1453,7 +1870,7 @@ function normalizeCompletionOutcomes(
     normalized[item.stream] = classified.value;
   }
 
-  for (const stream of REF5_STREAMS) {
+  for (const stream of REF5_PRESCRIPTION_KEYS) {
     if (input.outcomes[stream] && !expectedStreams.has(stream)) {
       errors.push(`outcome supplied for non-prescribed stream ${stream}`);
     }
@@ -1594,7 +2011,7 @@ function advanceMaintainedStagnation(
   stagnation.pendingEventId = `stagnation-micro:${lift}:${cleanKg(stagnation.basisKg)}:${completionEventId}`;
 }
 
-function ref5OutcomeEventId(completionEventId: string, stream: Ref5Stream): string {
+function ref5OutcomeEventId(completionEventId: string, stream: Ref5PrescriptionKey): string {
   return `${completionEventId}:${stream}`;
 }
 
@@ -1641,6 +2058,90 @@ function relockPull(
     beforeKg: before?.focusAddedKg ?? focusAddedKg,
     afterKg: focusAddedKg,
     causeEventIds,
+  });
+}
+
+/**
+ * Applies one OAP exposure to that arm's ladder (§7.5.4).
+ *
+ * Only the assisted ladder prescription moves the ladder. Negatives and the
+ * achieved-arm free single are classified and recorded but deliberately inert
+ * (§7.5.3), as is every exposure of an arm that has already achieved.
+ *
+ * The whole function is confined to `state.oap` and the change log: it reads
+ * no kilogram standard, window, stream or queue, and writes none.
+ */
+function applyRef5OapOutcome(
+  state: Ref5RuntimeState,
+  changes: Ref5ProgressionChange[],
+  prescription: Ref5OapPrescriptionMetadata,
+  outcome: Ref5Outcome,
+  exposureEventId: string,
+  completionEventId: string,
+): void {
+  const arm = state.oap[prescription.arm];
+  if (prescription.kind !== "LADDER" || arm.achieved) return;
+  // INVALID advances neither streak and breaks neither (§7.5.4).
+  if (outcome === "INVALID") return;
+  if (outcome === "HOLD") {
+    // Neutral: breaks the promotion streak and the demotion streak alike.
+    arm.passStreak = 0;
+    arm.failStreak = 0;
+    return;
+  }
+
+  const beforeRung = arm.rung;
+  if (outcome === "PASS") {
+    arm.failStreak = 0;
+    arm.passStreak += 1;
+    if (arm.passStreak < REF5_OAP_PROMOTE_STREAK) return;
+    arm.passStreak = 0;
+    if (beforeRung === REF5_OAP_MAX_RUNG) {
+      // Meeting the promotion condition on the free rung is the achievement
+      // itself; the rung stays at 6 and maintenance prescribing takes over.
+      arm.achieved = true;
+      appendProgressionChange(state, changes, {
+        eventId: `oap-achieve:${prescription.arm}:${completionEventId}`,
+        lift: "OAP",
+        kind: "OAP_ACHIEVE",
+        beforeKg: beforeRung,
+        afterKg: beforeRung,
+        causeEventIds: [exposureEventId],
+        arm: prescription.arm,
+      });
+      return;
+    }
+    arm.rung = (beforeRung + 1) as Ref5OapRung;
+    // Reaching the negative rung by promotion unlocks negatives for good; a
+    // later demotion stops prescribing them but keeps the unlock (§7.5.3).
+    if (arm.rung >= REF5_OAP_NEGATIVE_RUNG) arm.negativesUnlocked = true;
+    appendProgressionChange(state, changes, {
+      eventId: `oap-promote:${prescription.arm}:${completionEventId}`,
+      lift: "OAP",
+      kind: "OAP_PROMOTE",
+      beforeKg: beforeRung,
+      afterKg: arm.rung,
+      causeEventIds: [exposureEventId],
+      arm: prescription.arm,
+    });
+    return;
+  }
+
+  arm.passStreak = 0;
+  arm.failStreak += 1;
+  if (arm.failStreak < REF5_OAP_DEMOTE_STREAK) return;
+  arm.failStreak = 0;
+  // Rung 1 is the floor: the condition is consumed but the rung does not move.
+  if (beforeRung === REF5_OAP_MIN_RUNG) return;
+  arm.rung = (beforeRung - 1) as Ref5OapRung;
+  appendProgressionChange(state, changes, {
+    eventId: `oap-demote:${prescription.arm}:${completionEventId}`,
+    lift: "OAP",
+    kind: "OAP_DEMOTE",
+    beforeKg: beforeRung,
+    afterKg: arm.rung,
+    causeEventIds: [exposureEventId],
+    arm: prescription.arm,
   });
 }
 
@@ -1707,7 +2208,7 @@ export function reduceRef5Completion(
   const outcomes = normalizeCompletionOutcomes(snapshot, input);
   const next = cloneState(state);
   const changes: Ref5ProgressionChange[] = [];
-  const eventFor = (stream: Ref5Stream) => ref5OutcomeEventId(input.completionEventId, stream);
+  const eventFor = (stream: Ref5PrescriptionKey) => ref5OutcomeEventId(input.completionEventId, stream);
 
   // Queue and H3/H2 alternation are completion semantics. A hard INVALID stays
   // in density history (recorded at START) but does not alternate.
@@ -1728,7 +2229,27 @@ export function reduceRef5Completion(
   const immediateCauses: Partial<Record<Ref5Lift, string[]>> = {};
   for (const item of snapshot.exercises) {
     const record = outcomes[item.stream];
-    if (!record || record.outcome === "INVALID") continue;
+    if (!record) continue;
+    // The OAP slot is judged on its own ladder and touches nothing below —
+    // no fail stream, window, veto, queue, forced-micro event or standard
+    // (§7.5.4). Branching on the key (not on `item.oap`) also narrows
+    // `item.stream` to `Ref5Stream` for the rest of the loop, so
+    // `failStreams[item.stream]` cannot be reached with an OAP key.
+    if (isRef5OapKey(item.stream)) {
+      if (!item.oap) {
+        throw new Ref5ValidationError([`REF5 ${item.stream} prescription is missing its OAP metadata`]);
+      }
+      applyRef5OapOutcome(
+        next,
+        changes,
+        item.oap,
+        record.outcome,
+        eventFor(item.stream),
+        input.completionEventId,
+      );
+      continue;
+    }
+    if (record.outcome === "INVALID") continue;
     const streamState = next.failStreams[item.stream];
     const eventId = eventFor(item.stream);
     if (record.outcome === "FAIL") {
@@ -1938,6 +2459,9 @@ export function reduceRef5Completion(
 
   const primaryFailEventIds: string[] = [];
   for (const item of snapshot.exercises) {
+    // OAP is excluded twice over: its lift is not a main lift, and an OAP key
+    // is not a stream. An OAP FAIL never becomes a forced-micro event (§7.5.4).
+    if (isRef5OapKey(item.stream)) continue;
     if (!REF5_MAIN_LIFTS.includes(item.lift as Ref5MainLift) || outcomes[item.stream]?.outcome !== "FAIL") continue;
     const failEventId = `${eventFor(item.stream)}:FAIL`;
     primaryFailEventIds.push(failEventId);
@@ -1958,7 +2482,7 @@ export function reduceRef5Completion(
     completedAt: input.completedAt,
     outcomes: Object.fromEntries(
       Object.entries(outcomes).map(([stream, record]) => [stream, record?.outcome]),
-    ) as Partial<Record<Ref5Stream, Ref5Outcome>>,
+    ) as Partial<Record<Ref5PrescriptionKey, Ref5Outcome>>,
     primaryFailEventIds,
   });
   next.completedSessions.sort(compareCompletionSummaries);
@@ -1985,7 +2509,8 @@ export interface Ref5RawLogEvent {
   recent7DayMeasurementCount: number;
   recent7DayAverageKg: number | null;
   manualMicro: boolean;
-  outcomes: Partial<Record<Ref5Stream, Ref5OutcomeInput | Ref5OutcomeRecord>>;
+  oapSlotReverted?: boolean;
+  outcomes: Partial<Record<Ref5PrescriptionKey, Ref5OutcomeInput | Ref5OutcomeRecord>>;
 }
 
 export interface Ref5ReplaySessionResult {
@@ -2068,6 +2593,7 @@ export function replayRef5RawLogs(
       recent7DayMeasurementCount: event.recent7DayMeasurementCount,
       recent7DayAverageKg: event.recent7DayAverageKg,
       manualMicro: event.manualMicro,
+      oapSlotReverted: event.oapSlotReverted === true,
     });
     const start = applyRef5FirstSquatStart(state, snapshot, `${event.idempotencyKey}:START`);
     state = start.nextState;

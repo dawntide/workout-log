@@ -72,6 +72,7 @@ export function PrescriptionInline({
   weightKg,
   weightSuffix,
   percent,
+  intensityLabel,
   rpe,
   lastSetAmrap,
   style,
@@ -82,13 +83,16 @@ export function PrescriptionInline({
   }
   const repsText = `${reps}${lastSetAmrap ? "+" : ""}`;
   const isWeight =
+    !intensityLabel &&
     typeof weightKg === "number" &&
     (weightKg > 0 || (weightKg === 0 && Boolean(weightSuffix)));
-  const intensityText = isWeight
-    ? `${weightKg}kg`
-    : typeof percent === "number" && percent > 0
-      ? `${percent}%`
-      : null;
+  const intensityText = intensityLabel
+    ? intensityLabel
+    : isWeight
+      ? `${weightKg}kg`
+      : typeof percent === "number" && percent > 0
+        ? `${percent}%`
+        : null;
   // 추가중량 병기는 weight 표기일 때만 (맨몸 운동 총무게 옆 `(+10)` 등).
   const suffixText = isWeight && weightSuffix ? weightSuffix : null;
   const rpeText =

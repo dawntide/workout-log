@@ -79,6 +79,9 @@ export function registerGenerateRoute(plansRoutes: Hono<AppEnv>) {
             actualStartAt: String(ref5Raw.actualStartAt ?? "").trim(),
             todayBodyweightKg: ref5Bodyweight,
             manualMicro: ref5Raw.manualMicro === true,
+            // §7.6 revert. Absent means false; only a normal BP-focus session
+            // acts on it, so no other session type needs to send it.
+            oapSlotReverted: ref5Raw.oapSlotReverted === true,
             startEventId: String(ref5Raw.startEventId ?? "").trim(),
           }
         : undefined;

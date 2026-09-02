@@ -10,7 +10,10 @@ import {
   ref5RecentChangesEmptyCopy,
   type Ref5ChangeDirection,
 } from "@/features/ref5/model/recent-changes";
-import { buildRef5WindowProgressRows } from "@/features/ref5/model/window-progress";
+import {
+  buildRef5OapProgressRows,
+  buildRef5WindowProgressRows,
+} from "@/features/ref5/model/window-progress";
 import type { Ref5Status } from "@workout/core/program-engine/ref5-status";
 
 import { PlanDetailRow } from "./detail-rows";
@@ -126,6 +129,7 @@ export function Ref5StatusPanel({
     (lift) => status.structureReview[lift],
   );
   const windowProgressRows = buildRef5WindowProgressRows(status, locale);
+  const oapProgressRows = buildRef5OapProgressRows(status, locale);
   const recentChangeRows = buildRef5RecentChangeRows(status, locale);
 
   return (
@@ -174,6 +178,22 @@ export function Ref5StatusPanel({
                 key={row.key}
                 label={row.label}
                 value={`${row.current}/${row.threshold} · ${locale === "ko" ? "판정 완료" : "judged"} ${row.completed}`}
+              />
+            ))}
+          </div>
+        </V2Stack>
+
+        <V2Stack gap={2}>
+          <span className="v2-eyebrow" style={{ color: "var(--v2-ink-3)" }}>
+            {locale === "ko" ? "OAP 스킬 슬롯" : "OAP skill slot"}
+          </span>
+          {/* 사다리 단은 kg가 아니므로 직접 기준 칩과 같은 줄에 두지 않는다(§7.5). */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(115px, 1fr))", gap: "var(--v2-s-2)" }}>
+            {oapProgressRows.map((row) => (
+              <PlanDetailRow
+                key={row.key}
+                label={row.label}
+                value={`${row.rungText} · ${row.streakText}${row.badges.length > 0 ? ` · ${row.badges.join(" · ")}` : ""}`}
               />
             ))}
           </div>

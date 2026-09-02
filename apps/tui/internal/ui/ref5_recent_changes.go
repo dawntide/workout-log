@@ -40,8 +40,34 @@ func ref5ChangeLiftLabel(lift string) string {
 		return "DL"
 	case "OHP":
 		return "OHP"
+	case "OAP":
+		return "OAP 사다리"
 	default:
 		return strings.ToUpper(strings.TrimSpace(lift))
+	}
+}
+
+// ref5OapArmLabel mirrors core's arm label so both clients name the same side
+// the same way.
+func ref5OapArmLabel(arm string) string {
+	switch strings.ToLower(strings.TrimSpace(arm)) {
+	case "left":
+		return "좌"
+	case "right":
+		return "우"
+	default:
+		return strings.TrimSpace(arm)
+	}
+}
+
+// ref5IsOapChangeKind reports the three OAP kinds, whose before/after values are
+// ladder rungs rather than kilograms (spec 7.5).
+func ref5IsOapChangeKind(kind string) bool {
+	switch strings.ToUpper(strings.TrimSpace(kind)) {
+	case "OAP_PROMOTE", "OAP_DEMOTE", "OAP_ACHIEVE":
+		return true
+	default:
+		return false
 	}
 }
 
@@ -59,6 +85,12 @@ func ref5ChangeKindLabel(kind string) string {
 		return "상한 감량"
 	case "PULL_RELOCK":
 		return "창 재고정"
+	case "OAP_PROMOTE":
+		return "승급"
+	case "OAP_DEMOTE":
+		return "강등"
+	case "OAP_ACHIEVE":
+		return "달성"
 	default:
 		return strings.ToUpper(strings.TrimSpace(kind))
 	}
@@ -74,6 +106,9 @@ func ref5ChangeArrow(kind string, beforeKg, afterKg float64) string {
 		return "↓"
 	case strings.EqualFold(strings.TrimSpace(kind), "INCREASE"):
 		return "↑"
+	// Achievement is 6 → 6, so the values are equal but it is still progress.
+	case strings.EqualFold(strings.TrimSpace(kind), "OAP_ACHIEVE"):
+		return "↑"
 	default:
 		return "→"
 	}
@@ -86,12 +121,27 @@ func ref5RecentChangeRows(changes []api.Ref5ProgressionChange) ([]ref5RecentChan
 	for index := len(changes) - 1; index >= 0; index-- {
 		change := changes[index]
 		beforeKg, afterKg := float64(change.BeforeKg), float64(change.AfterKg)
-		weight := fmt.Sprintf("%s → %s kg", trimNum(beforeKg), trimNum(afterKg))
-		if beforeKg == afterKg {
+		label := ref5ChangeLiftLabel(change.Lift)
+		var weight string
+		switch {
+		case ref5IsOapChangeKind(change.Kind):
+			// Rungs, not kilograms — appending "kg" here would print a value
+			// that is simply false (spec 7.5).
+			if arm := ref5OapArmLabel(change.Arm); arm != "" {
+				label += " " + arm
+			}
+			if strings.EqualFold(strings.TrimSpace(change.Kind), "OAP_ACHIEVE") {
+				weight = fmt.Sprintf("%s단 · 프리", trimNum(afterKg))
+			} else {
+				weight = fmt.Sprintf("%s → %s단", trimNum(beforeKg), trimNum(afterKg))
+			}
+		case beforeKg == afterKg:
 			weight = trimNum(afterKg) + " kg"
+		default:
+			weight = fmt.Sprintf("%s → %s kg", trimNum(beforeKg), trimNum(afterKg))
 		}
 		rows = append(rows, ref5RecentChangeRow{
-			LiftLabel:  ref5ChangeLiftLabel(change.Lift),
+			LiftLabel:  label,
 			Arrow:      ref5ChangeArrow(change.Kind, beforeKg, afterKg),
 			WeightText: weight,
 			KindLabel:  ref5ChangeKindLabel(change.Kind),

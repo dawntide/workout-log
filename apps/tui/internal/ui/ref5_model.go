@@ -49,7 +49,10 @@ type ref5StartValues struct {
 	ActualStartAt string  `json:"actualStartAt"`
 	BodyweightKg  float64 `json:"bodyweightKg"`
 	ManualMicro   bool    `json:"manualMicro"`
-	StartEventID  string  `json:"startEventId"`
+	// OapSlotReverted rides in signature() so a retry that flips it is treated
+	// as a different start, not the same one (spec 7.6).
+	OapSlotReverted bool   `json:"oapSlotReverted"`
+	StartEventID    string `json:"startEventId"`
 }
 
 func (v ref5StartValues) valid() bool {

@@ -191,3 +191,40 @@ func TestRef5WindowStatusLoadsAtStartAndRefreshesAfterSave(t *testing.T) {
 		t.Fatalf("save did not refresh while preserving confirmed status: %#v cmd=%v", log.ref5Progress, cmd != nil)
 	}
 }
+
+// §18 OAP 표출은 웹의 buildRef5OapProgressRows와 같은 의미를 담는다: 현재 단(이름
+// 포함), 승급 연속 n/3, 해금·달성 배지. 판정창 항목과 섞지 않는 것도 함께 고정한다 —
+// 사다리의 n/3은 창 노출 수가 아니라 승급 연속이라 같은 표에 두면 뜻이 뒤섞인다.
+func TestRef5OapPlainItemsShowRungStreakAndFlags(t *testing.T) {
+	oap := map[string]api.Ref5OapArmStatus{
+		"left": {
+			Rung: 4, RungName: "upper arm", RungNameKo: "상박",
+			PassStreak: 2, PromoteThreshold: 3, NegativesUnlocked: true,
+		},
+		"right": {
+			Rung: 6, RungName: "free", RungNameKo: "프리",
+			PassStreak: 0, PromoteThreshold: 3, NegativesUnlocked: true, Achieved: true,
+		},
+	}
+	items := ref5OapPlainItems(oap)
+	want := []string{
+		"OAP 좌 4단 상박 PASS 2/3 네거티브",
+		"OAP 우 6단 프리 PASS 0/3 달성 네거티브",
+	}
+	if len(items) != len(want) {
+		t.Fatalf("items = %#v, want %d rows", items, len(want))
+	}
+	for index, expected := range want {
+		if got := ansi.Strip(items[index]); got != expected {
+			t.Errorf("items[%d] = %q, want %q", index, got, expected)
+		}
+	}
+	for _, item := range items {
+		if strings.Contains(item, "kg") {
+			t.Errorf("사다리 행에 kg가 새어 나왔다: %q", item)
+		}
+	}
+	if got := ref5OapPlainItems(nil); got != nil {
+		t.Errorf("상태가 없으면 행을 만들지 않아야 한다: %#v", got)
+	}
+}

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createInitialRef5State } from "./ref5";
+import { createInitialRef5State, normalizeRef5StartConfig } from "./ref5";
 import { buildRef5Status } from "./ref5-status";
 
 test("REF5 status exposes open-ended queues, windows, refs and caps", () => {
@@ -67,7 +67,7 @@ test("REF5 status before the first session uses the plan's custom starts", () =>
     deadliftKg: 80,
     ohpKg: 35,
   };
-  const status = buildRef5Status(null, starts);
+  const status = buildRef5Status(null, normalizeRef5StartConfig(starts));
   assert.deepEqual(status.directStandardsKg, starts);
   assert.equal(status.revision, 0);
   assert.equal(status.auxiliaryCapsKg.deadliftMaxKg, 80);

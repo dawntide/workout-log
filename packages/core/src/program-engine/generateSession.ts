@@ -1690,6 +1690,7 @@ export type GenerateSessionInput = {
     actualStartAt: string;
     todayBodyweightKg: number;
     manualMicro: boolean;
+    oapSlotReverted: boolean;
     startEventId: string;
   };
 };

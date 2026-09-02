@@ -41,6 +41,7 @@ import { AppSelect } from "@/components/ui/form-controls";
 import type { Ref5TerminationReason } from "@/entities/workout-record";
 import {
   deriveRef5ExerciseOutcomeView,
+  resolveRef5OapDisplay,
   resolveRef5PullDisplayLoad,
 } from "@/lib/workout-record/ref5-outcome";
 
@@ -102,6 +103,7 @@ export function WorkoutExerciseCard({ exerciseId, onExerciseAction }: Props) {
     exerciseCard.programEntryState,
   );
   const ref5PullLoad = resolveRef5PullDisplayLoad(exercise);
+  const ref5Oap = resolveRef5OapDisplay(exercise);
 
   const isUser = exercise.source === "USER";
   const totalSets = exercise.set.repsPerSet.length;
@@ -204,7 +206,34 @@ export function WorkoutExerciseCard({ exerciseId, onExerciseAction }: Props) {
   let presWeightKg: number | undefined;
   let presWeightSuffix: string | undefined;
   let presPercent: number | undefined;
-  if (exercise.ref5 && weightUniform) {
+  let presIntensityLabel: string | undefined;
+  if (ref5Oap) {
+    // 스킬 슬롯은 무게가 없다 — 단이 강도 좌표다(§7.5.2). 무게 자리에 0을 찍는 대신
+    // 팔과 단을 보여준다. 그러지 않으면 좌/우가 "0 kg" 두 줄로만 보인다.
+    const armLabel =
+      locale === "ko"
+        ? ref5Oap.arm === "left"
+          ? "좌"
+          : "우"
+        : ref5Oap.arm === "left"
+          ? "L"
+          : "R";
+    const rungLabel =
+      locale === "ko"
+        ? `${ref5Oap.rung}단 ${ref5Oap.rungNameKo}`
+        : `rung ${ref5Oap.rung} ${ref5Oap.rungName}`;
+    const kindLabel =
+      ref5Oap.kind === "NEGATIVE"
+        ? locale === "ko"
+          ? " · 네거티브"
+          : " · negative"
+        : ref5Oap.kind === "FREE"
+          ? locale === "ko"
+            ? " · 프리"
+            : " · free"
+          : "";
+    presIntensityLabel = `${armLabel} · ${rungLabel}${kindLabel}`;
+  } else if (exercise.ref5 && weightUniform) {
     presWeightKg = firstWeight;
     if (isBodyweight) {
       presWeightSuffix = ref5PullLoad
@@ -413,6 +442,7 @@ export function WorkoutExerciseCard({ exerciseId, onExerciseAction }: Props) {
               weightKg={presWeightKg}
               weightSuffix={presWeightSuffix}
               percent={presPercent}
+              intensityLabel={presIntensityLabel}
               rpe={planRpeUniform ? firstPlanRpe : undefined}
               lastSetAmrap={lastSetAmrap}
             />

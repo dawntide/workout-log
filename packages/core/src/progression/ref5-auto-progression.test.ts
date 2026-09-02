@@ -4,6 +4,7 @@ import test from "node:test";
 import type { WorkoutExecutor } from "@workout/core/db/client";
 
 import {
+  REF5_PROTOCOL_VERSION,
   Ref5StaleVersionError,
   applyRef5FirstSquatStart,
   createInitialRef5State,
@@ -53,7 +54,7 @@ function generatedEnvelope(domain: Ref5SessionSnapshot) {
     actualStartAt: domain.actualStartAt,
     program: { slug: "ref5-adaptive-strength" },
     ref5: {
-      protocolVersion: "1.3",
+      protocolVersion: REF5_PROTOCOL_VERSION,
       startCommitted: true,
       startEventId: "start-1",
       domainSnapshot: domain,
@@ -77,7 +78,7 @@ function submittedSets(
             memo: "preserved",
             ref5: {
               prescription: exercise,
-              protocolVersion: "1.3",
+              protocolVersion: REF5_PROTOCOL_VERSION,
               terminationReason: reasonFor(exercise.stream),
               actualStartAt: domain.actualStartAt,
               startEventId: "start-1",
@@ -331,7 +332,7 @@ test("REF5 historical state helper is read-only and excludes tuples at/after tar
           userId: "user-1",
           params: {
             programFamily: "ref5",
-            protocolVersion: "1.3",
+            protocolVersion: REF5_PROTOCOL_VERSION,
             ref5: { startingValuesKg: customStarts },
           },
         }]);

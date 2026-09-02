@@ -29,6 +29,12 @@ export interface PrescriptionInput {
   weightSuffix?: string | null;
   /** 퍼센트 강도 (0-100). weightKg가 없을 때 fallback */
   percent?: number | null;
+  /**
+   * 무게·퍼센트 대신 강도 자리에 그대로 쓰는 라벨. 강도가 kg도 %도 아닌 처방을 위한
+   * 것이다 — REF5 OAP 스킬 슬롯은 사다리 **단**이 강도 좌표라 "0kg"으로 적으면
+   * 값이 거짓이 된다(§7.5.2). weightKg·percent보다 우선한다.
+   */
+  intensityLabel?: string | null;
   /** RPE 처방값 (1-10). AMRAP 세트와는 동시 표기 가능 */
   rpe?: number | null;
   /** 마지막 세트가 AMRAP이면 reps에 `+` 접미사 */
@@ -37,7 +43,7 @@ export interface PrescriptionInput {
 
 /** 처방을 문자열로 포맷. 색상 분리 없이 텍스트 한 줄. */
 export function formatPrescription(input: PrescriptionInput): string {
-  const { sets, reps, weightKg, weightSuffix, percent, rpe, lastSetAmrap } = input;
+  const { sets, reps, weightKg, weightSuffix, percent, intensityLabel, rpe, lastSetAmrap } = input;
   if (!Number.isFinite(sets) || !Number.isFinite(reps) || sets < 1 || reps < 1) {
     return "";
   }
@@ -45,7 +51,9 @@ export function formatPrescription(input: PrescriptionInput): string {
   const setsRepsPart = sets > 1 ? `${sets} × ${repsToken}` : repsToken;
 
   let intensityPart = "";
-  if (
+  if (intensityLabel) {
+    intensityPart = ` @ ${intensityLabel}`;
+  } else if (
     typeof weightKg === "number" &&
     (weightKg > 0 || (weightKg === 0 && Boolean(weightSuffix)))
   ) {

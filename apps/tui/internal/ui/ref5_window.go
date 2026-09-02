@@ -147,6 +147,45 @@ func ref5WindowPlainItems(windows map[string]api.Ref5WindowStatus) []string {
 	return items
 }
 
+// ref5OapPlainItems renders the §18 OAP readout. Kept out of the window items
+// because the ladder is not a judgment window: its "n/3" is a promotion streak,
+// not window exposures, and the value is a rung rather than kilograms (7.5).
+func ref5OapPlainItems(oap map[string]api.Ref5OapArmStatus) []string {
+	if len(oap) == 0 {
+		return nil
+	}
+	items := make([]string, 0, 2)
+	for _, arm := range []string{"left", "right"} {
+		status, ok := oap[arm]
+		if !ok {
+			continue
+		}
+		item := fmt.Sprintf("OAP %s %d단 %s PASS %d/%d",
+			ref5OapArmLabel(arm), status.Rung, status.RungNameKo,
+			status.PassStreak, status.PromoteThreshold)
+		if status.Achieved {
+			item += " 달성"
+		}
+		if status.NegativesUnlocked {
+			item += " 네거티브"
+		}
+		items = append(items, item)
+	}
+	return items
+}
+
+// ref5OapPlainLines wraps the OAP readout to the panel width.
+func ref5OapPlainLines(oap map[string]api.Ref5OapArmStatus, width int) []string {
+	items := ref5OapPlainItems(oap)
+	if len(items) == 0 {
+		return nil
+	}
+	if width < 1 {
+		width = 1
+	}
+	return strings.Split(flowHints(items, width), "\n")
+}
+
 func ref5WindowPlainLines(windows map[string]api.Ref5WindowStatus, width int) []string {
 	if width < 1 {
 		width = 1
@@ -263,4 +302,13 @@ func (l Log) ref5WindowPanelLines(width int, detail ref5PanelDetail) []string {
 // 판정창 범례는 들여쓰기 없는 단순 접기 — 판정 카드와 같은 래퍼를 쓴다.
 func wrapRef5WindowText(value string, width int) []string {
 	return wrapPrefixed(value, width, "", "")
+}
+
+// ref5NextFocusIsBP reports whether the plan's focus queue points at BP, i.e.
+// whether the next normal session carries the OAP skill slot (spec 7.5.1).
+// Unknown status answers false: without evidence the TUI does not offer a
+// revert the server would ignore anyway.
+func (l *Log) ref5NextFocusIsBP() bool {
+	status := l.ref5Progress.status
+	return status != nil && strings.EqualFold(strings.TrimSpace(status.NextFocus), "BP")
 }

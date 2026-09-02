@@ -117,3 +117,34 @@ func TestRef5StatusPanelRendersRecentChanges(t *testing.T) {
 		t.Errorf("recent judgments are not newest-first:\n%s", out)
 	}
 }
+
+// OAP 변경은 before/after가 kg가 아니라 사다리 단이다(스펙 7.5). 여기에 "kg"가
+// 붙으면 값 자체가 거짓이 되므로, 단위가 새는지를 이 테스트가 지킨다.
+func TestRef5RecentChangeItemsRenderOapRungsNotKilograms(t *testing.T) {
+	promote := ref5Change("OAP", "OAP_PROMOTE", 2, 3)
+	promote.Arm = "left"
+	demote := ref5Change("OAP", "OAP_DEMOTE", 4, 3)
+	demote.Arm = "right"
+	achieve := ref5Change("OAP", "OAP_ACHIEVE", 6, 6)
+	achieve.Arm = "left"
+
+	items := ref5RecentChangeItems([]api.Ref5ProgressionChange{promote, demote, achieve})
+	want := []string{
+		"↑ OAP 사다리 좌 6단 · 프리 달성",
+		"↓ OAP 사다리 우 4 → 3단 강등",
+		"↑ OAP 사다리 좌 2 → 3단 승급",
+	}
+	if len(items) != len(want) {
+		t.Fatalf("items = %#v, want %d rows", items, len(want))
+	}
+	for index, expected := range want {
+		if got := ansi.Strip(items[index]); got != expected {
+			t.Errorf("items[%d] = %q, want %q", index, got, expected)
+		}
+	}
+	for _, item := range items {
+		if strings.Contains(item, "kg") {
+			t.Errorf("OAP 행에 kg가 새어 나왔다: %q", item)
+		}
+	}
+}

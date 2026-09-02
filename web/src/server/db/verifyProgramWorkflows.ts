@@ -282,6 +282,7 @@ async function verifyRef5Workflow(input: {
       actualStartAt,
       todayBodyweightKg: 75,
       manualMicro: false,
+      oapSlotReverted: false,
       startEventId,
     },
   });

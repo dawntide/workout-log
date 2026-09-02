@@ -13,7 +13,7 @@ import {
   type StartRestartMode,
 } from "@/features/program-store/model/use-program-store-start-program-controller";
 import { Ref5StartSetup } from "@/features/program-store/ui/ref5-start-setup";
-import type { Ref5Lift } from "@workout/core/program-engine/ref5";
+import type { Ref5Lift, Ref5OapArm, Ref5OapRung } from "@workout/core/program-engine/ref5";
 import { REF5_PROTOCOL_VERSION } from "@workout/core/program-engine/ref5-protocol-version";
 
 const BottomSheet = dynamic(
@@ -41,6 +41,7 @@ type StartProgramSheetProps = {
   onChangeRestartMode: (mode: StartRestartMode) => void;
   onChangeOneRmInput: (targetKey: string, value: number) => void;
   onChangeRef5StartingValue: (field: Ref5StartField, value: number) => void;
+  onChangeRef5OapStartRung: (arm: Ref5OapArm, rung: Ref5OapRung) => void;
   onChangeRef5SetupMode: (mode: "E1RM" | "DIRECT") => void;
   onChangeRef5E1rmInput: (lift: Ref5Lift, value: number) => void;
   onApplyRecommendation: (targetKey: string) => void;
@@ -55,6 +56,7 @@ export const StartProgramSheet = memo(function StartProgramSheet({
   onChangeRestartMode,
   onChangeOneRmInput,
   onChangeRef5StartingValue,
+  onChangeRef5OapStartRung,
   onChangeRef5SetupMode,
   onChangeRef5E1rmInput,
   onApplyRecommendation,
@@ -241,6 +243,7 @@ export const StartProgramSheet = memo(function StartProgramSheet({
               onChangeSetupMode={onChangeRef5SetupMode}
               onChangeE1rmInput={onChangeRef5E1rmInput}
               onChangeStartingValue={onChangeRef5StartingValue}
+              onChangeOapStartRung={onChangeRef5OapStartRung}
             />
           ) : null}
           {!isContinue && !isRef5 && draft.recommendationStatus === "loading" ? (

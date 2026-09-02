@@ -43,7 +43,8 @@ func ref5GenerateInput(values ref5StartValues) api.Ref5GenerateInput {
 	return api.Ref5GenerateInput{
 		ProtocolVersion: api.Ref5ProtocolVersion,
 		ActualStartAt:   values.ActualStartAt, TodayBodyweightKg: values.BodyweightKg,
-		ManualMicro: values.ManualMicro, StartEventID: values.StartEventID,
+		ManualMicro: values.ManualMicro, OapSlotReverted: values.OapSlotReverted,
+		StartEventID: values.StartEventID,
 	}
 }
 

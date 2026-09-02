@@ -28,17 +28,20 @@ import {
 } from "./ref5";
 import { acquireActiveAccountMutationLock } from "@workout/core/auth/account-lifecycle";
 
-// 511 is the immutable v1.1 identifier; 512 is v1.2. Active v1.3 writes use 513
-// so historical snapshots are never relabelled in place (§24.3).
+// 511 is the immutable v1.1 identifier; 512 is v1.2, 513 is v1.3. Active v1.4
+// writes use 514 so historical snapshots are never relabelled in place (§24.3).
 export const REF5_ENGINE_VERSION = REF5_LEGACY_ENGINE_VERSION;
 export const REF5_ENGINE_VERSION_V12 = 512;
 export const REF5_ENGINE_VERSION_V13 = 513;
+export const REF5_ENGINE_VERSION_V14 = 514;
 
 export type Ref5GenerateRequest = {
   protocolVersion: typeof REF5_PROTOCOL_VERSION;
   actualStartAt: string;
   todayBodyweightKg: number;
   manualMicro: boolean;
+  /** §7.6 revert of the OAP slot. Only a normal BP-focus session honours it. */
+  oapSlotReverted: boolean;
   startEventId: string;
 };
 
@@ -129,6 +132,7 @@ export function normalizeRef5GenerationRequest(
     actualStartAt: parsedStart.toISOString(),
     todayBodyweightKg: Math.round(bodyweightKg * 100) / 100,
     manualMicro: input.ref5.manualMicro === true,
+    oapSlotReverted: input.ref5.oapSlotReverted === true,
     startEventId,
     timezone,
   };
@@ -285,11 +289,24 @@ async function readRecentBodyweight(
   return { count: measurements.length, averageKg };
 }
 
-function targetForLift(lift: string): "SQUAT" | "BENCH" | "PULL" | "DEADLIFT" | "OHP" {
+/**
+ * Maps a REF5 lift onto the generic snapshot's progression target. The OAP slot
+ * has none: it progresses a ladder rung, not one of the five kilogram targets,
+ * so it must stay outside that enum (§7.5).
+ */
+function targetForLift(lift: string): "SQUAT" | "BENCH" | "PULL" | "DEADLIFT" | "OHP" | null {
   if (lift === "SQ") return "SQUAT";
   if (lift === "BP") return "BENCH";
   if (lift === "DL") return "DEADLIFT";
+  if (lift === "OAP") return null;
   return lift === "PULL" ? "PULL" : "OHP";
+}
+
+/** Human label for an OAP set, mirroring the PULL note slot. */
+function oapNote(oap: NonNullable<Ref5SessionSnapshot["exercises"][number]["oap"]>): string {
+  const side = oap.arm === "left" ? "L" : "R";
+  const kind = oap.kind === "NEGATIVE" ? " · negative" : oap.kind === "FREE" ? " · free" : "";
+  return `${side} · rung ${oap.rung} ${oap.rungName}${kind}`;
 }
 
 export function toRef5GeneratedSnapshot(input: {
@@ -356,6 +373,7 @@ export function toRef5GeneratedSnapshot(input: {
           stream: exercise.stream,
           progressionTargetKg: exercise.progressionTargetKg,
           pull: exercise.pull ?? null,
+          oap: exercise.oap ?? null,
         },
         sets: exercise.sets.map((set) => ({
           reps: set.plannedReps,
@@ -367,8 +385,9 @@ export function toRef5GeneratedSnapshot(input: {
           plannedReps: set.plannedReps,
           externalLoadKg: set.externalLoadKg,
           totalLoadKg: set.totalLoadKg,
-          note:
-            exercise.lift === "PULL"
+          note: exercise.oap
+            ? oapNote(exercise.oap)
+            : exercise.lift === "PULL"
               ? `Total ${set.totalLoadKg} kg · added ${set.externalLoadKg} kg`
               : undefined,
           meta: {
@@ -384,6 +403,7 @@ export function toRef5GeneratedSnapshot(input: {
               externalLoadKg: set.externalLoadKg,
               totalLoadKg: set.totalLoadKg,
               pull: exercise.pull ?? null,
+              oap: exercise.oap ?? null,
             },
           },
         })),
@@ -413,6 +433,7 @@ async function calculateSnapshot(input: {
     recent7DayMeasurementCount: recent.count,
     recent7DayAverageKg: recent.averageKg,
     manualMicro: input.request.manualMicro,
+    oapSlotReverted: input.request.oapSlotReverted,
   };
   const domain = generateRef5Session(input.runtimeState, domainInput);
   const start = applyRef5FirstSquatStart(
@@ -500,6 +521,9 @@ export async function buildRef5PlanSession(
         existingDomain?.timeZone !== request.timezone ||
         Number(existingDomain?.startInput?.todayBodyweightKg) !== request.todayBodyweightKg ||
         existingDomain?.startInput?.manualMicro !== request.manualMicro ||
+        // A retry that flips the revert would silently hand back a snapshot
+        // prescribing a different third slot (§7.6).
+        (existingDomain?.startInput?.oapSlotReverted === true) !== request.oapSlotReverted ||
         existingDomain?.protocolVersion !== request.protocolVersion
       ) {
         throw new Ref5ValidationError(["REF5 start retry contradicts the immutable snapshot"]);

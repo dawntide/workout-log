@@ -109,7 +109,7 @@ export function registerProgressionRoutes(plansRoutes: Hono<AppEnv>) {
 
       if (isRef5PlanParams(params) || template.slug === "ref5-adaptive-strength") {
         const state = runtimeRows[0]?.state ?? null;
-        const initialDirectStandardsKg = readRef5PlanStartConfig(params).startingValuesKg;
+        const startConfig = readRef5PlanStartConfig(params);
         // REF5 창 판정 카드 — 완료 리듀서가 meta.changes에 기록한 판정을 서버 조립으로
         // 내려준다. 최신 이벤트가 REF5_START(다음 세션 시작)면 카드가 자연 소멸하는
         // 것까지 일반 분기의 lastEvent 의미와 동일.
@@ -133,7 +133,7 @@ export function registerProgressionRoutes(plansRoutes: Hono<AppEnv>) {
           program: "ref5",
           judgmentHistory,
           state,
-          ref5Status: buildRef5Status(state, initialDirectStandardsKg),
+          ref5Status: buildRef5Status(state, startConfig),
           effectiveRules: null,
           targetsLastEvent: {},
           lastEvent: null,

@@ -530,9 +530,17 @@ const REF5_EVENT_SLUG = "ref5-adaptive-strength";
 // 무게가 함께 나오는 자리라 그 값이 추가 중량이 아니라 체중 포함 총하중임을 밝혀야 한다.
 // 무게를 같이 보여주는 다른 표면(플랜 관리의 최근 판정 이력)도 이 라벨을 공유한다.
 const REF5_LIFT_LABEL: Record<FeedbackLocale, Record<string, string>> = {
-  ko: { SQ: "SQ 하드", BP: "BP 집중", PULL: "PULL 집중(총하중)", DL: "DL", OHP: "OHP" },
-  en: { SQ: "SQ hard", BP: "BP focus", PULL: "PULL focus (total)", DL: "DL", OHP: "OHP" },
+  ko: { SQ: "SQ 하드", BP: "BP 집중", PULL: "PULL 집중(총하중)", DL: "DL", OHP: "OHP", OAP: "OAP 사다리" },
+  en: { SQ: "SQ hard", BP: "BP focus", PULL: "PULL focus (total)", DL: "DL", OHP: "OHP", OAP: "OAP ladder" },
 };
+
+/** OAP 팔 라벨. 변경 행이 어느 팔인지 말해야 좌/우가 구분된다(§7.5). */
+export function ref5OapArmLabel(arm: string, locale: FeedbackLocale): string {
+  const normalized = String(arm ?? "").toLowerCase();
+  if (normalized === "left") return locale === "ko" ? "좌" : "L";
+  if (normalized === "right") return locale === "ko" ? "우" : "R";
+  return normalized;
+}
 
 /** 기준 무게와 함께 표기할 때 쓰는 REF5 리프트 라벨(카드·이력 공용). */
 export function ref5LiftStandardLabel(lift: string, locale: FeedbackLocale): string {
@@ -545,6 +553,7 @@ type Ref5ChangeLike = {
   kind?: unknown;
   beforeKg?: unknown;
   afterKg?: unknown;
+  arm?: unknown;
 };
 
 function ref5DeltaText(beforeKg: number, afterKg: number): string {
@@ -553,11 +562,30 @@ function ref5DeltaText(beforeKg: number, afterKg: number): string {
 }
 
 function buildRef5ChangeRowText(
-  change: { lift: string; kind: string; beforeKg: number; afterKg: number },
+  change: { lift: string; kind: string; beforeKg: number; afterKg: number; arm?: string },
   locale: FeedbackLocale,
 ): string | null {
   const label = ref5LiftStandardLabel(change.lift, locale);
   const delta = ref5DeltaText(change.beforeKg, change.afterKg);
+  // OAP의 before/after는 kg가 아니라 사다리 **단**이다(§7.5). kg 서식을 쓰는
+  // 아래 분기와 반드시 갈라 놓는다 — 섞이면 "2 → 3 kg"라는 거짓말이 나간다.
+  if (change.kind === "OAP_PROMOTE" || change.kind === "OAP_DEMOTE" || change.kind === "OAP_ACHIEVE") {
+    const arm = ref5OapArmLabel(change.arm ?? "", locale);
+    if (change.kind === "OAP_ACHIEVE") {
+      return locale === "ko"
+        ? `${label} ${arm} — 6단(프리) 달성 → 유지 처방으로 전환`
+        : `${label} ${arm} — reached rung 6 (free) → switching to maintenance`;
+    }
+    const rungKo = `${change.beforeKg} → ${change.afterKg}단`;
+    const rungEn = `rung ${change.beforeKg} → ${change.afterKg}`;
+    return change.kind === "OAP_PROMOTE"
+      ? locale === "ko"
+        ? `${label} ${arm} — 3연속 PASS → 승급 ${rungKo}`
+        : `${label} ${arm} — three straight PASSes → promoted ${rungEn}`
+      : locale === "ko"
+        ? `${label} ${arm} — 2연속 FAIL → 강등 ${rungKo}`
+        : `${label} ${arm} — two straight FAILs → demoted ${rungEn}`;
+  }
   switch (change.kind) {
     case "INCREASE":
       return locale === "ko"
@@ -606,9 +634,11 @@ export function buildRef5ProgressReport(
     const beforeKg = toKg(raw.beforeKg);
     const afterKg = toKg(raw.afterKg);
     if (!lift || beforeKg === null || afterKg === null) continue;
-    const text = buildRef5ChangeRowText({ lift, kind, beforeKg, afterKg }, locale);
+    const arm = typeof raw.arm === "string" ? raw.arm : undefined;
+    const text = buildRef5ChangeRowText({ lift, kind, beforeKg, afterKg, arm }, locale);
     // 같은 리프트에 즉시 감량+상한 감량이 겹칠 수 있어 target 키는 kind까지 포함.
-    if (text) rows.push({ target: `${lift}:${kind}`, text });
+    // OAP는 좌/우가 같은 kind로 함께 오므로 팔까지 넣어야 한 줄로 접히지 않는다.
+    if (text) rows.push({ target: arm ? `${lift}:${kind}:${arm}` : `${lift}:${kind}`, text });
   }
   if (rows.length === 0) return null;
   return {

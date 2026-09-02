@@ -8,7 +8,13 @@ import {
   type Ref5StartField,
   type StartProgramDraft,
 } from "@/features/program-store/model/use-program-store-start-program-controller";
-import { deriveRef5AuxiliaryCaps, type Ref5Lift } from "@workout/core/program-engine/ref5";
+import {
+  REF5_OAP_RUNGS,
+  deriveRef5AuxiliaryCaps,
+  type Ref5Lift,
+  type Ref5OapArm,
+  type Ref5OapRung,
+} from "@workout/core/program-engine/ref5";
 
 type Ref5StartSetupProps = {
   locale: "ko" | "en";
@@ -16,7 +22,10 @@ type Ref5StartSetupProps = {
   onChangeSetupMode: (mode: "E1RM" | "DIRECT") => void;
   onChangeE1rmInput: (lift: Ref5Lift, value: number) => void;
   onChangeStartingValue: (field: Ref5StartField, value: number) => void;
+  onChangeOapStartRung: (arm: Ref5OapArm, rung: Ref5OapRung) => void;
 };
+
+const OAP_RUNG_VALUES = [1, 2, 3, 4, 5, 6] as const satisfies ReadonlyArray<Ref5OapRung>;
 
 const E1RM_ROWS = [
   ["SQ", "SQ", "Squat"],
@@ -36,6 +45,7 @@ export function Ref5StartSetup({
   onChangeSetupMode,
   onChangeE1rmInput,
   onChangeStartingValue,
+  onChangeOapStartRung,
 }: Ref5StartSetupProps) {
   const config = draft.ref5Config;
   if (!config) return null;
@@ -219,6 +229,49 @@ export function Ref5StartSetup({
             {locale === "ko"
               ? `보조 상한: DL ${formatKg(caps.deadliftMaxKg)}kg · OHP ${formatKg(caps.ohpMaxKg)}kg. PULL은 체중+추가중량의 총중량입니다.`
               : `Auxiliary caps: DL ${formatKg(caps.deadliftMaxKg)} kg · OHP ${formatKg(caps.ohpMaxKg)} kg. PULL uses bodyweight plus added load.`}
+          </p>
+          <V2Card padding="var(--v2-s-4)" tone="inset">
+            <span className="v2-eyebrow" style={{ color: "var(--v2-ink-2)" }}>
+              {locale === "ko" ? "OAP 시작 단 (좌/우)" : "OAP Start Rung (L/R)"}
+            </span>
+            {/* 사다리는 kg가 아니라 서수라 무게 입력이 아니라 단 선택이다(§7.5.2). */}
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: "var(--v2-s-3)",
+                marginTop: "var(--v2-s-2)",
+              }}
+            >
+              {(["left", "right"] as const).map((arm) => (
+                <div key={arm} style={{ display: "flex", flexDirection: "column", gap: "var(--v2-s-1)" }}>
+                  <span className="v2-small" style={{ color: "var(--v2-ink-2)" }}>
+                    {locale === "ko"
+                      ? `${arm === "left" ? "좌" : "우"} · ${config.oap[arm].startRung}단 ${REF5_OAP_RUNGS[config.oap[arm].startRung].nameKo}`
+                      : `${arm === "left" ? "Left" : "Right"} · rung ${config.oap[arm].startRung} ${REF5_OAP_RUNGS[config.oap[arm].startRung].name}`}
+                  </span>
+                  <V2Segmented
+                    ariaLabel={
+                      locale === "ko"
+                        ? `OAP ${arm === "left" ? "좌" : "우"} 시작 단`
+                        : `OAP ${arm === "left" ? "left" : "right"} start rung`
+                    }
+                    value={String(config.oap[arm].startRung)}
+                    size="sm"
+                    onChange={(next) => onChangeOapStartRung(arm, Number(next) as Ref5OapRung)}
+                    options={OAP_RUNG_VALUES.map((rung) => ({
+                      value: String(rung),
+                      label: String(rung),
+                    }))}
+                  />
+                </div>
+              ))}
+            </div>
+          </V2Card>
+          <p className="v2-small" style={{ color: "var(--v2-ink-2)", margin: 0 }}>
+            {locale === "ko"
+              ? "기본 2단(전완)입니다. 4단(상박)부터 원암 네거티브가 함께 처방됩니다. 시작 단은 계획 생성 후 바꿀 수 없습니다."
+              : "The default is rung 2 (forearm). One-arm negatives are prescribed from rung 4 (upper arm). Start rungs cannot be changed after the plan is created."}
           </p>
           {directMessage ? (
             <p className="v2-small" role="alert" style={{ color: "var(--v2-danger)", margin: 0 }}>

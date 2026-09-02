@@ -1081,6 +1081,9 @@ func (s Programs) renderRef5Status(w, h int) string {
 	for _, windowLine := range ref5WindowPlainLines(status.Windows, windowWidth) {
 		lines = append(lines, ref5StatusLine("", windowLine, inner))
 	}
+	for _, oapLine := range ref5OapPlainLines(status.Oap, windowWidth) {
+		lines = append(lines, ref5StatusLine("", oapLine, inner))
+	}
 
 	lock := "OPEN · 다음 PULL 시작 시 고정"
 	if status.PullLock != nil {
