@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import { isBodyweightExerciseName } from "../bodyweight-load";
+import { REF5_OAP_EXERCISE_NAMES } from "../program-engine/ref5";
 import { EXERCISE_CATALOG } from "./all-exercises";
 import {
   EXERCISE_NAMES,
@@ -109,4 +111,45 @@ test("별칭이 다른 종목의 정식 이름과 겹치지 않는다", () => {
     }
   }
   assert.deepEqual(collisions, [], `정식 이름과 충돌하는 별칭:\n${collisions.join("\n")}`);
+});
+
+// REF5 저장 경로는 세트의 운동 이름을 이 카탈로그에서 찾지 못하면 저장을 통째로
+// 거부한다. v1.4 OAP 슬롯을 넣으면서 실제로 이 공백에 걸렸다(E2E 데모 시드가 500).
+// 엔진이 처방하는 이름과 카탈로그를 여기서 묶어 둔다.
+test("REF5 OAP 처방 이름이 모두 카탈로그에 있다 (§7.5.1)", () => {
+  const catalogNames = new Set(EXERCISE_CATALOG.map((item) => item.name.toLowerCase()));
+  const prescribed = Object.values(REF5_OAP_EXERCISE_NAMES).flatMap((byKind) =>
+    Object.values(byKind),
+  );
+  assert.equal(prescribed.length, 6, "팔 2 × 처방 3");
+  for (const name of prescribed) {
+    assert.ok(
+      catalogNames.has(name.toLowerCase()),
+      `${name}이(가) 카탈로그에 없다 — REF5 저장이 거부된다`,
+    );
+  }
+});
+
+// 이름이 맨몸 판정에 걸리면 총중량 계산과 체중 프롬프트가 스킬 슬롯을 삼킨다.
+// 이름 자체와 별칭 양쪽을 막는다(§7.5.1 이름 제약).
+test("REF5 OAP 이름과 별칭에 풀업/친업이 섞이지 않는다 (§7.5.1)", () => {
+  const forbidden = ["pull-up", "pull up", "pullup", "chin-up", "chin up", "chinup", "풀업", "친업"];
+  const prescribed = Object.values(REF5_OAP_EXERCISE_NAMES).flatMap((byKind) =>
+    Object.values(byKind),
+  );
+  for (const name of prescribed) {
+    const entry = EXERCISE_CATALOG.find((item) => item.name === name);
+    assert.ok(entry, `${name} 카탈로그 항목`);
+    for (const text of [entry!.name, ...(entry!.aliases ?? [])]) {
+      const normalized = text.toLowerCase();
+      for (const needle of forbidden) {
+        assert.equal(
+          normalized.includes(needle),
+          false,
+          `${text}이(가) "${needle}"에 걸린다 — 맨몸 부분일치 판정에 잡힌다`,
+        );
+      }
+    }
+    assert.equal(isBodyweightExerciseName(name), false, `${name}이(가) 맨몸 판정에 걸린다`);
+  }
 });

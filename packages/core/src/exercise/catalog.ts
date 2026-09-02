@@ -36,6 +36,16 @@ export const EXERCISE_NAMES = {
   legExtension: "Leg Extension",
   calfRaise: "Calf Raise",
   lunge: "Lunge",
+  // REF5 v1.4 OAP 스킬 슬롯(§7.5). 팔별로 사다리·네거티브·프리가 각각 다른 처방이라
+  // 여섯 개다 — 한 세션이 같은 팔에 둘 이상을 함께 처방할 수 있고, 기록 카드는
+  // 운동 이름으로 구분된다. 이름에 pull-up/풀업을 넣지 않는다: 두 클라이언트가
+  // 맨몸 운동 여부를 이름 부분일치로 판정해 총중량 계산에 끌고 가기 때문이다.
+  assistedOapLeft: "Assisted OAP · Left",
+  assistedOapRight: "Assisted OAP · Right",
+  oapNegativeLeft: "OAP Negative · Left",
+  oapNegativeRight: "OAP Negative · Right",
+  oapFreeLeft: "OAP Free · Left",
+  oapFreeRight: "OAP Free · Right",
 } as const;
 
 /**
@@ -191,6 +201,44 @@ export const CURATED_EXERCISE_CATALOG = [
       "중량풀업",
       "턱걸이",
     ],
+  },
+  // OAP 스킬 슬롯의 여섯 처방. 별칭에도 풀업/친업을 넣지 않는다 — 별칭은 부분일치
+  // 판정에 쓰이지 않지만, 규칙을 한 군데서만 지키면 다음 사람이 깨뜨린다.
+  {
+    name: EXERCISE_NAMES.assistedOapLeft,
+    category: "Back",
+    equipment: "bodyweight",
+    aliases: ["어시스트 OAP 좌", "OAP 좌"],
+  },
+  {
+    name: EXERCISE_NAMES.assistedOapRight,
+    category: "Back",
+    equipment: "bodyweight",
+    aliases: ["어시스트 OAP 우", "OAP 우"],
+  },
+  {
+    name: EXERCISE_NAMES.oapNegativeLeft,
+    category: "Back",
+    equipment: "bodyweight",
+    aliases: ["OAP 네거티브 좌"],
+  },
+  {
+    name: EXERCISE_NAMES.oapNegativeRight,
+    category: "Back",
+    equipment: "bodyweight",
+    aliases: ["OAP 네거티브 우"],
+  },
+  {
+    name: EXERCISE_NAMES.oapFreeLeft,
+    category: "Back",
+    equipment: "bodyweight",
+    aliases: ["OAP 프리 좌"],
+  },
+  {
+    name: EXERCISE_NAMES.oapFreeRight,
+    category: "Back",
+    equipment: "bodyweight",
+    aliases: ["OAP 프리 우"],
   },
   {
     name: EXERCISE_NAMES.powerClean,

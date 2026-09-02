@@ -1437,9 +1437,15 @@ function pullExercise(
  *
  * None of these may contain "pull-up"/"chin-up"/"풀업"/"친업": both the web and
  * the TUI decide "is this a bodyweight lift?" by substring, and a match would
- * pull these into total-load maths and the bodyweight prompt (§7.5, D4).
+ * pull these into total-load maths and the bodyweight prompt (§7.5.1).
+ *
+ * Every one of them must also exist in the shared exercise catalog: the REF5
+ * save path refuses a set whose exercise name it cannot resolve. Six entries
+ * rather than two because a session can prescribe the ladder, a negative and
+ * the achieved free single for the same arm at once, and a card is identified
+ * by its exercise name.
  */
-const REF5_OAP_EXERCISE_NAMES: Record<Ref5OapArm, Record<Ref5OapPrescriptionKind, string>> = {
+export const REF5_OAP_EXERCISE_NAMES: Record<Ref5OapArm, Record<Ref5OapPrescriptionKind, string>> = {
   left: {
     LADDER: "Assisted OAP · Left",
     NEGATIVE: "OAP Negative · Left",
