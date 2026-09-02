@@ -185,6 +185,8 @@ export async function seedDemoProgramReplay({
               actualStartAt: performedAt.toISOString(),
               todayBodyweightKg: bodyweightKg,
               manualMicro: false,
+              // 데모는 정본 v1.4 처방을 그대로 재생한다 — OAP 슬롯을 되돌리지 않는다.
+              oapSlotReverted: false,
               startEventId: newStartEventId(),
             },
           }

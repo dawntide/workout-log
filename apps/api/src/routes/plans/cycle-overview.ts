@@ -221,7 +221,7 @@ export function registerCycleOverviewRoute(plansRoutes: Hono<AppEnv>) {
           targets: [],
           ref5Status: buildRef5Status(
             runtimeRows[0]?.state ?? null,
-            readRef5PlanStartConfig(params).startingValuesKg,
+            readRef5PlanStartConfig(params),
           ),
         });
       }

@@ -540,7 +540,7 @@ async function fetchRef5Status(
   const row = rows[0];
   return buildRef5Status(
     row?.state ?? null,
-    row ? readRef5PlanStartConfig(row.params).startingValuesKg : undefined,
+    row ? readRef5PlanStartConfig(row.params) : undefined,
   );
 }
 

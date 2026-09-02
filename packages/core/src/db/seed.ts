@@ -15,6 +15,7 @@ import {
 } from "./schema";
 import { and, eq } from "drizzle-orm";
 import {
+  REF5_DEFAULT_OAP_START_RUNG,
   REF5_IDENTIFIERS,
   REF5_INITIAL_DIRECT_STANDARDS_KG,
   REF5_LEGACY_PROTOCOL_VERSION,
@@ -790,6 +791,11 @@ export async function runSeed(options: SeedRunOptions = {}) {
     protocolVersion: REF5_IDENTIFIERS.protocolVersion,
     startingValuesKg: { ...REF5_INITIAL_DIRECT_STANDARDS_KG },
     controlRefsKg: deriveRef5ControlRefs({ ...REF5_INITIAL_DIRECT_STANDARDS_KG }),
+    // 시작 구성 3(§5.2): OAP 좌/우 시작 단. 기본은 2(전완)다.
+    oap: {
+      left: { startRung: REF5_DEFAULT_OAP_START_RUNG },
+      right: { startRung: REF5_DEFAULT_OAP_START_RUNG },
+    },
   } as const;
 
   const templateRef5 = await upsertTemplate(REF5_IDENTIFIERS.slug, {
@@ -831,11 +837,11 @@ export async function runSeed(options: SeedRunOptions = {}) {
       family: REF5_IDENTIFIERS.family,
       protocolVersion: REF5_IDENTIFIERS.protocolVersion,
       modules: ["SQUAT", "PULL", "BENCH", "DEADLIFT", "OHP"],
-      progression: { profile: "ref5-v1.3" },
+      progression: { profile: "ref5-v1.4" },
     },
     defaults: { ref5: ref5StartConfig },
     changelog:
-      "Protocol v1.3 — two-set upper-body volume (10-set normal session), single 2.5 kg grid for every lift (the OHP microloading option is withdrawn), normal/micro volume fail-stream split, gain-rate surfacing",
+      "Protocol v1.4 — OAP skill slot replaces the BP-focus session's PULL volume slot (self-assisted one-arm pull-up, fixed six-rung ladder, per-arm promotion/demotion, negatives from rung 4), eleven active fail streams, per-session revert to the v1.3 prescription",
   });
 
   const templateGreyskull = await upsertTemplate("greyskull-lp", {

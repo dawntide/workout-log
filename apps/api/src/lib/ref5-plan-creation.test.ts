@@ -47,6 +47,63 @@ test("REF5 plan creation falls back only when starts are absent and rejects part
   assert.equal(partial.ok, false, "explicit partial input must not be filled silently");
 });
 
+test("REF5 plan creation canonicalizes the OAP start rungs from the same source as the loads (§5.2)", () => {
+  // Absent config is the protocol default: both arms on the forearm rung.
+  const fallback = resolveRef5PlanStartConfig({}, defaults);
+  assert.equal(fallback.ok, true);
+  if (fallback.ok) {
+    assert.deepEqual(fallback.value.oap, {
+      left: { startRung: 2 },
+      right: { startRung: 2 },
+    });
+    assert.equal(fallback.value.initializationVersion, 3);
+  }
+
+  const submitted = resolveRef5PlanStartConfig(
+    {
+      ref5: {
+        startingValuesKg: defaults.ref5.startingValuesKg,
+        oap: { left: { startRung: 3 }, right: { startRung: 1 } },
+      },
+    },
+    defaults,
+  );
+  assert.equal(submitted.ok, true);
+  if (submitted.ok) {
+    assert.deepEqual(submitted.value.oap, {
+      left: { startRung: 3 },
+      right: { startRung: 1 },
+    });
+  }
+
+  for (const bad of [0, 7, 2.5, "3"]) {
+    const rejected = resolveRef5PlanStartConfig(
+      {
+        ref5: {
+          startingValuesKg: defaults.ref5.startingValuesKg,
+          oap: { left: { startRung: bad }, right: { startRung: 2 } },
+        },
+      },
+      defaults,
+    );
+    assert.equal(rejected.ok, false, `startRung ${String(bad)} must be refused`);
+  }
+
+  // The rungs are read from whichever object supplied the loads, so a submitted
+  // plan never inherits the template's rungs alongside its own loads.
+  const submittedLoadsOnly = resolveRef5PlanStartConfig(
+    { ref5: { startingValuesKg: defaults.ref5.startingValuesKg } },
+    { ref5: { ...defaults.ref5, oap: { left: { startRung: 5 }, right: { startRung: 5 } } } },
+  );
+  assert.equal(submittedLoadsOnly.ok, true);
+  if (submittedLoadsOnly.ok) {
+    assert.deepEqual(submittedLoadsOnly.value.oap, {
+      left: { startRung: 2 },
+      right: { startRung: 2 },
+    });
+  }
+});
+
 test("REF5 plan creation rejects a 1.25 kg OHP start, flag or no flag (§5.1)", () => {
   const starts = {
     sqH3Kg: 82.5,

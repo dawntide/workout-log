@@ -1,12 +1,17 @@
 import {
+  REF5_OAP_ARMS,
+  REF5_OAP_NEGATIVE_RUNG,
+  REF5_OAP_PROMOTE_STREAK,
+  REF5_OAP_RUNGS,
   REF5_PROTOCOL_VERSION,
   REF5_RUNTIME_SCHEMA_VERSION,
   createInitialRef5State,
   deriveRef5AuxiliaryCaps,
   deriveRef5ControlRefs,
   deriveRef5Standards,
-  type Ref5DirectStandardsKg,
+  type Ref5OapArmState,
   type Ref5RuntimeState,
+  type Ref5StartConfig,
   type Ref5WindowResult,
 } from "./ref5";
 
@@ -31,6 +36,26 @@ function ref5WindowGain(window: {
   };
 }
 
+/**
+ * §18 OAP readout for one arm: current rung with its name, the promotion streak
+ * as `n/3`, and the two latched flags. Deliberately rung-shaped, never kg —
+ * the ladder is an ordinal scale and must not join the direct-standard table.
+ */
+function ref5OapArmStatus(arm: Ref5OapArmState) {
+  return {
+    rung: arm.rung,
+    rungName: REF5_OAP_RUNGS[arm.rung].name,
+    rungNameKo: REF5_OAP_RUNGS[arm.rung].nameKo,
+    passStreak: arm.passStreak,
+    failStreak: arm.failStreak,
+    promoteThreshold: REF5_OAP_PROMOTE_STREAK,
+    negativesUnlocked: arm.negativesUnlocked,
+    negativeRung: REF5_OAP_NEGATIVE_RUNG,
+    achieved: arm.achieved,
+    lastFreeExposureAt: arm.lastFreeExposureAt,
+  };
+}
+
 function isRef5State(value: unknown): value is Ref5RuntimeState {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const state = value as Partial<Ref5RuntimeState>;
@@ -38,17 +63,20 @@ function isRef5State(value: unknown): value is Ref5RuntimeState {
     state.schemaVersion === REF5_RUNTIME_SCHEMA_VERSION &&
     state.protocolVersion === REF5_PROTOCOL_VERSION &&
     typeof state.revision === "number" &&
-    Boolean(state.directStandardsKg)
+    Boolean(state.directStandardsKg) &&
+    Boolean(state.oap)
   );
 }
 
-export function buildRef5Status(
-  value: unknown,
-  initialDirectStandardsKg?: Ref5DirectStandardsKg,
-) {
+/**
+ * `startConfig` is the plan's whole start configuration, not just the loads:
+ * before the first session there is no runtime state, and the OAP readout has
+ * to show that plan's configured start rungs rather than the protocol default.
+ */
+export function buildRef5Status(value: unknown, startConfig?: Ref5StartConfig) {
   const state = isRef5State(value)
     ? value
-    : createInitialRef5State(initialDirectStandardsKg);
+    : createInitialRef5State(startConfig?.startingValuesKg, startConfig?.oap);
   const directStandardsKg = { ...state.directStandardsKg };
   const stagnationPending = (["SQ", "BP", "PULL"] as const).filter(
     (lift) => state.stagnation[lift].phase === "PENDING_MICRO",
@@ -115,6 +143,9 @@ export function buildRef5Status(
         state.stagnation.PULL.structureReview,
     },
     pullLock: state.pull.lock,
+    oap: Object.fromEntries(
+      REF5_OAP_ARMS.map((arm) => [arm, ref5OapArmStatus(state.oap[arm])]),
+    ) as Record<(typeof REF5_OAP_ARMS)[number], ReturnType<typeof ref5OapArmStatus>>,
     startedSessionCount: state.startedSessions.length,
     completedSessionCount: state.completedSessions.length,
     recentChanges: state.progressionChanges.slice(-8),

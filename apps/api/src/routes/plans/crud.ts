@@ -288,8 +288,8 @@ export function registerPlanCrudRoutes(plansRoutes: Hono<AppEnv>) {
           {
             error:
               locale === "ko"
-                ? "REF5 시작 중량은 2.5~500kg 범위의 2.5kg 단위여야 하며 DL/OHP 상한을 넘을 수 없습니다."
-                : "REF5 starting loads must use the 2.5 kg grid from 2.5 to 500 kg and stay within the DL/OHP caps.",
+                ? "REF5 시작 중량은 2.5~500kg 범위의 2.5kg 단위여야 하며 DL/OHP 상한을 넘을 수 없습니다. OAP 시작 단은 1~6의 정수여야 합니다."
+                : "REF5 starting loads must use the 2.5 kg grid from 2.5 to 500 kg and stay within the DL/OHP caps. OAP start rungs must be integers from 1 to 6.",
             code: "REF5_INVALID_START_CONFIG",
             details: ref5StartConfig.errors,
           },
