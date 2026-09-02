@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { ProgramTemplate } from "@workout/core/program-store/model";
+import { REF5_RUNTIME_SCHEMA_VERSION } from "@workout/core/program-engine/ref5";
+import { REF5_PROTOCOL_VERSION } from "@workout/core/program-engine/ref5-protocol-version";
 import {
   buildRef5StartPlanParams,
   readCurrentWorkKgTargets,
@@ -16,9 +18,9 @@ import {
 import { buildInitialCreateDraft } from "./use-program-store-sheet-entry-controller";
 
 const ref5Config = {
-  initializationVersion: 2,
-  schemaVersion: 3,
-  protocolVersion: "1.3",
+  initializationVersion: 3,
+  schemaVersion: REF5_RUNTIME_SCHEMA_VERSION,
+  protocolVersion: REF5_PROTOCOL_VERSION,
   startingValuesKg: {
     sqH3Kg: 82.5,
     bpFocusKg: 82.5,
@@ -32,6 +34,10 @@ const ref5Config = {
     pullTotalKg: 108,
     deadliftKg: 100,
     ohpKg: 50,
+  },
+  oap: {
+    left: { startRung: 2 },
+    right: { startRung: 2 },
   },
 } as const;
 
@@ -49,7 +55,7 @@ const ref5Template: ProgramTemplate = {
     definition: {
       kind: "ref5",
       family: "ref5",
-      protocolVersion: "1.3",
+      protocolVersion: REF5_PROTOCOL_VERSION,
       modules: ["SQUAT", "PULL", "BENCH", "DEADLIFT", "OHP"],
     },
     defaults: { ref5: ref5Config },
@@ -167,8 +173,10 @@ test("REF5 plan params preserve user-selected direct kg baselines without generi
   });
 
   assert.equal(params.programFamily, "ref5");
-  assert.equal(params.protocolVersion, "1.3");
-  assert.equal(params.ref5.schemaVersion, 3);
+  assert.equal(params.protocolVersion, REF5_PROTOCOL_VERSION);
+  assert.equal(params.ref5.schemaVersion, REF5_RUNTIME_SCHEMA_VERSION);
+  assert.equal(params.ref5.initializationVersion, 3);
+  assert.deepEqual(params.ref5.oap, customConfig.oap, "the OAP start rungs are canonicalized too");
   assert.deepEqual(params.ref5.startingValuesKg, customConfig.startingValuesKg);
   assert.notDeepEqual(params.ref5.controlRefsKg, ref5Config.controlRefsKg);
 
@@ -268,4 +276,30 @@ test("continue summary reads progressed loads from runtime state, one row per li
 test("REF5 is not offered as a generic official-template fork source", () => {
   const draft = buildInitialCreateDraft([ref5Template, manualTemplate]);
   assert.equal(draft.sourceTemplateSlug, "manual");
+});
+
+test("REF5 OAP start rungs round-trip through the template defaults and plan params (§5.2)", () => {
+  const custom = {
+    ...ref5Config,
+    oap: { left: { startRung: 3 }, right: { startRung: 5 } },
+  } as const;
+  const params = buildRef5StartPlanParams({
+    timezone: "Asia/Seoul",
+    today: "2026-07-13",
+    config: custom,
+  });
+  assert.deepEqual(params.ref5.oap, { left: { startRung: 3 }, right: { startRung: 5 } });
+
+  // An out-of-range rung is refused at plan creation, not silently clamped.
+  assert.throws(() =>
+    buildRef5StartPlanParams({
+      timezone: "Asia/Seoul",
+      today: "2026-07-13",
+      config: { ...ref5Config, oap: { left: { startRung: 7 }, right: { startRung: 2 } } } as never,
+    }),
+  );
+
+  // The template's seeded defaults carry the rungs into the draft.
+  const fromTemplate = readRef5StartConfigFromTemplate(ref5Template);
+  assert.deepEqual(fromTemplate?.oap, { left: { startRung: 2 }, right: { startRung: 2 } });
 });

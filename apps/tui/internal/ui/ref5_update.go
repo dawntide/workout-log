@@ -185,6 +185,16 @@ func (l Log) handleRef5Picked(m pickedMsg) (Log, tea.Cmd, bool) {
 		return l, boolPicker("수동 MICRO ", "ref5-manual-micro"), true
 	case "ref5-manual-micro":
 		l.ref5.Start.ManualMicro = m.value == "true"
+		// The revert only exists on a normal BP-focus session (spec 7.6), so we
+		// ask about it only when the plan's queue actually points at BP.
+		if !l.ref5.Start.ManualMicro && l.ref5NextFocusIsBP() {
+			return l, boolPicker("OAP 슬롯 되돌리기 ", "ref5-oap-revert"), true
+		}
+		l.ref5.Start.OapSlotReverted = false
+		updated, cmd := l.requestRef5Preview()
+		return updated, cmd, true
+	case "ref5-oap-revert":
+		l.ref5.Start.OapSlotReverted = m.value == "true"
 		updated, cmd := l.requestRef5Preview()
 		return updated, cmd, true
 	case "ref5-reason":
@@ -281,10 +291,11 @@ func (l *Log) loadRef5Session(session *api.GeneratedSession) error {
 		plan.ID = session.Snapshot.Plan.ID
 	}
 	start := ref5StartValues{
-		ActualStartAt: meta.ActualStartAt,
-		BodyweightKg:  float64(meta.DomainSnapshot.StartInput.TodayBodyweightKg),
-		ManualMicro:   meta.DomainSnapshot.StartInput.ManualMicro,
-		StartEventID:  meta.StartEventID,
+		ActualStartAt:   meta.ActualStartAt,
+		BodyweightKg:    float64(meta.DomainSnapshot.StartInput.TodayBodyweightKg),
+		ManualMicro:     meta.DomainSnapshot.StartInput.ManualMicro,
+		OapSlotReverted: meta.DomainSnapshot.StartInput.OapSlotReverted,
+		StartEventID:    meta.StartEventID,
 	}
 	if start.ActualStartAt == "" {
 		start.ActualStartAt = session.Snapshot.ActualStartAt

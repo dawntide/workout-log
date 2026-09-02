@@ -20,6 +20,8 @@ export type Ref5SessionStartValues = {
   actualStartAt: string;
   bodyweightKg: number;
   manualMicro: boolean;
+  /** §7.6 — OAP 슬롯을 v1.3 PULL 볼륨으로 되돌린다. BP 집중 세션에서만 의미가 있다. */
+  oapSlotReverted: boolean;
   startEventId: string;
 };
 
@@ -220,13 +222,16 @@ export function summarizeRef5Preview(session: GeneratedSessionLike): PreviewSumm
         prescription: prescription.text,
       };
     });
+  // 엔진이 이미 계산한 총 작업세트가 정본이다(§7.3). 운동 행을 합산하면 OAP 좌/우가
+  // 두 번 세어져 페어 회계와 어긋난다 — 화면이 10세트를 12로 보이게 만든다.
+  const frozenTotal = Number(snapshot.totalWorkingSets);
   return {
     mode,
     squat,
     focus,
     reasons,
     exercises,
-    setCount,
+    setCount: Number.isFinite(frozenTotal) && frozenTotal > 0 ? frozenTotal : setCount,
     hard: readHardGate([decision, ref5, snapshot]),
     actualStartAt: firstString([ref5, snapshot, decision], ["actualStartAt"]),
   };
@@ -330,6 +335,7 @@ function toStartValues(input: {
   localStartAt: string;
   bodyweightText: string;
   manualMicro: boolean;
+  oapSlotReverted: boolean;
   startEventId: string;
 }): Ref5SessionStartValues | null {
   const start = new Date(input.localStartAt);
@@ -342,6 +348,7 @@ function toStartValues(input: {
     actualStartAt: start.toISOString(),
     bodyweightKg,
     manualMicro: input.manualMicro,
+    oapSlotReverted: input.oapSlotReverted,
     startEventId: input.startEventId,
   };
 }
@@ -539,6 +546,7 @@ export function Ref5SessionStartPanel({
     defaultBodyweightKg && defaultBodyweightKg > 0 ? String(defaultBodyweightKg) : "",
   );
   const [manualMicro, setManualMicro] = useState(false);
+  const [oapSlotReverted, setOapSlotReverted] = useState(false);
   const [startEventId] = useState(stableEventId);
   const [previewSession, setPreviewSession] = useState<GeneratedSessionLike | null>(null);
   const [previewSignature, setPreviewSignature] = useState<string | null>(null);
@@ -556,15 +564,23 @@ export function Ref5SessionStartPanel({
         localStartAt,
         bodyweightText,
         manualMicro,
+        oapSlotReverted,
         startEventId,
       }),
-    [bodyweightText, localStartAt, manualMicro, startEventId],
+    [bodyweightText, localStartAt, manualMicro, oapSlotReverted, startEventId],
   );
   const valuesSignature = values ? JSON.stringify(values) : null;
   const visiblePreview =
     previewSession && previewSignature === valuesSignature ? previewSession : null;
   const preview = visiblePreview ? summarizeRef5Preview(visiblePreview) : null;
   const hardGate = preview ? describeRef5HardGate(preview) : null;
+  // 되돌리기는 BP 집중 차례의 정상 세션에만 의미가 있다(§7.6). 어느 차례인지는
+  // 미리보기가 알려준다. 서명이 어긋난 미리보기까지 보는 것은 의도다 — 토글을 켜면
+  // 서명이 달라지는데, visiblePreview로 판단하면 토글이 스스로를 숨겨 되돌릴 수 없다.
+  const lastPreviewFocus = previewSession
+    ? (summarizeRef5Preview(previewSession).focus ?? "")
+    : "";
+  const showOapRevert = oapSlotReverted || lastPreviewFocus.toUpperCase().includes("BP");
 
   async function requestGeneration(previewOnly: boolean) {
     if (!values) {
@@ -672,6 +688,32 @@ export function Ref5SessionStartPanel({
             aria-label={locale === "ko" ? "수동 마이크로 세션" : "Manual micro session"}
           />
         </label>
+        {showOapRevert ? (
+          <label
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              gap: "var(--v2-s-3)",
+            }}
+          >
+            <span>
+              <span className="v2-label" style={{ display: "block" }}>
+                {locale === "ko" ? "OAP 슬롯 되돌리기" : "Revert the OAP slot"}
+              </span>
+              <span className="v2-small" style={{ color: "var(--v2-ink-3)" }}>
+                {locale === "ko"
+                  ? "3번 슬롯을 PULL 볼륨 2×6으로 되돌립니다. 사다리 진행은 그대로 보존됩니다."
+                  : "Restores the third slot to PULL volume 2×6. Ladder progress is preserved."}
+              </span>
+            </span>
+            <V2Switch
+              checked={oapSlotReverted}
+              onCheckedChange={setOapSlotReverted}
+              aria-label={locale === "ko" ? "OAP 슬롯 되돌리기" : "Revert the OAP slot"}
+            />
+          </label>
+        ) : null}
       </div>
 
       {requestError ? (

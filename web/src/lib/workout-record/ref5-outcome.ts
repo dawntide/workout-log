@@ -68,6 +68,42 @@ export function resolveRef5PullDisplayLoad(
   return { addedKg, actualTotalKg };
 }
 
+export type Ref5OapDisplay = {
+  arm: "left" | "right";
+  rung: number;
+  rungName: string;
+  rungNameKo: string;
+  kind: "LADDER" | "NEGATIVE" | "FREE";
+};
+
+/**
+ * Reads the frozen OAP coordinates off a prescription (§7.5.2).
+ *
+ * The slot has no weight, so the rung *is* what the card must show; without it
+ * the two arms are indistinguishable rows of "0 kg".
+ */
+export function resolveRef5OapDisplay(
+  exercise: WorkoutExerciseViewModel,
+): Ref5OapDisplay | null {
+  const prescription = exercise.ref5?.prescription;
+  if (!prescription) return null;
+  const value = (prescription as Record<string, unknown>).oap;
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const oap = value as Record<string, unknown>;
+  const arm = oap.arm === "left" || oap.arm === "right" ? oap.arm : null;
+  const rung = Number(oap.rung);
+  const kind =
+    oap.kind === "LADDER" || oap.kind === "NEGATIVE" || oap.kind === "FREE" ? oap.kind : null;
+  if (!arm || !kind || !Number.isFinite(rung)) return null;
+  return {
+    arm,
+    rung,
+    rungName: String(oap.rungName ?? ""),
+    rungNameKo: String(oap.rungNameKo ?? ""),
+    kind,
+  };
+}
+
 /**
  * UI-only projection of the canonical domain classifier. It never updates
  * progression; the server repeats validation against the immutable snapshot.

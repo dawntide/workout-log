@@ -7,6 +7,7 @@ import {
   summarizeRef5Preview,
 } from "../ui/ref5-session-start-panel";
 import { isRef5PlanParams } from "@/lib/workout-record/ref5-plan";
+import { REF5_PROTOCOL_VERSION } from "@workout/core/program-engine/ref5-protocol-version";
 
 test("REF5 plan detection accepts the family marker or immutable REF5 params", () => {
   assert.equal(isRef5PlanParams({ programFamily: "ref5" }), true);
@@ -17,10 +18,11 @@ test("REF5 plan detection accepts the family marker or immutable REF5 params", (
 
 test("preview and start share one stable REF5 input envelope", () => {
   const values = {
-    protocolVersion: "1.3",
+    protocolVersion: REF5_PROTOCOL_VERSION,
     actualStartAt: "2026-07-13T03:04:05.000Z",
     bodyweightKg: 81.2,
     manualMicro: true,
+    oapSlotReverted: false,
     startEventId: "start-event-1",
   } as const;
 
@@ -34,7 +36,7 @@ test("preview and start share one stable REF5 input envelope", () => {
   });
 });
 
-test("preview summary reads the REF5 v1.3 snapshot contract", () => {
+test("preview summary reads the REF5 snapshot contract", () => {
   const summary = summarizeRef5Preview({
     id: "preview-only",
     planId: "plan-1",
@@ -69,7 +71,8 @@ test("preview summary reads the REF5 v1.3 snapshot contract", () => {
   assert.equal(summary.squat, "V");
   assert.equal(summary.focus, "PULL");
   assert.deepEqual(summary.reasons, ["MANUAL", "DENSITY"]);
-  assert.equal(summary.setCount, 3);
+  // 엔진이 동결한 totalWorkingSets가 정본이다 — 운동 행 합산이 아니다.
+  assert.equal(summary.setCount, 4);
   assert.deepEqual(summary.exercises, [
     { name: "Back Squat", prescription: "2 × 5 · 72.5 kg" },
     { name: "Weighted Pull-up", prescription: "1 × 6 · 0 kg" },
@@ -204,4 +207,95 @@ test("gate durations read as whole hours and minutes in both locales", () => {
   assert.equal(formatRef5Duration(72 * HOUR, "ko"), "72시간");
   assert.equal(formatRef5Duration(72 * HOUR, "en"), "72h");
   assert.equal(formatRef5Duration(-1, "ko"), "0분");
+});
+
+test("the §7.6 revert rides the same immutable envelope as every other start input", () => {
+  const reverted = {
+    protocolVersion: REF5_PROTOCOL_VERSION,
+    actualStartAt: "2026-07-13T03:04:05.000Z",
+    bodyweightKg: 81.2,
+    manualMicro: false,
+    oapSlotReverted: true,
+    startEventId: "start-event-2",
+  } as const;
+
+  // Preview and start must send byte-identical inputs: a retry that changed the
+  // revert would hand back a snapshot prescribing a different third slot.
+  assert.deepEqual(buildRef5GeneratePayload(true, reverted).ref5, reverted);
+  assert.deepEqual(buildRef5GeneratePayload(false, reverted).ref5, reverted);
+});
+
+test("preview set count counts the OAP pair once, as the engine does (§7.3)", () => {
+  const summary = summarizeRef5Preview({
+    id: "preview-oap",
+    planId: "plan-1",
+    sessionKey: "ref5:preview:start-event-oap",
+    snapshot: {
+      decision: {
+        sessionType: "NORMAL",
+        microReasons: [],
+        focus: "BP",
+        squatPrescription: "H3",
+      },
+      // 좌/우가 각각 2세트라 행 합산은 12가 되지만, 페어 회계로는 10이다.
+      totalWorkingSets: 10,
+      exercises: [
+        {
+          lift: "SQ",
+          exerciseName: "High-Bar Back Squat",
+          sets: [
+            { setNumber: 1, plannedReps: 3, externalLoadKg: 82.5 },
+            { setNumber: 2, plannedReps: 3, externalLoadKg: 82.5 },
+            { setNumber: 3, plannedReps: 3, externalLoadKg: 82.5 },
+          ],
+        },
+        {
+          lift: "BP",
+          exerciseName: "Bench Press",
+          sets: [
+            { setNumber: 1, plannedReps: 3, externalLoadKg: 82.5 },
+            { setNumber: 2, plannedReps: 3, externalLoadKg: 82.5 },
+            { setNumber: 3, plannedReps: 3, externalLoadKg: 82.5 },
+          ],
+        },
+        {
+          lift: "OAP",
+          exerciseName: "Assisted OAP · Left",
+          sets: [
+            { setNumber: 1, plannedReps: 3, externalLoadKg: 0 },
+            { setNumber: 2, plannedReps: 3, externalLoadKg: 0 },
+          ],
+        },
+        {
+          lift: "OAP",
+          exerciseName: "Assisted OAP · Right",
+          sets: [
+            { setNumber: 1, plannedReps: 3, externalLoadKg: 0 },
+            { setNumber: 2, plannedReps: 3, externalLoadKg: 0 },
+          ],
+        },
+        {
+          lift: "OHP",
+          exerciseName: "Overhead Press",
+          sets: [
+            { setNumber: 1, plannedReps: 6, externalLoadKg: 32.5 },
+            { setNumber: 2, plannedReps: 6, externalLoadKg: 32.5 },
+          ],
+        },
+      ],
+    },
+  });
+
+  assert.equal(summary.focus, "BP");
+  assert.equal(summary.setCount, 10);
+  assert.deepEqual(
+    summary.exercises.map((exercise) => exercise.name),
+    [
+      "High-Bar Back Squat",
+      "Bench Press",
+      "Assisted OAP · Left",
+      "Assisted OAP · Right",
+      "Overhead Press",
+    ],
+  );
 });

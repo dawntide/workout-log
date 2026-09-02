@@ -8,7 +8,10 @@
 // ⚠️ TUI(`apps/tui/internal/ui/ref5_recent_changes.go`)가 같은 문구를 미러링한다.
 // 여기 라벨을 고치면 그쪽 테이블도 함께 고칠 것 — 두 테스트가 같은 기대 문자열을 쓴다.
 
-import { ref5LiftStandardLabel } from "@workout/core/progression/feedback-catalog";
+import {
+  ref5LiftStandardLabel,
+  ref5OapArmLabel,
+} from "@workout/core/progression/feedback-catalog";
 import type { Ref5Status } from "@workout/core/program-engine/ref5-status";
 
 export type Ref5ChangeDirection = "up" | "flat" | "down";
@@ -18,7 +21,10 @@ export type Ref5RecentChangeRow = {
   liftLabel: string;
   direction: Ref5ChangeDirection;
   arrow: string;
-  /** "100 → 102.5 kg" — 값이 그대로면 "62.5 kg" 하나만. */
+  /**
+   * "100 → 102.5 kg" — 값이 그대로면 "62.5 kg" 하나만.
+   * OAP 행에서는 kg가 아니라 사다리 단이다("2 → 3단").
+   */
   weightText: string;
   kindLabel: string;
 };
@@ -31,6 +37,9 @@ const KIND_LABEL: Record<"ko" | "en", Record<string, string>> = {
     STAGNATION_DECREASE: "정체 감량",
     AUXILIARY_CAP_DECREASE: "상한 감량",
     PULL_RELOCK: "창 재고정",
+    OAP_PROMOTE: "승급",
+    OAP_DEMOTE: "강등",
+    OAP_ACHIEVE: "달성",
   },
   en: {
     INCREASE: "increase",
@@ -39,8 +48,13 @@ const KIND_LABEL: Record<"ko" | "en", Record<string, string>> = {
     STAGNATION_DECREASE: "stagnation drop",
     AUXILIARY_CAP_DECREASE: "cap drop",
     PULL_RELOCK: "window relock",
+    OAP_PROMOTE: "promoted",
+    OAP_DEMOTE: "demoted",
+    OAP_ACHIEVE: "achieved",
   },
 };
+
+const OAP_KINDS = new Set(["OAP_PROMOTE", "OAP_DEMOTE", "OAP_ACHIEVE"]);
 
 // 판정창 흐름(↑ INCREASE / → MAINTAIN)과 같은 글리프를 쓰고 감량만 ↓를 더한다 —
 // 같은 패널 안에서 두 섹션이 다른 기호 체계를 쓰면 읽는 사람이 다시 배워야 한다.
@@ -54,7 +68,21 @@ function directionOf(kind: string, beforeKg: number, afterKg: number): Ref5Chang
   if (afterKg > beforeKg) return "up";
   if (afterKg < beforeKg) return "down";
   // 값이 같은 재고정은 방향이 없다. MAINTAIN과 같은 → 로 둔다.
-  return kind === "INCREASE" ? "up" : "flat";
+  // 달성은 6 → 6이라 값이 같지만 진행이므로 ↑로 읽힌다.
+  return kind === "INCREASE" || kind === "OAP_ACHIEVE" ? "up" : "flat";
+}
+
+/**
+ * OAP 변경의 before/after는 kg가 아니라 사다리 **단**이다(§7.5).
+ * 여기에 "kg"를 붙이면 값 자체가 거짓이 되므로 서식을 갈라 놓는다.
+ */
+function oapValueText(kind: string, beforeRung: number, afterRung: number, locale: "ko" | "en"): string {
+  if (kind === "OAP_ACHIEVE") {
+    return locale === "ko" ? `${afterRung}단 · 프리` : `rung ${afterRung} · free`;
+  }
+  return locale === "ko"
+    ? `${beforeRung} → ${afterRung}단`
+    : `rung ${beforeRung} → ${afterRung}`;
 }
 
 /**
@@ -77,14 +105,18 @@ export function buildRef5RecentChangeRows(
     if (!Number.isFinite(beforeKg) || !Number.isFinite(afterKg)) continue;
     const kind = String(change.kind ?? "").toUpperCase();
     const direction = directionOf(kind, beforeKg, afterKg);
+    const isOap = OAP_KINDS.has(kind);
+    const liftLabel = ref5LiftStandardLabel(String(change.lift ?? ""), locale);
+    const arm = isOap ? ref5OapArmLabel(String(change.arm ?? ""), locale) : "";
     rows.push({
       // eventId는 엔진이 리프트·종류·완료이벤트로 조립해 유일하다.
       key: String(change.eventId ?? `${change.lift}:${kind}:${index}`),
-      liftLabel: ref5LiftStandardLabel(String(change.lift ?? ""), locale),
+      liftLabel: arm ? `${liftLabel} ${arm}` : liftLabel,
       direction,
       arrow: ARROW[direction],
-      weightText:
-        beforeKg === afterKg
+      weightText: isOap
+        ? oapValueText(kind, beforeKg, afterKg, locale)
+        : beforeKg === afterKg
           ? `${formatKg(afterKg)} kg`
           : `${formatKg(beforeKg)} → ${formatKg(afterKg)} kg`,
       kindLabel: KIND_LABEL[locale][kind] ?? kind,

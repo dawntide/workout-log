@@ -14,7 +14,10 @@ type Ref5GenerateInput struct {
 	ActualStartAt     string  `json:"actualStartAt"`
 	TodayBodyweightKg float64 `json:"todayBodyweightKg"`
 	ManualMicro       bool    `json:"manualMicro"`
-	StartEventID      string  `json:"startEventId"`
+	// OapSlotReverted restores the v1.3 PULL volume slot in a normal BP-focus
+	// session (spec 7.6). Every other session type ignores it.
+	OapSlotReverted bool   `json:"oapSlotReverted"`
+	StartEventID    string `json:"startEventId"`
 }
 
 // Ref5GenerateRequest is the POST /generate envelope. Preview is the only
@@ -102,6 +105,16 @@ type Ref5PullPrescriptionMetadata struct {
 	ActualTotalKg              Float64  `json:"actualTotalKg"`
 }
 
+// Ref5OapPrescriptionMetadata carries the OAP skill slot's frozen coordinates.
+// The slot has no load, so the rung is its only intensity coordinate (7.5.2).
+type Ref5OapPrescriptionMetadata struct {
+	Arm        string `json:"arm"`  // "left" | "right"
+	Rung       int    `json:"rung"` // 1..6
+	RungName   string `json:"rungName"`
+	RungNameKo string `json:"rungNameKo"`
+	Kind       string `json:"kind"` // "LADDER" | "NEGATIVE" | "FREE"
+}
+
 // Ref5ExerciseMetadata is attached to each generic snapshot exercise.
 type Ref5ExerciseMetadata struct {
 	ProtocolVersion     string                        `json:"protocolVersion"`
@@ -113,6 +126,7 @@ type Ref5ExerciseMetadata struct {
 	Stream              string                        `json:"stream"`
 	ProgressionTargetKg Float64                       `json:"progressionTargetKg"`
 	Pull                *Ref5PullPrescriptionMetadata `json:"pull"`
+	Oap                 *Ref5OapPrescriptionMetadata  `json:"oap"`
 }
 
 type Ref5PrescriptionSet struct {
@@ -131,6 +145,7 @@ type Ref5ExercisePrescription struct {
 	Sets                []Ref5PrescriptionSet         `json:"sets"`
 	ProgressionTargetKg Float64                       `json:"progressionTargetKg"`
 	Pull                *Ref5PullPrescriptionMetadata `json:"pull,omitempty"`
+	Oap                 *Ref5OapPrescriptionMetadata  `json:"oap,omitempty"`
 }
 
 type Ref5DomainStartInput struct {
@@ -142,6 +157,7 @@ type Ref5DomainStartInput struct {
 	Recent7DayMeasurementCount int      `json:"recent7DayMeasurementCount"`
 	Recent7DayAverageKg        *Float64 `json:"recent7DayAverageKg"`
 	ManualMicro                bool     `json:"manualMicro"`
+	OapSlotReverted            bool     `json:"oapSlotReverted"`
 }
 
 // Ref5DomainSnapshot is the engine-native snapshot nested inside snapshot.ref5.
@@ -225,12 +241,28 @@ type Ref5PullLockStatus struct {
 }
 
 type Ref5ProgressionChange struct {
-	EventID       string   `json:"eventId"`
-	Lift          string   `json:"lift"`
-	Kind          string   `json:"kind"`
+	EventID string `json:"eventId"`
+	Lift    string `json:"lift"`
+	Kind    string `json:"kind"`
+	// For the three OAP kinds these carry the ladder rung, not kilograms (7.5).
 	BeforeKg      Float64  `json:"beforeKg"`
 	AfterKg       Float64  `json:"afterKg"`
 	CauseEventIDs []string `json:"causeEventIds"`
+	Arm           string   `json:"arm,omitempty"`
+}
+
+// Ref5OapArmStatus is one arm's ladder readout (spec 18).
+type Ref5OapArmStatus struct {
+	Rung               int    `json:"rung"`
+	RungName           string `json:"rungName"`
+	RungNameKo         string `json:"rungNameKo"`
+	PassStreak         int    `json:"passStreak"`
+	FailStreak         int    `json:"failStreak"`
+	PromoteThreshold   int    `json:"promoteThreshold"`
+	NegativesUnlocked  bool   `json:"negativesUnlocked"`
+	NegativeRung       int    `json:"negativeRung"`
+	Achieved           bool   `json:"achieved"`
+	LastFreeExposureAt string `json:"lastFreeExposureAt"`
 }
 
 // Ref5Status is the stable, display-oriented status returned by
@@ -249,6 +281,7 @@ type Ref5Status struct {
 	AuxiliaryCapsKg       Ref5AuxiliaryCapsKg         `json:"auxiliaryCapsKg"`
 	StructureReview       Ref5StructureReviewStatus   `json:"structureReview"`
 	PullLock              *Ref5PullLockStatus         `json:"pullLock"`
+	Oap                   map[string]Ref5OapArmStatus `json:"oap"`
 	StartedSessionCount   int                         `json:"startedSessionCount"`
 	CompletedSessionCount int                         `json:"completedSessionCount"`
 	RecentChanges         []Ref5ProgressionChange     `json:"recentChanges"`

@@ -24,6 +24,7 @@ import {
 import { toDefaultWorkoutPreferences } from "@/lib/settings/workout-preferences";
 import { applyWorkoutLogWeightRulesToDraft } from "./weight-rules";
 import { Ref5StaleVersionError } from "@workout/core/program-engine/ref5";
+import { REF5_PROTOCOL_VERSION } from "@workout/core/program-engine/ref5-protocol-version";
 
 function makeRef5Session(): GeneratedSessionLike {
   return {
@@ -32,13 +33,13 @@ function makeRef5Session(): GeneratedSessionLike {
     sessionKey: "REF5:2026-07-13T09:00:00.000Z:start-1",
     snapshot: {
       schemaVersion: 4,
-      protocolVersion: "1.3",
+      protocolVersion: REF5_PROTOCOL_VERSION,
       sessionKey: "REF5:2026-07-13T09:00:00.000Z:start-1",
       sessionDate: "2026-07-13",
       timezone: "Asia/Seoul",
       program: { slug: "ref5-adaptive-strength" },
       ref5: {
-        protocolVersion: "1.3",
+        protocolVersion: REF5_PROTOCOL_VERSION,
         actualStartAt: "2026-07-13T09:00:00.000Z",
         timezone: "Asia/Seoul",
         startEventId: "start-1",
@@ -100,7 +101,7 @@ test("REF5 draft freezes the exact start, locked added load, and termination met
   assert.deepEqual(meta.ref5, {
     prescription: draft.seedExercises[0]!.ref5!.prescription,
     terminationReason: "CLEAR_SLOWDOWN",
-    protocolVersion: "1.3",
+    protocolVersion: REF5_PROTOCOL_VERSION,
     actualStartAt: "2026-07-13T09:00:00.000Z",
     startEventId: "start-1",
     completionEventId: "start-1:completion",
@@ -187,7 +188,7 @@ test("REF5 log edit round-trips arbitrary set metadata without recomputing bodyw
     },
     "REF5",
   );
-  assert.equal(editedDraft.session.ref5?.protocolVersion, "1.3");
+  assert.equal(editedDraft.session.ref5?.protocolVersion, REF5_PROTOCOL_VERSION);
   assert.equal(editedDraft.session.estimatedE1rmKg, null);
   assert.equal(editedDraft.session.estimatedTmKg, null);
   const exerciseId = editedDraft.userExercises[0]!.id;

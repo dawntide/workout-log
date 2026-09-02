@@ -1,7 +1,9 @@
 import type { Ref5Status } from "@workout/core/program-engine/ref5-status";
 import { V2Card } from "@/components/v2/primitives";
 import {
+  buildRef5OapProgressRows,
   buildRef5WindowProgressRows,
+  getRef5OapProgressDescription,
   getRef5WindowProgressDescription,
 } from "@/features/ref5/model/window-progress";
 
@@ -18,6 +20,8 @@ export function Ref5WindowProgressPanel({
 }: Props) {
   const title = locale === "ko" ? "기본 판정창" : "Base judgment windows";
   const description = getRef5WindowProgressDescription(locale);
+  const oapTitle = locale === "ko" ? "OAP 스킬 슬롯" : "OAP skill slot";
+  const oapDescription = getRef5OapProgressDescription(locale);
 
   if (!status) {
     return (
@@ -177,6 +181,63 @@ export function Ref5WindowProgressPanel({
               )}
             </div>
           ))}
+        </div>
+
+        {/* 사다리는 kg 진행이 아니므로 판정창 표와 섞지 않고 별도 블록으로 둔다(§7.5). */}
+        <div style={{ marginTop: "var(--v2-s-4)" }}>
+          <strong className="v2-label" style={{ color: "var(--v2-ink)" }}>
+            {oapTitle}
+          </strong>
+          <p
+            className="v2-small"
+            style={{ margin: "var(--v2-s-1) 0 0", color: "var(--v2-ink-2)" }}
+          >
+            {oapDescription}
+          </p>
+          <div
+            style={{
+              display: "grid",
+              gap: "var(--v2-s-2)",
+              marginTop: "var(--v2-s-2)",
+            }}
+          >
+            {buildRef5OapProgressRows(status, locale).map((row) => (
+              <div
+                key={row.key}
+                style={{
+                  display: "flex",
+                  flexWrap: "wrap",
+                  alignItems: "baseline",
+                  justifyContent: "space-between",
+                  gap: "var(--v2-s-1) var(--v2-s-2)",
+                }}
+              >
+                <span
+                  className="v2-mono-label"
+                  style={{ color: "var(--v2-ink)", fontWeight: 700, whiteSpace: "nowrap" }}
+                >
+                  {row.label}
+                </span>
+                <span
+                  className="v2-mono-label"
+                  style={{ color: "var(--v2-c-progress)", whiteSpace: "nowrap" }}
+                >
+                  {row.rungText}
+                </span>
+                <span
+                  className="v2-mono-label"
+                  style={{
+                    color: "var(--v2-ink-3)",
+                    fontVariantNumeric: "tabular-nums",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {row.streakText}
+                  {row.badges.length > 0 ? ` · ${row.badges.join(" · ")}` : ""}
+                </span>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
     </V2Card>

@@ -16,11 +16,14 @@ import {
   type ProgramTemplate,
 } from "@workout/core/program-store/model";
 import {
+  REF5_RUNTIME_SCHEMA_VERSION,
   deriveRef5AuxiliaryCaps,
   deriveRef5ControlRefs,
   validateRef5StartConfig,
   type Ref5DirectStandardsKg,
   type Ref5Lift,
+  type Ref5OapArm,
+  type Ref5OapRung,
   type Ref5StartConfig,
 } from "@workout/core/program-engine/ref5";
 import { REF5_PROTOCOL_VERSION } from "@workout/core/program-engine/ref5-protocol-version";
@@ -212,13 +215,14 @@ export function readRef5StartConfigFromTemplate(
     | undefined;
   const starts = raw?.startingValuesKg;
   if (
-    raw?.schemaVersion !== 3 ||
+    // 리터럴로 두면 다음 스키마 범프에서 이 자리만 조용히 낡는다.
+    raw?.schemaVersion !== REF5_RUNTIME_SCHEMA_VERSION ||
     raw?.protocolVersion !== REF5_PROTOCOL_VERSION ||
     !starts
   ) {
     return null;
   }
-  const validated = validateRef5StartConfig(starts);
+  const validated = validateRef5StartConfig(starts, raw?.oap);
   return validated.ok ? validated.value : null;
 }
 
@@ -229,7 +233,7 @@ export function readRef5StartConfigFromPlanParams(params: unknown): Ref5StartCon
   const nested = root.ref5 && typeof root.ref5 === "object" && !Array.isArray(root.ref5)
     ? (root.ref5 as Record<string, unknown>)
     : {};
-  const validated = validateRef5StartConfig(nested.startingValuesKg);
+  const validated = validateRef5StartConfig(nested.startingValuesKg, nested.oap);
   return validated.ok ? validated.value : null;
 }
 
@@ -309,12 +313,23 @@ export async function requestRef5StartRecommendation(
   return request("/api/stats/ref5-start-recommendation", { signal });
 }
 
+/**
+ * e1RM 도우미는 **다섯 종목의 kg만** 다시 계산한다(§5.3). OAP 시작 단은 그 계산의
+ * 입력도 출력도 아니므로, 모드를 오가도 사용자가 고른 단이 2/2로 되돌아가면 안 된다.
+ */
+function withPreservedOapStart(
+  next: Ref5StartConfig,
+  previous: Ref5StartConfig | null,
+): Ref5StartConfig {
+  return previous ? { ...next, oap: previous.oap } : next;
+}
+
 export function buildRef5StartPlanParams(input: {
   timezone: string;
   today: string;
   config: Ref5StartConfig;
 }) {
-  const validated = validateRef5StartConfig(input.config.startingValuesKg);
+  const validated = validateRef5StartConfig(input.config.startingValuesKg, input.config.oap);
   if (!validated.ok) throw new Error(validated.errors.join("; "));
   return {
     timezone: input.timezone,
@@ -713,7 +728,7 @@ export function useProgramStoreStartProgramController({
             ref5Calibration: calibration.ok ? calibration.value : null,
             ref5Config:
               calibration.ok && prev.ref5SetupMode === "E1RM"
-                ? calibration.value.startConfig
+                ? withPreservedOapStart(calibration.value.startConfig, prev.ref5Config)
                 : prev.ref5Config,
             recommendationStatus: "ready",
             recommendationMessage:
@@ -988,6 +1003,23 @@ export function useProgramStoreStartProgramController({
     [],
   );
 
+  /** OAP 좌/우 시작 단(§5.2). 계획 생성 후에는 바꿀 수 없으므로 새로 시작일 때만 연다. */
+  const updateRef5OapStartRung = useCallback(
+    (arm: Ref5OapArm, rung: Ref5OapRung) => {
+      setStartProgramDraft((prev) => {
+        if (!prev?.ref5Config || prev.restartMode !== "NEW") return prev;
+        return {
+          ...prev,
+          ref5Config: {
+            ...prev.ref5Config,
+            oap: { ...prev.ref5Config.oap, [arm]: { startRung: rung } },
+          },
+        };
+      });
+    },
+    [],
+  );
+
   const updateRef5SetupMode = useCallback((mode: "E1RM" | "DIRECT") => {
     setStartProgramDraft((prev) => {
       if (!prev || prev.mode !== "REF5" || prev.restartMode !== "NEW") return prev;
@@ -997,7 +1029,9 @@ export function useProgramStoreStartProgramController({
         ...prev,
         ref5SetupMode: mode,
         ref5Calibration: calibration.ok ? calibration.value : null,
-        ref5Config: calibration.ok ? calibration.value.startConfig : prev.ref5Config,
+        ref5Config: calibration.ok
+          ? withPreservedOapStart(calibration.value.startConfig, prev.ref5Config)
+          : prev.ref5Config,
       };
     });
   }, []);
@@ -1014,7 +1048,9 @@ export function useProgramStoreStartProgramController({
         ...prev,
         ref5E1rmInputs,
         ref5Calibration: calibration.ok ? calibration.value : null,
-        ref5Config: calibration.ok ? calibration.value.startConfig : prev.ref5Config,
+        ref5Config: calibration.ok
+          ? withPreservedOapStart(calibration.value.startConfig, prev.ref5Config)
+          : prev.ref5Config,
       };
     });
   }, []);
@@ -1179,6 +1215,7 @@ export function useProgramStoreStartProgramController({
     updateRestartMode,
     updateOneRmInput,
     updateRef5StartingValue,
+    updateRef5OapStartRung,
     updateRef5SetupMode,
     updateRef5E1rmInput,
     applyRecommendation,

@@ -515,7 +515,7 @@ func TestRef5SetMetaRoundTripPreservesCanonicalMetadata(t *testing.T) {
 		"totalLoadKg":91.25,
 		"futureTopLevel":{"owner":"engine","values":[1,2,3]},
 		"ref5":{
-			"protocolVersion":"1.3",
+			"protocolVersion":"1.4",
 			"snapshotId":"snapshot-1",
 			"sessionId":"session-1",
 			"prescriptionId":"rx-pull-1",
