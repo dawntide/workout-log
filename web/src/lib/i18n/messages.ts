@@ -321,6 +321,9 @@ export type AppCopy = {
     planSearchPlaceholder: string;
     planSearchResults: string;
     noMatchingPlans: string;
+    planShowArchived: string;
+    planArchivedBadge: string;
+    noPlansWithoutArchived: string;
     monthPickerTitle: string;
   };
   programExerciseEditor: {
@@ -753,6 +756,9 @@ export const appCopyByLocale: Record<AppLocale, AppCopy> = {
       planSearchPlaceholder: "플랜 검색",
       planSearchResults: "플랜 검색 결과",
       noMatchingPlans: "검색 조건에 맞는 플랜이 없습니다.",
+      planShowArchived: "보관된 플랜 포함",
+      planArchivedBadge: "보관됨",
+      noPlansWithoutArchived: "조건에 맞는 플랜이 없습니다. 보관된 플랜을 포함해 보세요.",
       monthPickerTitle: "연도와 월 선택",
     },
     programExerciseEditor: {
@@ -1186,6 +1192,9 @@ export const appCopyByLocale: Record<AppLocale, AppCopy> = {
       planSearchPlaceholder: "Search plans",
       planSearchResults: "Plan search results",
       noMatchingPlans: "No plans match your search.",
+      planShowArchived: "Include archived plans",
+      planArchivedBadge: "archived",
+      noPlansWithoutArchived: "No plans match. Try including archived plans.",
       monthPickerTitle: "Select Year and Month",
     },
     programExerciseEditor: {

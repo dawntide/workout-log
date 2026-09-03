@@ -9,19 +9,19 @@ import type {
   CalendarWorkoutLogForDate,
   CalendarWorkoutLogSummary,
 } from "./types";
-
-function normalizeSearchText(...values: Array<string | null | undefined>) {
-  return values
-    .map((value) => String(value ?? "").trim().toLowerCase())
-    .filter(Boolean)
-    .join(" ");
-}
+import {
+  filterCalendarPlanOptions,
+  hasArchivedPlan,
+  selectablePlans,
+} from "../lib/plan-options";
 
 type UseCalendarDataControllerInput = {
   locale: "ko" | "en";
   timezone: string;
   selectedDate: string;
   planQuery: string;
+  /** 선택 시트의 "보관 포함" 토글. 기본 선택에는 영향을 주지 않는다. */
+  showArchivedPlans: boolean;
   initialPlans?: CalendarPlan[];
   initialSessions?: CalendarRecentGeneratedSession[];
   initialLogs?: CalendarWorkoutLogSummary[];
@@ -32,6 +32,7 @@ export function useCalendarDataController({
   timezone,
   selectedDate,
   planQuery,
+  showArchivedPlans,
   initialPlans,
   initialSessions,
   initialLogs,
@@ -101,13 +102,17 @@ export function useCalendarDataController({
     if (!selectedPlan) return plans;
     return [selectedPlan, ...plans.filter((plan) => plan.id !== selectedPlan.id)];
   }, [plans, selectedPlan]);
-  const filteredPlans = useMemo(() => {
-    const normalizedQuery = planQuery.trim().toLowerCase();
-    if (!normalizedQuery) return orderedPlans;
-    return orderedPlans.filter((plan) =>
-      normalizeSearchText(plan.name, plan.type).includes(normalizedQuery),
-    );
-  }, [orderedPlans, planQuery]);
+  const filteredPlans = useMemo(
+    () =>
+      filterCalendarPlanOptions(orderedPlans, {
+        query: planQuery,
+        showArchived: showArchivedPlans,
+        selectedPlanId: planId,
+      }),
+    [orderedPlans, planId, planQuery, showArchivedPlans],
+  );
+  // 토글은 보관된 플랜이 실제로 있을 때만 의미가 있다.
+  const archivedPlansAvailable = useMemo(() => hasArchivedPlan(plans), [plans]);
 
   useEffect(() => {
     if (initialPlans != null && refreshTick === 0) return;
@@ -119,8 +124,9 @@ export function useCalendarDataController({
         const response = await apiGet<{ items: CalendarPlan[] }>("/api/plans");
         if (cancelled) return;
         plansLoadedRef.current = true;
-        // 보관된 플랜은 선택 목록에서 뺀다(기록은 그대로 남아 있고, 플랜 관리에서 되돌릴 수 있다).
-        setPlans(response.items.filter((plan) => plan.isArchived !== true));
+        // 보관된 플랜도 목록에는 남긴다 — 캘린더는 플랜 스코프 화면이라 목록에서 빼면
+        // 그 플랜의 기록에 도달할 길이 사라진다. 감추는 일은 선택 시트의 토글이 한다.
+        setPlans(response.items);
         setPlanId((currentPlanId) => {
           if (
             currentPlanId &&
@@ -128,7 +134,8 @@ export function useCalendarDataController({
           ) {
             return currentPlanId;
           }
-          return response.items[0]?.id ?? "";
+          // 기본 선택은 보관되지 않은 플랜에서 고른다.
+          return selectablePlans(response.items)[0]?.id ?? "";
         });
       } catch (error) {
         if (!cancelled) {
@@ -290,6 +297,7 @@ export function useCalendarDataController({
     loading,
     selectedPlan,
     filteredPlans,
+    archivedPlansAvailable,
     refresh,
     applyOptimisticDateMove,
     applyOptimisticDelete,

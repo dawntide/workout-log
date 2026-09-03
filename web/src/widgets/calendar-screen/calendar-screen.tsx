@@ -85,6 +85,8 @@ export function CalendarScreen({
     initialToday: today,
   });
   const [planQuery, setPlanQuery] = useState("");
+  // 보관된 플랜은 기본으로 감춘다. 시트의 토글로 꺼내 과거 기록을 열 수 있다.
+  const [showArchivedPlans, setShowArchivedPlans] = useState(false);
   const {
     planId,
     setPlanId,
@@ -98,6 +100,7 @@ export function CalendarScreen({
     loading,
     selectedPlan,
     filteredPlans,
+    archivedPlansAvailable,
     refresh,
     applyOptimisticDateMove,
     applyOptimisticDelete,
@@ -106,6 +109,7 @@ export function CalendarScreen({
     timezone,
     selectedDate,
     planQuery,
+    showArchivedPlans,
     initialPlans,
     initialSessions,
     initialLogs,
@@ -352,6 +356,9 @@ export function CalendarScreen({
         planQuery={planQuery}
         filteredPlans={filteredPlans}
         selectedPlanId={planId}
+        showArchivedPlans={showArchivedPlans}
+        archivedPlansAvailable={archivedPlansAvailable}
+        onToggleArchivedPlans={setShowArchivedPlans}
         onClosePlanSheet={closePlanPicker}
         onPlanQueryChange={setPlanQuery}
         onPlanQuerySubmit={submitFirstMatchingPlan}

@@ -59,8 +59,10 @@ export async function getCalendarPageBootstrap(): Promise<CalendarPageBootstrap>
     db
       .select()
       .from(plan)
-      // 보관된 플랜은 선택 목록에서 제외한다 — 기록은 남아 있고 플랜 관리에서 되돌릴 수 있다.
-      .where(and(eq(plan.userId, userId), eq(plan.isArchived, false)))
+      // 보관된 플랜도 내려보낸다 — 캘린더는 플랜 스코프 화면이라 목록에서 빼면 그
+      // 플랜의 기록에 도달할 길이 사라진다. 감추는 일은 선택 시트의 토글이 하고,
+      // 기본 선택에서 빼는 일은 아래 resolveActivePlan이 한다.
+      .where(eq(plan.userId, userId))
       .orderBy(desc(plan.createdAt)),
     db
       .select({ value: userSetting.value })
@@ -80,11 +82,13 @@ export async function getCalendarPageBootstrap(): Promise<CalendarPageBootstrap>
   // 집으므로, 고른 플랜을 목록 맨 앞으로 올려 SSR 스코프와 클라이언트 선택을 일치시킨다.
   const rawActivePlanId = activePlanSettingRows[0]?.value;
   const activePlanId = typeof rawActivePlanId === "string" ? rawActivePlanId.trim() : null;
+  // resolveActivePlan은 보관된 플랜을 스스로 걸러낸다 — 기본 선택은 언제나
+  // 보관되지 않은 플랜이다. 목록 순서만 그 선택을 맨 앞으로 올린다.
   const activePlan = resolveActivePlan(allPlans, activePlanId);
   const plans = activePlan
     ? [activePlan, ...allPlans.filter((entry) => entry.id !== activePlan.id)]
     : allPlans;
-  const defaultPlanId = plans[0]?.id ?? null;
+  const defaultPlanId = activePlan?.id ?? null;
 
   const [recentSessions, recentLogs] = defaultPlanId
     ? await Promise.all([
@@ -126,6 +130,9 @@ export async function getCalendarPageBootstrap(): Promise<CalendarPageBootstrap>
       type: entry.type,
       params: entry.params as Record<string, unknown> | null,
       createdAt: entry.createdAt.toISOString(),
+      // 선택 시트가 보관 배지·토글 노출을 이 값으로 정한다. 빼먹으면 보관된 플랜이
+      // 평범한 플랜처럼 섞여 나오고 토글은 아예 나타나지 않는다.
+      isArchived: entry.isArchived,
     })),
     initialSessions: recentSessions.map((entry) => ({
       id: entry.id,
