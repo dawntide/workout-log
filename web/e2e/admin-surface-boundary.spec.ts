@@ -13,6 +13,15 @@ import { gotoWithRole } from "./auth-state";
 
 const NAV_TIMEOUT = 30_000;
 const TELEMETRY_URL = "/api/stats/migration-telemetry?lookbackMinutes=60&limit=1";
+/**
+ * 데모 시드가 자기가 심은 기록에 다는 태그(`DEMO_HISTORY_TAG`). 시드가 재실행 때 갈아
+ * 끼우는 기준이자, 시드 기록과 사람이 만든 기록을 가르는 유일한 표시다.
+ *
+ * core의 상수를 그대로 들여오지 않고 리터럴로 둔다(시드 모듈 import는 db-seed 추적
+ * 파일 가드를 건드린다). 값이 어긋나면 필터가 0건이 되어 바로 아래 "기록이 있어야 한다"가
+ * 실패하므로, 조용히 썩지는 않는다.
+ */
+const DEMO_LOG_TAG = "demo-seed";
 /** 더보기 화면의 관리자 진입점. ko/en 어느 로케일로 떠도 잡히도록 둘 다 받는다. */
 const DEBUG_ROW_NAME = /디버그 도구|Debug Tools/;
 
@@ -270,17 +279,40 @@ test.describe("관리자 표면 경계", () => {
     // consumeNextSaveFailure 호출이 빠져도 그 부분은 초록으로 남는다. 여기서 잠근다.
     expect((await page.request.post("/api/admin/impersonate")).status()).toBe(200);
 
-    // 저장할 것이 있어야 한다. 데모 시드가 만든 기록 하나를 편집 모드로 연다 — 새 세션은
-    // 플랜별 시작 게이트(REF5의 "SQ 첫 워크 세트 시작" 등)를 지나야 해서 이 단언과
-    // 무관한 단계가 붙는다.
-    // 시드는 프로그램을 진짜 엔진으로 재생하느라 오래 걸린다 — 기본 30초 예산으로는
-    // 여기서 컨텍스트가 닫혀 이 스펙의 다른 테스트까지 함께 무너진다(실측).
+    // 이 스펙은 NAV_TIMEOUT(30초) 대기를 여러 번 지난다 — 기본 테스트 예산(30초)으로는
+    // 여기서 컨텍스트가 닫혀 이 파일의 다른 테스트까지 함께 무너진다(실측).
     test.slow();
-    expect(
-      (await page.request.post("/api/settings/seed-demo-data", { data: {} })).status(),
-    ).toBe(200);
-    const logs = await (await page.request.get("/api/logs?limit=1")).json();
-    const logId = logs.items?.[0]?.id;
+
+    // 저장할 것이 있어야 한다. **플랜 없는 기록을 직접 만든다.**
+    //
+    // 예전에는 데모 시드의 최신 기록(`/api/logs?limit=1`)을 집었는데, 그 기록이 무엇이냐에
+    // 따라 진행 프로토콜 시트가 저장을 가로채 이 단언과 무관한 이유로 실패했다 — 2026-09-02
+    // nightly에서 Operator 6주차 3일이 최신이 되어 "블록 완료 - 무게 설정"이 열렸고, 저장은
+    // "저장 중..."에서 멈춘 채 시뮬레이션 시트가 영영 오지 않았다. 데모 재생은 오늘 날짜를
+    // 기준으로 세션을 깔기 때문에 **어떤 날이냐에 따라** 최신 기록이 달라진다.
+    //
+    // 플랜이 없으면 resolveWorkoutLogProgressionOverride가 곧바로 반환해 그 시트가 아예
+    // 등장하지 않는다. 새 세션 대신 기록을 직접 만드는 이유도 같다 — 세션 생성은 플랜별
+    // 시작 게이트(REF5의 "SQ 첫 워크 세트 시작" 등)를 지나야 한다.
+    const created = await page.request.post("/api/logs", {
+      data: {
+        performedAt: new Date().toISOString(),
+        timezone: "UTC",
+        notes: "armed-save-failure",
+        sets: [
+          {
+            exerciseName: "Bench Press",
+            sortOrder: 0,
+            setNumber: 1,
+            reps: 5,
+            weightKg: 60,
+            rpe: 7,
+          },
+        ],
+      },
+    });
+    expect(created.status()).toBe(201);
+    const logId = ((await created.json()) as { log?: { id?: string } }).log?.id;
     expect(typeof logId).toBe("string");
 
     await gotoWithRole(page, `/workout/log?logId=${logId}`);
@@ -308,7 +340,17 @@ test.describe("관리자 표면 경계", () => {
     const failureSheet = page.getByText(
       /저장 실패를 시뮬레이션했습니다|Simulated save failure/,
     );
-    await expect(failureSheet).toBeVisible({ timeout: NAV_TIMEOUT });
+    // 진행 프로토콜 시트가 저장을 가로채면 시뮬레이션 시트는 **영영** 오지 않는다 — 이
+    // 스펙이 실제로 그렇게 깨졌다. 그때 "시트가 안 떴다"만 남으면 원인을 다시 파야 하므로,
+    // 둘 중 먼저 뜨는 쪽을 기다렸다가 가로챈 쪽을 이름으로 짚는다.
+    const progressionDialog = page.getByRole("dialog", {
+      name: /블록 완료|Block complete|실패 프로토콜|Failure protocol/,
+    });
+    await expect(failureSheet.or(progressionDialog).first()).toBeVisible({
+      timeout: NAV_TIMEOUT,
+    });
+    await expect(progressionDialog).toBeHidden();
+    await expect(failureSheet).toBeVisible();
     await page.getByRole("button", { name: /^확인$|^OK$/ }).click();
     await expect(failureSheet).toBeHidden();
 
@@ -374,8 +416,14 @@ test.describe("관리자 표면 경계", () => {
     expect(Array.isArray(plans.items) ? plans.items.length : 0).toBeGreaterThan(0);
 
     // 플랜만 있고 기록이 없으면 통계·캘린더가 빈 화면이라 데모의 목적을 못 이룬다.
+    //
+    // ⚠️ **재는 대상은 시드가 심은 기록**이지 이 계정의 모든 기록이 아니다. 테스트 계정은
+    // 관리자당 하나뿐이라 같은 파일의 다른 테스트도 여기에 기록을 남긴다 — 계정 전체를
+    // 재면 그 테스트들의 순서에 이 단언이 매달린다(실측: 위 저장-실패 스펙이 만든 수동
+    // 기록 하나에 무너졌다). 시드 기록은 데모 태그로 스스로를 밝히니 그것으로 좁힌다.
     const logs = await (await page.request.get("/api/logs?limit=100")).json();
-    const logItems: Array<{ planId: string | null }> = logs.items ?? [];
+    const allLogItems: Array<{ planId: string | null; tags: string[] | null }> = logs.items ?? [];
+    const logItems = allLogItems.filter((item) => (item.tags ?? []).includes(DEMO_LOG_TAG));
     expect(logItems.length).toBeGreaterThan(0);
 
     // **모든 기록에 planId가 있어야 한다.** 예전 데모는 planId 없는 평평한 로그를 심어
@@ -395,7 +443,10 @@ test.describe("관리자 표면 경계", () => {
       const planLogs = await (
         await page.request.get(`/api/logs?planId=${replay.planId}&limit=100`)
       ).json();
-      expect(Array.isArray(planLogs.items) ? planLogs.items.length : 0).toBe(replay.sessionCount);
+      const planLogItems: Array<{ tags: string[] | null }> = planLogs.items ?? [];
+      expect(
+        planLogItems.filter((item) => (item.tags ?? []).includes(DEMO_LOG_TAG)).length,
+      ).toBe(replay.sessionCount);
       const planSessions = await (
         await page.request.get(`/api/generated-sessions?planId=${replay.planId}&limit=100`)
       ).json();
@@ -409,7 +460,10 @@ test.describe("관리자 표면 경계", () => {
     expect(again.status()).toBe(200);
     // 요약 필드가 아니라 **실제 기록 수**로 잰다 — 쌓이는지 아닌지는 DB가 답이다.
     const logsAgain = await (await page.request.get("/api/logs?limit=100")).json();
-    expect((logsAgain.items ?? []).length).toBe(logItems.length);
+    const againItems: Array<{ tags: string[] | null }> = logsAgain.items ?? [];
+    expect(
+      againItems.filter((item) => (item.tags ?? []).includes(DEMO_LOG_TAG)).length,
+    ).toBe(logItems.length);
 
     expect((await page.request.post("/api/admin/impersonate/return")).status()).toBe(200);
   });
