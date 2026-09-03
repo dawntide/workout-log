@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { memo } from "react";
-import { V2Card, V2PrimaryBtn, V2SecondaryBtn } from "@/components/v2/primitives";
+import { V2Card, V2PrimaryBtn, V2SecondaryBtn, V2Switch } from "@/components/v2/primitives";
 import { getMonth, getYear } from "@/lib/date-utils";
 
 const MonthYearPickerSheet = dynamic(
@@ -27,6 +27,7 @@ const BottomSheet = dynamic(
 type CalendarPlanOption = {
   id: string;
   name: string;
+  isArchived?: boolean;
 };
 
 type CalendarOverlaySheetsCopy = {
@@ -36,6 +37,9 @@ type CalendarOverlaySheetsCopy = {
   planSearchPlaceholder: string;
   planSearchResults: string;
   noMatchingPlans: string;
+  planShowArchived: string;
+  planArchivedBadge: string;
+  noPlansWithoutArchived: string;
   monthPickerTitle: string;
 };
 
@@ -59,6 +63,9 @@ type CalendarOverlaySheetsProps = {
   planQuery: string;
   filteredPlans: CalendarPlanOption[];
   selectedPlanId: string;
+  showArchivedPlans: boolean;
+  archivedPlansAvailable: boolean;
+  onToggleArchivedPlans: (next: boolean) => void;
   onClosePlanSheet: () => void;
   onPlanQueryChange: (value: string) => void;
   onPlanQuerySubmit: () => void;
@@ -76,6 +83,37 @@ type CalendarOverlaySheetsProps = {
   onCloseDeleteConfirm: () => void;
   onConfirmDelete: () => void;
 };
+
+/**
+ * 보관 플랜 표시 토글. 검색 입력과 결과 목록 사이(=`filters` 슬롯)에 둔다 —
+ * 결과에 붙어 있어야 켜 둔 걸 안다.
+ */
+const ArchivedPlanToggle = memo(function ArchivedPlanToggle({
+  label,
+  checked,
+  onChange,
+}: {
+  label: string;
+  checked: boolean;
+  onChange: (next: boolean) => void;
+}) {
+  return (
+    <label
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: "var(--v2-s-3)",
+        marginTop: "var(--v2-s-3)",
+      }}
+    >
+      <span className="v2-small" style={{ color: "var(--v2-ink-2)" }}>
+        {label}
+      </span>
+      <V2Switch checked={checked} onCheckedChange={onChange} aria-label={label} />
+    </label>
+  );
+});
 
 const MoveDateConflictSheet = memo(function MoveDateConflictSheet({
   open,
@@ -157,6 +195,9 @@ export const CalendarOverlaySheets = memo(function CalendarOverlaySheets({
   planQuery,
   filteredPlans,
   selectedPlanId,
+  showArchivedPlans,
+  archivedPlansAvailable,
+  onToggleArchivedPlans,
   onClosePlanSheet,
   onPlanQueryChange,
   onPlanQuerySubmit,
@@ -187,10 +228,25 @@ export const CalendarOverlaySheets = memo(function CalendarOverlaySheets({
         onQueryChange={onPlanQueryChange}
         onQuerySubmit={onPlanQuerySubmit}
         resultsAriaLabel={copy.planSearchResults}
-        emptyText={copy.noMatchingPlans}
+        filters={
+          // 보관 플랜이 없으면 토글도 없다 — 아무것도 바꾸지 못하는 스위치를 두지 않는다.
+          archivedPlansAvailable ? (
+            <ArchivedPlanToggle
+              label={copy.planShowArchived}
+              checked={showArchivedPlans}
+              onChange={onToggleArchivedPlans}
+            />
+          ) : null
+        }
+        emptyText={
+          // 토글을 꺼 둔 걸 잊고 "왜 안 나오지"가 되는 게 이 시트의 실패 모드다.
+          !showArchivedPlans && archivedPlansAvailable
+            ? copy.noPlansWithoutArchived
+            : copy.noMatchingPlans
+        }
         options={filteredPlans.map((plan) => ({
           key: plan.id,
-          label: plan.name,
+          label: plan.isArchived ? `${plan.name} · ${copy.planArchivedBadge}` : plan.name,
           active: plan.id === selectedPlanId,
           ariaCurrent: plan.id === selectedPlanId,
           onSelect: () => onSelectPlan(plan.id),
