@@ -71,6 +71,42 @@ export function diagnoseSaveFailure(
   };
 }
 
+/**
+ * 저장이 실패한 계층. 텔레메트리 `workout_save_failed`의 `stage` prop이 되고, 콘솔 기록
+ * 여부를 가른다. **값을 바꾸지 말 것** — 이미 쌓인 `ux_event_log` 행이 이 문자열로
+ * 남아 있어, 바꾸면 과거 기록과 이어지지 않는다.
+ */
+export const SAVE_FAILURE_STAGES = Object.freeze({
+  entryValidation: "entry-validation",
+  draftValidation: "draft-validation",
+  progression: "progression",
+  submit: "submit",
+} as const);
+
+/**
+ * 사용자 입력을 그대로 되돌려주는 거부 계층. 화면에 이미 원인이 떠 있고 "던져진 값"도
+ * 그 문구 자체라, 콘솔에 남길 것이 없다.
+ */
+const SAVE_INPUT_REJECTION_STAGES: readonly string[] = Object.freeze([
+  SAVE_FAILURE_STAGES.entryValidation,
+  SAVE_FAILURE_STAGES.draftValidation,
+]);
+
+/**
+ * 이 실패를 `console.error`로 남길지.
+ *
+ * `console.error`는 **예상 못 한 것**이라는 신호로 아껴 둔다. 정상 거부까지 물들이면
+ * 여정 E2E의 "콘솔 에러 0건" 가드가 상시 빨강이 되어 무의미해지고, 진짜 예외가 소음에
+ * 묻힌다. 대신 텔레메트리(`workout_save_failed`)는 계층 구분 없이 전부 남긴다 — 거부율은
+ * 그 자체로 퍼널 지표다.
+ *
+ * 모르는 계층은 남기는 쪽으로 기운다. 빠뜨리면 소음이 늘 뿐이지만, 반대로 빠뜨리면
+ * 다음 조사가 또 폴백 문구 하나로 끝난다.
+ */
+export function shouldLogSaveFailure(stage: string): boolean {
+  return !SAVE_INPUT_REJECTION_STAGES.includes(stage);
+}
+
 export type SaveAttemptOutcome =
   | { status: "saved" }
   | { status: "failed"; error: unknown }

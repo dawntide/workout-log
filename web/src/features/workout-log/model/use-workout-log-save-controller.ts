@@ -14,7 +14,12 @@ import {
   type ProgressionProtocolMode,
 } from "./progression";
 import { submitWorkoutLogDraft } from "./save";
-import { diagnoseSaveFailure, runSaveAttempt } from "./save-diagnostics";
+import {
+  diagnoseSaveFailure,
+  runSaveAttempt,
+  SAVE_FAILURE_STAGES,
+  shouldLogSaveFailure,
+} from "./save-diagnostics";
 
 type FailureProtocolSheetState = {
   title: string;
@@ -84,7 +89,11 @@ export function useWorkoutLogSaveController({
     (stage: string, error: unknown) => {
       const diagnosis = diagnoseSaveFailure(error, locale);
       // 원본 객체를 버리면 다음 조사도 폴백 문구 하나로 끝난다 — 실기기 원격 디버깅의 유일한 창.
-      console.error("[workout-log] 저장 실패", stage, error);
+      // 다만 입력 검증 거부는 정상 UX라 콘솔에 남기지 않는다: 화면에 이미 원인이 떠 있고,
+      // 여기까지 물들이면 여정 E2E의 "콘솔 에러 0건" 가드가 상시 빨강이 되어 무의미해진다.
+      if (shouldLogSaveFailure(stage)) {
+        console.error("[workout-log] 저장 실패", stage, error);
+      }
       setSaveError(diagnosis.message);
       setWorkflowState("editing");
       trackWorkoutUxEvent(WORKOUT_UX_EVENT_NAMES.saveFailed, { ...diagnosis.props, stage });
@@ -111,7 +120,7 @@ export function useWorkoutLogSaveController({
     );
     if (entryErrors.length > 0) {
       reportSaveFailure(
-        "entry-validation",
+        SAVE_FAILURE_STAGES.entryValidation,
         entryErrors[0] ??
           (locale === "ko" ? "입력값을 확인해 주세요." : "Check your inputs."),
       );
@@ -121,7 +130,7 @@ export function useWorkoutLogSaveController({
     const validation = validateWorkoutDraft(draft, locale);
     if (!validation.valid) {
       reportSaveFailure(
-        "draft-validation",
+        SAVE_FAILURE_STAGES.draftValidation,
         validation.errors[0] ??
           (locale === "ko" ? "입력값을 확인해 주세요." : "Check your inputs."),
       );
@@ -137,7 +146,7 @@ export function useWorkoutLogSaveController({
 
     // 실패 지점을 따라다니는 커서. 진행 시트에서 던진 오류가 "submit"으로 찍히면 다음
     // 조사가 엉뚱한 계층을 판다.
-    let failedStage = "progression";
+    let failedStage: string = SAVE_FAILURE_STAGES.progression;
 
     const outcome = await runSaveAttempt({
       save: async (): Promise<{ cancelled: true } | { cancelled: false; saved: unknown }> => {
@@ -153,7 +162,7 @@ export function useWorkoutLogSaveController({
         });
         if (progression.cancelled) return { cancelled: true };
 
-        failedStage = "submit";
+        failedStage = SAVE_FAILURE_STAGES.submit;
         const saved = await submitWorkoutLogDraft({
           draft,
           bodyweightKg,

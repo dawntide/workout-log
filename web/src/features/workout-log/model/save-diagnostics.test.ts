@@ -1,7 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { diagnoseSaveFailure, runSaveAttempt } from "./save-diagnostics";
+import {
+  diagnoseSaveFailure,
+  runSaveAttempt,
+  SAVE_FAILURE_STAGES,
+  shouldLogSaveFailure,
+} from "./save-diagnostics";
 
 // 2026-09-08 프로덕션 저장 실패 조사에서 나온 두 결함을 잠근다.
 //
@@ -142,4 +147,43 @@ test("후처리가 던져도 저장 실패로 보고하지 않는다", async () 
     "저장은 성공했다 — 실패로 접으면 안 된다",
   );
   assert.equal((outcome as { error: Error }).error.message, "router blew up");
+});
+
+// ③ 콘솔이 정상 UX까지 에러로 물들였다. ①을 고치면서 `console.error`를 실패 보고 한
+//    군데에 몰아 넣었는데, **입력 검증 거부**까지 같은 자리를 지난다. 사용자가 화면에서
+//    이미 원인을 읽고 있고 던져진 값도 그 문구 자체라 콘솔에 남길 것이 없다. 그런데도
+//    찍히는 바람에 여정 E2E의 "콘솔 에러 0건" 가드가 깨졌다(ref5-user-journey.spec.ts).
+//    console.error는 **예상 못 한 것**이라는 신호로 아껴 둔다 — 정상 거부까지 물들이면
+//    그 가드가 무의미해지고, 진짜 예외가 소음에 묻힌다.
+
+test("입력 검증 거부는 콘솔에 남기지 않는다", () => {
+  assert.equal(shouldLogSaveFailure("entry-validation"), false);
+  assert.equal(shouldLogSaveFailure("draft-validation"), false);
+});
+
+test("예외로 끝난 저장은 원본을 콘솔에 남긴다", () => {
+  // 실기기 원격 디버깅의 유일한 창이다. 서버 액션이라 Vercel 에러 그룹에 안 잡힌다.
+  assert.equal(shouldLogSaveFailure("progression"), true);
+  assert.equal(shouldLogSaveFailure("submit"), true);
+});
+
+test("모르는 계층은 남기는 쪽으로 기운다", () => {
+  // 새 예외 계층이 늘었을 때 조용히 사라지지 않게. 빠뜨리면 소음이 늘 뿐이지만,
+  // 반대로 빠뜨리면 다음 조사가 또 폴백 문구 하나로 끝난다.
+  assert.equal(shouldLogSaveFailure("unknown-stage"), true);
+});
+
+test("stage 문자열은 이미 쌓인 ux_event_log 행과 이어져야 한다", () => {
+  // 2026-09-10부터 프로덕션 `ux_event_log`에 이 값들이 그대로 들어가 있다. 바꾸면
+  // 과거 실패 기록이 새 값과 이어지지 않아, 관측성을 붙인 목적 자체가 사라진다.
+  assert.deepEqual(SAVE_FAILURE_STAGES, {
+    entryValidation: "entry-validation",
+    draftValidation: "draft-validation",
+    progression: "progression",
+    submit: "submit",
+  });
+  // 카탈로그의 모든 계층이 콘솔 기록 여부 판정을 통과한다 — 새 계층이 늘어도 여기서 걸린다.
+  for (const stage of Object.values(SAVE_FAILURE_STAGES)) {
+    assert.equal(typeof shouldLogSaveFailure(stage), "boolean");
+  }
 });
