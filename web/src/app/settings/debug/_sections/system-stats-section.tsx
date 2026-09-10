@@ -70,7 +70,6 @@ type UxEventsSummaryResp = {
   totalEvents: number;
   summary: {
     opens: number;
-    modeChanges: number;
     generateClicks: number;
     generateSuccesses: number;
     addSheetOpens: number;
@@ -78,43 +77,35 @@ type UxEventsSummaryResp = {
     saveClicks: number;
     saveSuccesses: number;
     saveFailures: number;
-    repeatClicks: number;
-    repeatSuccesses: number;
   };
   rates: {
     saveSuccessFromClicks: number;
     generateSuccessFromClicks: number;
     addAfterSheetOpen: number;
-    repeatSuccessFromClicks: number;
     saveSuccessFromOpens: number;
   };
   previous?: {
     totalEvents: number;
     summary: {
       opens: number;
-      modeChanges: number;
-      generateClicks: number;
+        generateClicks: number;
       generateSuccesses: number;
       addSheetOpens: number;
       addExerciseAdds: number;
       saveClicks: number;
       saveSuccesses: number;
       saveFailures: number;
-      repeatClicks: number;
-      repeatSuccesses: number;
-    };
+        };
     rates: {
       saveSuccessFromClicks: number;
       generateSuccessFromClicks: number;
       addAfterSheetOpen: number;
-      repeatSuccessFromClicks: number;
-      saveSuccessFromOpens: number;
+        saveSuccessFromOpens: number;
     };
   };
   trend?: {
     totalEventsDelta: number;
     opensDelta: number;
-    modeChangesDelta: number;
     generateSuccessesDelta: number;
     saveSuccessesDelta: number;
     addExerciseAddsDelta: number;

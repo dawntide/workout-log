@@ -7,6 +7,7 @@
 import { and, eq, gte, lte, sql } from "drizzle-orm";
 import { db } from "@workout/core/db/client";
 import { generatedSession, uxEventLog, workoutLog, workoutSet } from "@workout/core/db/schema";
+import { WORKOUT_UX_EVENT_NAMES } from "@workout/core/observability/workout-ux-event-names";
 
 type Locale = "ko" | "en";
 
@@ -64,7 +65,6 @@ type UxFunnelSnapshot = {
 
 type UxEventSummary = {
   opens: number;
-  modeChanges: number;
   generateClicks: number;
   generateSuccesses: number;
   addSheetOpens: number;
@@ -72,15 +72,12 @@ type UxEventSummary = {
   saveClicks: number;
   saveSuccesses: number;
   saveFailures: number;
-  repeatClicks: number;
-  repeatSuccesses: number;
 };
 
 type UxEventRates = {
   saveSuccessFromClicks: number;
   generateSuccessFromClicks: number;
   addAfterSheetOpen: number;
-  repeatSuccessFromClicks: number;
   saveSuccessFromOpens: number;
 };
 
@@ -100,7 +97,6 @@ type UxSummaryWindow = {
   trend?: {
     totalEventsDelta: number;
     opensDelta: number;
-    modeChangesDelta: number;
     generateSuccessesDelta: number;
     saveSuccessesDelta: number;
     addExerciseAddsDelta: number;
@@ -248,7 +244,6 @@ function buildUxRates(summary: UxEventSummary): UxEventRates {
     saveSuccessFromClicks: toRatio(summary.saveSuccesses, summary.saveClicks),
     generateSuccessFromClicks: toRatio(summary.generateSuccesses, summary.generateClicks),
     addAfterSheetOpen: toRatio(summary.addExerciseAdds, summary.addSheetOpens),
-    repeatSuccessFromClicks: toRatio(summary.repeatSuccesses, summary.repeatClicks),
     saveSuccessFromOpens: toRatio(summary.saveSuccesses, summary.opens),
   };
 }
@@ -445,21 +440,26 @@ async function computeFunnelTotals(input: {
   };
 }
 
+/**
+ * 이름 하나를 세는 filter 절. 이름을 직접 적지 않고 카탈로그를 거쳐야 emit 쪽과 어긋나지
+ * 않는다 — 실제로 어긋난 채 6개월을 보냈다(web/scripts/workout-ux-event-emitters-guard).
+ */
+function countOf(eventName: string) {
+  return sql<number>`count(*) filter (where ${uxEventLog.name} = ${eventName})`;
+}
+
 async function computeUxSummary(input: { userId: string; from: Date; to: Date }) {
   const rows = await db
     .select({
       totalEvents: sql<number>`count(*)`,
-      opens: sql<number>`count(*) filter (where ${uxEventLog.name} = 'workout_log_opened')`,
-      modeChanges: sql<number>`count(*) filter (where ${uxEventLog.name} = 'workout_focus_mode_changed')`,
-      generateClicks: sql<number>`count(*) filter (where ${uxEventLog.name} = 'workout_generate_apply_clicked')`,
-      generateSuccesses: sql<number>`count(*) filter (where ${uxEventLog.name} = 'workout_generate_apply_succeeded')`,
-      addSheetOpens: sql<number>`count(*) filter (where ${uxEventLog.name} = 'workout_add_exercise_sheet_opened')`,
-      addExerciseAdds: sql<number>`count(*) filter (where ${uxEventLog.name} = 'workout_add_exercise_added')`,
-      saveClicks: sql<number>`count(*) filter (where ${uxEventLog.name} = 'workout_save_clicked')`,
-      saveSuccesses: sql<number>`count(*) filter (where ${uxEventLog.name} = 'workout_save_succeeded')`,
-      saveFailures: sql<number>`count(*) filter (where ${uxEventLog.name} = 'workout_save_failed')`,
-      repeatClicks: sql<number>`count(*) filter (where ${uxEventLog.name} = 'workout_repeat_last_clicked')`,
-      repeatSuccesses: sql<number>`count(*) filter (where ${uxEventLog.name} = 'workout_repeat_last_succeeded')`,
+      opens: countOf(WORKOUT_UX_EVENT_NAMES.logOpened),
+      generateClicks: countOf(WORKOUT_UX_EVENT_NAMES.generateApplyClicked),
+      generateSuccesses: countOf(WORKOUT_UX_EVENT_NAMES.generateApplySucceeded),
+      addSheetOpens: countOf(WORKOUT_UX_EVENT_NAMES.addExerciseSheetOpened),
+      addExerciseAdds: countOf(WORKOUT_UX_EVENT_NAMES.addExerciseAdded),
+      saveClicks: countOf(WORKOUT_UX_EVENT_NAMES.saveClicked),
+      saveSuccesses: countOf(WORKOUT_UX_EVENT_NAMES.saveSucceeded),
+      saveFailures: countOf(WORKOUT_UX_EVENT_NAMES.saveFailed),
     })
     .from(uxEventLog)
     .where(
@@ -473,7 +473,6 @@ async function computeUxSummary(input: { userId: string; from: Date; to: Date })
   const row = rows[0];
   const summary: UxEventSummary = {
     opens: Number(row?.opens ?? 0),
-    modeChanges: Number(row?.modeChanges ?? 0),
     generateClicks: Number(row?.generateClicks ?? 0),
     generateSuccesses: Number(row?.generateSuccesses ?? 0),
     addSheetOpens: Number(row?.addSheetOpens ?? 0),
@@ -481,8 +480,6 @@ async function computeUxSummary(input: { userId: string; from: Date; to: Date })
     saveClicks: Number(row?.saveClicks ?? 0),
     saveSuccesses: Number(row?.saveSuccesses ?? 0),
     saveFailures: Number(row?.saveFailures ?? 0),
-    repeatClicks: Number(row?.repeatClicks ?? 0),
-    repeatSuccesses: Number(row?.repeatSuccesses ?? 0),
   };
 
   return {
@@ -514,7 +511,6 @@ async function buildWindowSummary(input: {
     | {
         totalEventsDelta: number;
         opensDelta: number;
-        modeChangesDelta: number;
         generateSuccessesDelta: number;
         saveSuccessesDelta: number;
         addExerciseAddsDelta: number;
@@ -536,7 +532,6 @@ async function buildWindowSummary(input: {
     trend = {
       totalEventsDelta: current.totalEvents - previousSummary.totalEvents,
       opensDelta: current.summary.opens - previousSummary.summary.opens,
-      modeChangesDelta: current.summary.modeChanges - previousSummary.summary.modeChanges,
       generateSuccessesDelta:
         current.summary.generateSuccesses - previousSummary.summary.generateSuccesses,
       saveSuccessesDelta: current.summary.saveSuccesses - previousSummary.summary.saveSuccesses,
