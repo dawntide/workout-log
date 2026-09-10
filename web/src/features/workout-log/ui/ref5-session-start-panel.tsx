@@ -641,7 +641,10 @@ export function Ref5SessionStartPanel({
           <h2 className="v2-h2" style={{ margin: 0 }}>
             {locale === "ko" ? "REF5 세션 결정" : "REF5 session decision"}
           </h2>
-          <V2Chip tone="info">v1.3</V2Chip>
+          {/* 상수를 읽어 범프를 자동으로 따라간다. v1.4 컷오버 때 이 자리가 "v1.3"으로
+              남아 v1.4 플랜의 미리보기가 v1.3이라고 표시했다 — 엔진·플랜은 멀쩡한데
+              화면만 거짓말을 하니 세션 생성 실패를 오진하게 만든다. */}
+          <V2Chip tone="info">v{REF5_PROTOCOL_VERSION}</V2Chip>
         </div>
         <p className="v2-small" style={{ margin: 0, color: "var(--v2-ink-3)" }}>
           {planName} · {dateKey}
