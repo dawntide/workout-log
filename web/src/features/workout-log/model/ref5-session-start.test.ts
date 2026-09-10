@@ -4,6 +4,7 @@ import {
   buildRef5GeneratePayload,
   describeRef5HardGate,
   formatRef5Duration,
+  shouldShowOapRevertToggle,
   summarizeRef5Preview,
 } from "../ui/ref5-session-start-panel";
 import { isRef5PlanParams } from "@/lib/workout-record/ref5-plan";
@@ -298,4 +299,91 @@ test("preview set count counts the OAP pair once, as the engine does (§7.3)", (
       "Overhead Press",
     ],
   );
+});
+
+// §7.6 되돌리기는 **정상 BP 집중 세션**에만 존재한다. 엔진의 `carriesOapSlot`이
+// `sessionType === "NORMAL" && nextFocus === "BP"`를 요구하고, 그 밖의 세션형은 입력을
+// 통째로 무시한다. 화면이 이보다 넓게 토글을 보여주면 사용자는 아무것도 바꾸지 않는
+// 스위치를 켜게 된다 — 처방이 그대로라 "저장이 안 먹었나"로 읽힌다.
+
+test("§7.6 revert toggle stays hidden until a preview says which turn it is", () => {
+  assert.equal(shouldShowOapRevertToggle({ reverted: false, preview: null }), false);
+});
+
+test("§7.6 revert toggle appears on a normal BP-focus session", () => {
+  assert.equal(
+    shouldShowOapRevertToggle({ reverted: false, preview: { mode: "NORMAL", focus: "BP" } }),
+    true,
+  );
+});
+
+test("§7.6 revert toggle stays hidden on a micro session, which has no third slot", () => {
+  // 마이크로는 SQ V · BP 볼륨 · PULL 볼륨 1×6 셋뿐이라(§7.4) 되돌릴 자리가 없다.
+  assert.equal(
+    shouldShowOapRevertToggle({ reverted: false, preview: { mode: "MICRO", focus: "BP" } }),
+    false,
+  );
+});
+
+test("§7.6 revert toggle stays hidden on a PULL-focus session", () => {
+  assert.equal(
+    shouldShowOapRevertToggle({ reverted: false, preview: { mode: "NORMAL", focus: "PULL" } }),
+    false,
+  );
+});
+
+test("§7.6 revert toggle never hides itself while it is on", () => {
+  // 토글을 켜면 입력 서명이 달라져 직전 미리보기가 무효가 된다. 그 순간 숨겨버리면
+  // 되돌릴 방법이 사라지고, 켜진 값은 그대로 시작 페이로드에 실려 나간다.
+  const previews = [
+    null,
+    { mode: "MICRO", focus: "BP" },
+    { mode: "NORMAL", focus: "PULL" },
+  ];
+  for (const preview of previews) {
+    assert.equal(shouldShowOapRevertToggle({ reverted: true, preview }), true);
+  }
+});
+
+test("a density-micro preview whose next focus is BP hides the §7.6 revert toggle", () => {
+  // 2026-09-10 실화면. `focus`는 세션형과 무관한 **다음 집중 차례**라 마이크로에서도
+  // "BP"다 — focus만 보면 토글이 뜬다. mode를 함께 봐야 가려진다.
+  const summary = summarizeRef5Preview({
+    id: "preview-density-micro",
+    planId: "plan-1",
+    sessionKey: "ref5:preview:start-event-micro",
+    snapshot: {
+      decision: {
+        sessionType: "MICRO",
+        microReasons: ["NORMAL_SESSION_DENSITY"],
+        focus: "BP",
+        squatPrescription: "V",
+      },
+      totalWorkingSets: 4,
+      exercises: [
+        {
+          lift: "SQ",
+          exerciseName: "High-Bar Back Squat",
+          sets: [
+            { setNumber: 1, plannedReps: 5, externalLoadKg: 72.5 },
+            { setNumber: 2, plannedReps: 5, externalLoadKg: 72.5 },
+          ],
+        },
+        {
+          lift: "BP",
+          exerciseName: "Bench Press",
+          sets: [{ setNumber: 1, plannedReps: 5, externalLoadKg: 70 }],
+        },
+        {
+          lift: "PULL",
+          exerciseName: "Weighted Pull-Up",
+          sets: [{ setNumber: 1, plannedReps: 6, externalLoadKg: 0, totalLoadKg: 75 }],
+        },
+      ],
+    },
+  });
+
+  assert.equal(summary.mode, "MICRO");
+  assert.equal(summary.focus, "BP");
+  assert.equal(shouldShowOapRevertToggle({ reverted: false, preview: summary }), false);
 });

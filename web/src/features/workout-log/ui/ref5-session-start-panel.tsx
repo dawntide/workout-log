@@ -239,6 +239,25 @@ export function summarizeRef5Preview(session: GeneratedSessionLike): PreviewSumm
   };
 }
 
+/**
+ * §7.6 되돌리기 토글을 보여줄지. 켜져 있으면 무슨 상황이든 보여준다 — 토글을 켜면 입력
+ * 서명이 달라져 직전 미리보기가 무효가 되는데, 그때 숨기면 되돌릴 방법이 사라지고 켜진
+ * 값만 시작 페이로드에 실려 나간다.
+ */
+export function shouldShowOapRevertToggle(input: {
+  reverted: boolean;
+  preview: { mode: string; focus: string | null } | null;
+}): boolean {
+  if (input.reverted) return true;
+  // `focus`는 세션형과 무관한 **다음 집중 차례**라 마이크로 세션에서도 "BP"다. mode를
+  // 함께 보지 않으면 되돌릴 3번 슬롯이 아예 없는 마이크로(§7.4)에서도 토글이 뜬다.
+  // 둘 다 헐겁게 본다 — 모르는 문자열이 오면 숨기는 쪽보다 보여주는 쪽이 낫다. 필요한
+  // 세션에서 못 되돌리는 것이, 무의미한 세션에서 한 번 더 보이는 것보다 나쁘다.
+  const focus = input.preview?.focus ?? "";
+  const mode = input.preview?.mode ?? "";
+  return focus.toUpperCase().includes("BP") && !mode.toUpperCase().includes("MICRO");
+}
+
 const HOUR_MS = 60 * 60 * 1000;
 const HARD_ELAPSED_HOURS = 48;
 const HARD_WINDOW_HOURS = 168;
@@ -579,10 +598,10 @@ export function Ref5SessionStartPanel({
   // 되돌리기는 BP 집중 차례의 정상 세션에만 의미가 있다(§7.6). 어느 차례인지는
   // 미리보기가 알려준다. 서명이 어긋난 미리보기까지 보는 것은 의도다 — 토글을 켜면
   // 서명이 달라지는데, visiblePreview로 판단하면 토글이 스스로를 숨겨 되돌릴 수 없다.
-  const lastPreviewFocus = previewSession
-    ? (summarizeRef5Preview(previewSession).focus ?? "")
-    : "";
-  const showOapRevert = oapSlotReverted || lastPreviewFocus.toUpperCase().includes("BP");
+  const showOapRevert = shouldShowOapRevertToggle({
+    reverted: oapSlotReverted,
+    preview: previewSession ? summarizeRef5Preview(previewSession) : null,
+  });
 
   async function requestGeneration(previewOnly: boolean) {
     if (!values) {
