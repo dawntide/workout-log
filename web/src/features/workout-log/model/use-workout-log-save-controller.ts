@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState } from "react";
 import { trackWorkoutUxEvent } from "@/lib/workout-ux-events";
+import { WORKOUT_UX_EVENT_NAMES } from "@workout/core/observability/workout-ux-event-names";
 import type {
   FailureProtocolResult,
   FailureProtocolTarget,
@@ -86,7 +87,7 @@ export function useWorkoutLogSaveController({
       console.error("[workout-log] 저장 실패", stage, error);
       setSaveError(diagnosis.message);
       setWorkflowState("editing");
-      trackWorkoutUxEvent("workout_save_failed", { ...diagnosis.props, stage });
+      trackWorkoutUxEvent(WORKOUT_UX_EVENT_NAMES.saveFailed, { ...diagnosis.props, stage });
     },
     [locale, setSaveError, setWorkflowState],
   );
@@ -101,7 +102,7 @@ export function useWorkoutLogSaveController({
     if (!draft) return;
 
     // 저장 성공률의 분모. 이 이벤트가 없으면 ux-snapshot의 저장 지표가 영영 0/0으로 남는다.
-    trackWorkoutUxEvent("workout_save_clicked");
+    trackWorkoutUxEvent(WORKOUT_UX_EVENT_NAMES.saveClicked);
 
     const entryErrors = validateWorkoutRecordEntryState(
       visibleExercises,
@@ -173,7 +174,7 @@ export function useWorkoutLogSaveController({
           typeof savedResponse?.log?.id === "string" ? savedResponse.log.id : null;
 
         setWorkflowState("done");
-        trackWorkoutUxEvent("workout_save_succeeded");
+        trackWorkoutUxEvent(WORKOUT_UX_EVENT_NAMES.saveSucceeded);
         onSaved(savedLogId);
       },
     });

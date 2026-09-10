@@ -11,6 +11,8 @@ import {
   V2TextField,
 } from "@/components/v2/primitives";
 import { errorMessage } from "@/lib/error-message";
+import { trackWorkoutUxEvent } from "@/lib/workout-ux-events";
+import { WORKOUT_UX_EVENT_NAMES } from "@workout/core/observability/workout-ux-event-names";
 import { apiPost, isAbortError } from "@/shared/api";
 import type { GeneratedSessionLike } from "@/entities/workout-record";
 import { REF5_PROTOCOL_VERSION } from "@workout/core/program-engine/ref5-protocol-version";
@@ -592,6 +594,11 @@ export function Ref5SessionStartPanel({
       return;
     }
 
+    // 퍼널의 "생성/적용 클릭". 비-REF5 플랜은 페이지 로드 때 자동 생성되므로 클릭이 없고,
+    // 여기서만 쏜다 — 자동 생성까지 세면 생성→저장 전환율이 항상 100%에 붙어 의미를 잃는다.
+    const generateMode = previewOnly ? "preview" : "start";
+    trackWorkoutUxEvent(WORKOUT_UX_EVENT_NAMES.generateApplyClicked, { mode: generateMode });
+
     setPendingAction(previewOnly ? "preview" : "start");
     setRequestError(null);
     requestAbortRef.current?.abort();
@@ -604,6 +611,7 @@ export function Ref5SessionStartPanel({
         { invalidateCache: !previewOnly, signal: controller.signal },
       );
       if (!response.session) throw new Error("The server did not return a session.");
+      trackWorkoutUxEvent(WORKOUT_UX_EVENT_NAMES.generateApplySucceeded, { mode: generateMode });
       if (previewOnly) {
         setPreviewSession(response.session);
         setPreviewSignature(JSON.stringify(values));

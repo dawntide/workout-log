@@ -1,3 +1,5 @@
+import { WORKOUT_UX_EVENT_NAMES } from "@workout/core/observability/workout-ux-event-names";
+
 type WorkoutUxPrimitive = string | number | boolean | null;
 
 type WorkoutUxEvent = {
@@ -9,7 +11,6 @@ type WorkoutUxEvent = {
 
 type WorkoutUxSummary = {
   opens: number;
-  modeChanges: number;
   generateClicks: number;
   generateSuccesses: number;
   addSheetOpens: number;
@@ -17,15 +18,13 @@ type WorkoutUxSummary = {
   saveClicks: number;
   saveSuccesses: number;
   saveFailures: number;
-  repeatClicks: number;
-  repeatSuccesses: number;
 };
 
 type WorkoutUxGuidedHint = {
-  id: "generate_first" | "add_exercise" | "save_log" | "stability" | "power_mode";
+  id: "generate_first" | "add_exercise" | "save_log" | "stability";
   title: string;
   description: string;
-  action: "generate_apply" | "add_exercise" | "save_log" | "power_mode";
+  action: "generate_apply" | "add_exercise" | "save_log";
   actionLabel: string;
 };
 
@@ -150,17 +149,14 @@ function summarizeWorkoutUxEvents(events: WorkoutUxEvent[], withinDays = 14): Wo
   });
 
   return {
-    opens: countByName(scoped, "workout_log_opened"),
-    modeChanges: countByName(scoped, "workout_focus_mode_changed"),
-    generateClicks: countByName(scoped, "workout_generate_apply_clicked"),
-    generateSuccesses: countByName(scoped, "workout_generate_apply_succeeded"),
-    addSheetOpens: countByName(scoped, "workout_add_exercise_sheet_opened"),
-    addExerciseAdds: countByName(scoped, "workout_add_exercise_added"),
-    saveClicks: countByName(scoped, "workout_save_clicked"),
-    saveSuccesses: countByName(scoped, "workout_save_succeeded"),
-    saveFailures: countByName(scoped, "workout_save_failed"),
-    repeatClicks: countByName(scoped, "workout_repeat_last_clicked"),
-    repeatSuccesses: countByName(scoped, "workout_repeat_last_succeeded"),
+    opens: countByName(scoped, WORKOUT_UX_EVENT_NAMES.logOpened),
+    generateClicks: countByName(scoped, WORKOUT_UX_EVENT_NAMES.generateApplyClicked),
+    generateSuccesses: countByName(scoped, WORKOUT_UX_EVENT_NAMES.generateApplySucceeded),
+    addSheetOpens: countByName(scoped, WORKOUT_UX_EVENT_NAMES.addExerciseSheetOpened),
+    addExerciseAdds: countByName(scoped, WORKOUT_UX_EVENT_NAMES.addExerciseAdded),
+    saveClicks: countByName(scoped, WORKOUT_UX_EVENT_NAMES.saveClicked),
+    saveSuccesses: countByName(scoped, WORKOUT_UX_EVENT_NAMES.saveSucceeded),
+    saveFailures: countByName(scoped, WORKOUT_UX_EVENT_NAMES.saveFailed),
   };
 }
 
@@ -212,16 +208,6 @@ export function pickWorkoutUxGuidedHint(summary: WorkoutUxSummary, locale: Worko
       description: locale === "ko" ? "세트를 확인하고 ‘운동 기록 저장’을 누르면 오늘 기록이 완료됩니다." : "Review the sets and tap Save Workout Log to finish today's workout.",
       action: "save_log",
       actionLabel: locale === "ko" ? "운동 기록 저장" : "Save Workout Log",
-    };
-  }
-
-  if (summary.saveSuccesses >= 3 && summary.modeChanges === 0) {
-    return {
-      id: "power_mode",
-      title: locale === "ko" ? "고급 모드를 써보세요" : "Try advanced mode",
-      description: locale === "ko" ? "고급 모드에서 오버라이드/세션 비교 같은 상세 제어를 바로 사용할 수 있습니다." : "Advanced mode gives you detailed controls like overrides and session comparison.",
-      action: "power_mode",
-      actionLabel: locale === "ko" ? "고급 모드 켜기" : "Turn On Advanced Mode",
     };
   }
 

@@ -10,6 +10,8 @@ import {
 } from "@/components/ui/settings-state";
 import { Toast } from "@/components/ui/toast";
 import { useLocale } from "@/components/locale-provider";
+import { trackWorkoutUxEvent } from "@/lib/workout-ux-events";
+import { WORKOUT_UX_EVENT_NAMES } from "@workout/core/observability/workout-ux-event-names";
 import {
   useWorkoutLogAddExerciseController,
 } from "@/features/workout-log/model/use-workout-log-add-exercise-controller";
@@ -83,6 +85,15 @@ function WorkoutLogScreenContent({
     () => Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
     [],
   );
+
+  // 퍼널의 시작점. 이 화면을 연 횟수가 없으면 뒤따르는 생성·추가·저장 지표가 전부
+  // 분모를 잃는다. StrictMode의 이중 마운트로 두 번 세지 않게 ref로 한 번만 쏜다.
+  const loggedOpenRef = useRef(false);
+  useEffect(() => {
+    if (loggedOpenRef.current) return;
+    loggedOpenRef.current = true;
+    trackWorkoutUxEvent(WORKOUT_UX_EVENT_NAMES.logOpened);
+  }, []);
 
   const [query, setQuery] = useState(() => readWorkoutLogQueryContext());
   const [selectedPlanId, setSelectedPlanId] = useState(() => {

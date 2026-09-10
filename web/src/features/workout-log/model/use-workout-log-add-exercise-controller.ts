@@ -1,4 +1,6 @@
 import { errorMessage } from "@/lib/error-message";
+import { trackWorkoutUxEvent } from "@/lib/workout-ux-events";
+import { WORKOUT_UX_EVENT_NAMES } from "@workout/core/observability/workout-ux-event-names";
 import type { Dispatch, SetStateAction } from "react";
 import {
   useCallback,
@@ -143,6 +145,8 @@ export function useWorkoutLogAddExerciseController({
   }, [resetAddExerciseSheetState, setOpen]);
 
   const openAddExerciseSheet = useCallback(() => {
+    // 시트 오픈 → 실제 추가 전환율이 debug의 "14일 시트→운동 추가율" 기준치가 재는 값이다.
+    trackWorkoutUxEvent(WORKOUT_UX_EVENT_NAMES.addExerciseSheetOpened);
     resetAddExerciseSheetState();
     setOpen(true);
   }, [resetAddExerciseSheetState, setOpen]);
@@ -171,6 +175,8 @@ export function useWorkoutLogAddExerciseController({
       return result.draftUpdater(prev);
     });
     setWorkflowState("editing");
+    // 검증 실패로 되돌아간 경우는 위에서 이미 빠져나갔다 — 여기까지 오면 실제로 추가됐다.
+    trackWorkoutUxEvent(WORKOUT_UX_EVENT_NAMES.addExerciseAdded);
     closeAddExerciseSheet();
   }, [
     addDraft,
