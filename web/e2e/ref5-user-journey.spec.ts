@@ -291,6 +291,12 @@ async function fillCurrentRef5Session(
   }
 }
 
+// §7.6 되돌리기 토글. 노출/비노출 단정이 같은 셀렉터를 보게 묶어 둔다 — 라벨이 바뀌면
+// 양성 단정(아래 되돌리기 단계)이 먼저 깨지므로 0건 단정이 유령으로 남지 않는다.
+function ref5RevertToggle(page: Page) {
+  return page.getByRole("checkbox", { name: "OAP 슬롯 되돌리기" });
+}
+
 async function openAndPreviewRef5Session(
   page: Page,
   planId: string,
@@ -323,10 +329,17 @@ async function openAndPreviewRef5Session(
   }
   await page.getByRole("button", { name: "세션 미리보기" }).click();
   await expect(page.getByText(input.mode, { exact: true })).toBeVisible({ timeout: 20_000 });
+  // 마이크로에는 되돌릴 3번 슬롯 자체가 없다(§7.4) — 엔진이 입력을 통째로 무시하므로
+  // 토글이 뜨면 아무것도 안 하는 스위치가 된다. 이 0건 단정이 의미를 가지려면 **다음
+  // 집중 차례가 BP인 마이크로**에서 돌아야 한다(focus는 세션형과 무관해 마이크로에서도
+  // "BP"다). v1.4 여정이 `focus: "BP"`를 함께 단정하는 호출로 그 조건을 만든다.
+  if (input.mode === "MICRO") {
+    await expect(ref5RevertToggle(page)).toHaveCount(0);
+  }
   if (input.oapSlotReverted) {
     // 토글은 미리보기가 BP 집중 차례임을 알려준 뒤에야 나타난다(§7.6). 켜면 시작
     // 입력이 달라져 미리보기가 무효화되므로 다시 미리보기를 요청한다.
-    const revert = page.getByRole("checkbox", { name: "OAP 슬롯 되돌리기" });
+    const revert = ref5RevertToggle(page);
     await expect(revert).toBeVisible();
     await page.getByText("3번 슬롯을 PULL 볼륨 2×6으로 되돌립니다. 사다리 진행은 그대로 보존됩니다.", { exact: true }).click();
     await expect(revert).toBeChecked();
@@ -1343,6 +1356,17 @@ test("REF5 v1.4 OAP 슬롯 — BP 집중 3번 슬롯 교체·팔별 승급·되�
     setCount: 10,
   });
   const beforeRevert = await readRef5Status(page, planId);
+  // 4-a) 같은 BP 차례라도 마이크로면 토글이 없다. 미리보기는 저장하지 않으므로(`preview:
+  // true` → `id: null`) 아래 되돌리기 세션의 캘린더를 건드리지 않는다. 이 호출이
+  // "마이크로 + 다음 차례 BP"를 만들어, 헬퍼의 0건 단정을 실제 회귀 가드로 만든다.
+  await openAndPreviewRef5Session(page, planId, {
+    startAt: localDateTimeDaysAgo(96),
+    manualMicro: true,
+    mode: "MICRO",
+    focus: "BP",
+    setCount: 4,
+  });
+  // 4-b) 정상 세션으로 돌아오면 같은 차례에서 토글이 다시 나타난다.
   await openAndPreviewRef5Session(page, planId, {
     startAt: localDateTimeDaysAgo(96),
     mode: "NORMAL",
