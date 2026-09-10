@@ -1,5 +1,5 @@
-import { errorMessage } from "@/lib/error-message";
 import { useCallback, useRef, useState } from "react";
+import { trackWorkoutUxEvent } from "@/lib/workout-ux-events";
 import type {
   FailureProtocolResult,
   FailureProtocolTarget,
@@ -13,6 +13,7 @@ import {
   type ProgressionProtocolMode,
 } from "./progression";
 import { submitWorkoutLogDraft } from "./save";
+import { diagnoseSaveFailure, runSaveAttempt } from "./save-diagnostics";
 
 type FailureProtocolSheetState = {
   title: string;
@@ -70,6 +71,26 @@ export function useWorkoutLogSaveController({
     [],
   );
 
+  /**
+   * 저장 실패를 한 군데서만 보고한다. 화면 문구·콘솔·텔레메트리가 갈라지면 사후 조사에서
+   * 서로 다른 이야기를 하게 된다.
+   *
+   * `stage`가 실패한 계층을 말한다 — 입력 검증인지, 저장 호출 자체인지. 서버 액션은 예외를
+   * 삼켜 `{success:false}`로 돌려주므로 Vercel 에러 그룹에 잡히지 않고, hobby 런타임 로그는
+   * 보존되지 않는다. `ux_event_log`에 남기는 이 이벤트가 유일하게 살아남는 기록이다.
+   */
+  const reportSaveFailure = useCallback(
+    (stage: string, error: unknown) => {
+      const diagnosis = diagnoseSaveFailure(error, locale);
+      // 원본 객체를 버리면 다음 조사도 폴백 문구 하나로 끝난다 — 실기기 원격 디버깅의 유일한 창.
+      console.error("[workout-log] 저장 실패", stage, error);
+      setSaveError(diagnosis.message);
+      setWorkflowState("editing");
+      trackWorkoutUxEvent("workout_save_failed", { ...diagnosis.props, stage });
+    },
+    [locale, setSaveError, setWorkflowState],
+  );
+
   const requestSave = useCallback(async () => {
     if (store.get(workflowStateAtom) === "saving") return;
 
@@ -79,75 +100,99 @@ export function useWorkoutLogSaveController({
 
     if (!draft) return;
 
+    // 저장 성공률의 분모. 이 이벤트가 없으면 ux-snapshot의 저장 지표가 영영 0/0으로 남는다.
+    trackWorkoutUxEvent("workout_save_clicked");
+
     const entryErrors = validateWorkoutRecordEntryState(
       visibleExercises,
       programEntryState,
       locale,
     );
     if (entryErrors.length > 0) {
-      setSaveError(
+      reportSaveFailure(
+        "entry-validation",
         entryErrors[0] ??
           (locale === "ko" ? "입력값을 확인해 주세요." : "Check your inputs."),
       );
-      setWorkflowState("editing");
       return;
     }
 
     const validation = validateWorkoutDraft(draft, locale);
     if (!validation.valid) {
-      setSaveError(
+      reportSaveFailure(
+        "draft-validation",
         validation.errors[0] ??
           (locale === "ko" ? "입력값을 확인해 주세요." : "Check your inputs."),
       );
-      setWorkflowState("editing");
       return;
     }
 
     setWorkflowState("saving");
     setSaveError(null);
 
-    try {
-      const progression = await resolveWorkoutLogProgressionOverride({
-        selectedPlanId: selectedPlan?.id,
-        autoProgressionEnabled: selectedPlan?.params?.autoProgression === true,
-        sessionWeek: draft.session.week,
-        sessionDay: draft.session.day,
-        visibleExercises,
-        programEntryState,
-        locale,
-        requestChoice: requestFailureProtocolChoice,
-      });
-      if (progression.cancelled) {
-        setWorkflowState("editing");
-        return;
-      }
-      const saved = await submitWorkoutLogDraft({
-        draft,
-        bodyweightKg,
-        progressionTargetDecisions: progression.decisions,
-        persistenceKey,
-      });
+    // 저장 호출만 실패 경계 안에 둔다. 성공 후처리(축하 토스트·세션 화면 이동)가 같은
+    // try 안에 있으면, 후처리가 던졌을 때 **DB에는 기록이 들어갔는데 화면은 "저장 실패"**를
+    // 띄운다. REF5는 같은 생성 세션에 두 번째 기록을 허용하지 않아 재입력마저 거부된다.
 
-      const savedResponse = saved as { log?: { id?: unknown } } | null | undefined;
-      const savedLogId =
-        typeof savedResponse?.log?.id === "string" ? savedResponse.log.id : null;
+    // 실패 지점을 따라다니는 커서. 진행 시트에서 던진 오류가 "submit"으로 찍히면 다음
+    // 조사가 엉뚱한 계층을 판다.
+    let failedStage = "progression";
 
-      setWorkflowState("done");
-      onSaved(savedLogId);
-    } catch (error) {
-      setSaveError(
-        errorMessage(error) ??
-          (locale === "ko"
-            ? "운동기록 저장에 실패했습니다."
-            : "Failed to save the workout log."),
-      );
-      setWorkflowState("editing");
+    const outcome = await runSaveAttempt({
+      save: async (): Promise<{ cancelled: true } | { cancelled: false; saved: unknown }> => {
+        const progression = await resolveWorkoutLogProgressionOverride({
+          selectedPlanId: selectedPlan?.id,
+          autoProgressionEnabled: selectedPlan?.params?.autoProgression === true,
+          sessionWeek: draft.session.week,
+          sessionDay: draft.session.day,
+          visibleExercises,
+          programEntryState,
+          locale,
+          requestChoice: requestFailureProtocolChoice,
+        });
+        if (progression.cancelled) return { cancelled: true };
+
+        failedStage = "submit";
+        const saved = await submitWorkoutLogDraft({
+          draft,
+          bodyweightKg,
+          progressionTargetDecisions: progression.decisions,
+          persistenceKey,
+        });
+        return { cancelled: false, saved };
+      },
+      afterSave: (result) => {
+        if (result.cancelled) {
+          // 사용자가 시트를 닫았다 — 저장을 시도조차 하지 않았으므로 성공도 실패도 아니다.
+          setWorkflowState("editing");
+          return;
+        }
+
+        const savedResponse = result.saved as { log?: { id?: unknown } } | null | undefined;
+        const savedLogId =
+          typeof savedResponse?.log?.id === "string" ? savedResponse.log.id : null;
+
+        setWorkflowState("done");
+        trackWorkoutUxEvent("workout_save_succeeded");
+        onSaved(savedLogId);
+      },
+    });
+
+    if (outcome.status === "failed") {
+      reportSaveFailure(failedStage, outcome.error);
+      return;
+    }
+
+    if (outcome.status === "saved-with-post-error") {
+      // 저장은 끝났다. 실패로 접으면 사용자가 이미 저장된 세션을 다시 입력하게 된다.
+      console.error("[workout-log] 저장 후 화면 전환이 실패했다", outcome.error);
     }
   }, [
     bodyweightKg,
     locale,
     onSaved,
     persistenceKey,
+    reportSaveFailure,
     requestFailureProtocolChoice,
     selectedPlan,
     setSaveError,
