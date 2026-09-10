@@ -434,7 +434,13 @@ function WorkoutLogScreenContent({
               (locale === "ko" ? "오늘의 운동" : "TODAY") +
               (sessionTypeLabel ? ` · ${sessionTypeLabel}` : "")
             }
-            title={selectedPlan?.name ?? ""}
+            title={
+              // 플랜에 속하지 않은 기록을 수정 중이면 선택 플랜 이름을 띄우지 않는다 —
+              // 그 플랜의 기록으로 오인된다(이 화면이 실제로 오진을 만들었다).
+              isEditingExistingLog && !draft?.session.planId
+                ? copy.workoutLog.noProgramForLog
+                : selectedPlan?.name ?? ""
+            }
             description={
               isEditingExistingLog
                 ? copy.workoutLog.planLockedWhileEditing

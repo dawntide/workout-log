@@ -220,6 +220,8 @@ export type AppCopy = {
     noPlans: string;
     selectedPlan: string;
     planLockedWhileEditing: string;
+    /** 플랜에 속하지 않은 기록을 수정할 때 제목 자리. 선택 플랜 이름을 쓰면 그 플랜의 기록으로 오인된다. */
+    noProgramForLog: string;
     editingLog: string;
     activeSession: string;
     exercisesCount: string;
@@ -659,6 +661,7 @@ export const appCopyByLocale: Record<AppLocale, AppCopy> = {
       noPlans: "선택 가능한 플랜이 없습니다",
       selectedPlan: "선택 플랜",
       planLockedWhileEditing: "기존 기록 수정 중에는 플랜을 변경할 수 없습니다.",
+      noProgramForLog: "프로그램 미선택",
       editingLog: "기록 수정",
       activeSession: "진행 중 세션",
       exercisesCount: "운동",
@@ -1095,6 +1098,7 @@ export const appCopyByLocale: Record<AppLocale, AppCopy> = {
       noPlans: "No plans available to select",
       selectedPlan: "Selected Plan",
       planLockedWhileEditing: "You cannot change the plan while editing an existing log.",
+      noProgramForLog: "No Program Selected",
       editingLog: "Editing Log",
       activeSession: "Active Session",
       exercisesCount: "exercises",
