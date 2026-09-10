@@ -310,9 +310,11 @@ export function apiInvalidateCache(cacheKeyPrefix?: string) {
   }
   // IDB에서도 동일 범위 삭제 (fire-and-forget)
   if (typeof window !== "undefined") {
-    void import("./api-cache-idb").then(({ idbDeleteEntries }) =>
-      idbDeleteEntries(cacheKeyPrefix).catch(() => {}),
-    );
+    void import("./api-cache-idb")
+      .then(({ idbDeleteEntries }) => idbDeleteEntries(cacheKeyPrefix).catch(() => {}))
+      // 동적 import 자체도 실패한다 — 배포 후 청크가 사라졌거나 오프라인이면 reject된다.
+      // 안쪽 catch는 import가 성공한 뒤에만 걸리므로 여기서 한 번 더 받아야 unhandled가 안 된다.
+      .catch(() => {});
   }
 }
 
