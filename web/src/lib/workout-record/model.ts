@@ -207,7 +207,13 @@ export type WorkoutRecordValidation = {
 };
 
 export type WorkoutLogPayload = {
-  planId: string;
+  /**
+   * 서버의 "플랜 없음"은 null이다. 초안(`draft.session.planId`)은 같은 뜻을 빈 문자열로
+   * 쓰므로 `toWorkoutLogPayload`가 여기서 번역한다 — 빈 문자열이 새어 나가면 서버가
+   * `submittedPlanId ?? existingLog.planId`에서 ""를 그대로 채택해 "플랜을 바꾸려 한다"로
+   * 읽고 편집 저장을 거부한다.
+   */
+  planId: string | null;
   generatedSessionId: string | null;
   performedAt: string;
   timezone?: string;
@@ -1488,7 +1494,8 @@ export function toWorkoutLogPayload(
 
   const note = draft.session.note.memo.trim();
   return {
-    planId: draft.session.planId,
+    // 초안의 "플랜 없음"(빈 문자열)을 서버의 표현(null)으로 옮긴다.
+    planId: draft.session.planId.trim() || null,
     generatedSessionId: draft.session.generatedSessionId,
     performedAt: draft.session.performedAt,
     timezone: draft.session.timezone,

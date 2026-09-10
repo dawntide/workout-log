@@ -1135,3 +1135,51 @@ test("RPE를 아예 만지지 않은 운동도 null로 간다", () => {
     [null, null, null],
   );
 });
+
+// 초안과 API 페이로드는 "플랜 없음"을 다른 값으로 쓴다 — 초안은 빈 문자열, 서버는 null.
+// 이 번역이 빠져 있어서 **플랜 없는 수동 기록은 편집 저장이 항상 실패했다**:
+// 서버가 `submittedPlanId ?? existingLog.planId`로 받는데 ""는 null이 아니라 그대로
+// 통과하고, 곧바로 `"" !== null`에 걸려 "기록 수정 시 planId는 변경할 수 없습니다."가 난다.
+// 2026-09-10 로컬 dev에서 실측(log 63b4776a, planId null, Bench Press 1세트).
+function planlessLog(planId: string | null): ExistingWorkoutLogLike {
+  return {
+    id: "log-planless-1",
+    planId,
+    generatedSessionId: null,
+    performedAt: "2026-08-25T10:00:00.000Z",
+    notes: null,
+    sets: [
+      {
+        exerciseName: "Bench Press",
+        sortOrder: 0,
+        setNumber: 1,
+        reps: 5,
+        weightKg: 60,
+      },
+    ],
+  };
+}
+
+test("플랜 없는 기록은 payload에서 planId를 null로 번역한다", () => {
+  const draft = createWorkoutRecordDraftFromLog(planlessLog(null), "", {
+    timezone: "Asia/Seoul",
+  });
+
+  const payload = toWorkoutLogPayload(draft);
+
+  assert.equal(
+    payload.planId,
+    null,
+    '빈 문자열이 새어 나가면 서버가 "플랜을 바꾸려 한다"로 읽어 편집 저장을 거부한다',
+  );
+});
+
+test("플랜이 있는 기록은 그 planId를 그대로 보낸다", () => {
+  const draft = createWorkoutRecordDraftFromLog(planlessLog("plan-abc"), "My Plan", {
+    timezone: "Asia/Seoul",
+  });
+
+  const payload = toWorkoutLogPayload(draft);
+
+  assert.equal(payload.planId, "plan-abc", "null 번역이 멀쩡한 planId까지 지우면 안 된다");
+});
