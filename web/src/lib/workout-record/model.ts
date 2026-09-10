@@ -1384,6 +1384,14 @@ export function validateWorkoutDraft(
   };
 }
 
+/**
+ * 초안의 선택적 식별자를 서버 표현으로 옮긴다 — 값이 없거나 공백뿐이면 null.
+ * `POST /api/logs`가 body를 정규화하는 규칙과 동일하다.
+ */
+function normalizeOptionalId(value: unknown): string | null {
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
 export function toWorkoutLogPayload(
   draft: WorkoutRecordDraft,
   options: WorkoutLogBuildOptions = {},
@@ -1495,7 +1503,9 @@ export function toWorkoutLogPayload(
   const note = draft.session.note.memo.trim();
   return {
     // 초안의 "플랜 없음"(빈 문자열)을 서버의 표현(null)으로 옮긴다.
-    planId: draft.session.planId.trim() || null,
+    // `typeof` 검사는 `POST /api/logs`의 정규화와 **같은 모양**이다. 두 경로가 갈라져서
+    // 이 버그가 났고(#743), 복원된 초안은 캐스트만 거치므로 타입이 런타임을 보장하지 않는다.
+    planId: normalizeOptionalId(draft.session.planId),
     generatedSessionId: draft.session.generatedSessionId,
     performedAt: draft.session.performedAt,
     timezone: draft.session.timezone,

@@ -1183,3 +1183,25 @@ test("플랜이 있는 기록은 그 planId를 그대로 보낸다", () => {
 
   assert.equal(payload.planId, "plan-abc", "null 번역이 멀쩡한 planId까지 지우면 안 된다");
 });
+
+// IndexedDB에 저장된 초안은 복원할 때 `JSON.parse(...) as WorkoutDraftData`로 **캐스트만**
+// 한다(workoutDraftStore). 타입이 `string`이라고 해서 런타임 값이 문자열이라는 보장은
+// 없다는 뜻이다. planId에 곧바로 `.trim()`을 부르면 그런 초안 하나가 저장 전체를
+// TypeError로 끊는다 — 세션 도중에 나면 빠져나갈 길이 없다.
+// 서버로 가는 다른 경로(POST /api/logs)는 이미 `typeof === "string"`을 먼저 본다.
+// 두 경로가 같은 모양이어야 다시 갈라지지 않는다.
+test("초안의 planId가 문자열이 아니어도 저장 페이로드를 만든다", () => {
+  const draft = createWorkoutRecordDraftFromLog(planlessLog("plan-abc"), "My Plan", {
+    timezone: "Asia/Seoul",
+  });
+
+  // 복원된 옛 초안을 흉내낸다 — 타입은 string이지만 실제 값이 없는 상태.
+  const malformed = {
+    ...draft,
+    session: { ...draft.session, planId: undefined as unknown as string },
+  };
+
+  const payload = toWorkoutLogPayload(malformed);
+
+  assert.equal(payload.planId, null, "값이 없으면 서버 표현인 null로 떨어져야 한다");
+});
