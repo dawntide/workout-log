@@ -56,10 +56,7 @@ test("카탈로그의 모든 UX 이벤트에 emit 지점이 있다", () => {
   const files = collectSourceFiles(webSrc);
   assert.ok(files.length > 100, `web/src 스캔이 비었다(${files.length}개 파일)`);
 
-  const haystack = files
-    .filter((file) => !file.endsWith(path.join("lib", "workout-ux-events.ts")))
-    .map((file) => fs.readFileSync(file, "utf8"))
-    .join("\n");
+  const haystack = files.map((file) => fs.readFileSync(file, "utf8")).join("\n");
 
   // emit은 `trackWorkoutUxEvent(WORKOUT_UX_EVENT_NAMES.<키>, ...)` 꼴을 쓴다.
   // 원시 문자열도 허용하되(마이그레이션 중간 상태), 둘 중 하나는 반드시 있어야 한다.
@@ -78,10 +75,9 @@ test("카탈로그의 모든 UX 이벤트에 emit 지점이 있다", () => {
 
 test("소비처가 카탈로그를 거치지 않고 이벤트 이름을 하드코딩하지 않는다", () => {
   const entries = readCatalogEntries();
-  const consumers = [
-    path.join(repoRoot, "packages/core/src/stats/ux-snapshot-service.ts"),
-    path.join(repoRoot, "web/src/lib/workout-ux-events.ts"),
-  ];
+  // 이름으로 집계하는 곳. 웹의 요약 함수는 소비처가 하나도 없어 제거됐고(가이드 힌트 UI가
+  // 이미 사라진 상태였다) 지금은 ops 스냅샷 SQL 하나만 남았다.
+  const consumers = [path.join(repoRoot, "packages/core/src/stats/ux-snapshot-service.ts")];
 
   for (const consumer of consumers) {
     const source = fs.readFileSync(consumer, "utf8");
