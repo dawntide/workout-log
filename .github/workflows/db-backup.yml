@@ -64,13 +64,14 @@ jobs:
           which pg_dump
           pg_dump --version
 
-          echo "Generating PostgreSQL public schema dump..."
+          echo "Generating PostgreSQL application and migration-history dump..."
           pg_dump "${{ secrets.SUPABASE_DIRECT_URL }}" \
             --clean \
             --if-exists \
             --no-owner \
             --no-privileges \
             --schema=public \
+            --schema=drizzle \
             | gzip > "${BACKUP_FILE}"
 
           # pipefail 덕분에 pg_dump 실패는 위 파이프라인에서 잡힌다.
@@ -107,6 +108,10 @@ jobs:
           fi
 
           TABLE_COUNT=$(grep -c "^CREATE TABLE" "$TMP_SQL" || true)
+          if ! grep -q 'CREATE TABLE drizzle.__drizzle_migrations' "$TMP_SQL"; then
+            echo "::error::Backup is missing Drizzle migration history"
+            exit 1
+          fi
           echo "CREATE TABLE statements found: ${TABLE_COUNT}"
           if [ "$TABLE_COUNT" -lt 5 ]; then
             echo "::error::Backup contains too few CREATE TABLE statements (${TABLE_COUNT})"

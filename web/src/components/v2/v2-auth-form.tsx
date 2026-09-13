@@ -12,6 +12,10 @@ import { V2PrimaryBtn, V2SecondaryBtn, V2TextField } from "./primitives";
 type Mode = "login" | "signup";
 
 const OAUTH_ERROR_TO_MESSAGE: Record<string, { ko: string; en: string }> = {
+  account_link_required: {
+    ko: "기존 계정으로 로그인한 뒤 설정 > 계정에서 Google을 연결해 주세요. 본인이 만든 계정이 아니라면 관리자에게 문의해 주세요.",
+    en: "Sign in to your existing account, then link Google in Settings > Account. If you did not create this account, contact the administrator.",
+  },
   state_mismatch: {
     ko: "OAuth 보안 검증에 실패했습니다. 다시 시도해 주세요.",
     en: "OAuth security check failed. Please try again.",

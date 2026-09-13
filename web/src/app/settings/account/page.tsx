@@ -17,7 +17,7 @@ import {
   V2SettingsSection,
 } from "@/components/v2/settings/section";
 import { ApiTokensSection } from "./api-tokens-section";
-import { apiInvalidateCache } from "@/lib/api";
+import { apiGet, apiInvalidateCache } from "@/lib/api";
 import { isEmailRecoveryEnabled } from "@/lib/feature-flags";
 
 type SessionItem = {
@@ -83,6 +83,11 @@ export default function SettingsAccountPage() {
     null,
   );
   const [hasPassword, setHasPassword] = useState<boolean>(false);
+  const [googleEnabled, setGoogleEnabled] = useState(false);
+  useEffect(() => {
+    void apiGet<{ google: boolean }>("/api/auth/oauth/status")
+      .then((status) => setGoogleEnabled(status.google)).catch(() => {});
+  }, []);
   const [unlinkingProvider, setUnlinkingProvider] = useState<string | null>(null);
   const [setupPassword, setSetupPassword] = useState("");
   const [setupConfirm, setSetupConfirm] = useState("");
@@ -744,6 +749,13 @@ export default function SettingsAccountPage() {
               ? "외부 계정으로 연결된 로그인 방법이 없습니다."
               : "No external sign-in providers are linked."}
           </V2SettingsFootnote>
+        ) : null}
+        {googleEnabled && me && !me.fallback && oauthAccounts && !oauthAccounts.some((account) => account.provider === "google") ? (
+          <V2SecondaryBtn full onClick={() => {
+            window.location.assign("/api/auth/google/start?link=1&next=%2Fsettings%2Faccount");
+          }}>
+            {locale === "ko" ? "이 계정에 Google 연결" : "Link Google to this account"}
+          </V2SecondaryBtn>
         ) : null}
         {oauthAccounts && oauthAccounts.length > 0 && !hasPassword ? (
           <V2SettingsFootnote>

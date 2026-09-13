@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
+import { findActiveSession, SESSION_COOKIE_NAME } from "@workout/core/auth/session";
 import { withApiLogging } from "@/server/observability/apiRoute";
 import { logError } from "@workout/core/observability/logger";
 import { apiErrorResponse } from "@/app/api/_utils/error-response";
@@ -16,6 +18,7 @@ import {
 const STATE_COOKIE = "wl_oauth_state";
 const VERIFIER_COOKIE = "wl_oauth_verifier";
 const NEXT_COOKIE = "wl_oauth_next";
+const LINK_COOKIE = "wl_oauth_link";
 const COOKIE_TTL_SECONDS = 600; // 10 minutes
 
 async function GETImpl(req: Request) {
@@ -31,6 +34,12 @@ async function GETImpl(req: Request) {
     const url = new URL(req.url);
     const nextParam = url.searchParams.get("next");
     const safeNext = isSafeRelativePath(nextParam) ? (nextParam as string) : "/";
+    const linking = url.searchParams.get("link") === "1";
+    const token = linking ? (await cookies()).get(SESSION_COOKIE_NAME)?.value : null;
+    const session = token ? await findActiveSession(token) : null;
+    if (linking && !session) {
+      return NextResponse.json({ error: "Sign in before linking Google." }, { status: 401 });
+    }
 
     const state = createOAuthState();
     const verifier = createPkceVerifier();
@@ -54,6 +63,8 @@ async function GETImpl(req: Request) {
     response.cookies.set({ ...baseCookie, name: STATE_COOKIE, value: state });
     response.cookies.set({ ...baseCookie, name: VERIFIER_COOKIE, value: verifier });
     response.cookies.set({ ...baseCookie, name: NEXT_COOKIE, value: safeNext });
+    if (session) response.cookies.set({ ...baseCookie, name: LINK_COOKIE, value: session.userId });
+    else response.cookies.delete(LINK_COOKIE);
     return response;
   } catch (e) {
     logError("api.handler_error", { error: e, route: "auth.google.start" });

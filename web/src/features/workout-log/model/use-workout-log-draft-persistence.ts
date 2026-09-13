@@ -1,6 +1,7 @@
 "use client";
 
 import { startTransition, useCallback, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { clearWorkoutDraft, type WorkoutDraftData } from "@/lib/storage/workoutDraftStore";
 import { useWorkoutRecordPersistence } from "@/lib/workout-record/useWorkoutRecordPersistence";
 import { isWorkoutDraftProtocolCompatible } from "@/lib/workout-record/model";
@@ -21,6 +22,7 @@ export function useWorkoutLogDraftPersistence({
   onRestoreAccepted,
   enabled = true,
 }: UseWorkoutLogDraftPersistenceInput) {
+  const router = useRouter();
   const draft = useAtomValue(draftAtom);
   const programEntryState = useAtomValue(programEntryStateAtom);
   const workflowState = useAtomValue(workflowStateAtom);
@@ -31,7 +33,7 @@ export function useWorkoutLogDraftPersistence({
   const persistenceKeyRef = useRef<string | null>(null);
   const reloadDraftContextRef = useRef<(() => Promise<void>) | null>(null);
   const [pendingRestorePrompt, setPendingRestorePrompt] = useState<PendingRestorePrompt | null>(null);
-  const restorePromptResolveRef = useRef<((keep: boolean) => void) | null>(null);
+  const restorePromptResolveRef = useRef<((keep: boolean | null) => void) | null>(null);
   // REF5 compatibility must be checked against the generated session loaded
   // from the server. The URL key is available before that draft on a reload.
   const isPersistenceReady = enabled && draft !== null;
@@ -60,13 +62,15 @@ export function useWorkoutLogDraftPersistence({
           await reloadDraftContextRef.current?.();
           return false;
         }
-        const shouldKeep = await new Promise<boolean>((resolve) => {
+        const shouldKeep = await new Promise<boolean | null>((resolve) => {
           restorePromptResolveRef.current = resolve;
           setPendingRestorePrompt({
             capturedKey,
             data,
           });
         });
+
+        if (shouldKeep === null) return null;
 
         if (shouldKeep) {
           startTransition(() => {
@@ -93,7 +97,7 @@ export function useWorkoutLogDraftPersistence({
     if (enabled) return;
     isRestoredRef.current = false;
     isRestoringRef.current = false;
-    restorePromptResolveRef.current?.(false);
+    restorePromptResolveRef.current?.(null);
     restorePromptResolveRef.current = null;
     setPendingRestorePrompt(null);
     resetRestoreState();
@@ -108,11 +112,12 @@ export function useWorkoutLogDraftPersistence({
     resetRestoreState();
   }, [enabled, persistenceKey, resetRestoreState]);
 
-  const resolveRestorePrompt = useCallback((keep: boolean) => {
+  const resolveRestorePrompt = useCallback((keep: boolean | null) => {
     restorePromptResolveRef.current?.(keep);
     restorePromptResolveRef.current = null;
     setPendingRestorePrompt(null);
-  }, []);
+    if (keep === null) router.push("/");
+  }, [router]);
 
   const registerReloadDraftContext = useCallback((fn: (() => Promise<void>) | null) => {
     reloadDraftContextRef.current = fn;

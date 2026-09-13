@@ -18,6 +18,19 @@ const baseValidShape = {
   exerciseAliases: [],
 };
 
+test("progression decisions accept file-owned logs and reject foreign, duplicate, and malformed choices", () => {
+  const row = { logId: "log-1", decisions: { SQUAT: { mode: "hold", workKg: 67.5 } } };
+  const valid = { ...baseValidShape, workoutLogs: [{ id: "log-1" }], progressionDecisions: [row] };
+  assert.equal(validateExportShape(valid).ok, true);
+  for (const progressionDecisions of [
+    "invalid", [null], [{ ...row, logId: "foreign-log" }], [row, row],
+    [{ ...row, decisions: { SQUAT: { mode: "delete", workKg: 1 } } }],
+    [{ ...row, decisions: { SQUAT: { mode: "hold", workKg: -1 } } }],
+    [{ ...row, decisions: { SQUAT: { mode: "hold", workKg: Infinity } } }],
+  ]) assert.equal(validateExportShape({ ...valid, progressionDecisions }).ok, false);
+  assert.equal(validateExportShape({ ...valid, progressionDecisions: [] }).ok, true);
+});
+
 test("validateExportShape: minimal valid v1 export passes", () => {
   const result = validateExportShape(baseValidShape);
   assert.equal(result.ok, true);

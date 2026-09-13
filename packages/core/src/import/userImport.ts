@@ -22,7 +22,9 @@ import { acquireActiveAccountMutationLock } from "../auth/account-lifecycle";
 import { invalidatePersonalRecordsFrom } from "../services/workout-log/personal-records";
 import {
   readStoredDecisionsByLogId,
+  readStoredDecisionsFromMeta,
   rebuildAutoProgressionForPlan,
+  type ProgressionTargetDecision,
 } from "../progression/autoProgression";
 
 export { validateExportShape };
@@ -260,6 +262,9 @@ export async function importUserData(
 
   const data = rawData as UserDataExport;
   const warnings: string[] = [];
+  if (data.progressionDecisions === undefined) {
+    warnings.push("Legacy backup has no progression decisions; only matching choices still present in this database can be preserved.");
+  }
 
   const templates = rewriteOwnerUserId(rowsAsRecords(data.templates), userId);
   const templateVersions = rowsAsRecords(data.templateVersions);
@@ -347,7 +352,13 @@ export async function importUserData(
     // meta.targetDecisionsOverride(사용자가 세션마다 직접 고른 증감량)는 로그에서 다시
     // 유도할 수 없으므로 삭제 전에 걷어 두고 아래 재계산에 되돌려 넣는다. 자기 export를
     // 되돌리는 흔한 경우는 로그 id가 그대로라 결정이 그대로 살아난다.
-    const carriedDecisionsByLogId = await readStoredDecisionsByLogId(tx, userId);
+    const carriedDecisionsByLogId = data.progressionDecisions === undefined
+      ? await readStoredDecisionsByLogId(tx, userId)
+      : new Map<string, Record<string, ProgressionTargetDecision>>();
+    for (const row of rowsAsRecords(data.progressionDecisions ?? [])) {
+      const decisions = readStoredDecisionsFromMeta({ targetDecisionsOverride: row.decisions });
+      if (decisions) carriedDecisionsByLogId.set(String(row.logId), decisions);
+    }
 
     await deleteUserDomainData(tx, userId);
 

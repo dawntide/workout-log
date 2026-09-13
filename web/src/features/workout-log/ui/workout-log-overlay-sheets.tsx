@@ -60,7 +60,7 @@ type WorkoutLogOverlaySheetsProps = {
   onCloseAddExerciseSheet: () => void;
   onAddExercise: () => void;
   pendingRestorePrompt: PendingRestorePrompt | null;
-  onResolveRestorePrompt: (accept: boolean) => void;
+  onResolveRestorePrompt: (accept: boolean | null) => void;
   failureProtocolSheet: {
     title: string;
     description: string;
@@ -238,6 +238,7 @@ export const WorkoutLogOverlaySheets = memo(function WorkoutLogOverlaySheets({
         message={copy.restoreDraftMessage}
         confirmText={copy.restoreDraftConfirm}
         cancelText={copy.restoreDraftDiscard}
+        laterText={locale === "ko" ? "나중에 복구" : "Restore later"}
         onResolve={onResolveRestorePrompt}
       />
 

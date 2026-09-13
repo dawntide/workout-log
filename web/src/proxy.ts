@@ -77,6 +77,13 @@ export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
   if (isPublicPath(pathname)) return NextResponse.next();
 
+  // Machine clients carry a Bearer credential, not a browser cookie. This is
+  // routing, not authentication: the destination still validates the token,
+  // scope and public API surface. Web-only handlers retain their cookie guard.
+  if (pathname.startsWith("/api/") && /^Bearer\s+\S+$/i.test(req.headers.get("authorization") ?? "")) {
+    return NextResponse.next();
+  }
+
   // 2. A supplied cookie always follows the real session path. Keeping this
   // ahead of the local-dev fallback also lets CI exercise session revocation
   // while its seed user fallback remains enabled for unrelated smoke tests.

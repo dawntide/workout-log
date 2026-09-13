@@ -40,6 +40,7 @@ export async function submitWorkoutLogDraft({
 
   const result = await submitWorkoutLogAction({
     logId: draft.session.logId ?? undefined,
+    clientMutationId: payload.clientMutationId,
     timezone: payload.timezone ?? "UTC",
     performedAt: new Date(payload.performedAt),
     durationMinutes: payload.durationMinutes,

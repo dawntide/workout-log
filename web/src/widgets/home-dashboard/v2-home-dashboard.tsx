@@ -29,6 +29,7 @@ import {
 } from "@/components/v2/primitives";
 import { useV2BottomDockTabs } from "@/components/v2/v2-bottom-dock-context";
 import { HomeGoalSection } from "@/widgets/goal-aware/home-goal-section";
+import { PendingWorkoutDrafts } from "./pending-workout-drafts";
 import { Ref5WindowProgressPanel } from "@/components/ref5/ref5-window-progress-panel";
 
 const StatsContainer = dynamic(
@@ -563,6 +564,7 @@ export function V2HomeDashboard({ data }: { data: HomeData }) {
     <div style={{ width: "100%" }}>
       {deck === 0 && (
         <>
+          <PendingWorkoutDrafts />
           <TodayDeck
             today={data.today}
             weekly={data.weeklySummary}

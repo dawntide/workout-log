@@ -10,7 +10,16 @@ export type OAuthLinkInput = {
   email: string | null;
   emailVerified: boolean;
   displayName: string | null;
+  /** Supplied only after validating the real session for an explicit link flow. */
+  linkingUserId?: string | null;
 };
+
+export class OAuthAccountLinkRequiredError extends Error {
+  constructor() {
+    super("Sign in to the existing account before linking Google.");
+    this.name = "OAuthAccountLinkRequiredError";
+  }
+}
 
 export type OAuthLinkResult = {
   userId: string;
@@ -26,7 +35,7 @@ export type OAuthLinkResult = {
  * 1. (provider, providerSubject)로 이미 연결된 계정이 있으면 그 계정 사용
  *    - 이메일이 변경되었다면 oauth_account 메타 갱신
  * 2. 그렇지 않고, provider가 emailVerified=true 인 경우 같은 이메일을 가진
- *    app_user가 있으면 자동 link (계정 takeover 위험 회피)
+ *    app_user가 있으면 그 계정으로 인증한 명시적 연결만 허용
  * 3. 위 모두 해당 없으면 새 app_user를 만들고(passwordHash="oauth-only" 빈
  *    placeholder) link
  *
@@ -53,6 +62,7 @@ export async function findOrCreateUserFromOAuth(
 
     if (existingLink[0]) {
       const userId = existingLink[0].userId;
+      if (input.linkingUserId && input.linkingUserId !== userId) throw new OAuthAccountLinkRequiredError();
       await tx
         .update(authOauthAccount)
         .set({
@@ -72,6 +82,9 @@ export async function findOrCreateUserFromOAuth(
         .limit(1);
       if (matched[0]) {
         const userId = matched[0].id;
+        // Provider verification proves ownership of Google, not of a password
+        // account someone else may have pre-registered with the same email.
+        if (input.linkingUserId !== userId) throw new OAuthAccountLinkRequiredError();
         await tx.insert(authOauthAccount).values({
           userId,
           provider: input.provider,
@@ -83,6 +96,7 @@ export async function findOrCreateUserFromOAuth(
       }
     }
 
+    if (input.linkingUserId) throw new OAuthAccountLinkRequiredError();
     const userEmail = input.email ?? `oauth+${input.providerSubject}@local`;
     const inserted = await tx
       .insert(appUser)

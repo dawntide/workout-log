@@ -35,6 +35,8 @@ const dbPromise = isIndexedDBSupported()
   : null;
 
 const getLocalStorageKey = (key: string) => `workout-draft-${key}`;
+const clearedKeys = new Set<string>();
+const writeVersions = new Map<string, number>();
 
 /**
  * Helper to get DB with timeout
@@ -59,6 +61,8 @@ export function saveWorkoutDraftSync(
   draft: WorkoutRecordDraft,
   programEntryState: WorkoutProgramExerciseEntryStateMap
 ): void {
+  clearedKeys.delete(key);
+  writeVersions.set(key, (writeVersions.get(key) ?? 0) + 1);
   const data: WorkoutDraftData = {
     key,
     draft,
@@ -84,16 +88,18 @@ export async function saveWorkoutDraft(
 ): Promise<void> {
   // Always do sync write first
   saveWorkoutDraftSync(key, draft, programEntryState);
+  const version = writeVersions.get(key);
+  const updatedAt = Date.now();
 
   // Then try IndexedDB asynchronously
   const db = await getDBWithTimeout(200);
-  if (db) {
+  if (db && version === writeVersions.get(key)) {
     try {
       const data: WorkoutDraftData = {
         key,
         draft,
         programEntryState,
-        updatedAt: Date.now(),
+        updatedAt,
       };
       await db.put(STORE_NAME, data);
     } catch (error) {
@@ -109,6 +115,7 @@ export async function saveWorkoutDraft(
  * 2. If not found, try IndexedDB with timeout.
  */
 export async function loadWorkoutDraft(key: string): Promise<WorkoutDraftData | null> {
+  if (clearedKeys.has(key)) return null;
   // 1. Fast path: localStorage
   try {
     const dataJSON = localStorage.getItem(getLocalStorageKey(key));
@@ -125,7 +132,7 @@ export async function loadWorkoutDraft(key: string): Promise<WorkoutDraftData | 
   if (db) {
     try {
       const idbData = await db.get(STORE_NAME, key);
-      if (idbData) {
+      if (idbData && !clearedKeys.has(key)) {
         console.log("[Storage] Draft found in IndexedDB");
         return idbData;
       }
@@ -141,6 +148,14 @@ export async function loadWorkoutDraft(key: string): Promise<WorkoutDraftData | 
  * Clears a workout record draft.
  */
 export async function clearWorkoutDraft(key: string): Promise<void> {
+  clearedKeys.add(key);
+  writeVersions.set(key, (writeVersions.get(key) ?? 0) + 1);
+  // Remove the synchronous fallback before awaiting IndexedDB or navigating.
+  try {
+    localStorage.removeItem(getLocalStorageKey(key));
+  } catch (error) {
+    console.error("localStorage draft delete failed.", error);
+  }
   const db = await getDBWithTimeout(200);
   if (db) {
     try {
@@ -149,11 +164,23 @@ export async function clearWorkoutDraft(key: string): Promise<void> {
       console.error("IndexedDB draft delete failed.", error);
     }
   }
+}
 
-  // Also clear from localStorage
-  try {
-    localStorage.removeItem(getLocalStorageKey(key));
-  } catch (error) {
-    console.error("localStorage draft delete failed.", error);
+/** Discover recoverable work even when today's start link uses a different date. */
+export async function listWorkoutDrafts(): Promise<WorkoutDraftData[]> {
+  const drafts = new Map<string, WorkoutDraftData>();
+  const add = (data: WorkoutDraftData) => {
+    if (data?.key && data.draft?.session && !clearedKeys.has(data.key)) drafts.set(data.key, data);
+  };
+  const db = await getDBWithTimeout(200);
+  if (db) {
+    try { (await db.getAll(STORE_NAME)).forEach(add); } catch { /* Use local fallback. */ }
   }
+  try {
+    for (const key of Object.keys(localStorage)) {
+      if (!key.startsWith("workout-draft-")) continue;
+      try { add(JSON.parse(localStorage.getItem(key) ?? "null")); } catch { /* Ignore a corrupt entry. */ }
+    }
+  } catch { /* Storage can be unavailable in private browsing. */ }
+  return [...drafts.values()].sort((a, b) => b.updatedAt - a.updatedAt);
 }
