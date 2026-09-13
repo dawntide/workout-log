@@ -20,6 +20,7 @@ import { validateImportParentScope } from "./validateImportScope";
 import { deleteUserDomainData } from "../data/deleteUserData";
 import { acquireActiveAccountMutationLock } from "../auth/account-lifecycle";
 import { invalidatePersonalRecordsFrom } from "../services/workout-log/personal-records";
+import { isRef5PlanParameters, rebuildRef5ProgressionForPlan } from "../progression/ref5-auto-progression";
 import {
   readStoredDecisionsByLogId,
   readStoredDecisionsFromMeta,
@@ -450,11 +451,18 @@ export async function importUserData(
     // 순차 실행이 필수다 — 단일 커넥션 트랜잭션이라 쿼리를 병렬로 섞을 수 없다.
     // 방금 삽입된 것을 payload가 아니라 DB에서 되읽는다(id 없는 행까지 정확히 포함).
     const rebuildTargets = await tx
-      .select({ id: plan.id })
+      .select({ id: plan.id, params: plan.params })
       .from(plan)
       .where(eq(plan.userId, userId))
       .orderBy(asc(plan.createdAt), asc(plan.id));
     for (const target of rebuildTargets) {
+      if (isRef5PlanParameters(target.params)) {
+        // REF5 derives start/completion history from immutable session snapshots,
+        // including sessions started but not yet completed. Keep this atomic with import.
+        const rebuilt = await rebuildRef5ProgressionForPlan({ tx, userId, planId: target.id });
+        if (!rebuilt.applied) throw new Error(`REF5 import replay failed: ${rebuilt.reason}`);
+        continue;
+      }
       // 자동 진행이 아닌 플랜은 rebuild가 skip:disabled로 즉시 빠져나온다(쿼리 1회).
       const rebuilt = await rebuildAutoProgressionForPlan({
         tx,
