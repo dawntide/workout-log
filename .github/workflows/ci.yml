@@ -277,7 +277,7 @@ jobs:
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/workout_log_ci
           WORKOUT_RELIABILITY_INTEGRATION: "1"
-        run: pnpm exec tsx --test scripts/reliability.integration.test.ts
+        run: pnpm exec tsx --test integration/*.test.ts
 
       - name: Restore application backup and rerun migrations
         env:
