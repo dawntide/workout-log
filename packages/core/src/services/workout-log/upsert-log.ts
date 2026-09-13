@@ -870,7 +870,12 @@ export async function upsertWorkoutLogService({
 
     let progressionResult;
     if (needsRebuild) {
-      progressionResult = await rebuildAutoProgressionForPlan({ tx, userId, planId: effectivePlanId });
+      progressionResult = await rebuildAutoProgressionForPlan({
+        tx, userId, planId: effectivePlanId,
+        submittedDecision: progressionTargetDecisions
+          ? { logId: log.id, decisions: progressionTargetDecisions }
+          : undefined,
+      });
     } else {
       progressionResult = await applyAutoProgressionFromLog({
         tx,

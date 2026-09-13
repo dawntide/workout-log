@@ -609,6 +609,8 @@ export async function rebuildAutoProgressionForPlan(input: {
    * 남아 있는 이벤트에서 읽은 결정이 언제나 우선하고, 이 맵은 빈 자리만 채운다.
    */
   carriedDecisionsByLogId?: Map<string, Record<string, ProgressionTargetDecision>> | null;
+  /** The current save's choice takes precedence over its previous event. */
+  submittedDecision?: { logId: string; decisions: Record<string, ProgressionTargetDecision> };
 }) {
   const context = await resolveAutoProgressionContext(input);
   if (!context.ok) return { applied: false, reason: context.reason };
@@ -641,6 +643,9 @@ export async function rebuildAutoProgressionForPlan(input: {
   // 남아 있는 이벤트가 더 최신이므로 주입값은 빈 자리만 채운다.
   for (const [logId, carried] of input.carriedDecisionsByLogId ?? []) {
     if (!decisionsByLogId.has(logId)) decisionsByLogId.set(logId, carried);
+  }
+  if (input.submittedDecision) {
+    decisionsByLogId.set(input.submittedDecision.logId, input.submittedDecision.decisions);
   }
 
   await input.tx.delete(planProgressEvent).where(eq(planProgressEvent.planId, resolved.planId));
