@@ -104,6 +104,7 @@ export type WorkoutExerciseModel = {
 
 export type WorkoutSessionModel = {
   logId: string | null;
+  clientMutationId?: string;
   generatedSessionId: string | null;
   performedAt: string;
   sessionDate: string;
@@ -207,6 +208,7 @@ export type WorkoutRecordValidation = {
 };
 
 export type WorkoutLogPayload = {
+  clientMutationId?: string;
   /**
    * 서버의 "플랜 없음"은 null이다. 초안(`draft.session.planId`)은 같은 뜻을 빈 문자열로
    * 쓰므로 `toWorkoutLogPayload`가 여기서 번역한다 — 빈 문자열이 새어 나가면 서버가
@@ -1061,6 +1063,7 @@ export function createWorkoutRecordDraft(
   return {
     session: {
       logId: null,
+      clientMutationId: `web:${crypto.randomUUID()}`,
       generatedSessionId: session.id ?? null,
       performedAt: ref5Session?.actualStartAt ?? toPerformedAtForSessionDate(sessionDate),
       sessionDate,
@@ -1321,6 +1324,10 @@ function migrateExerciseModelWeights(exercise: WorkoutExerciseModel): WorkoutExe
 export function migrateWorkoutRecordDraft(draft: WorkoutRecordDraft): WorkoutRecordDraft {
   return {
     ...draft,
+    session: {
+      ...draft.session,
+      clientMutationId: draft.session.clientMutationId ?? `web:${crypto.randomUUID()}`,
+    },
     seedExercises: draft.seedExercises.map(migrateExerciseModelWeights),
     userExercises: draft.userExercises.map(migrateExerciseModelWeights),
   };
@@ -1506,6 +1513,7 @@ export function toWorkoutLogPayload(
     // `typeof` 검사는 `POST /api/logs`의 정규화와 **같은 모양**이다. 두 경로가 갈라져서
     // 이 버그가 났고(#743), 복원된 초안은 캐스트만 거치므로 타입이 런타임을 보장하지 않는다.
     planId: normalizeOptionalId(draft.session.planId),
+    clientMutationId: draft.session.logId ? undefined : draft.session.clientMutationId,
     generatedSessionId: draft.session.generatedSessionId,
     performedAt: draft.session.performedAt,
     timezone: draft.session.timezone,

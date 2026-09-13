@@ -51,6 +51,8 @@ const API_CACHE_MAX_ENTRIES = 180;
 
 const apiResponseCache = new Map<string, ApiCacheEntry>();
 const apiInflightRequests = new Map<string, ApiInflightRequest>();
+const activeCacheReads = new Set<{ key: string; invalidated: boolean }>();
+let cacheGeneration = 0;
 const apiNetworkListeners = new Set<ApiNetworkListener>();
 let apiNetworkInflightCount = 0;
 
@@ -108,11 +110,13 @@ function writeApiCache(key: string, data: unknown) {
   trimApiCache();
   // IDB 영속화 (fire-and-forget, 클라이언트 전용)
   if (typeof window !== "undefined") {
-    void import("./api-cache-idb").then(({ idbWriteEntry }) =>
-      idbWriteEntry(key, data, now, now).catch(() => {
+    const generation = cacheGeneration;
+    void import("./api-cache-idb").then(({ idbWriteEntry }) => {
+      if (generation !== cacheGeneration) return;
+      return idbWriteEntry(key, data, now, now).catch(() => {
         // IDB 실패는 무시 — 인메모리 캐시가 primary
-      }),
-    );
+      });
+    }).catch(() => {});
   }
 }
 
@@ -264,18 +268,22 @@ async function requestAndCache<T>(
     }
   }
 
-  if (!shouldDedupe) {
-    const data = await fetchJson<T>(path, signal);
-    writeApiCache(cacheKey, data);
-    return cloneData(data);
-  }
+  const read = { key: cacheKey, invalidated: false };
+  activeCacheReads.add(read);
+  const readAndCache = async (requestSignal?: AbortSignal) => {
+    try {
+      const data = await fetchJson<T>(path, requestSignal);
+      if (read.invalidated) throw createAbortError();
+      writeApiCache(cacheKey, data);
+      return data;
+    } finally {
+      activeCacheReads.delete(read);
+    }
+  };
+  if (!shouldDedupe) return cloneData(await readAndCache(signal));
 
   const controller = new AbortController();
-  const dedupedRequest = (async () => {
-    const data = await fetchJson<T>(path, controller.signal);
-    writeApiCache(cacheKey, data);
-    return data;
-  })();
+  const dedupedRequest = readAndCache(controller.signal);
 
   const inflight: ApiInflightRequest = {
     controller,
@@ -300,6 +308,13 @@ async function requestAndCache<T>(
 }
 
 export function apiInvalidateCache(cacheKeyPrefix?: string) {
+  cacheGeneration += 1;
+  for (const read of activeCacheReads) {
+    if (!cacheKeyPrefix || read.key.startsWith(cacheKeyPrefix)) read.invalidated = true;
+  }
+  for (const key of apiInflightRequests.keys()) {
+    if (!cacheKeyPrefix || key.startsWith(cacheKeyPrefix)) apiInflightRequests.delete(key);
+  }
   if (!cacheKeyPrefix) {
     apiResponseCache.clear();
   } else {
@@ -326,9 +341,11 @@ export function apiInvalidateCache(cacheKeyPrefix?: string) {
  */
 export async function warmApiCacheFromIDB(): Promise<void> {
   if (typeof window === "undefined") return;
+  const generation = cacheGeneration;
   try {
     const { idbLoadAllEntries } = await import("./api-cache-idb");
     const entries = await idbLoadAllEntries();
+    if (generation !== cacheGeneration) return;
     // updatedAt을 "maxAgeMs 직전" 으로 조정 → SWR이 즉시 백그라운드 재검증 트리거
     const adjustedUpdatedAt = cacheNow() - DEFAULT_MAX_AGE_MS - 1;
     for (const entry of entries) {

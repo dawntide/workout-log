@@ -14,6 +14,7 @@ import {
   type ProgressionProtocolMode,
 } from "./progression";
 import { submitWorkoutLogDraft } from "./save";
+import { saveWorkoutDraftSync } from "@/lib/storage/workoutDraftStore";
 import {
   diagnoseSaveFailure,
   runSaveAttempt,
@@ -96,9 +97,11 @@ export function useWorkoutLogSaveController({
       }
       setSaveError(diagnosis.message);
       setWorkflowState("editing");
-      trackWorkoutUxEvent(WORKOUT_UX_EVENT_NAMES.saveFailed, { ...diagnosis.props, stage });
+      trackWorkoutUxEvent(WORKOUT_UX_EVENT_NAMES.saveFailed, {
+        ...diagnosis.props, stage, clientMutationId: store.get(draftAtom)?.session.clientMutationId ?? null,
+      });
     },
-    [locale, setSaveError, setWorkflowState],
+    [locale, setSaveError, setWorkflowState, store],
   );
 
   const requestSave = useCallback(async () => {
@@ -111,7 +114,7 @@ export function useWorkoutLogSaveController({
     if (!draft) return;
 
     // 저장 성공률의 분모. 이 이벤트가 없으면 ux-snapshot의 저장 지표가 영영 0/0으로 남는다.
-    trackWorkoutUxEvent(WORKOUT_UX_EVENT_NAMES.saveClicked);
+    trackWorkoutUxEvent(WORKOUT_UX_EVENT_NAMES.saveClicked, { clientMutationId: draft.session.clientMutationId ?? null });
 
     const entryErrors = validateWorkoutRecordEntryState(
       visibleExercises,
@@ -163,6 +166,8 @@ export function useWorkoutLogSaveController({
         if (progression.cancelled) return { cancelled: true };
 
         failedStage = SAVE_FAILURE_STAGES.submit;
+        // Persist the retry identity before the request can commit on the server.
+        if (persistenceKey) saveWorkoutDraftSync(persistenceKey, draft, programEntryState);
         const saved = await submitWorkoutLogDraft({
           draft,
           bodyweightKg,
@@ -183,7 +188,7 @@ export function useWorkoutLogSaveController({
           typeof savedResponse?.log?.id === "string" ? savedResponse.log.id : null;
 
         setWorkflowState("done");
-        trackWorkoutUxEvent(WORKOUT_UX_EVENT_NAMES.saveSucceeded);
+        trackWorkoutUxEvent(WORKOUT_UX_EVENT_NAMES.saveSucceeded, { clientMutationId: draft.session.clientMutationId ?? null, logId: savedLogId });
         onSaved(savedLogId);
       },
     });

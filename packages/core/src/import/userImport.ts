@@ -20,9 +20,12 @@ import { validateImportParentScope } from "./validateImportScope";
 import { deleteUserDomainData } from "../data/deleteUserData";
 import { acquireActiveAccountMutationLock } from "../auth/account-lifecycle";
 import { invalidatePersonalRecordsFrom } from "../services/workout-log/personal-records";
+import { isRef5PlanParameters, rebuildRef5ProgressionForPlan } from "../progression/ref5-auto-progression";
 import {
   readStoredDecisionsByLogId,
+  readStoredDecisionsFromMeta,
   rebuildAutoProgressionForPlan,
+  type ProgressionTargetDecision,
 } from "../progression/autoProgression";
 
 export { validateExportShape };
@@ -260,6 +263,9 @@ export async function importUserData(
 
   const data = rawData as UserDataExport;
   const warnings: string[] = [];
+  if (data.progressionDecisions === undefined) {
+    warnings.push("Legacy backup has no progression decisions; only matching choices still present in this database can be preserved.");
+  }
 
   const templates = rewriteOwnerUserId(rowsAsRecords(data.templates), userId);
   const templateVersions = rowsAsRecords(data.templateVersions);
@@ -347,7 +353,13 @@ export async function importUserData(
     // meta.targetDecisionsOverride(사용자가 세션마다 직접 고른 증감량)는 로그에서 다시
     // 유도할 수 없으므로 삭제 전에 걷어 두고 아래 재계산에 되돌려 넣는다. 자기 export를
     // 되돌리는 흔한 경우는 로그 id가 그대로라 결정이 그대로 살아난다.
-    const carriedDecisionsByLogId = await readStoredDecisionsByLogId(tx, userId);
+    const carriedDecisionsByLogId = data.progressionDecisions === undefined
+      ? await readStoredDecisionsByLogId(tx, userId)
+      : new Map<string, Record<string, ProgressionTargetDecision>>();
+    for (const row of rowsAsRecords(data.progressionDecisions ?? [])) {
+      const decisions = readStoredDecisionsFromMeta({ targetDecisionsOverride: row.decisions });
+      if (decisions) carriedDecisionsByLogId.set(String(row.logId), decisions);
+    }
 
     await deleteUserDomainData(tx, userId);
 
@@ -439,11 +451,18 @@ export async function importUserData(
     // 순차 실행이 필수다 — 단일 커넥션 트랜잭션이라 쿼리를 병렬로 섞을 수 없다.
     // 방금 삽입된 것을 payload가 아니라 DB에서 되읽는다(id 없는 행까지 정확히 포함).
     const rebuildTargets = await tx
-      .select({ id: plan.id })
+      .select({ id: plan.id, params: plan.params })
       .from(plan)
       .where(eq(plan.userId, userId))
       .orderBy(asc(plan.createdAt), asc(plan.id));
     for (const target of rebuildTargets) {
+      if (isRef5PlanParameters(target.params)) {
+        // REF5 derives start/completion history from immutable session snapshots,
+        // including sessions started but not yet completed. Keep this atomic with import.
+        const rebuilt = await rebuildRef5ProgressionForPlan({ tx, userId, planId: target.id });
+        if (!rebuilt.applied) throw new Error(`REF5 import replay failed: ${rebuilt.reason}`);
+        continue;
+      }
       // 자동 진행이 아닌 플랜은 rebuild가 skip:disabled로 즉시 빠져나온다(쿼리 1회).
       const rebuilt = await rebuildAutoProgressionForPlan({
         tx,

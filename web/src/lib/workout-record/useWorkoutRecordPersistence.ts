@@ -8,8 +8,6 @@ import type { WorkoutProgramExerciseEntryStateMap } from "@/lib/workout-record/e
 import { hasProgramEntryStateEdits } from "@/lib/workout-record/entry-state";
 import { debounce } from "@/lib/debounce";
 
-const DRAFT_EXPIRATION_MS = 6 * 60 * 60 * 1000; // 6 hours
-
 function toHandledDraftSignature(key: string, updatedAt: number) {
   return `${key}:${updatedAt}`;
 }
@@ -18,11 +16,13 @@ export function useWorkoutRecordPersistence(
   key: string | null,
   draft: WorkoutRecordDraft | null,
   programEntryState: WorkoutProgramExerciseEntryStateMap,
-  onRestore: (data: WorkoutDraftData) => Promise<boolean> | boolean,
+  onRestore: (data: WorkoutDraftData) => Promise<boolean | null> | boolean | null,
   options: { enabled?: boolean; isUserEditing?: boolean } = { enabled: true }
 ) {
   const isRestoringRef = useRef(false);
   const lastHandledDraftRef = useRef<string | null>(null);
+  // Dismissing recovery must not let the fresh editor overwrite the saved draft.
+  const deferredKeyRef = useRef<string | null>(null);
 
   // Refs to keep values stable in event listeners / unmount cleanup
   const keyRef = useRef(key);
@@ -41,19 +41,20 @@ export function useWorkoutRecordPersistence(
   isUserEditingRef.current = options.isUserEditing;
 
   const forceSave = useCallback(() => {
-    if (!keyRef.current || !draftRef.current || !enabledRef.current) return;
+    if (!keyRef.current || !draftRef.current || !enabledRef.current || isRestoringRef.current || deferredKeyRef.current === keyRef.current) return;
     saveWorkoutDraft(keyRef.current, draftRef.current, entryStateRef.current);
     console.log(`[Persistence] Draft saved for key: ${keyRef.current}`);
   }, []);
 
   const forceSaveSync = useCallback(() => {
-    if (!keyRef.current || !draftRef.current || !enabledRef.current) return;
+    if (!keyRef.current || !draftRef.current || !enabledRef.current || isRestoringRef.current || deferredKeyRef.current === keyRef.current) return;
     saveWorkoutDraftSync(keyRef.current, draftRef.current, entryStateRef.current);
     console.log(`[Persistence] Sync draft saved for key: ${keyRef.current}`);
   }, []);
 
   const debouncedSave = useRef(
     debounce((k: string, d: WorkoutRecordDraft, p: WorkoutProgramExerciseEntryStateMap) => {
+      if (isRestoringRef.current || deferredKeyRef.current === k) return;
       saveWorkoutDraft(k, d, p);
     }, 1000)
   ).current;
@@ -65,11 +66,11 @@ export function useWorkoutRecordPersistence(
   // re-persisted as a recoverable draft, which would otherwise cause the recovery
   // modal to pop up on the next entry.
   useEffect(() => {
-    if (!key || !draft || isRestoringRef.current) return;
+    if (!key || !draft || !options.enabled || isRestoringRef.current || deferredKeyRef.current === key) return;
     if (!options.isUserEditing) return;
     if (!hasWorkoutEdits(draft) && !hasProgramEntryStateEdits(programEntryState)) return;
     debouncedSave(key, draft, programEntryState);
-  }, [key, draft, programEntryState, options.isUserEditing, debouncedSave]);
+  }, [key, draft, programEntryState, options.enabled, options.isUserEditing, debouncedSave]);
 
   // Cancel any pending debounced save when the user is no longer editing
   // (e.g., after a successful save flips state to "done").
@@ -83,13 +84,13 @@ export function useWorkoutRecordPersistence(
   const attemptRestore = useCallback(async (targetKey: string) => {
     if (!enabledRef.current || isRestoringRef.current) return;
     isRestoringRef.current = true;
+    debouncedSave.cancel();
 
     try {
       console.log(`[Persistence] Attempting restore for key: ${targetKey}`);
       const loaded = await loadWorkoutDraft(targetKey);
       if (loaded) {
-        const isExpired = Date.now() - loaded.updatedAt > DRAFT_EXPIRATION_MS;
-        if (!isExpired) {
+        {
           const handledSignature = toHandledDraftSignature(targetKey, loaded.updatedAt);
           if (lastHandledDraftRef.current === handledSignature) {
             console.log(`[Persistence] Draft already handled for key: ${targetKey}`);
@@ -102,6 +103,7 @@ export function useWorkoutRecordPersistence(
           } else {
             console.log(`[Persistence] Valid draft found (updatedAt: ${loaded.updatedAt}), calling onRestore`);
             const restored = await onRestore(loaded);
+            deferredKeyRef.current = restored === null ? targetKey : null;
             if (restored) {
               lastHandledDraftRef.current = handledSignature;
               console.log(`[Persistence] onRestore completed for key: ${targetKey}`);
@@ -109,8 +111,6 @@ export function useWorkoutRecordPersistence(
               console.log(`[Persistence] onRestore declined for key: ${targetKey}`);
             }
           }
-        } else {
-          console.log(`[Persistence] Expired draft found, ignoring`);
         }
       } else {
         console.log(`[Persistence] No draft found for key: ${targetKey}`);
@@ -120,7 +120,7 @@ export function useWorkoutRecordPersistence(
     } finally {
       isRestoringRef.current = false;
     }
-  }, [onRestore]);
+  }, [onRestore, debouncedSave]);
 
   // Save on unmount to handle client-side SPA navigation
   // pagehide covers browser-level navigation; this covers Next.js route changes where pagehide doesn't fire
@@ -134,6 +134,7 @@ export function useWorkoutRecordPersistence(
         keyRef.current &&
         draftRef.current &&
         !isRestoringRef.current &&
+        deferredKeyRef.current !== keyRef.current &&
         isUserEditingRef.current &&
         (hasWorkoutEdits(draftRef.current) || hasProgramEntryStateEdits(entryStateRef.current))
       ) {
@@ -156,6 +157,8 @@ export function useWorkoutRecordPersistence(
         keyRef.current &&
         draftRef.current &&
         enabledRef.current &&
+        !isRestoringRef.current &&
+        deferredKeyRef.current !== keyRef.current &&
         isUserEditingRef.current
       ) {
         saveWorkoutDraftSync(keyRef.current, draftRef.current, entryStateRef.current);

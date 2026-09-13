@@ -982,6 +982,67 @@ test("일반 프로그램 시작 세션 부분 입력 새로고침 복구", asyn
   await expect(page.locator('input[aria-label*="반복"]').first()).toHaveValue("2");
 });
 
+test("기록 복구를 닫거나 하루 뒤 돌아와도 입력을 보존한다", async ({ page }, testInfo) => {
+  test.setTimeout(180_000);
+  const planId = await activateOneRmProgramThroughUi(page, "deferred-draft-restore", testInfo);
+  await page.locator('input[aria-label*="반복"]').first().fill("2");
+  await page.waitForTimeout(1_200);
+  const startedUrl = page.url();
+  await page.reload();
+  await expect(page.getByRole("heading", { name: "기록 복구" })).toBeVisible({ timeout: 20_000 });
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(700);
+  const kept = await page.evaluate((id) => Object.keys(localStorage)
+    .filter((key) => key.startsWith("workout-draft-") && key.includes(id)), planId);
+  expect(kept).not.toHaveLength(0);
+  await page.goto("/");
+  expect(await page.evaluate((key) => localStorage.getItem(key), kept[0])).not.toBeNull();
+  await page.evaluate((keys) => {
+    for (const key of keys) {
+      const data = JSON.parse(localStorage.getItem(key)!);
+      data.updatedAt = Date.now() - 24 * 60 * 60 * 1000;
+      localStorage.setItem(key, JSON.stringify(data));
+    }
+  }, kept);
+  await page.reload();
+  await expect(page.getByRole("heading", { name: "미저장 운동" })).toBeVisible();
+  await page.locator(`a[href*="${planId}"]`).filter({ hasText: "Greyskull" }).first().click();
+  await expect(page).toHaveURL((url) => url.pathname === "/workout/log" &&
+    url.searchParams.get("planId") === planId &&
+    url.searchParams.get("date") === new URL(startedUrl).searchParams.get("date"));
+  await expect(page.getByRole("heading", { name: "기록 복구" })).toBeVisible({ timeout: 20_000 });
+  await page.getByRole("button", { name: "복구", exact: true }).click();
+  await expect(page.locator('input[aria-label*="반복"]').first()).toHaveValue("2");
+});
+
+test("일반 운동 저장 응답이 유실되어도 새로고침 후 재시도는 한 기록만 만든다", async ({ page }, testInfo) => {
+  test.setTimeout(180_000);
+  const planId = await activateOneRmProgramThroughUi(page, "lost-save-response", testInfo);
+  const reps = page.locator('input[aria-label*="반복"]');
+  for (let index = 0; index < await reps.count(); index++) await reps.nth(index).fill("5");
+  let committed = false;
+  await page.route("**/workout/log?**", async (route) => {
+    if (!route.request().headers()["next-action"] || committed) return route.continue();
+    const response = await route.fetch();
+    expect(response.status()).toBe(200);
+    committed = true;
+    await route.abort("failed");
+  });
+  await page.getByRole("button", { name: "운동기록 완료 및 저장" }).click();
+  await expect.poll(() => committed, { timeout: 30_000 }).toBe(true);
+  await expect(page.getByRole("dialog").getByText("Failed to fetch", { exact: true })).toBeVisible();
+  await page.unroute("**/workout/log?**");
+  await page.reload();
+  await expect(page.getByRole("heading", { name: "기록 복구" })).toBeVisible();
+  await page.getByRole("button", { name: "복구", exact: true }).click();
+  await page.getByRole("button", { name: "운동기록 완료 및 저장" }).click();
+  await expect(page).toHaveURL(/\/workout\/session\/[^?]+\?fresh=1/, { timeout: 30_000 });
+  const logsResponse = await page.request.get(`/api/logs?planId=${planId}`);
+  expect(logsResponse.status()).toBe(200);
+  const logs = await logsResponse.json();
+  expect(logs.items).toHaveLength(1);
+});
+
 test("REF5 시작 세션 새로고침 재개와 멀티탭 중복 저장", async ({ page }, testInfo) => {
   test.setTimeout(180_000);
   const browserFailures = observeBrowser(page);

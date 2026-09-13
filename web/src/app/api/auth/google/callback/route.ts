@@ -10,8 +10,8 @@ import {
   verifyGoogleIdToken,
   type GoogleUserInfo,
 } from "@/server/auth/oauth-google";
-import { findOrCreateUserFromOAuth } from "@/server/auth/oauth-link";
-import { createSession, SESSION_COOKIE_NAME } from "@workout/core/auth/session";
+import { findOrCreateUserFromOAuth, OAuthAccountLinkRequiredError } from "@/server/auth/oauth-link";
+import { createSession, findActiveSession, SESSION_COOKIE_NAME } from "@workout/core/auth/session";
 import { logAuthEvent } from "@workout/core/auth/security-events";
 import { isSafeRelativePath } from "@/server/auth/oauth-state";
 import { sessionCookieSecure } from "@/server/auth/session-cookie";
@@ -19,11 +19,13 @@ import { sessionCookieSecure } from "@/server/auth/session-cookie";
 const STATE_COOKIE = "wl_oauth_state";
 const VERIFIER_COOKIE = "wl_oauth_verifier";
 const NEXT_COOKIE = "wl_oauth_next";
+const LINK_COOKIE = "wl_oauth_link";
 
 function clearOAuthFlowCookies(res: NextResponse) {
   res.cookies.delete(STATE_COOKIE);
   res.cookies.delete(VERIFIER_COOKIE);
   res.cookies.delete(NEXT_COOKIE);
+  res.cookies.delete(LINK_COOKIE);
 }
 
 function redirectWithError(req: Request, code: string): NextResponse {
@@ -111,12 +113,19 @@ async function GETImpl(req: Request) {
     }
     if (!profile) return redirectWithError(req, "userinfo_failed");
 
+    const linkUserId = cookieStore.get(LINK_COOKIE)?.value;
+    const sessionToken = cookieStore.get(SESSION_COOKIE_NAME)?.value;
+    const linkingSession = linkUserId && sessionToken ? await findActiveSession(sessionToken) : null;
+    if (linkUserId && linkingSession?.userId !== linkUserId) {
+      return redirectWithError(req, "account_link_required");
+    }
     const linkResult = await findOrCreateUserFromOAuth({
       provider: "google",
       providerSubject: profile.sub,
       email: profile.email ?? null,
       emailVerified: profile.email_verified === true,
       displayName: profile.name ?? null,
+      linkingUserId: linkingSession?.userId ?? null,
     });
 
     const session = await createSession(linkResult.userId);
@@ -153,6 +162,9 @@ async function GETImpl(req: Request) {
     });
     return res;
   } catch (e) {
+    if (e instanceof OAuthAccountLinkRequiredError) {
+      return redirectWithError(req, "account_link_required");
+    }
     logError("api.handler_error", { error: e, route: "auth.google.callback" });
     return apiErrorResponse(e);
   }

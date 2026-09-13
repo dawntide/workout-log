@@ -3,6 +3,39 @@ import test from "node:test";
 
 import { apiGet, apiInvalidateCache } from "./api";
 
+test("an invalidated in-flight read cannot repopulate the cache or serve a new reader", async (t) => {
+  const originalFetch = globalThis.fetch;
+  let finishOld!: (response: Response) => void;
+  let calls = 0;
+  globalThis.fetch = async () => {
+    calls += 1;
+    if (calls === 1) return new Promise<Response>((resolve) => { finishOld = resolve; });
+    return Response.json({ revision: "after-save" });
+  };
+  t.after(() => { globalThis.fetch = originalFetch; apiInvalidateCache(); });
+  const oldRead = apiGet("/api/logs/race");
+  apiInvalidateCache("/api/logs");
+  assert.deepEqual(await apiGet("/api/logs/race"), { revision: "after-save" });
+  finishOld(Response.json({ revision: "before-save" }));
+  await assert.rejects(oldRead, { name: "AbortError" });
+  assert.deepEqual(await apiGet("/api/logs/race"), { revision: "after-save" });
+  assert.equal(calls, 2);
+});
+
+test("invalidation also rejects undeduplicated stale reads without cancelling unrelated paths", async (t) => {
+  const originalFetch = globalThis.fetch;
+  const pending = new Map<string, (response: Response) => void>();
+  globalThis.fetch = async (path) => new Promise<Response>((resolve) => { pending.set(String(path), resolve); });
+  t.after(() => { globalThis.fetch = originalFetch; apiInvalidateCache(); });
+  const stale = apiGet("/api/logs/no-dedupe", { dedupe: false });
+  const unrelated = apiGet("/api/settings/independent");
+  apiInvalidateCache("/api/logs");
+  pending.get("/api/logs/no-dedupe")!(Response.json({ old: true }));
+  pending.get("/api/settings/independent")!(Response.json({ setting: true }));
+  await assert.rejects(stale, { name: "AbortError" });
+  assert.deepEqual(await unrelated, { setting: true });
+});
+
 test("network-only GET bypasses an existing SWR response", async (t) => {
   const originalFetch = globalThis.fetch;
   let requestCount = 0;

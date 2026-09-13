@@ -11,7 +11,8 @@ type RestoreDraftSheetProps = {
   message: string;
   confirmText: string;
   cancelText: string;
-  onResolve: (keep: boolean) => void;
+  laterText: string;
+  onResolve: (keep: boolean | null) => void;
 };
 
 const CLOSE_DELAY_MS = 420;
@@ -22,6 +23,7 @@ export const RestoreDraftSheet = memo(function RestoreDraftSheet({
   message,
   confirmText,
   cancelText,
+  laterText,
   onResolve,
 }: RestoreDraftSheetProps) {
   const [open, setOpen] = useState(false);
@@ -46,7 +48,7 @@ export const RestoreDraftSheet = memo(function RestoreDraftSheet({
   }, []);
 
   const beginClose = useCallback(
-    (keep: boolean) => {
+    (keep: boolean | null) => {
       if (!request || closingRef.current) return;
       closingRef.current = true;
       setOpen(false);
@@ -67,9 +69,9 @@ export const RestoreDraftSheet = memo(function RestoreDraftSheet({
   return (
     <BottomSheet
       open={open}
-      onClose={() => beginClose(false)}
+      onClose={() => beginClose(null)}
       title={title}
-      closeLabel={cancelText}
+      closeLabel={laterText}
       footer={
         <div
           style={{
@@ -84,6 +86,9 @@ export const RestoreDraftSheet = memo(function RestoreDraftSheet({
           </V2PrimaryBtn>
           <V2SecondaryBtn full onClick={() => beginClose(false)}>
             {cancelText}
+          </V2SecondaryBtn>
+          <V2SecondaryBtn full onClick={() => beginClose(null)}>
+            {laterText}
           </V2SecondaryBtn>
         </div>
       }

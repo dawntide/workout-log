@@ -119,8 +119,8 @@ function WorkoutLogScreenContent({
   );
 
   const persistenceKey =
-    selectedPlanId && query.date
-      ? `${selectedPlanId}:${query.date}:${query.sessionId ?? "new"}`
+    query.date
+      ? `${selectedPlanId || "unplanned"}:${query.date}:${query.sessionId ?? query.logId ?? "new"}`
       : null;
   // 휴식 타이머 컨트롤러는 화면에 한 번만 마운트한다 — 틱·Wake Lock·만료음을 전담한다.
   const restTimer = useRestTimer(persistenceKey);

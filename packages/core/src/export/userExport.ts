@@ -1,5 +1,6 @@
 import { asc, eq, inArray } from "drizzle-orm";
 import { db } from "@workout/core/db/client";
+import { readStoredDecisionsByLogId } from "../progression/autoProgression";
 import {
   exercise,
   exerciseAlias,
@@ -33,6 +34,8 @@ export type UserDataExport = {
    * 하므로 validateExportShape의 필수 배열 목록에는 넣지 않는다.
    */
   bodyMeasurements?: unknown[];
+  /** User choices cannot be reconstructed from workout sets. Optional for older v1 files. */
+  progressionDecisions?: unknown[];
 };
 
 function csvCell(value: unknown): string {
@@ -134,6 +137,9 @@ export async function buildUserDataExport(userId: string): Promise<UserDataExpor
     .from(bodyMeasurement)
     .where(eq(bodyMeasurement.userId, userId))
     .orderBy(asc(bodyMeasurement.measuredAt));
+  const progressionDecisions = [...await readStoredDecisionsByLogId(db, userId)]
+    .filter(([logId]) => logIds.includes(logId))
+    .map(([logId, decisions]) => ({ logId, decisions }));
 
   return {
     version: 1,
@@ -150,6 +156,7 @@ export async function buildUserDataExport(userId: string): Promise<UserDataExpor
     exercises,
     exerciseAliases,
     bodyMeasurements,
+    progressionDecisions,
   };
 }
 

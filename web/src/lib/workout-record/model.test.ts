@@ -26,6 +26,17 @@ import { applyWorkoutLogWeightRulesToDraft } from "./weight-rules";
 import { Ref5StaleVersionError } from "@workout/core/program-engine/ref5";
 import { REF5_PROTOCOL_VERSION } from "@workout/core/program-engine/ref5-protocol-version";
 
+test("a new workout retains its mutation identity through edits and persisted restore", () => {
+  const session = { id: "generic-session", planId: "generic-plan", sessionKey: "W1D1", snapshot: {} };
+  const draft = createWorkoutRecordDraft(session, "Test");
+  const first = toWorkoutLogPayload(draft);
+  assert.match(first.clientMutationId ?? "", /^web:[a-f0-9-]{36}$/);
+  const restored = migrateWorkoutRecordDraft(JSON.parse(JSON.stringify(draft)));
+  restored.session.note.memo = "Updated note";
+  assert.equal(toWorkoutLogPayload(restored).clientMutationId, first.clientMutationId);
+  assert.notEqual(toWorkoutLogPayload(createWorkoutRecordDraft(session, "Test")).clientMutationId, first.clientMutationId);
+});
+
 function makeRef5Session(): GeneratedSessionLike {
   return {
     id: "ref5-session-1",

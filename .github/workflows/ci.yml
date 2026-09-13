@@ -273,6 +273,22 @@ jobs:
           WORKOUT_SEED_ADMIN_FALLBACK: "1"
         run: pnpm db:seed
 
+      - name: Verify account linking and portable progression choices against Postgres
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/workout_log_ci
+          WORKOUT_RELIABILITY_INTEGRATION: "1"
+        run: pnpm exec tsx --test integration/*.test.ts
+
+      - name: Restore application backup and rerun migrations
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/workout_log_ci
+          PGPASSWORD: postgres
+        run: |
+          pg_dump "$DATABASE_URL" --clean --if-exists --no-owner --no-privileges --schema=public --schema=drizzle > /tmp/workout-restore-check.sql
+          createdb -h localhost -U postgres workout_restore_ci
+          psql postgresql://postgres@localhost:5432/workout_restore_ci -v ON_ERROR_STOP=1 -f /tmp/workout-restore-check.sql > /tmp/workout-restore-check.log
+          DATABASE_URL=postgresql://postgres:postgres@localhost:5432/workout_restore_ci DB_MIGRATE_MAX_ATTEMPTS=1 node scripts/migrate.mjs
+
       # 데이터 라우트(/api/plans 등)는 catch-all이 처리한다. APPS_API_BASE를 주지
       # 않으므로 **인프로세스 모드** — web이 Hono 앱을 직접 마운트한다(#634). 별도
       # 백엔드 프로세스가 없어야 프로덕션이 도는 방식과 같아진다.
@@ -314,6 +330,28 @@ jobs:
         run: pnpm exec playwright test e2e/smoke.spec.ts e2e/program-start-smoke.spec.ts e2e/a11y-runtime.spec.ts e2e/stale-session-redirect.spec.ts e2e/color-themes.spec.ts e2e/design-harmonization.spec.ts e2e/pull-to-refresh.spec.ts e2e/link-navigation.spec.ts e2e/admin-surface-boundary.spec.ts --project chromium
 
       # 실패 시 trace/screenshot/video를 artifact로 보관
+      - name: Verify real credentials and recovery without development auth fallback
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/workout_log_ci
+          WORKOUT_AUTH_USER_ID: ""
+          WORKOUT_WEB_ALLOW_ENV_AUTH: "0"
+          WORKOUT_API_ALLOW_ENV_AUTH: "0"
+          WORKOUT_ALLOW_INSECURE_COOKIES: "1"
+          WORKOUT_DISABLE_RATE_LIMIT: "1"
+          PLAYWRIGHT_BASE_URL: http://127.0.0.1:3101
+          NEXT_PUBLIC_DISABLE_SW: "1"
+          CI: "true"
+        run: |
+          pnpm start -H 127.0.0.1 -p 3101 > /tmp/workout-reliability-server.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill "$SERVER_PID" 2>/dev/null || true' EXIT
+          for attempt in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:3101/login > /dev/null; then break; fi
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:3101/login > /dev/null
+          pnpm exec playwright test e2e/api-tokens.spec.ts e2e/ref5-user-journey.spec.ts --project chromium -g 'personal access tokens|기록 복구를 닫거나|응답이 유실'
+
       - name: Upload Playwright artifacts
         if: ${{ always() }}
         uses: actions/upload-artifact@v4
