@@ -564,6 +564,7 @@ export function V2HomeDashboard({ data }: { data: HomeData }) {
     <div style={{ width: "100%" }}>
       {deck === 0 && (
         <>
+          <PendingWorkoutDrafts />
           <TodayDeck
             today={data.today}
             weekly={data.weeklySummary}
@@ -574,7 +575,6 @@ export function V2HomeDashboard({ data }: { data: HomeData }) {
             hasPlan={hasPlan}
             ref5Status={data.ref5Status}
           />
-          <PendingWorkoutDrafts />
           <HomeGoalSection data={data} />
         </>
       )}
