@@ -35,6 +35,7 @@ async function setup(page: Page) {
 async function putDraft(page: Page, draft: WorkoutDraftData) {
   await page.evaluate((data) => localStorage.setItem(`workout-draft-${data.key}`, JSON.stringify(data)), draft);
   await page.reload();
+  await expect(page.getByLabel("앱을 불러오는 중", { exact: true })).toBeHidden();
 }
 
 test("draft recovery: saved copies stay out of the notice, modified drafts can be dismissed and reopened", async ({ page }, testInfo) => {
@@ -54,14 +55,16 @@ test("draft recovery: saved copies stay out of the notice, modified drafts can b
   await expect(page.getByRole("heading", { name: "기기에 남은 운동 기록이 있어요" })).toHaveCount(0);
   await page.getByRole("button", { name: "복구 목록 (1)", exact: true }).click();
   await expect(page.getByRole("dialog", { name: "복구 목록", exact: true })).toBeVisible();
-  await page.screenshot({ path: testInfo.outputPath("recovery-list-mobile.png"), fullPage: true });
+  await expect(page.getByRole("link", { name: /Recovery test/ })).toBeInViewport();
+  await page.screenshot({ path: testInfo.outputPath("recovery-list-mobile.png"), fullPage: true, animations: "disabled" });
   await page.keyboard.press("Escape");
   await expect(page.getByRole("dialog", { name: "복구 목록", exact: true })).toHaveCount(0);
   expect(await page.evaluate((key) => localStorage.getItem(`workout-draft-${key}`), draft.key)).not.toBeNull();
   draft.updatedAt = 3;
   await putDraft(page, draft);
   await expect(page.getByRole("button", { name: "목록 보기", exact: true })).toBeVisible();
-  await page.screenshot({ path: testInfo.outputPath("recovery-notice-mobile.png"), fullPage: true });
+  await page.getByRole("button", { name: "목록 보기", exact: true }).click({ trial: true });
+  await page.screenshot({ path: testInfo.outputPath("recovery-notice-mobile.png"), fullPage: true, animations: "disabled" });
   await page.getByRole("button", { name: "목록 보기", exact: true }).click();
   await page.getByRole("button", { name: "삭제", exact: true }).click();
   await page.getByRole("button", { name: "취소", exact: true }).click();
