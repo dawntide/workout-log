@@ -11,6 +11,7 @@ const LOCAL_STORAGE_KEYS = [
   "workoutlog:ux-events",
   "workoutlog:ux-events-synced-ids",
   "workoutlog:focus-mode",
+  "workoutlog:dismissed-draft-notice",
 ] as const;
 
 /**

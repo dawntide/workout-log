@@ -169,6 +169,16 @@ logsRoutes.get("/", async (c) => {
     // 소비처인 and(...filters)가 undefined를 그냥 건너뛰니 그대로 담는다 —
     // 여기서 non-null 단언을 쓰면 any를 걷어낸 자리에 다시 거짓말을 넣는 셈이 된다.
     const filters: Array<SQL | undefined> = [eq(workoutLog.userId, userId)];
+    // Recovery checks exact identities without loading the user's entire history.
+    const logId = c.req.query("logId")?.trim();
+    const generatedSessionId = c.req.query("generatedSessionId")?.trim();
+    const clientMutationId = c.req.query("clientMutationId")?.trim();
+    if ([logId, generatedSessionId].some((id) => id && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id))) {
+      return c.json({ error: "Invalid log or generated session ID." }, 400);
+    }
+    if (logId) filters.push(eq(workoutLog.id, logId));
+    if (generatedSessionId) filters.push(eq(workoutLog.generatedSessionId, generatedSessionId));
+    if (clientMutationId) filters.push(eq(workoutLog.clientMutationId, clientMutationId));
     if (planId) filters.push(eq(workoutLog.planId, planId));
     if (DATE_ONLY_PATTERN.test(dateFilter)) {
       filters.push(buildLocalDateRangeFilter(dateFilter, timezone));
@@ -196,6 +206,7 @@ logsRoutes.get("/", async (c) => {
         notes: workoutLog.notes,
         tags: workoutLog.tags,
         createdAt: workoutLog.createdAt,
+        clientMutationId: workoutLog.clientMutationId,
       })
       .from(workoutLog)
       .where(and(...filters))

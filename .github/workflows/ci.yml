@@ -350,7 +350,7 @@ jobs:
             sleep 1
           done
           curl -fsS http://127.0.0.1:3101/login > /dev/null
-          pnpm exec playwright test e2e/api-tokens.spec.ts e2e/ref5-user-journey.spec.ts --project chromium -g 'personal access tokens|기록 복구를 닫거나|응답이 유실'
+          pnpm exec playwright test e2e/api-tokens.spec.ts e2e/ref5-user-journey.spec.ts e2e/workout-recovery.spec.ts --project chromium -g 'personal access tokens|기록 복구를 닫거나|응답이 유실|draft recovery:'
 
       - name: Upload Playwright artifacts
         if: ${{ always() }}

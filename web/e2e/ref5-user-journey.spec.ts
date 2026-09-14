@@ -1005,7 +1005,8 @@ test("기록 복구를 닫거나 하루 뒤 돌아와도 입력을 보존한다"
     }
   }, kept);
   await page.reload();
-  await expect(page.getByRole("heading", { name: "미저장 운동" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "기기에 남은 운동 기록이 있어요" })).toBeVisible();
+  await page.getByRole("button", { name: "목록 보기", exact: true }).click();
   await page.locator(`a[href*="${planId}"]`).filter({ hasText: "Greyskull" }).first().click();
   await expect(page).toHaveURL((url) => url.pathname === "/workout/log" &&
     url.searchParams.get("planId") === planId &&
