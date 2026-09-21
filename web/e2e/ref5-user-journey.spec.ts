@@ -46,12 +46,9 @@ async function signupThroughUi(page: Page, label: string, testInfo: TestInfo) {
   await page.locator('input[type="password"]').fill(PASSWORD);
   await page.getByLabel("이름 (선택)").fill(`REF5 ${label}`);
   await page.getByRole("button", { name: /계정 만들기/ }).click();
-  await expect(page).not.toHaveURL(/\/signup/, { timeout: 20_000 });
-
-  if (new URL(page.url()).pathname === "/onboarding") {
-    await page.getByRole("button", { name: "닫기", exact: true }).click();
-    await expect(page).toHaveURL(/\/$/);
-  }
+  await expect(page).toHaveURL(/\/onboarding$/, { timeout: 20_000 });
+  await page.getByRole("button", { name: "닫기", exact: true }).click();
+  await expect(page).toHaveURL(/\/$/);
 
   await testInfo.attach("test-account", {
     body: JSON.stringify({ email, label }, null, 2),
