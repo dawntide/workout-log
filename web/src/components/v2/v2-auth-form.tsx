@@ -3,7 +3,7 @@ import { errorMessage } from "@/lib/error-message";
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useLocale } from "@/components/locale-provider";
 import { V2Icon } from "@/components/v2/primitives/v2-icon";
 import { isEmailRecoveryEnabled } from "@/lib/feature-flags";
@@ -81,7 +81,6 @@ function friendlyAuthError(
 }
 
 export function V2AuthForm({ mode }: { mode: Mode }) {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const next = searchParams?.get("next") || "/";
   const oauthError = searchParams?.get("oauth_error") || null;
@@ -157,8 +156,10 @@ export function V2AuthForm({ mode }: { mode: Mode }) {
         return;
       }
       void remember;
-      router.replace(next);
-      router.refresh();
+      // The auth pages can have an unauthenticated RSC response for `next` in
+      // the client router cache. Start a fresh document request so the newly
+      // issued session cookie is present on the first protected-page render.
+      window.location.assign(next);
     } catch (err) {
       setError(errorMessage(err) ?? "Network error");
     } finally {
