@@ -36,6 +36,7 @@ pnpm-debug.log*
 .env.test
 
 deploy/.env
+.push-keys.json
 
 ########################################
 # Drizzle / Migrations (선택)

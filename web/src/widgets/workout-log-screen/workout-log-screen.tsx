@@ -35,6 +35,7 @@ import { BodyweightCheckBanner } from "./bodyweight-check-banner";
 import { DateNav } from "./date-nav";
 import { SessionFeedbackNotices } from "./session-feedback-notices";
 import { SessionSaveBar } from "./session-save-bar";
+import { cancelRestPush } from "@/lib/push/rest-push-client";
 import { useRestTimer } from "@/features/workout-log/model/use-rest-timer";
 import { restPersistenceKeyAtom } from "@/features/workout-log/store/workout-log-atoms";
 import { SessionToolbar } from "./session-toolbar";
@@ -264,6 +265,8 @@ function WorkoutLogScreenContent({
       onSaved: useCallback(
         (savedLogId: string | null) => {
           setShowSaveSuccessToast(true);
+          // 기록을 마쳤으면 남은 휴식 종료 알림은 소음이다.
+          void cancelRestPush();
           window.setTimeout(() => {
             if (savedLogId) {
               router.replace(

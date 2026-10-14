@@ -24,6 +24,7 @@ import {
   uxEventsRoutes,
 } from "./routes/misc";
 import { opsRoutes } from "./routes/ops";
+import { pushRoutes } from "./routes/push";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // The Hono app itself — deliberately separated from the node server entry
@@ -96,7 +97,8 @@ app.route("/api/me/import", importRoutes); // POST — data import (dryRun/repla
 app.route("/api/program-versions", programVersionsRoutes); // PUT — edit version
 app.route("/api/generated-sessions", generatedSessionsRoutes); // GET — session list
 app.route("/api/ux-events", uxEventsRoutes); // POST — UX telemetry ingest
-app.route("/api/ops", opsRoutes); // GET/POST /sessions/prune — infra (WORKOUT_OPS_TOKEN)
+app.route("/api/push", pushRoutes); // GET /vapid-key, PUT/DELETE /rest — 휴식 종료 푸시
+app.route("/api/ops", opsRoutes); // GET/POST /sessions/prune, POST /rest-push/dispatch — infra (WORKOUT_OPS_TOKEN)
 
 // --- consistent JSON for unmatched routes + any error that escapes a handler's
 // own try/catch (e.g. a DB failure inside requireAuth/apiLogger middleware). ---

@@ -491,6 +491,34 @@ export const bodyMeasurement = table(
 );
 
 /**
+ * rest_push_schedule: 휴식 종료 푸시 예약. 사용자당 1행(진행 중인 휴식은 하나뿐).
+ *
+ * **구독 테이블을 따로 두지 않는다.** 예약 시점에 그 기기의 구독을 함께 받아 행에
+ * 싣는다 — 알림은 휴식을 시작한 기기로만 가야 하고, 계정 전환·재구독으로 구독이
+ * 바뀌어도 매 예약이 최신 값을 들고 오므로 동기화할 상태가 없다.
+ *
+ * 발송 주체는 Supabase Cron(prod 전용 일회성 SQL, `web/scripts/setup-rest-push-cron.sql`)이
+ * 매초 만료 행이 있을 때만 `/api/ops/rest-push/dispatch`를 부르는 것이고, 그 핸들러가
+ * `DELETE … RETURNING`으로 claim한다 — 발송된 행은 남지 않는다.
+ */
+export const restPushSchedule = table(
+  "rest_push_schedule",
+  {
+    userId: uuid("user_id")
+      .primaryKey()
+      .references(() => appUser.id, { onDelete: "cascade" }),
+    endpoint: text("endpoint").notNull(),
+    p256dh: text("p256dh").notNull(),
+    auth: text("auth").notNull(),
+    fireAt: timestamp("fire_at", { withTimezone: true }).notNull(),
+    title: text("title").notNull(),
+    body: text("body").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [index("rest_push_schedule_fire_at_idx").on(t.fireAt)],
+);
+
+/**
  * stats_cache: cached aggregate payloads for expensive stats queries
  */
 export const statsCache = table(

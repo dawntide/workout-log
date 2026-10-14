@@ -90,6 +90,48 @@ self.addEventListener('fetch', (event) => {
 });
 
 // ---------------------------------------------------------------------------
+// Push — 휴식 종료 알림(apps/api dispatchDueRestPushes가 보낸다).
+// iOS는 userVisibleOnly 구독이라 푸시마다 반드시 알림을 띄워야 한다 — 페이로드가
+// 깨져도 기본 문구로 띄운다. 이동 경로는 화이트리스트만 허용한다.
+// ---------------------------------------------------------------------------
+const PUSH_PATHS = ['/workout/log'];
+
+self.addEventListener('push', (event) => {
+  let data = {};
+  try { data = (event.data && event.data.json()) || {}; } catch { /* 기본 문구로 표시 */ }
+  if (!data || typeof data !== 'object') data = {};
+  const title = typeof data.title === 'string' && data.title ? data.title.slice(0, 80) : 'Workout Log';
+  const body = typeof data.body === 'string' ? data.body.slice(0, 180) : '';
+  const url = PUSH_PATHS.includes(data.url) ? data.url : '/';
+  event.waitUntil(
+    self.registration.showNotification(title, {
+      body,
+      icon: '/icons/icon-192.png',
+      badge: '/icons/icon-192.png',
+      tag: typeof data.tag === 'string' ? data.tag.slice(0, 40) : 'workout-log',
+      data: { url },
+    })
+  );
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const path = event.notification.data && event.notification.data.url;
+  const target = new URL(PUSH_PATHS.includes(path) ? path : '/', self.location.origin);
+  event.waitUntil(
+    (async () => {
+      const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+      // 이미 열린 앱 창이 있으면 새로 열지 않고 그 창을 앞으로 가져온다 — 기록 중인
+      // 드래프트를 새 창이 덮지 않게.
+      const existing =
+        windows.find((client) => new URL(client.url).pathname === target.pathname) || windows[0];
+      if (existing) return existing.focus();
+      return self.clients.openWindow(target.href);
+    })()
+  );
+});
+
+// ---------------------------------------------------------------------------
 // Strategy helpers
 // ---------------------------------------------------------------------------
 

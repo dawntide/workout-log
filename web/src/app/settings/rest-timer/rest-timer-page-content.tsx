@@ -36,6 +36,7 @@ import {
   type RestPresetRule,
 } from "@/lib/settings/workout-preferences";
 import { formatRestClock } from "@/lib/workout-record/rest-timer";
+import { useRestPushSetting } from "@/lib/push/use-rest-push-setting";
 import type { SettingsSnapshot } from "@/server/services/settings/get-settings-snapshot";
 
 type PresetDraft = {
@@ -148,6 +149,8 @@ export function RestTimerPageContent({
       ? "화면 꺼짐 방지 저장에 실패해 이전 값으로 되돌렸습니다."
       : "Failed to save the wake lock setting, so the previous value was restored.",
   });
+
+  const restPush = useRestPushSetting();
 
   const presets = useMemo(() => parseRestPresets(presetsSetting.value), [presetsSetting.value]);
 
@@ -394,8 +397,8 @@ export function RestTimerPageContent({
           title={ko ? "알림" : "Alerts"}
           description={
             ko
-              ? "휴식이 끝날 때의 동작입니다. 기기 푸시 알림은 보내지 않습니다."
-              : "What happens when rest ends. No device push notifications are sent."
+              ? "휴식이 끝날 때의 동작입니다."
+              : "What happens when rest ends."
           }
         />
         <V2SettingsGroup ariaLabel={ko ? "휴식 알림 설정" : "Rest alert settings"}>
@@ -445,6 +448,39 @@ export function RestTimerPageContent({
               />
             }
           />
+          {restPush.status !== "loading" && restPush.status !== "hidden" ? (
+            <V2NavRow
+              as="div"
+              label={ko ? "휴식 끝 알림" : "Rest-Over Notification"}
+              description={
+                restPush.pending
+                  ? ko ? "설정 중..." : "Updating..."
+                  : restPush.error === "denied"
+                    ? ko
+                      ? "알림이 차단돼 있습니다. 기기 설정에서 이 앱의 알림을 허용해 주세요."
+                      : "Notifications are blocked. Allow them for this app in device settings."
+                    : restPush.error === "failed"
+                      ? ko ? "알림 설정에 실패했습니다. 다시 시도해 주세요." : "Couldn't update notifications. Try again."
+                      : restPush.status === "needs-install"
+                        ? ko
+                          ? "iPhone·iPad는 홈 화면에 추가한 앱에서만 사용할 수 있습니다."
+                          : "On iPhone and iPad, add the app to your Home Screen first."
+                        : restPush.status === "unsupported"
+                          ? ko ? "이 브라우저에서는 사용할 수 없습니다." : "Not available in this browser."
+                          : ko
+                            ? "화면이 꺼져 있거나 다른 앱을 보고 있어도 휴식이 끝나면 이 기기로 알립니다."
+                            : "Notifies this device when rest ends, even with the screen off or in another app."
+              }
+              trailing={
+                <V2Switch
+                  checked={restPush.enabled}
+                  onCheckedChange={restPush.toggle}
+                  disabled={restPush.pending || restPush.status !== "ready"}
+                  aria-label={ko ? "휴식 끝 알림" : "Rest-over notification"}
+                />
+              }
+            />
+          ) : null}
         </V2SettingsGroup>
         <V2SettingsFootnote>
           {ko
