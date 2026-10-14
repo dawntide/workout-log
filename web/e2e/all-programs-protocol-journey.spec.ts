@@ -5,6 +5,12 @@ import { EXERCISE_NAMES } from "@workout/core/exercise/catalog";
 import { observeBrowser } from "./browser-failures";
 import { expectSurfaceContrast } from "./surface-audit";
 
+/** 반복을 입력하면 휴식이 시작되고, 휴식 줄이 진행률 줄을 대신한다. 진행률을 보려면 먼저 넘긴다. */
+async function skipRestIfRunning(page: Page) {
+  const skip = page.getByRole("timer").getByRole("button", { name: "휴식 건너뛰기" });
+  if (await skip.count()) await skip.click();
+}
+
 const PASSWORD = "All-protocols-e2e-password-17!";
 
 test.setTimeout(900_000);
@@ -297,6 +303,7 @@ async function fillSession(page: Page, repRule?: (context: RepRuleContext) => nu
     snapshot.push({ exerciseName, plannedReps });
   }
 
+  await skipRestIfRunning(page);
   const progress = page.getByRole("progressbar", { name: /세트 진행률/ });
   const maxSets = await progress.getAttribute("aria-valuemax");
   expect(maxSets).toBeTruthy();

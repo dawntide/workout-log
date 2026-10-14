@@ -90,14 +90,16 @@ export function WorkoutExerciseCard({ exerciseId, onExerciseAction }: Props) {
   // 바벨 종목에서만 노출한다. 자중·덤벨·케이블·머신은 원판 분해가 무의미하고,
   // 카탈로그 밖 사용자 운동은 바벨일 수 있으므로 노출 쪽으로 처리한다.
   const showPlateBreakdown = supportsPlateBreakdown(exercise.exerciseName);
-  const handleSetCompleted = (setIndex: number) =>
+  const handleSetCompleted = (setIndex: number, fromEntry = false) =>
     startRestTimer({
       exerciseId: exercise.exerciseId ?? exerciseId,
       exerciseName: exercise.exerciseName,
       setIndex,
       // 프로그램 처방이 있으면 사용자 설정보다 우선한다.
       prescribedSeconds: exercise.plannedSetMeta?.restSecondsPerSet?.[setIndex] ?? null,
+      fromEntry,
     });
+  const handleSetRepsEntered = (setIndex: number) => handleSetCompleted(setIndex, true);
   const ref5Outcome = deriveRef5ExerciseOutcomeView(
     exercise,
     exerciseCard.programEntryState,
@@ -596,6 +598,7 @@ export function WorkoutExerciseCard({ exerciseId, onExerciseAction }: Props) {
               onExerciseAction={dispatchAction}
               previousReps={previousSession?.sets[i]?.reps ?? null}
               onSetCompleted={handleSetCompleted}
+              onSetRepsEntered={handleSetRepsEntered}
             />
           ))}
         </div>

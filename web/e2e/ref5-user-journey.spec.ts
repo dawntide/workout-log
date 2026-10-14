@@ -4,6 +4,12 @@ import { REF5_PROTOCOL_VERSION } from "@workout/core/program-engine/ref5";
 import { observeBrowser } from "./browser-failures";
 import { expectSurfaceContrast } from "./surface-audit";
 
+/** 반복을 입력하면 휴식이 시작되고, 휴식 줄이 진행률 줄을 대신한다. 진행률을 보려면 먼저 넘긴다. */
+async function skipRestIfRunning(page: Page) {
+  const skip = page.getByRole("timer").getByRole("button", { name: "휴식 건너뛰기" });
+  if (await skip.count()) await skip.click();
+}
+
 const PASSWORD = "Ref5-e2e-password-17!";
 
 test.setTimeout(90_000);
@@ -356,6 +362,7 @@ async function startPreviewedRef5Session(page: Page) {
 }
 
 async function saveCurrentRef5Session(page: Page) {
+  await skipRestIfRunning(page);
   const setProgress = page.getByRole("progressbar", { name: /세트 진행률/ });
   await expect(setProgress).toBeVisible();
   expect(await setProgress.getAttribute("aria-valuenow")).toBe(
@@ -409,6 +416,7 @@ test("REF5 실제 사용자 기본 진입", async ({ page }, testInfo) => {
   await page.screenshot({ path: testInfo.outputPath("ref5-first-started.png"), fullPage: true });
 
   await fillCurrentRef5Session(page);
+  await skipRestIfRunning(page);
   await expect(page.getByRole("progressbar", { name: /세트 진행률/ })).toHaveAttribute(
     "aria-valuenow",
     "10",

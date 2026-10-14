@@ -15,6 +15,7 @@ export type CellInputProps = {
   bg?: string;
   /** focus ring 색. */
   focusRing?: string;
+  onBlur?: () => void;
 };
 
 // 세트 행 숫자 입력 셀 — workout-set-row.tsx에서 추출.
@@ -31,6 +32,7 @@ export const CellInput = forwardRef<HTMLInputElement, CellInputProps>(
       readOnly = false,
       bg = "var(--v2-paper-2)",
       focusRing = "var(--v2-accent)",
+      onBlur,
     },
     ref,
   ) {
@@ -72,6 +74,7 @@ export const CellInput = forwardRef<HTMLInputElement, CellInputProps>(
         onBlur={() => {
           setFocused(false);
           setDraft(null);
+          onBlur?.();
         }}
         className="v2-num-sm"
         style={{
