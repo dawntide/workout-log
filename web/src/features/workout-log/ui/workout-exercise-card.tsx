@@ -37,6 +37,7 @@ import { useStartRestTimer } from "@/features/workout-log/model/use-rest-timer";
 import { PlateBreakdownSheet } from "@/features/workout-log/ui/plate-breakdown-sheet";
 import { SET_ROW_GRID } from "@/features/workout-log/ui/set-row-grid";
 import { WorkoutSetRow } from "@/features/workout-log/ui/workout-set-row";
+import { OapRungDiagram } from "@/features/workout-log/ui/oap-rung-diagram";
 import { AppSelect } from "@/components/ui/form-controls";
 import type { Ref5TerminationReason } from "@/entities/workout-record";
 import {
@@ -476,6 +477,15 @@ export function WorkoutExerciseCard({ exerciseId, onExerciseAction }: Props) {
             </ChipButton>
           )}
         </div>
+
+        {/* 사다리 처방에만 보조손 위치를 그린다. 네거티브·프리는 단 위치로 수행하지 않는다. */}
+        {ref5Oap?.kind === "LADDER" && (
+          <OapRungDiagram
+            rung={ref5Oap.rung}
+            rungName={ref5Oap.rungName}
+            rungNameKo={ref5Oap.rungNameKo}
+          />
+        )}
 
         {previousSession && (
           <div
