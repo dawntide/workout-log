@@ -47,34 +47,47 @@ export function OapRungDiagram({ rung, rungName, rungNameKo }: Props) {
     >
       <svg
         viewBox="0 0 88 104"
-        width={64}
-        height={76}
+        width={72}
+        height={85}
         role="img"
         aria-label={`${ko ? "보조손 위치" : "Assist hand position"}: ${title}`}
         style={{ flexShrink: 0 }}
       >
+        {/* 색 역할: 구조(바·몸통)는 낮은 대비 잉크, 당기는 팔은 한 단계 진하게,
+            보조손만 accent. 모든 색이 테마 토큰이라 color-themes.css 전 테마를 따른다. */}
         {/* 바 */}
-        <line x1={8} y1={8} x2={80} y2={8} stroke="var(--v2-ink-3)" strokeWidth={3} strokeLinecap="round" />
-        {/* 당기는 팔: 바를 잡은 손 → 어깨 */}
-        <line x1={ARM_X} y1={10} x2={ARM_X} y2={SHOULDER_Y} stroke="var(--v2-ink-2)" strokeWidth={4} strokeLinecap="round" />
+        <line x1={8} y1={8} x2={80} y2={8} stroke="var(--v2-ink-4)" strokeWidth={3} strokeLinecap="round" />
         {/* 어깨선·몸통. 머리는 그리지 않는다 — 보조팔 선이 머리를 가로질러 단 위치가 흐려진다 */}
-        <line x1={ARM_X} y1={SHOULDER_Y} x2={ASSIST_SHOULDER_X} y2={SHOULDER_Y} stroke="var(--v2-ink-2)" strokeWidth={3} strokeLinecap="round" />
-        <line x1={52} y1={SHOULDER_Y} x2={52} y2={98} stroke="var(--v2-ink-2)" strokeWidth={3} strokeLinecap="round" />
-        {/* 단 눈금 1–5 */}
+        <line x1={ARM_X} y1={SHOULDER_Y} x2={ASSIST_SHOULDER_X} y2={SHOULDER_Y} stroke="var(--v2-ink-3)" strokeWidth={3} strokeLinecap="round" />
+        <line x1={52} y1={SHOULDER_Y} x2={52} y2={98} stroke="var(--v2-ink-3)" strokeWidth={3} strokeLinecap="round" />
+        {/* 당기는 팔: 바를 잡은 손 → 어깨. 프리(6단)면 이 팔이 주인공이라 accent */}
+        <line
+          x1={ARM_X}
+          y1={10}
+          x2={ARM_X}
+          y2={SHOULDER_Y}
+          stroke={markerY === undefined ? "var(--v2-accent)" : "var(--v2-ink-2)"}
+          strokeWidth={4}
+          strokeLinecap="round"
+        />
+        <circle cx={ARM_X} cy={9} r={3.5} fill={markerY === undefined ? "var(--v2-accent)" : "var(--v2-ink-2)"} />
+        {/* 단 눈금 1–5. 현재 단은 accent-weak 바탕 + accent-ink 글자 */}
         {Object.entries(RUNG_Y).map(([key, y]) => {
           const current = Number(key) === rung;
           return (
-            <text
-              key={key}
-              x={22}
-              y={y + 4}
-              textAnchor="middle"
-              fontSize={11}
-              fontWeight={current ? 700 : 400}
-              fill={current ? "var(--v2-accent)" : "var(--v2-ink-4)"}
-            >
-              {key}
-            </text>
+            <g key={key}>
+              {current && <circle cx={22} cy={y} r={7.5} fill="var(--v2-accent-weak)" />}
+              <text
+                x={22}
+                y={y + 4}
+                textAnchor="middle"
+                fontSize={11}
+                fontWeight={current ? 700 : 400}
+                fill={current ? "var(--v2-accent-ink)" : "var(--v2-ink-3)"}
+              >
+                {key}
+              </text>
+            </g>
           );
         })}
         {/* 보조팔: 단 위치를 잡거나(1–5), 프리면 몸 옆으로 내림(6) */}
@@ -89,7 +102,9 @@ export function OapRungDiagram({ rung, rungName, rungNameKo }: Props) {
               strokeWidth={3}
               strokeLinecap="round"
             />
-            <circle cx={ARM_X} cy={markerY} r={5} fill="var(--v2-accent)" />
+            <circle cx={ARM_X} cy={markerY} r={9} fill="var(--v2-accent-weak)" />
+            {/* 바탕색 링으로 팔 선과 분리해 어느 테마에서도 점이 묻히지 않게 한다 */}
+            <circle cx={ARM_X} cy={markerY} r={5} fill="var(--v2-accent)" stroke="var(--v2-paper-2)" strokeWidth={2} />
           </>
         ) : (
           <line
@@ -97,7 +112,7 @@ export function OapRungDiagram({ rung, rungName, rungNameKo }: Props) {
             y1={SHOULDER_Y}
             x2={72}
             y2={94}
-            stroke="var(--v2-ink-3)"
+            stroke="var(--v2-ink-4)"
             strokeWidth={3}
             strokeLinecap="round"
           />
@@ -107,7 +122,7 @@ export function OapRungDiagram({ rung, rungName, rungNameKo }: Props) {
         <span className="v2-mono-label" style={{ color: "var(--v2-ink-3)" }}>
           {ko ? "보조손" : "Assist hand"}
         </span>
-        <span style={{ color: "var(--v2-ink)", fontWeight: 600 }}>{title}</span>
+        <span style={{ color: "var(--v2-accent-ink)", fontWeight: 600 }}>{title}</span>
         {caption && (
           <span style={{ color: "var(--v2-ink-2)", fontSize: "var(--v2-t-12)" }}>{caption}</span>
         )}
