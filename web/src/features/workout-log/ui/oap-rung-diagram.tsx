@@ -14,10 +14,20 @@ const RUNG_DEFINITION: Record<number, { ko: string; en: string }> = {
   6: { ko: "보조손을 몸에서 뗌", en: "Assisting hand off the body" },
 };
 
-// 당기는 팔 위 각 단의 y 좌표(viewBox 기준). 손이 바, 어깨가 아래.
-const RUNG_Y: Record<number, number> = { 1: 20, 2: 31, 3: 42, 4: 54, 5: 66 };
+// 당기는 팔의 관절 y 좌표(viewBox 기준). 손이 바, 어깨가 아래.
+const WRIST_Y = 18;
+const ELBOW_Y = 46;
+const SHOULDER_Y = 78;
+// 각 단의 y 좌표는 관절에서 파생한다 — 스펙 정의(§7.5.2)가 관절 기준이라서다.
+// 1단은 손목 주름 바로 아래, 3단은 팔꿈치 접힘부 바로 아래.
+const RUNG_Y: Record<number, number> = {
+  1: WRIST_Y + 5,
+  2: (WRIST_Y + ELBOW_Y) / 2,
+  3: ELBOW_Y + 5,
+  4: (ELBOW_Y + SHOULDER_Y) / 2,
+  5: SHOULDER_Y,
+};
 const ARM_X = 36;
-const SHOULDER_Y = 66;
 const ASSIST_SHOULDER_X = 68;
 
 type Props = {
@@ -46,7 +56,7 @@ export function OapRungDiagram({ rung, rungName, rungNameKo }: Props) {
       style={{ display: "flex", alignItems: "center", gap: "var(--v2-s-3)" }}
     >
       <svg
-        viewBox="0 0 88 104"
+        viewBox="0 0 88 106"
         width={72}
         height={85}
         role="img"
@@ -59,7 +69,7 @@ export function OapRungDiagram({ rung, rungName, rungNameKo }: Props) {
         <line x1={8} y1={8} x2={80} y2={8} stroke="var(--v2-ink-4)" strokeWidth={3} strokeLinecap="round" />
         {/* 어깨선·몸통. 머리는 그리지 않는다 — 보조팔 선이 머리를 가로질러 단 위치가 흐려진다 */}
         <line x1={ARM_X} y1={SHOULDER_Y} x2={ASSIST_SHOULDER_X} y2={SHOULDER_Y} stroke="var(--v2-ink-3)" strokeWidth={3} strokeLinecap="round" />
-        <line x1={52} y1={SHOULDER_Y} x2={52} y2={98} stroke="var(--v2-ink-3)" strokeWidth={3} strokeLinecap="round" />
+        <line x1={52} y1={SHOULDER_Y} x2={52} y2={102} stroke="var(--v2-ink-3)" strokeWidth={3} strokeLinecap="round" />
         {/* 당기는 팔: 바를 잡은 손 → 어깨. 프리(6단)면 이 팔이 주인공이라 accent */}
         <line
           x1={ARM_X}
@@ -71,17 +81,29 @@ export function OapRungDiagram({ rung, rungName, rungNameKo }: Props) {
           strokeLinecap="round"
         />
         <circle cx={ARM_X} cy={9} r={3.5} fill={markerY === undefined ? "var(--v2-accent)" : "var(--v2-ink-2)"} />
+        {/* 관절: 속이 빈 원이라 보조손 마커(채운 원)와 구분된다 */}
+        {[WRIST_Y, ELBOW_Y, SHOULDER_Y].map((y) => (
+          <circle
+            key={y}
+            cx={ARM_X}
+            cy={y}
+            r={3.5}
+            fill="var(--v2-paper-2)"
+            stroke={markerY === undefined ? "var(--v2-accent)" : "var(--v2-ink-2)"}
+            strokeWidth={2}
+          />
+        ))}
         {/* 단 눈금 1–5. 현재 단은 accent-weak 바탕 + accent-ink 글자 */}
         {Object.entries(RUNG_Y).map(([key, y]) => {
           const current = Number(key) === rung;
           return (
             <g key={key}>
-              {current && <circle cx={22} cy={y} r={7.5} fill="var(--v2-accent-weak)" />}
+              {current && <circle cx={22} cy={y} r={6} fill="var(--v2-accent-weak)" />}
               <text
                 x={22}
-                y={y + 4}
+                y={y + 3}
                 textAnchor="middle"
-                fontSize={11}
+                fontSize={9}
                 fontWeight={current ? 700 : 400}
                 fill={current ? "var(--v2-accent-ink)" : "var(--v2-ink-3)"}
               >
@@ -102,7 +124,7 @@ export function OapRungDiagram({ rung, rungName, rungNameKo }: Props) {
               strokeWidth={3}
               strokeLinecap="round"
             />
-            <circle cx={ARM_X} cy={markerY} r={9} fill="var(--v2-accent-weak)" />
+            <circle cx={ARM_X} cy={markerY} r={8} fill="var(--v2-accent-weak)" />
             {/* 바탕색 링으로 팔 선과 분리해 어느 테마에서도 점이 묻히지 않게 한다 */}
             <circle cx={ARM_X} cy={markerY} r={5} fill="var(--v2-accent)" stroke="var(--v2-paper-2)" strokeWidth={2} />
           </>
@@ -111,7 +133,7 @@ export function OapRungDiagram({ rung, rungName, rungNameKo }: Props) {
             x1={ASSIST_SHOULDER_X}
             y1={SHOULDER_Y}
             x2={72}
-            y2={94}
+            y2={102}
             stroke="var(--v2-ink-4)"
             strokeWidth={3}
             strokeLinecap="round"
