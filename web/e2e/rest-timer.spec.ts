@@ -129,4 +129,37 @@ test.describe("rest timer", () => {
       .poll(readRemaining, { timeout: 5_000 })
       .toBeGreaterThan(before + 20);
   });
+
+  test("반복을 직접 입력하고 칸을 벗어나면 휴식이 시작되고, 고쳐 써도 다시 시작하지 않는다", async ({ page }) => {
+    await signupThroughUi(page);
+    await startOperatorPlan(page);
+    await expect(page.getByRole("timer")).toHaveCount(0);
+
+    const firstRepsInput = page.locator('input[aria-label*="반복"]').first();
+    // 칸을 훑고 지나가기만 하면 휴식이 시작되지 않는다.
+    await firstRepsInput.focus();
+    await firstRepsInput.blur();
+    await expect(page.getByRole("timer")).toHaveCount(0);
+
+    // 입력 중에는 시작하지 않고, 칸을 벗어날 때 한 번 시작한다.
+    await firstRepsInput.fill("3");
+    await expect(page.getByRole("timer")).toHaveCount(0);
+    await firstRepsInput.blur();
+    const restRow = page.getByRole("timer");
+    await expect(restRow).toBeVisible();
+
+    // +30초로 늘린 뒤 같은 세트를 고쳐 쓰면 연장분이 유지된다(재시작이면 기본값으로 돌아간다).
+    const readRemaining = async () => {
+      const label = (await restRow.getAttribute("aria-label")) ?? "";
+      const match = label.match(/(\d+):(\d{2})/);
+      if (!match) throw new Error(`unexpected rest label: ${label}`);
+      return Number(match[1]) * 60 + Number(match[2]);
+    };
+    const initial = await readRemaining();
+    await restRow.getByRole("button", { name: "30초 추가" }).click();
+    await expect.poll(readRemaining, { timeout: 5_000 }).toBeGreaterThan(initial + 20);
+    await firstRepsInput.fill("2");
+    await firstRepsInput.blur();
+    await expect.poll(readRemaining, { timeout: 5_000 }).toBeGreaterThan(initial + 20);
+  });
 });

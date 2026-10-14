@@ -1,6 +1,6 @@
 "use client";
 
-import { useAtom, useAtomValue, useSetAtom } from "jotai";
+import { useAtom, useAtomValue } from "jotai";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   resolveRestSecondsForExercise,
@@ -37,6 +37,12 @@ export type RestTimerStartInput = {
   setIndex: number;
   /** 프로그램이 처방한 휴식(초). 있으면 사용자 설정보다 우선한다. */
   prescribedSeconds?: number | null;
+  /**
+   * 반복 칸 입력 확정으로 시작할 때 true. 같은 세트의 휴식이 이미 돌고 있으면 다시
+   * 시작하지 않는다 — 입력을 고쳐 쓸 때마다 휴식이 처음부터 다시 돌면 안 된다.
+   * 완료 탭은 명시적 재시작이라 이 플래그 없이 부른다.
+   */
+  fromEntry?: boolean;
 };
 
 export type RestTimerView = {
@@ -173,13 +179,22 @@ export function useRestTimer(persistenceKey: string | null): RestTimerView {
  * 부수효과는 화면에 한 번만 마운트되는 useRestTimer가 전담한다.
  */
 export function useStartRestTimer() {
-  const setTimer = useSetAtom(restTimerAtom);
+  const [current, setTimer] = useAtom(restTimerAtom);
   const preferences = useAtomValue(workoutPreferencesAtom);
   const persistenceKey = useAtomValue(restPersistenceKeyAtom);
   const { locale } = useLocale();
 
   return useCallback(
     (input: RestTimerStartInput) => {
+      if (
+        input.fromEntry &&
+        current &&
+        current.exerciseId === input.exerciseId &&
+        current.setIndex === input.setIndex &&
+        !isExpired(current, Date.now())
+      ) {
+        return;
+      }
       const targetSeconds = resolveTargetSeconds(preferences, input);
       const next: RestTimerState = {
         exerciseId: input.exerciseId,
@@ -193,7 +208,7 @@ export function useStartRestTimer() {
       writeStoredRestTimer(persistenceKey, next);
       scheduleRestEndPush(next, input.exerciseName, locale);
     },
-    [locale, persistenceKey, preferences, setTimer],
+    [current, locale, persistenceKey, preferences, setTimer],
   );
 }
 

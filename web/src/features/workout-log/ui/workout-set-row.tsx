@@ -58,6 +58,11 @@ type Props = {
   previousReps?: number | null;
   /** 완료 탭 시 휴식 타이머를 시작한다. 값이 이미 있는 세트도 재시작한다. */
   onSetCompleted?: (setIndex: number) => void;
+  /**
+   * 반복 칸 입력을 확정(blur)해 세트에 반복이 기록됐을 때. 숫자를 직접 치는 사용자도
+   * 완료 탭 없이 휴식이 시작되게 한다.
+   */
+  onSetRepsEntered?: (setIndex: number) => void;
 };
 
 export function WorkoutSetRow({
@@ -66,6 +71,7 @@ export function WorkoutSetRow({
   onExerciseAction,
   previousReps,
   onSetCompleted,
+  onSetRepsEntered,
 }: Props) {
   const { locale, copy } = useLocale();
   const focusChain = useSetRowFocusChain();
@@ -140,8 +146,13 @@ export function WorkoutSetRow({
     [onExerciseAction, setIndex],
   );
 
+  // 이번 포커스 동안 반복을 실제로 바꿨는지 — 칸을 훑고 지나가기만 한 blur로 휴식이
+  // 시작되면 안 된다.
+  const repsEditedRef = useRef(false);
+
   const handleRepsChange = useCallback(
     (raw: string) => {
+      repsEditedRef.current = true;
       const cleaned = raw.replace(/[^0-9]/g, "");
       const num = cleaned === "" ? 0 : Number(cleaned);
       if (!Number.isFinite(num)) return;
@@ -217,6 +228,12 @@ export function WorkoutSetRow({
     }
     onSetCompleted?.(setIndex);
   }, [canFillByTap, completionFillReps, hasReps, onExerciseAction, onSetCompleted, setIndex]);
+
+  const handleRepsBlur = useCallback(() => {
+    if (!repsEditedRef.current) return;
+    repsEditedRef.current = false;
+    if (hasReps) onSetRepsEntered?.(setIndex);
+  }, [hasReps, onSetRepsEntered, setIndex]);
 
   const completionLabel = isFailure
     ? locale === "ko"
@@ -320,6 +337,7 @@ export function WorkoutSetRow({
         }
         onChange={handleRepsChange}
         onKeyDown={onKeyDown("reps")}
+        onBlur={handleRepsBlur}
       />
       <CellInput
         ref={rpeRef}

@@ -2,6 +2,12 @@ import { expect, test, type Page, type TestInfo } from "@playwright/test";
 
 import { observeBrowser } from "./browser-failures";
 
+/** 반복을 입력하면 휴식이 시작되고, 휴식 줄이 진행률 줄을 대신한다. 진행률을 보려면 먼저 넘긴다. */
+async function skipRestIfRunning(page: Page) {
+  const skip = page.getByRole("timer").getByRole("button", { name: "휴식 건너뛰기" });
+  if (await skip.count()) await skip.click();
+}
+
 const PASSWORD = "All-programs-e2e-password-17!";
 
 test.setTimeout(120_000);
@@ -345,6 +351,7 @@ async function completeVisibleWorkout(page: Page, scenario: ProgramScenario) {
     }
   }
 
+  await skipRestIfRunning(page);
   const setProgress = page.getByRole("progressbar", { name: /세트 진행률/ });
   await expect(setProgress).toBeVisible();
   await expect(setProgress).toHaveAttribute("aria-valuenow", String(scenario.expectedSetCount));
