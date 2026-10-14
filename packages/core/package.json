@@ -20,6 +20,7 @@
     "typescript": "^5.7.0"
   },
   "dependencies": {
+    "@block65/webcrypto-web-push": "^2.0.0",
     "drizzle-orm": "0.45.1",
     "pg": "8.18.0",
     "zod": "^3.25.76"

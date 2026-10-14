@@ -20,6 +20,8 @@ import {
   releaseWakeLock,
   writeStoredRestTimer,
 } from "@/lib/workout-record/rest-timer-effects";
+import { cancelRestPush, scheduleRestPush } from "@/lib/push/rest-push-client";
+import { useLocale } from "@/components/locale-provider";
 import {
   restPersistenceKeyAtom,
   restTimerAtom,
@@ -50,6 +52,7 @@ export type RestTimerView = {
 export function useRestTimer(persistenceKey: string | null): RestTimerView {
   const [timer, setTimer] = useAtom(restTimerAtom);
   const preferences = useAtomValue(workoutPreferencesAtom);
+  const { locale } = useLocale();
   const [nowMs, setNowMs] = useState(() => Date.now());
   const chimedForRef = useRef<string | null>(null);
 
@@ -125,8 +128,9 @@ export function useRestTimer(persistenceKey: string | null): RestTimerView {
       if (preferences.restSoundEnabled) primeRestChime();
       setNowMs(Date.now());
       persist(next);
+      scheduleRestEndPush(next, input.exerciseName, locale);
     },
-    [persist, preferences],
+    [locale, persist, preferences],
   );
 
   const extend = useCallback(
@@ -134,14 +138,18 @@ export function useRestTimer(persistenceKey: string | null): RestTimerView {
       if (!timer) return;
       const nextTarget = Math.max(5, Math.min(600, timer.targetSeconds + deltaSeconds));
       chimedForRef.current = null;
-      persist({ ...timer, targetSeconds: nextTarget });
+      const next = { ...timer, targetSeconds: nextTarget };
+      persist(next);
+      // 같은 예약을 새 종료 시각으로 덮는다. 문구는 시작 때 것을 그대로 쓴다.
+      scheduleRestEndPush(next, null, locale);
     },
-    [persist, timer],
+    [locale, persist, timer],
   );
 
   const skip = useCallback(() => {
     chimedForRef.current = null;
     persist(null);
+    void cancelRestPush();
   }, [persist]);
 
   return useMemo(() => {
@@ -168,6 +176,7 @@ export function useStartRestTimer() {
   const setTimer = useSetAtom(restTimerAtom);
   const preferences = useAtomValue(workoutPreferencesAtom);
   const persistenceKey = useAtomValue(restPersistenceKeyAtom);
+  const { locale } = useLocale();
 
   return useCallback(
     (input: RestTimerStartInput) => {
@@ -182,9 +191,37 @@ export function useStartRestTimer() {
       if (preferences.restSoundEnabled) primeRestChime();
       setTimer(next);
       writeStoredRestTimer(persistenceKey, next);
+      scheduleRestEndPush(next, input.exerciseName, locale);
     },
-    [persistenceKey, preferences, setTimer],
+    [locale, persistenceKey, preferences, setTimer],
   );
+}
+
+/** 연장 때 다시 쓰려고 시작 시점 문구를 기억한다(타이머 상태에는 운동 이름이 없다). */
+let lastRestPushCopy: { title: string; body: string } | null = null;
+
+/**
+ * 휴식 종료 푸시 예약. 이 기기가 알림을 켜 두지 않았으면 클라이언트가 아무것도 보내지
+ * 않는다. 화면이 켜져 있어도 예약한다 — 앱을 벗어날지는 지금 알 수 없다.
+ */
+function scheduleRestEndPush(state: RestTimerState, exerciseName: string | null, locale: string) {
+  const ko = locale !== "en";
+  if (exerciseName !== null || !lastRestPushCopy) {
+    const name = exerciseName?.trim();
+    lastRestPushCopy = {
+      title: ko ? "휴식 끝" : "Rest is over",
+      body: name
+        ? ko ? `${name} 다음 세트를 시작하세요.` : `Time for your next set of ${name}.`
+        : ko ? "다음 세트를 시작하세요." : "Time for your next set.",
+    };
+  }
+  const remaining = (state.startedAtMs + state.targetSeconds * 1000 - Date.now()) / 1000;
+  if (remaining < 1) {
+    // 연장 -로 이미 끝난 휴식 — 이전 예약이 남아 늦게 울리지 않게 지운다.
+    void cancelRestPush();
+    return;
+  }
+  scheduleRestPush({ delaySeconds: remaining, ...lastRestPushCopy });
 }
 
 /**

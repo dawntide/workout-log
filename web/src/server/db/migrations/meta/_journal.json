@@ -225,6 +225,13 @@
       "when": 1785134569470,
       "tag": "0031_app_user_role",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1785220969470,
+      "tag": "0032_rest_push_schedule",
+      "breakpoints": true
     }
   ]
 }

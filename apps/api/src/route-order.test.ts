@@ -108,8 +108,12 @@ const EXPECTED = [
   "GET /api/generated-sessions",
   "POST /api/ux-events/public",
   "POST /api/ux-events",
+  "GET /api/push/vapid-key",
+  "PUT /api/push/rest",
+  "DELETE /api/push/rest",
   "GET /api/ops/sessions/prune",
   "POST /api/ops/sessions/prune",
+  "POST /api/ops/rest-push/dispatch",
 ];
 
 test("앱 라우트가 순서까지 그대로 등록된다", () => {
