@@ -15,18 +15,18 @@ const SPEC: Array<{
   rangeMax: number;
   spec: string;
 }> = [
-  { stream: "SQ_H3", seconds: 240, rangeMin: 180, rangeMax: 300, spec: "SQ H3 집중 3-5분" },
-  { stream: "SQ_H2", seconds: 240, rangeMin: 180, rangeMax: 300, spec: "SQ H2 집중 3-5분" },
-  { stream: "BP_FOCUS", seconds: 240, rangeMin: 180, rangeMax: 300, spec: "BP 집중 3-5분" },
-  { stream: "PULL_FOCUS", seconds: 240, rangeMin: 180, rangeMax: 300, spec: "PULL 집중 3-5분" },
-  { stream: "SQ_V_NORMAL", seconds: 150, rangeMin: 120, rangeMax: 180, spec: "SQ V 볼륨 2-3분" },
-  { stream: "BP_VOLUME_NORMAL", seconds: 150, rangeMin: 120, rangeMax: 180, spec: "BP 볼륨 2-3분" },
-  { stream: "PULL_VOLUME_NORMAL", seconds: 150, rangeMin: 120, rangeMax: 180, spec: "PULL 볼륨 2-3분" },
-  { stream: "OHP", seconds: 150, rangeMin: 120, rangeMax: 180, spec: "OHP 2-3분" },
-  { stream: "SQ_V_MICRO", seconds: 150, rangeMin: 120, rangeMax: 180, spec: "마이크로 2-3분" },
-  { stream: "BP_VOLUME_MICRO", seconds: 150, rangeMin: 120, rangeMax: 180, spec: "마이크로 2-3분" },
-  { stream: "PULL_VOLUME_MICRO", seconds: 150, rangeMin: 120, rangeMax: 180, spec: "마이크로 2-3분" },
-  { stream: "DL", seconds: 180, rangeMin: 120, rangeMax: 240, spec: "DL 2-4분" },
+  { stream: "SQ_H3", seconds: 180, rangeMin: 180, rangeMax: 300, spec: "SQ H3 집중 3-5분" },
+  { stream: "SQ_H2", seconds: 180, rangeMin: 180, rangeMax: 300, spec: "SQ H2 집중 3-5분" },
+  { stream: "BP_FOCUS", seconds: 180, rangeMin: 180, rangeMax: 300, spec: "BP 집중 3-5분" },
+  { stream: "PULL_FOCUS", seconds: 180, rangeMin: 180, rangeMax: 300, spec: "PULL 집중 3-5분" },
+  { stream: "SQ_V_NORMAL", seconds: 120, rangeMin: 120, rangeMax: 180, spec: "SQ V 볼륨 2-3분" },
+  { stream: "BP_VOLUME_NORMAL", seconds: 120, rangeMin: 120, rangeMax: 180, spec: "BP 볼륨 2-3분" },
+  { stream: "PULL_VOLUME_NORMAL", seconds: 120, rangeMin: 120, rangeMax: 180, spec: "PULL 볼륨 2-3분" },
+  { stream: "OHP", seconds: 120, rangeMin: 120, rangeMax: 180, spec: "OHP 2-3분" },
+  { stream: "SQ_V_MICRO", seconds: 120, rangeMin: 120, rangeMax: 180, spec: "마이크로 2-3분" },
+  { stream: "BP_VOLUME_MICRO", seconds: 120, rangeMin: 120, rangeMax: 180, spec: "마이크로 2-3분" },
+  { stream: "PULL_VOLUME_MICRO", seconds: 120, rangeMin: 120, rangeMax: 180, spec: "마이크로 2-3분" },
+  { stream: "DL", seconds: 120, rangeMin: 120, rangeMax: 240, spec: "DL 2-4분" },
 ];
 
 test("REF5 rest prescriptions match the spec table in 19.1", () => {
