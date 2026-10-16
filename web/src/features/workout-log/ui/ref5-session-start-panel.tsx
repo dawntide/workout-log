@@ -46,11 +46,11 @@ type PreviewExercise = {
   prescription: string;
 };
 
-/** §9 하드 SQ 게이트의 서버 판정과 그 근거(직전 하드 시작·168시간 창). */
+/** §9 하드 SQ 게이트의 서버 판정과 그 근거(직전 하드 시작·최근 7일 하드 시작 수). */
 export type PreviewHardGate = {
   allowed: boolean;
   lastStartAt: string | null;
-  startsIn168Hours: number | null;
+  startsInSevenDays: number | null;
 };
 
 type PreviewSummary = {
@@ -130,7 +130,7 @@ function readHardGate(
     return {
       allowed: hard.allowed,
       lastStartAt: firstString([hard], ["lastStartAt"]),
-      startsIn168Hours: numberValue(hard, ["startsIn168Hours"]),
+      startsInSevenDays: numberValue(hard, ["startsInSevenDays"]),
     };
   }
   return null;
@@ -260,12 +260,12 @@ export function shouldShowOapRevertToggle(input: {
 
 const HOUR_MS = 60 * 60 * 1000;
 const HARD_ELAPSED_HOURS = 48;
-const HARD_WINDOW_HOURS = 168;
+const HARD_WINDOW_DAYS = 7;
 const HARD_WINDOW_LIMIT = 2;
 
 /**
  * 게이트 판정은 언제나 서버 값(`allowed`)이다. 여기서 파생하는 경과·잔여 시간은
- * §9가 UI에 허용한 "친절한 표시"일 뿐이며 엔진 경계(48h/168h)를 재정의하지 않는다.
+ * §9가 UI에 허용한 "친절한 표시"일 뿐이며 엔진 경계(48시간·달력 7일)를 재정의하지 않는다.
  */
 export type Ref5HardGateView = {
   allowed: boolean;
@@ -276,8 +276,8 @@ export type Ref5HardGateView = {
   remainingMs: number | null;
   /** 48시간 경과 조건. 계산 근거가 없으면 null(미상). */
   elapsedMet: boolean | null;
-  startsIn168Hours: number | null;
-  /** 168시간 창 밀도 조건. 서버 카운트가 없으면 null(미상). */
+  startsInSevenDays: number | null;
+  /** 오늘 포함 달력 7일 밀도 조건. 서버 카운트가 없으면 null(미상). */
   densityMet: boolean | null;
 };
 
@@ -310,9 +310,9 @@ export function describeRef5HardGate(summary: {
         ? HARD_ELAPSED_HOURS * HOUR_MS - elapsedMs
         : null,
     elapsedMet,
-    startsIn168Hours: hard.startsIn168Hours,
+    startsInSevenDays: hard.startsInSevenDays,
     densityMet:
-      hard.startsIn168Hours === null ? null : hard.startsIn168Hours < HARD_WINDOW_LIMIT,
+      hard.startsInSevenDays === null ? null : hard.startsInSevenDays < HARD_WINDOW_LIMIT,
   };
 }
 
@@ -478,11 +478,11 @@ function Ref5HardGateBlock({
             : `${elapsed} elapsed`;
 
   const densityDetail =
-    gate.startsIn168Hours === null
+    gate.startsInSevenDays === null
       ? null
       : ko
-        ? `현재 ${gate.startsIn168Hours}회`
-        : `${gate.startsIn168Hours} so far`;
+        ? `현재 ${gate.startsInSevenDays}회`
+        : `${gate.startsInSevenDays} so far`;
 
   return (
     <div style={{ display: "grid", gap: "var(--v2-s-3)" }}>
@@ -506,13 +506,13 @@ function Ref5HardGateBlock({
 
       <GateRow label={ko ? "직전 하드 SQ 시작" : "Last hard SQ start"} value={lastStartValue} />
       <GateRow
-        label={ko ? `${HARD_WINDOW_HOURS}시간 창 하드 시작` : `Hard starts in the ${HARD_WINDOW_HOURS} h window`}
+        label={ko ? `최근 ${HARD_WINDOW_DAYS}일 하드 시작` : `Hard starts in the last ${HARD_WINDOW_DAYS} days`}
         value={
-          gate.startsIn168Hours === null
+          gate.startsInSevenDays === null
             ? "—"
             : ko
-              ? `${gate.startsIn168Hours}회 · 기준 ${HARD_WINDOW_LIMIT}회 미만`
-              : `${gate.startsIn168Hours} · limit is fewer than ${HARD_WINDOW_LIMIT}`
+              ? `${gate.startsInSevenDays}회 · 기준 ${HARD_WINDOW_LIMIT}회 미만`
+              : `${gate.startsInSevenDays} · limit is fewer than ${HARD_WINDOW_LIMIT}`
         }
       />
 
@@ -536,8 +536,8 @@ function Ref5HardGateBlock({
         met={gate.densityMet}
         rule={
           ko
-            ? `② 직전 ${HARD_WINDOW_HOURS}시간(7일) 안 하드 시작 ${HARD_WINDOW_LIMIT}회 미만`
-            : `2. Fewer than ${HARD_WINDOW_LIMIT} hard starts in the open ${HARD_WINDOW_HOURS} h window`
+            ? `② 오늘 포함 최근 ${HARD_WINDOW_DAYS}일(날짜 기준) 하드 시작 ${HARD_WINDOW_LIMIT}회 미만`
+            : `2. Fewer than ${HARD_WINDOW_LIMIT} hard starts on today and the previous ${HARD_WINDOW_DAYS - 1} calendar days`
         }
         detail={densityDetail}
       />

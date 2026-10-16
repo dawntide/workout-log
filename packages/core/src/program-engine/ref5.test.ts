@@ -7,7 +7,9 @@ import {
   REF5_INITIAL_DIRECT_STANDARDS_KG,
   REF5_OAP_KEYS,
   REF5_PRESCRIPTION_KEYS,
-  REF5_PRIOR_PROTOCOL_VERSION,
+  REF5_ARCHIVED_PROTOCOL_VERSION,
+  REF5_CARRIED_PROTOCOL_VERSION,
+  REF5_CARRIED_SNAPSHOT_SCHEMA_VERSION,
   REF5_PROTOCOL_VERSION,
   REF5_RUNTIME_SCHEMA_VERSION,
   REF5_REVERTED_ONLY_STREAM,
@@ -15,7 +17,9 @@ import {
   REF5_START_CONFIG_VERSION,
   REF5_STREAMS,
   Ref5StaleVersionError,
+  Ref5ValidationError,
   applyRef5FirstSquatStart,
+  carryRef5RuntimeState,
   classifyRef5Outcome,
   createInitialRef5State,
   decodeRef5SessionSnapshot,
@@ -34,6 +38,7 @@ import {
   validateAndClassifyRef5Outcome,
   validateRef5StartConfig,
   type Ref5CompletedSessionSummary,
+  type Ref5DecodedSessionSnapshot,
   type Ref5ExercisePrescription,
   type Ref5MainLift,
   type Ref5Outcome,
@@ -93,7 +98,7 @@ function outcomeFor(
 }
 
 function completionOutcomes(
-  snapshot: Ref5SessionSnapshot,
+  snapshot: Pick<Ref5SessionSnapshot, "exercises">,
   overrides: Partial<Record<Ref5PrescriptionKey, Ref5Outcome | Ref5OutcomeInput>> = {},
 ): Partial<Record<Ref5PrescriptionKey, Ref5OutcomeInput>> {
   const result: Partial<Record<Ref5PrescriptionKey, Ref5OutcomeInput>> = {};
@@ -149,11 +154,13 @@ function fakeStarted(
   };
 }
 
-test("v1.4 constants, direct-derived formulas, refs, caps and 2.5 kg rounding are canonical", () => {
-  assert.equal(REF5_PROTOCOL_VERSION, "1.4");
-  assert.equal(REF5_PRIOR_PROTOCOL_VERSION, "1.3");
-  assert.equal(REF5_RUNTIME_SCHEMA_VERSION, 4);
-  assert.equal(REF5_SNAPSHOT_SCHEMA_VERSION, 4);
+test("v1.5 constants, direct-derived formulas, refs, caps and 2.5 kg rounding are canonical", () => {
+  assert.equal(REF5_PROTOCOL_VERSION, "1.5");
+  assert.equal(REF5_CARRIED_PROTOCOL_VERSION, "1.4");
+  assert.equal(REF5_ARCHIVED_PROTOCOL_VERSION, "1.3");
+  assert.equal(REF5_RUNTIME_SCHEMA_VERSION, 4, "v1.5 keeps the runtime state shape");
+  assert.equal(REF5_SNAPSHOT_SCHEMA_VERSION, 5);
+  assert.equal(REF5_CARRIED_SNAPSHOT_SCHEMA_VERSION, 4);
   assert.equal(REF5_START_CONFIG_VERSION, 3);
   assert.deepEqual(REF5_INITIAL_DIRECT_STANDARDS_KG, {
     sqH3Kg: 82.5,
@@ -345,27 +352,51 @@ test("valid completion alternates focus, and exact 48h allows H2 while 1ms early
   assert.equal(exact.totalWorkingSets, 10);
 });
 
-test("168h lower bound is open, 1ms inside counts, and an equal-time prior start blocks hard", () => {
-  const now = "2026-02-01T12:00:00.000Z";
-  const exactState = createInitialRef5State();
-  exactState.hardStartTimes = [
-    { sessionId: "old", startEventId: "old", actualStartAt: at(now, -168 * HOUR) },
-    { sessionId: "last", startEventId: "last", actualStartAt: at(now, -48 * HOUR) },
-  ];
-  assert.equal(selectRef5SquatPrescription(exactState, now, "NORMAL").squatPrescription, "H3");
-  assert.equal(selectRef5SquatPrescription(exactState, now, "NORMAL").hard.startsIn168Hours, 1);
+function withPriorHardStarts(...actualStartAts: string[]): Ref5RuntimeState {
+  const state = createInitialRef5State();
+  state.hardStartTimes = actualStartAts.map((actualStartAt, index) => ({
+    sessionId: `prior-${index}`,
+    startEventId: `prior-${index}`,
+    actualStartAt,
+  }));
+  return state;
+}
 
-  const insideState = createInitialRef5State();
-  insideState.hardStartTimes = [
-    { sessionId: "inside", startEventId: "inside", actualStartAt: at(now, -168 * HOUR + 1) },
-    { sessionId: "last", startEventId: "last", actualStartAt: at(now, -48 * HOUR) },
-  ];
-  assert.equal(selectRef5SquatPrescription(insideState, now, "NORMAL").squatPrescription, "V");
-  assert.equal(selectRef5SquatPrescription(insideState, now, "NORMAL").hard.startsIn168Hours, 2);
+test("v1.5 density counts today and the six previous plan dates, whatever the clock (§9)", () => {
+  const now = "2026-02-08T08:00:00.000Z";
+  const last = at(now, -48 * HOUR);
+  const gate = (prior: string) =>
+    selectRef5SquatPrescription(withPriorHardStarts(prior, last), now, "NORMAL", "UTC");
 
-  const equalState = createInitialRef5State();
-  equalState.hardStartTimes = [{ sessionId: "stable-a", startEventId: "same", actualStartAt: now }];
-  assert.equal(selectRef5SquatPrescription(equalState, now, "NORMAL").squatPrescription, "V");
+  // The window edge is the date boundary: the last instant of the seventh date
+  // back is out, the first instant of the sixth date back is in.
+  assert.equal(gate("2026-02-01T23:59:59.999Z").squatPrescription, "H3");
+  assert.equal(gate("2026-02-01T23:59:59.999Z").hard.startsInSevenDays, 1);
+  assert.equal(gate("2026-02-02T00:00:00.000Z").squatPrescription, "V");
+  assert.equal(gate("2026-02-02T00:00:00.000Z").hard.startsInSevenDays, 2);
+
+  // Same weekday last week at a later clock: 164 h ago, still inside the v1.4
+  // lookback, but its date has left the window. This is the v1.5 change.
+  assert.equal(gate("2026-02-01T12:00:00.000Z").hard.allowed, true);
+  assert.equal(gate("2026-02-01T12:00:00.000Z").squatPrescription, "H3");
+
+  // An equal-time prior start fails 48 h and falls on today's date.
+  const equal = selectRef5SquatPrescription(withPriorHardStarts(now), now, "NORMAL", "UTC");
+  assert.equal(equal.squatPrescription, "V");
+  assert.equal(equal.hard.startsInSevenDays, 1);
+  assert.equal(selectRef5SquatPrescription(withPriorHardStarts(last), now, "MICRO", "UTC").squatPrescription, "V");
+});
+
+test("v1.5 density reads dates in the plan timezone", () => {
+  // 15:30Z on 02-01 is still 02-01 in UTC but already 02-02 00:30 in Seoul.
+  const now = "2026-02-08T03:00:00.000Z";
+  const state = withPriorHardStarts("2026-02-01T15:30:00.000Z", at(now, -48 * HOUR));
+  const utc = selectRef5SquatPrescription(state, now, "NORMAL", "UTC");
+  const seoul = selectRef5SquatPrescription(state, now, "NORMAL", "Asia/Seoul");
+  assert.equal(utc.hard.startsInSevenDays, 1);
+  assert.equal(utc.squatPrescription, "H3");
+  assert.equal(seoul.hard.startsInSevenDays, 2);
+  assert.equal(seoul.squatPrescription, "V");
 });
 
 test("calendar-day density is timezone/DST aware and remains separate from elapsed hours", () => {
@@ -487,7 +518,7 @@ test("PULL focus PASS/HOLD/FAIL alternate to BP while INVALID retains PULL", () 
   }
 });
 
-test("v1.4 snapshot decoder rejects protocol-less, v1.1, v1.2, v1.3, and retired inputs (§24.3)", () => {
+test("v1.5 snapshot decoder rejects protocol-less, v1.1, v1.2, v1.3, and retired inputs (§24.3)", () => {
   const active = generateRef5Session(
     createInitialRef5State(),
     sessionInput("decode", "2026-04-03T09:00:00.000Z"),
@@ -496,9 +527,9 @@ test("v1.4 snapshot decoder rejects protocol-less, v1.1, v1.2, v1.3, and retired
     { ...active, protocolVersion: undefined },
     { ...active, protocolVersion: "1.1", schemaVersion: 1 },
     { ...active, protocolVersion: "1.2", schemaVersion: 2 },
-    // v1.4 does not reinterpret prior v1.3 snapshots/protocol input (§24.3);
-    // those plans are archived, never folded forward.
-    { ...active, protocolVersion: REF5_PRIOR_PROTOCOL_VERSION, schemaVersion: 3 },
+    // v1.3 snapshots/protocol input are not reinterpreted (§24.3); those
+    // plans are archived, never folded forward.
+    { ...active, protocolVersion: REF5_ARCHIVED_PROTOCOL_VERSION, schemaVersion: 3 },
     { ...active, climbingWithin48h: false },
     {
       ...active,
@@ -514,6 +545,95 @@ test("v1.4 snapshot decoder rejects protocol-less, v1.1, v1.2, v1.3, and retired
   ]) {
     assert.throws(() => decodeRef5SessionSnapshot(candidate), Ref5StaleVersionError);
   }
+});
+
+/** A stored v1.4 snapshot as the pre-v1.5 engine froze it: schema 4, 168 h gate. */
+function asCarriedV14(
+  snapshot: Ref5SessionSnapshot,
+  hard: { allowed: boolean; lastStartAt: string | null; startsIn168Hours: number },
+): Ref5DecodedSessionSnapshot {
+  return {
+    ...snapshot,
+    schemaVersion: REF5_CARRIED_SNAPSHOT_SCHEMA_VERSION,
+    protocolVersion: REF5_CARRIED_PROTOCOL_VERSION,
+    decision: { ...snapshot.decision, hard },
+  };
+}
+
+test("v1.5 decodes a carried v1.4 snapshot only on its own schema (§24.3)", () => {
+  const active = generateRef5Session(
+    createInitialRef5State(),
+    sessionInput("carried-decode", "2026-04-03T09:00:00.000Z"),
+  );
+  const carried = asCarriedV14(active, { allowed: true, lastStartAt: null, startsIn168Hours: 0 });
+  assert.equal(decodeRef5SessionSnapshot(carried).protocolVersion, REF5_CARRIED_PROTOCOL_VERSION);
+  assert.equal(decodeRef5SessionSnapshot(active).schemaVersion, REF5_SNAPSHOT_SCHEMA_VERSION);
+  for (const mislabelled of [
+    { ...carried, schemaVersion: REF5_SNAPSHOT_SCHEMA_VERSION },
+    { ...active, schemaVersion: REF5_CARRIED_SNAPSHOT_SCHEMA_VERSION },
+  ]) {
+    assert.throws(() => decodeRef5SessionSnapshot(mislabelled), Ref5ValidationError);
+  }
+});
+
+test("a carried v1.4 runtime state continues as v1.5; any other label is left for the strict check", () => {
+  const current = createInitialRef5State();
+  assert.deepEqual(
+    carryRef5RuntimeState({ ...current, protocolVersion: REF5_CARRIED_PROTOCOL_VERSION }),
+    current,
+  );
+  for (const untouched of [
+    { ...current, protocolVersion: REF5_ARCHIVED_PROTOCOL_VERSION },
+    { ...current, protocolVersion: REF5_CARRIED_PROTOCOL_VERSION, schemaVersion: 3 },
+  ]) {
+    assert.equal(carryRef5RuntimeState(untouched), untouched);
+  }
+});
+
+test("canonical replay keeps a carried v1.4 decision frozen; a live start refuses it (§24.3)", () => {
+  // Mon 21:00 H3, Wed 21:00 H2, then the next Mon at 18:00 — 165 h after the
+  // first start. v1.4 froze V (two starts in 168 h); v1.5 now prescribes H3.
+  const a = runSession(createInitialRef5State(), sessionInput("carry-a", "2026-03-02T21:00:00.000Z"));
+  const b = runSession(a.state, sessionInput("carry-b", "2026-03-04T21:00:00.000Z"));
+  assert.equal(b.snapshot.decision.squatPrescription, "H2");
+  const cInput = sessionInput("carry-c", "2026-03-09T18:00:00.000Z");
+  assert.equal(generateRef5Session(b.state, cInput).decision.squatPrescription, "H3");
+
+  // Freeze C as v1.4 decided it: a transient start inside the window makes the
+  // generator write the V prescription, then the gate is restated as v1.4 saw it.
+  const forcedV = structuredClone(b.state);
+  forcedV.hardStartTimes.push({
+    sessionId: "transient",
+    startEventId: "transient",
+    actualStartAt: "2026-03-05T21:00:00.000Z",
+  });
+  const vSnapshot = generateRef5Session(forcedV, cInput);
+  assert.equal(vSnapshot.decision.squatPrescription, "V");
+  const carried = asCarriedV14(vSnapshot, {
+    allowed: false,
+    lastStartAt: b.snapshot.actualStartAt,
+    startsIn168Hours: 2,
+  });
+
+  assert.throws(() => applyRef5FirstSquatStart(b.state, carried, "start-carry-c"), Ref5StaleVersionError);
+  const started = applyRef5FirstSquatStart(b.state, carried, "start-carry-c", { historicalReplay: true });
+  assert.equal(started.applied, true);
+  assert.equal(started.nextState.hardStartTimes.length, 2, "the frozen V adds no hard start");
+  assert.equal(started.nextState.nextSquatHard, "H3");
+
+  const completion = {
+    completionEventId: "complete-carry-c",
+    completedAt: at(cInput.actualStartAt, 2 * HOUR),
+    outcomes: completionOutcomes(carried),
+  };
+  assert.throws(() => reduceRef5Completion(started.nextState, carried, completion), Ref5StaleVersionError);
+  const completed = reduceRef5Completion(started.nextState, carried, { ...completion, historicalReplay: true });
+  assert.equal(completed.applied, true);
+  assert.equal(completed.nextState.protocolVersion, REF5_PROTOCOL_VERSION);
+
+  const next = generateRef5Session(completed.nextState, sessionInput("carry-d", "2026-03-11T21:00:00.000Z"));
+  assert.equal(next.protocolVersion, REF5_PROTOCOL_VERSION);
+  assert.equal(next.schemaVersion, REF5_SNAPSHOT_SCHEMA_VERSION);
 });
 
 test("manual, calendar, forced-fail and multiple stagnation reasons merge into one four-set micro", () => {

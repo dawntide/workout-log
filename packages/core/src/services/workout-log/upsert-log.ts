@@ -33,8 +33,8 @@ import {
   rebuildRef5ProgressionForPlan,
 } from "@workout/core/progression/ref5-auto-progression";
 import {
-  REF5_PROTOCOL_VERSION,
   Ref5StaleVersionError,
+  isRef5SessionVersionReadableForPlan,
 } from "@workout/core/program-engine/ref5";
 
 
@@ -286,10 +286,11 @@ async function upsertRef5WorkoutLog(input: {
       planParams.protocolVersion ?? nestedRef5.protocolVersion ?? "",
     ).trim();
     const sessionProtocolVersion = readRef5GeneratedSessionProtocolVersion(sessionRow.snapshot);
+    // A carried v1.4 plan saves its v1.5 sessions and the v1.4 ones frozen
+    // before the cutover; a v1.5 plan saves only v1.5 sessions (§24.3).
     if (
       !sessionProtocolVersion ||
-      sessionProtocolVersion !== planProtocolVersion ||
-      planProtocolVersion !== REF5_PROTOCOL_VERSION
+      !isRef5SessionVersionReadableForPlan(sessionProtocolVersion, planProtocolVersion)
     ) {
       throw new Ref5StaleVersionError(sessionProtocolVersion);
     }

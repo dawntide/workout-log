@@ -10,10 +10,21 @@ import (
 const (
 	Ref5TemplateSlug         = "ref5-adaptive-strength"
 	Ref5ProgramFamily        = "ref5"
-	Ref5ProtocolVersion      = "1.4"
+	Ref5ProtocolVersion      = "1.5"
 	Ref5RuntimeSchemaVersion = 4
 	Ref5StartConfigVersion   = 3
+	// Ref5CarriedProtocolVersion is the protocol v1.5 continues in place
+	// (spec §24.3): its plans and frozen sessions stay readable.
+	Ref5CarriedProtocolVersion = "1.4"
 )
+
+// IsRef5ReadableProtocolVersion mirrors core's isRef5ReadableProtocolVersion:
+// the current protocol, or the carried one whose plans continue in place.
+func IsRef5ReadableProtocolVersion(version string) bool {
+	version = strings.TrimSpace(version)
+	return strings.EqualFold(version, Ref5ProtocolVersion) ||
+		strings.EqualFold(version, Ref5CarriedProtocolVersion)
+}
 
 // Plan is a user's training plan.
 type Plan struct {
@@ -243,11 +254,10 @@ type SessionSnapshot struct {
 
 // IsRef5 recognizes both the REF5 metadata block and immutable program markers.
 func (s SessionSnapshot) IsRef5() bool {
-	if s.Ref5 != nil && strings.EqualFold(strings.TrimSpace(s.Ref5.ProtocolVersion), Ref5ProtocolVersion) {
+	if s.Ref5 != nil && IsRef5ReadableProtocolVersion(s.Ref5.ProtocolVersion) {
 		return true
 	}
-	protocolVersion := strings.TrimSpace(s.ProtocolVersion)
-	return strings.EqualFold(protocolVersion, Ref5ProtocolVersion) ||
+	return IsRef5ReadableProtocolVersion(s.ProtocolVersion) ||
 		strings.EqualFold(strings.TrimSpace(s.Program.Slug), Ref5TemplateSlug) ||
 		strings.EqualFold(strings.TrimSpace(s.Program.Family), Ref5ProgramFamily) ||
 		strings.EqualFold(strings.TrimSpace(s.Program.Kind), Ref5ProgramFamily)

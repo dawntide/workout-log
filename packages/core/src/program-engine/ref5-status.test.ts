@@ -1,7 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createInitialRef5State, normalizeRef5StartConfig } from "./ref5";
+import {
+  REF5_ARCHIVED_PROTOCOL_VERSION,
+  REF5_CARRIED_PROTOCOL_VERSION,
+  REF5_PROTOCOL_VERSION,
+  createInitialRef5State,
+  normalizeRef5StartConfig,
+} from "./ref5";
 import { buildRef5Status } from "./ref5-status";
 
 test("REF5 status exposes open-ended queues, windows, refs and caps", () => {
@@ -72,4 +78,17 @@ test("REF5 status before the first session uses the plan's custom starts", () =>
   assert.equal(status.revision, 0);
   assert.equal(status.auxiliaryCapsKg.deadliftMaxKg, 80);
   assert.equal(status.auxiliaryCapsKg.ohpMaxKg, 35);
+});
+
+test("REF5 status reads a carried v1.4 state instead of falling back to the starts (§24.3)", () => {
+  const state = createInitialRef5State();
+  state.directStandardsKg.sqH3Kg = 85;
+  state.revision = 29;
+  const carried = buildRef5Status({ ...state, protocolVersion: REF5_CARRIED_PROTOCOL_VERSION });
+  assert.equal(carried.protocolVersion, REF5_PROTOCOL_VERSION);
+  assert.equal(carried.revision, 29);
+  assert.equal(carried.directStandardsKg.sqH3Kg, 85);
+
+  const archived = buildRef5Status({ ...state, protocolVersion: REF5_ARCHIVED_PROTOCOL_VERSION });
+  assert.equal(archived.revision, 0, "an archived state is not read");
 });

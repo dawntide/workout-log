@@ -1,9 +1,10 @@
 import type { AppLocale } from "@/lib/i18n/messages";
 import {
   REF5_IDENTIFIERS,
-  REF5_PROTOCOL_VERSION,
   Ref5StaleVersionError,
+  isRef5ReadableProtocolVersion,
   validateAndClassifyRef5Outcome,
+  type Ref5ReadableProtocolVersion,
 } from "@workout/core/program-engine/ref5";
 import { estimateE1rmKg } from "@workout/core/stats/e1rm";
 import { toStoredRpe } from "@workout/core/settings/intensity";
@@ -64,7 +65,8 @@ export type WorkoutExerciseRef5Meta = {
 };
 
 export type WorkoutSessionRef5Meta = {
-  protocolVersion: typeof REF5_PROTOCOL_VERSION;
+  /** The session's own frozen protocol — a carried v1.4 session saves as v1.4 (§24.3). */
+  protocolVersion: Ref5ReadableProtocolVersion;
   actualStartAt: string;
   startEventId: string;
   completionEventId: string;
@@ -157,8 +159,8 @@ export function isWorkoutDraftProtocolCompatible(
   if (!currentRef5 && !persistedRef5) return true;
   if (!currentSession || !currentRef5 || !persistedRef5) return false;
   if (
-    String(currentRef5.protocolVersion) !== REF5_PROTOCOL_VERSION ||
-    String(persistedRef5.protocolVersion) !== REF5_PROTOCOL_VERSION
+    !isRef5ReadableProtocolVersion(currentRef5.protocolVersion) ||
+    currentRef5.protocolVersion !== persistedRef5.protocolVersion
   ) {
     return false;
   }
@@ -529,14 +531,14 @@ function readRef5SessionMeta(snapshot: unknown): WorkoutSessionRef5Meta | null {
   const raw = toRecord(snap.ref5);
   if (String(toRecord(snap.program).slug ?? "") !== REF5_IDENTIFIERS.slug) return null;
   const protocolVersion = String(raw.protocolVersion ?? snap.protocolVersion ?? "");
-  if (protocolVersion !== REF5_PROTOCOL_VERSION) throw new Ref5StaleVersionError(protocolVersion || null);
+  if (!isRef5ReadableProtocolVersion(protocolVersion)) throw new Ref5StaleVersionError(protocolVersion || null);
   const actualStartAt = String(raw.actualStartAt ?? snap.actualStartAt ?? "").trim();
   const startEventId = String(raw.startEventId ?? snap.startEventId ?? "").trim();
   if (!actualStartAt || !startEventId) return null;
   const before = Number(raw.runtimeRevisionBefore ?? 0);
   const after = Number(raw.runtimeRevisionAfter ?? before + 1);
   return {
-    protocolVersion: REF5_PROTOCOL_VERSION,
+    protocolVersion,
     actualStartAt,
     startEventId,
     // Deterministic across reloads/retries. The generated session is the idempotency anchor.

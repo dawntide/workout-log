@@ -11,7 +11,36 @@
  * 자리는 항상 이 상수를 참조한다(ref5-protocol-version-guard.test.mjs가 강제한다).
  */
 
-export const REF5_PROTOCOL_VERSION = "1.4" as const;
+export const REF5_PROTOCOL_VERSION = "1.5" as const;
 export const REF5_LEGACY_PROTOCOL_VERSION = "1.1" as const;
-/** The immediately preceding protocol. v1.4 decoders reject it (§24.3). */
-export const REF5_PRIOR_PROTOCOL_VERSION = "1.3" as const;
+/**
+ * The immediately preceding protocol. Unlike earlier cutovers, v1.5 continues
+ * its plans in place (§24.3): v1.4 runtime state is relabelled on read, while
+ * v1.4 session snapshots stay v1.4 and replay with their frozen decisions.
+ */
+export const REF5_CARRIED_PROTOCOL_VERSION = "1.4" as const;
+/** The newest archived protocol. Its plans are refused, never carried (§24.3). */
+export const REF5_ARCHIVED_PROTOCOL_VERSION = "1.3" as const;
+
+/** A protocol whose plans and frozen sessions the current engine still reads. */
+export type Ref5ReadableProtocolVersion =
+  | typeof REF5_PROTOCOL_VERSION
+  | typeof REF5_CARRIED_PROTOCOL_VERSION;
+
+export function isRef5ReadableProtocolVersion(value: unknown): value is Ref5ReadableProtocolVersion {
+  return value === REF5_PROTOCOL_VERSION || value === REF5_CARRIED_PROTOCOL_VERSION;
+}
+
+/**
+ * Whether a frozen session of `sessionVersion` belongs to a plan stamped
+ * `planVersion`. A current-protocol session fits any readable plan (a carried
+ * plan keeps its origin stamp); a carried session only fits a carried plan.
+ */
+export function isRef5SessionVersionReadableForPlan(
+  sessionVersion: unknown,
+  planVersion: unknown,
+): boolean {
+  if (!isRef5ReadableProtocolVersion(planVersion)) return false;
+  if (sessionVersion === REF5_PROTOCOL_VERSION) return true;
+  return sessionVersion === REF5_CARRIED_PROTOCOL_VERSION && planVersion === REF5_CARRIED_PROTOCOL_VERSION;
+}

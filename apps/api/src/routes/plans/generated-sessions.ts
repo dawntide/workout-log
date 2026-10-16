@@ -26,6 +26,7 @@ import {
   REF5_PROTOCOL_VERSION,
   Ref5StaleVersionError,
   Ref5ValidationError,
+  isRef5SessionVersionReadableForPlan,
   readRef5PlanStartConfig,
 } from "@workout/core/program-engine/ref5";
 import { apiError, normalizeTimezone, resolveLocale } from "../../lib/http";
@@ -125,7 +126,9 @@ export function registerGeneratedSessionRoutes(plansRoutes: Hono<AppEnv>) {
         );
       }
       const planProtocolVersion = readRef5PlanProtocolVersion(planRow.params);
-      if (domain.protocolVersion !== planProtocolVersion) {
+      // A carried v1.4 plan resumes both its v1.5 sessions and a v1.4 one
+      // started before the cutover (§24.3).
+      if (!isRef5SessionVersionReadableForPlan(domain.protocolVersion, planProtocolVersion)) {
         return c.json(
           {
             error:
@@ -139,7 +142,7 @@ export function registerGeneratedSessionRoutes(plansRoutes: Hono<AppEnv>) {
         );
       }
       const ref5Meta = toRecord(toRecord(session.snapshot).ref5);
-      if (domain.protocolVersion === REF5_PROTOCOL_VERSION && ref5Meta.startCommitted !== true) {
+      if (ref5Meta.startCommitted !== true) {
         return c.json(
           { error: locale === "ko" ? "아직 시작되지 않은 REF5 세션입니다." : "REF5 session has not started." },
           404,

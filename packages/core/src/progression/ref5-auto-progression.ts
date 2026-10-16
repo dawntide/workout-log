@@ -18,8 +18,11 @@ import {
   REF5_RUNTIME_SCHEMA_VERSION,
   Ref5StaleVersionError,
   applyRef5FirstSquatStart,
+  carryRef5RuntimeState,
   createInitialRef5State,
   decodeRef5SessionSnapshot,
+  isRef5ReadableProtocolVersion,
+  isRef5SessionVersionReadableForPlan,
   readRef5PlanStartConfig,
   reduceRef5Completion,
   replayRef5RawLogs,
@@ -29,17 +32,18 @@ import {
   type Ref5OutcomeRecord,
   type Ref5RawLogEvent,
   type Ref5RuntimeState,
-  type Ref5ProtocolVersion,
+  type Ref5ReadableProtocolVersion,
   type Ref5StartConfig,
 } from "@workout/core/program-engine/ref5";
 
 /** Kept numeric-compatible with the generation adapter without importing it. */
-// 511 is the immutable v1.1 identifier; 512 is v1.2, 513 is v1.3. Active v1.4
-// writes use 514.
+// 511 is the immutable v1.1 identifier; 512 is v1.2, 513 is v1.3, 514 is v1.4.
+// Active v1.5 writes use 515.
 export const REF5_PROGRESSION_ENGINE_VERSION = 511;
 export const REF5_PROGRESSION_ENGINE_VERSION_V12 = 512;
 export const REF5_PROGRESSION_ENGINE_VERSION_V13 = 513;
 export const REF5_PROGRESSION_ENGINE_VERSION_V14 = 514;
+export const REF5_PROGRESSION_ENGINE_VERSION_V15 = 515;
 
 const REF5_END_REASONS = new Set<Ref5EndReason>([
   "NORMAL",
@@ -95,16 +99,20 @@ export function isRef5PlanParameters(value: unknown): boolean {
   const params = asRecord(value);
   return (
     String(params.programFamily ?? "").trim().toLowerCase() === "ref5" ||
-    String(params.protocolVersion ?? "").trim() === REF5_PROTOCOL_VERSION ||
+    isRef5ReadableProtocolVersion(String(params.protocolVersion ?? "").trim()) ||
     Object.keys(asRecord(params.ref5)).length > 0
   );
 }
 
-export function readRef5PlanProtocolVersion(value: unknown): Ref5ProtocolVersion | null {
+/**
+ * The protocol stamped on the plan at creation. A carried v1.4 plan keeps its
+ * stamp and runs v1.5 from here on (§24.3); archived protocols read as null.
+ */
+export function readRef5PlanProtocolVersion(value: unknown): Ref5ReadableProtocolVersion | null {
   const params = asRecord(value);
   const nested = asRecord(params.ref5);
   const explicit = String(params.protocolVersion ?? nested.protocolVersion ?? "").trim();
-  return explicit === REF5_PROTOCOL_VERSION ? REF5_PROTOCOL_VERSION : null;
+  return isRef5ReadableProtocolVersion(explicit) ? explicit : null;
 }
 
 function cloneJson<T>(value: T): T {
@@ -170,7 +178,7 @@ export type Ref5CanonicalExerciseOutcome = {
 };
 
 export type Ref5CanonicalCompletion = {
-  protocolVersion: Ref5ProtocolVersion;
+  protocolVersion: Ref5ReadableProtocolVersion;
   snapshotId: string;
   sessionId: string;
   startEventId: string;
@@ -198,7 +206,7 @@ export function isRef5GeneratedSessionSnapshot(snapshot: unknown): boolean {
 
 export function readRef5GeneratedSessionProtocolVersion(
   snapshot: unknown,
-): Ref5ProtocolVersion | null {
+): Ref5ReadableProtocolVersion | null {
   return readRef5DomainSnapshot(snapshot)?.protocolVersion ?? null;
 }
 
@@ -247,7 +255,7 @@ function readRequiredStringConsistency(input: {
  * equal while a changed rep or termination reason does not.
  */
 export function buildRef5CompletionFingerprint(input: {
-  protocolVersion?: Ref5ProtocolVersion;
+  protocolVersion?: Ref5ReadableProtocolVersion;
   snapshotId: string;
   sessionId: string;
   completionEventId: string;
@@ -375,7 +383,7 @@ export function canonicalizeRef5WorkoutLog(input: {
       const { ref5 } = readSubmittedRef5Meta(row);
       const submittedPrescription = asRecord(ref5.prescription);
       if (
-        domainSnapshot.protocolVersion === REF5_PROTOCOL_VERSION &&
+        isRef5ReadableProtocolVersion(domainSnapshot.protocolVersion) &&
         containsRemovedRef5V12Input(row)
       ) {
         throw new Ref5StaleVersionError(REF5_LEGACY_PROTOCOL_VERSION);
@@ -662,9 +670,13 @@ function aggregateRef5EventType(changes: Array<{ kind: string }>): string {
   return "REF5_COMPLETE";
 }
 
-/** Strict v1.2 runtime decoder. v1.1 and protocol-less state are stale. */
+/**
+ * Strict runtime decoder. A carried v1.4 state continues under the current
+ * protocol (§24.3); every other protocol, v1.3 and protocol-less included, is
+ * stale.
+ */
 export function decodeRef5RuntimeState(value: unknown): Ref5RuntimeState | null {
-  const record = asRecord(value);
+  const record = carryRef5RuntimeState(asRecord(value));
   if (!Object.keys(record).length) return null;
   const protocolVersion = String(record.protocolVersion ?? "").trim();
   if (protocolVersion !== REF5_PROTOCOL_VERSION) {
@@ -714,7 +726,7 @@ type Ref5ReplayFold = {
 type Ref5ReplayPlanContext = {
   id: string;
   userId: string;
-  protocolVersion: Ref5ProtocolVersion;
+  protocolVersion: Ref5ReadableProtocolVersion;
   // The whole start config, not just the loads: v1.4 also seeds the per-arm OAP
   // start rungs from it (§5.2).
   startConfig: Ref5StartConfig;
@@ -833,7 +845,7 @@ async function loadRef5ReplaySource(input: {
   const sessions = allSessions.filter((session) => {
     const ref5 = asRecord(asRecord(session.snapshot).ref5);
     const explicitV12Commit =
-      session.domain.protocolVersion === REF5_PROTOCOL_VERSION && ref5.startCommitted === true;
+      isRef5ReadableProtocolVersion(session.domain.protocolVersion) && ref5.startCommitted === true;
     return (
       explicitV12Commit ||
       appliedStartEventIds.has(session.startEventId) ||
@@ -893,7 +905,7 @@ async function loadRef5ReplaySource(input: {
 function foldRef5ReplaySource(input: {
   userId: string;
   planId: string;
-  planProtocolVersion: Ref5ProtocolVersion;
+  planProtocolVersion: Ref5ReadableProtocolVersion;
   startConfig: Ref5StartConfig;
   source: Ref5ReplaySource;
 }): Ref5ReplayFold {
@@ -904,6 +916,11 @@ function foldRef5ReplaySource(input: {
   const auditRows: Array<typeof planProgressEvent.$inferInsert> = [];
   const completedGeneratedSessionIds: string[] = [];
   for (const session of input.source.sessions) {
+    // A carried plan folds its frozen v1.4 sessions and then its v1.5 ones in
+    // start order; a plan born on v1.5 never had a v1.4 session (§24.3).
+    if (!isRef5SessionVersionReadableForPlan(session.domain.protocolVersion, input.planProtocolVersion)) {
+      throw new Ref5StaleVersionError(session.domain.protocolVersion);
+    }
     const beforeStart = runningState;
     const replaySnapshot: Ref5DecodedSessionSnapshot = {
       ...cloneJson(session.domain),
@@ -932,7 +949,7 @@ function foldRef5ReplaySource(input: {
       afterState: cloneJson(runningState),
       meta: {
         protocolVersion: replaySnapshot.protocolVersion,
-        engineVersion: REF5_PROGRESSION_ENGINE_VERSION_V14,
+        engineVersion: REF5_PROGRESSION_ENGINE_VERSION_V15,
         startEventId: session.startEventId,
         snapshotId: replaySnapshot.snapshotId,
         sessionId: replaySnapshot.sessionId,
@@ -982,7 +999,7 @@ function foldRef5ReplaySource(input: {
       afterState: cloneJson(runningState),
       meta: {
         protocolVersion: replaySnapshot.protocolVersion,
-        engineVersion: REF5_PROGRESSION_ENGINE_VERSION_V14,
+        engineVersion: REF5_PROGRESSION_ENGINE_VERSION_V15,
         startEventId: completion.startEventId,
         completionEventId: completion.completionEventId,
         completionFingerprint: completion.fingerprint,
@@ -997,9 +1014,9 @@ function foldRef5ReplaySource(input: {
       createdAt: new Date(completion.completedAt),
     });
   }
-  if (runningState.protocolVersion !== input.planProtocolVersion) {
+  if (runningState.protocolVersion !== REF5_PROTOCOL_VERSION) {
     throw new Ref5LogValidationError([
-      `REF5 replay ended at ${runningState.protocolVersion}, but plan expects ${input.planProtocolVersion}`,
+      `REF5 replay ended at ${runningState.protocolVersion}, but the engine runs ${REF5_PROTOCOL_VERSION}`,
     ]);
   }
   return { state: runningState, auditRows, completedGeneratedSessionIds };
@@ -1170,7 +1187,7 @@ export async function rebuildRef5ProgressionForPlan(
       .update(planRuntimeState)
       .set({
         userId: input.userId,
-        engineVersion: REF5_PROGRESSION_ENGINE_VERSION_V14,
+        engineVersion: REF5_PROGRESSION_ENGINE_VERSION_V15,
         state: folded.state,
         updatedAt: new Date(),
       })
@@ -1190,7 +1207,7 @@ export async function rebuildRef5ProgressionForPlan(
       .values({
         planId,
         userId: input.userId,
-        engineVersion: REF5_PROGRESSION_ENGINE_VERSION_V14,
+        engineVersion: REF5_PROGRESSION_ENGINE_VERSION_V15,
         state: folded.state,
       })
       .onConflictDoNothing({ target: planRuntimeState.planId })

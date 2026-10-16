@@ -63,5 +63,6 @@ jobs:
             ../packages/core/src/program-store/madcow-blueprint.ts
             ../packages/core/src/program-store/nsuns-blueprint.ts
             ../packages/core/src/program-engine/ref5.ts
+            ../packages/core/src/program-engine/ref5-protocol-version.ts
             ../packages/core/src/program-engine/round.ts
         run: pnpm db:seed:sync
