@@ -74,7 +74,8 @@ func summarizeRef5PlannedExercise(ex api.PlannedExercise) string {
 }
 
 // ref5HardGateLines shows why today's SQ is hard or volume: the last hard start
-// that the 48-hour rule counts from, the 168-hour density, and the rule itself.
+// that the 48-hour rule counts from, the calendar-7-day density, and the rule
+// itself.
 // It sits below the prescription list — what you lift today outranks why, so a
 // short terminal clips the reasoning rather than the working weights.
 func ref5HardGateLines(gate ref5HardGate, loc *time.Location, w int) []string {
@@ -102,7 +103,7 @@ func ref5HardGateLines(gate ref5HardGate, loc *time.Location, w int) []string {
 	if !gate.DensityMet {
 		densityStyle = amber
 	}
-	density := fmt.Sprintf("7일 %d/%d회", gate.StartsIn168Hours, ref5HardDensityLimit)
+	density := fmt.Sprintf("7일 %d/%d회", gate.StartsInSevenDays, ref5HardDensityLimit)
 	var rule string
 	switch {
 	case gate.Micro:

@@ -129,7 +129,7 @@ test("preview summary carries the §9 hard-gate evidence for the start screen", 
           hard: {
             allowed: false,
             lastStartAt: "2026-08-04T10:00:00.000Z",
-            startsIn168Hours: 1,
+            startsInSevenDays: 1,
           },
         },
       },
@@ -140,7 +140,7 @@ test("preview summary carries the §9 hard-gate evidence for the start screen", 
   assert.deepEqual(summary.hard, {
     allowed: false,
     lastStartAt: "2026-08-04T10:00:00.000Z",
-    startsIn168Hours: 1,
+    startsInSevenDays: 1,
   });
   assert.equal(summary.actualStartAt, "2026-08-05T10:00:00.000Z");
 
@@ -152,7 +152,7 @@ test("preview summary carries the §9 hard-gate evidence for the start screen", 
   assert.equal(gate.elapsedMs, 24 * HOUR);
   assert.equal(gate.elapsedMet, false);
   assert.equal(gate.remainingMs, 24 * HOUR);
-  assert.equal(gate.startsIn168Hours, 1);
+  assert.equal(gate.startsInSevenDays, 1);
   assert.equal(gate.densityMet, true);
 });
 
@@ -162,7 +162,7 @@ test("the displayed 48-hour boundary matches the engine exactly", () => {
     describeRef5HardGate({
       mode: "NORMAL",
       actualStartAt: new Date(Date.parse(lastStartAt) + elapsedMs).toISOString(),
-      hard: { allowed: true, lastStartAt, startsIn168Hours: 0 },
+      hard: { allowed: true, lastStartAt, startsInSevenDays: 0 },
     });
 
   assert.equal(gateAfter(48 * HOUR)?.elapsedMet, true);
@@ -175,7 +175,7 @@ test("hard-gate view explains the first hard, the density cap, and micro session
   const firstEver = describeRef5HardGate({
     mode: "NORMAL",
     actualStartAt: "2026-08-05T10:00:00.000Z",
-    hard: { allowed: true, lastStartAt: null, startsIn168Hours: 0 },
+    hard: { allowed: true, lastStartAt: null, startsInSevenDays: 0 },
   });
   assert.equal(firstEver?.elapsedMet, true);
   assert.equal(firstEver?.elapsedMs, null);
@@ -184,7 +184,7 @@ test("hard-gate view explains the first hard, the density cap, and micro session
   const dense = describeRef5HardGate({
     mode: "NORMAL",
     actualStartAt: "2026-08-05T10:00:00.000Z",
-    hard: { allowed: false, lastStartAt: "2026-08-01T10:00:00.000Z", startsIn168Hours: 2 },
+    hard: { allowed: false, lastStartAt: "2026-08-01T10:00:00.000Z", startsInSevenDays: 2 },
   });
   assert.equal(dense?.elapsedMet, true);
   assert.equal(dense?.densityMet, false);
@@ -193,7 +193,7 @@ test("hard-gate view explains the first hard, the density cap, and micro session
   const micro = describeRef5HardGate({
     mode: "MICRO",
     actualStartAt: "2026-08-05T10:00:00.000Z",
-    hard: { allowed: false, lastStartAt: "2026-08-01T10:00:00.000Z", startsIn168Hours: 0 },
+    hard: { allowed: false, lastStartAt: "2026-08-01T10:00:00.000Z", startsInSevenDays: 0 },
   });
   assert.equal(micro?.micro, true);
   assert.equal(micro?.allowed, false);

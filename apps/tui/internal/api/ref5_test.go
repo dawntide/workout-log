@@ -101,6 +101,12 @@ func TestCreatePlanRequestPreservesRef5TimezoneAndParams(t *testing.T) {
 	if !(SessionSnapshot{ProtocolVersion: Ref5ProtocolVersion}).IsRef5() {
 		t.Error("SessionSnapshot.IsRef5 = false for protocol marker")
 	}
+	if !(SessionSnapshot{Ref5: &Ref5SessionMetadata{ProtocolVersion: Ref5CarriedProtocolVersion}}).IsRef5() {
+		t.Error("SessionSnapshot.IsRef5 = false for a carried v1.4 session")
+	}
+	if (SessionSnapshot{Ref5: &Ref5SessionMetadata{ProtocolVersion: "1.3"}}).IsRef5() {
+		t.Error("SessionSnapshot.IsRef5 = true for an archived protocol without program markers")
+	}
 }
 
 func TestPlansDecodeRef5ParamsAndRootVersion(t *testing.T) {

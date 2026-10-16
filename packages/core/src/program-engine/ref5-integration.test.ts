@@ -7,8 +7,10 @@ import {
   toRef5GeneratedSnapshot,
 } from "./ref5-integration";
 import {
+  REF5_ARCHIVED_PROTOCOL_VERSION,
+  REF5_CARRIED_PROTOCOL_VERSION,
+  REF5_CARRIED_SNAPSHOT_SCHEMA_VERSION,
   REF5_LEGACY_PROTOCOL_VERSION,
-  REF5_PRIOR_PROTOCOL_VERSION,
   REF5_PROTOCOL_VERSION,
   createInitialRef5State,
   generateRef5Session,
@@ -69,7 +71,7 @@ test("REF5 generation always uses the plan timezone, never the caller timezone",
   assert.equal(request.actualStartAt, "2026-07-13T23:30:00.000Z");
 });
 
-test("REF5 v1.4 rejects stale clients (v1.3 included) and every retired start input (§24.3)", () => {
+test("REF5 v1.5 rejects stale clients (v1.4 included) and every retired start input (§24.3)", () => {
   const base = {
     protocolVersion: REF5_PROTOCOL_VERSION,
     actualStartAt: "2026-07-13T23:30:00.000Z",
@@ -83,12 +85,18 @@ test("REF5 v1.4 rejects stale clients (v1.3 included) and every retired start in
     programFamily: "ref5",
     protocolVersion: REF5_PROTOCOL_VERSION,
   };
-  for (const stale of [REF5_LEGACY_PROTOCOL_VERSION, REF5_PRIOR_PROTOCOL_VERSION]) {
+  for (const stale of [
+    REF5_LEGACY_PROTOCOL_VERSION,
+    REF5_ARCHIVED_PROTOCOL_VERSION,
+    REF5_CARRIED_PROTOCOL_VERSION,
+  ]) {
     assert.throws(
       () => normalizeRef5GenerationRequest({ userId: "u", planId: "p", ref5: { ...base, protocolVersion: stale as never } }, params),
       /stale REF5 protocol version/,
       `client on ${stale} must be refused`,
     );
+  }
+  for (const stale of [REF5_LEGACY_PROTOCOL_VERSION, REF5_ARCHIVED_PROTOCOL_VERSION]) {
     // A current client against a plan still stamped with an earlier protocol is
     // equally stale — that plan is archived, never upgraded in place.
     assert.throws(
@@ -100,6 +108,15 @@ test("REF5 v1.4 rejects stale clients (v1.3 included) and every retired start in
       `plan on ${stale} must be refused`,
     );
   }
+  // v1.5 continues v1.4 plans in place (§24.3): a current client starts on a
+  // plan that keeps its v1.4 origin stamp.
+  assert.equal(
+    normalizeRef5GenerationRequest(
+      { userId: "u", planId: "p", ref5: base },
+      { ...params, protocolVersion: REF5_CARRIED_PROTOCOL_VERSION },
+    ).protocolVersion,
+    REF5_PROTOCOL_VERSION,
+  );
   for (const key of [
     "climb",
     "climbing",
@@ -155,4 +172,38 @@ test("REF5 resume chooses the earliest unfinished committed session on the plan 
     "first",
   );
   assert.equal(selectRef5ResumableSession([otherDate], "2026-07-18"), null);
+});
+
+/** Restamps a candidate as a session the given protocol froze on the given schema. */
+function stampedCandidate(
+  candidate: ReturnType<typeof resumableCandidate>,
+  protocolVersion: string,
+  schemaVersion: number,
+) {
+  const ref5 = candidate.snapshot.ref5;
+  return {
+    ...candidate,
+    snapshot: {
+      ...candidate.snapshot,
+      ref5: {
+        ...ref5,
+        protocolVersion,
+        domainSnapshot: { ...ref5.domainSnapshot, protocolVersion, schemaVersion },
+      },
+    },
+  };
+}
+
+test("REF5 resume still picks up a v1.4 session started before the v1.5 cutover (§24.3)", () => {
+  const carried = stampedCandidate(
+    resumableCandidate({ id: "carried", actualStartAt: "2026-07-18T04:15:00.000Z" }),
+    REF5_CARRIED_PROTOCOL_VERSION,
+    REF5_CARRIED_SNAPSHOT_SCHEMA_VERSION,
+  );
+  const archived = stampedCandidate(
+    resumableCandidate({ id: "archived", actualStartAt: "2026-07-18T03:00:00.000Z" }),
+    REF5_ARCHIVED_PROTOCOL_VERSION,
+    3,
+  );
+  assert.equal(selectRef5ResumableSession([archived, carried], "2026-07-18")?.id, "carried");
 });

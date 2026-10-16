@@ -12,12 +12,12 @@ import (
 )
 
 // hardGateSession freezes a preview whose §9 evidence is fully populated: the
-// server verdict plus the last hard start and the 168-hour density it used.
+// server verdict plus the last hard start and the calendar-7-day density it used.
 func hardGateSession(id string, startedAt time.Time, gap time.Duration, starts int, allowed bool) api.GeneratedSession {
 	session := uiRef5Session(id, startedAt)
 	session.Snapshot.Ref5.Decision.Hard.Allowed = allowed
 	session.Snapshot.Ref5.Decision.Hard.LastStartAt = stringPtr(startedAt.Add(-gap).UTC().Format(time.RFC3339Nano))
-	session.Snapshot.Ref5.Decision.Hard.StartsIn168Hours = starts
+	session.Snapshot.Ref5.Decision.Hard.StartsInSevenDays = starts
 	return session
 }
 
@@ -41,8 +41,8 @@ func TestRef5PreviewHardGateDerivesTheEvidenceBehindTheVerdict(t *testing.T) {
 	if gate.Remaining != 12*time.Hour {
 		t.Errorf("remaining = %v, want 12h", gate.Remaining)
 	}
-	if !gate.DensityMet || gate.StartsIn168Hours != 1 {
-		t.Errorf("one start in the 168h window is below the cap: %#v", gate)
+	if !gate.DensityMet || gate.StartsInSevenDays != 1 {
+		t.Errorf("one start in the last 7 calendar days is below the cap: %#v", gate)
 	}
 	if gate.Micro {
 		t.Error("NORMAL mode must not read as micro")
@@ -81,7 +81,7 @@ func TestRef5HardGateHandlesFirstHardDensityCapAndMicro(t *testing.T) {
 	dense := hardGateSession("dense", startedAt, 96*time.Hour, 2, false)
 	denseGate := ref5PreviewHardGate(&dense, "NORMAL")
 	if !denseGate.ElapsedMet || denseGate.DensityMet || denseGate.Allowed {
-		t.Errorf("two starts in the 168h window must fail the density rule: %#v", denseGate)
+		t.Errorf("two starts in the last 7 calendar days must fail the density rule: %#v", denseGate)
 	}
 
 	micro := hardGateSession("micro", startedAt, 96*time.Hour, 0, false)

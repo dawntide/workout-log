@@ -18,6 +18,7 @@ import {
   Ref5ValidationError,
   applyRef5FirstSquatStart,
   generateRef5Session,
+  isRef5ReadableProtocolVersion,
   ref5CalendarDate,
   type Ref5RuntimeState,
   type Ref5SessionInput,
@@ -28,12 +29,14 @@ import {
 } from "./ref5";
 import { acquireActiveAccountMutationLock } from "@workout/core/auth/account-lifecycle";
 
-// 511 is the immutable v1.1 identifier; 512 is v1.2, 513 is v1.3. Active v1.4
-// writes use 514 so historical snapshots are never relabelled in place (§24.3).
+// 511 is the immutable v1.1 identifier; 512 is v1.2, 513 is v1.3, 514 is v1.4.
+// Active v1.5 writes use 515 so historical snapshots are never relabelled in
+// place (§24.3).
 export const REF5_ENGINE_VERSION = REF5_LEGACY_ENGINE_VERSION;
 export const REF5_ENGINE_VERSION_V12 = 512;
 export const REF5_ENGINE_VERSION_V13 = 513;
 export const REF5_ENGINE_VERSION_V14 = 514;
+export const REF5_ENGINE_VERSION_V15 = 515;
 
 export type Ref5GenerateRequest = {
   protocolVersion: typeof REF5_PROTOCOL_VERSION;
@@ -105,8 +108,10 @@ export function normalizeRef5GenerationRequest(
   if (input.ref5.protocolVersion !== REF5_PROTOCOL_VERSION) {
     throw new Ref5StaleVersionError(input.ref5.protocolVersion);
   }
+  // A carried v1.4 plan keeps its creation stamp and generates v1.5 sessions
+  // from here on (§24.3). Archived protocols stay refused.
   const planProtocolVersion = readRef5PlanProtocolVersion(planParams);
-  if (planProtocolVersion !== REF5_PROTOCOL_VERSION) {
+  if (!isRef5ReadableProtocolVersion(planProtocolVersion)) {
     throw new Ref5StaleVersionError(planProtocolVersion);
   }
   const parsedStart = new Date(input.ref5.actualStartAt);
@@ -188,8 +193,9 @@ type Ref5ResumableSessionCandidate = {
 
 /**
  * A started REF5 session remains the canonical entry target until it is saved.
- * Choose the earliest current-protocol session on the requested plan calendar
- * date so a page revisit cannot silently consume another start transition.
+ * Choose the earliest readable session on the requested plan calendar date so a
+ * page revisit cannot silently consume another start transition. A carried
+ * v1.4 session started before the cutover is still resumed and saved (§24.3).
  */
 export function selectRef5ResumableSession<
   T extends Ref5ResumableSessionCandidate,
@@ -199,7 +205,7 @@ export function selectRef5ResumableSession<
     const ref5 = toRecord(toRecord(row.snapshot).ref5);
     if (
       ref5.startCommitted !== true ||
-      String(ref5.protocolVersion ?? "") !== REF5_PROTOCOL_VERSION
+      !isRef5ReadableProtocolVersion(String(ref5.protocolVersion ?? ""))
     ) {
       return [];
     }
@@ -207,7 +213,7 @@ export function selectRef5ResumableSession<
       const domain = readDomainSnapshot(row.snapshot);
       if (
         !domain ||
-        domain.protocolVersion !== REF5_PROTOCOL_VERSION ||
+        !isRef5ReadableProtocolVersion(domain.protocolVersion) ||
         ref5CalendarDate(domain.actualStartAt, domain.timeZone) !== calendarDate
       ) {
         return [];

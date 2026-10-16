@@ -837,11 +837,11 @@ export async function runSeed(options: SeedRunOptions = {}) {
       family: REF5_IDENTIFIERS.family,
       protocolVersion: REF5_IDENTIFIERS.protocolVersion,
       modules: ["SQUAT", "PULL", "BENCH", "DEADLIFT", "OHP"],
-      progression: { profile: "ref5-v1.4" },
+      progression: { profile: "ref5-v1.5" },
     },
     defaults: { ref5: ref5StartConfig },
     changelog:
-      "Protocol v1.4 — OAP skill slot replaces the BP-focus session's PULL volume slot (self-assisted one-arm pull-up, fixed six-rung ladder, per-arm promotion/demotion, negatives from rung 4), eleven active fail streams, per-session revert to the v1.3 prescription",
+      "Protocol v1.5 — the hard SQ density cap counts plan calendar dates (fewer than two hard starts on today and the six previous dates) instead of an open 168-hour lookback; the 48-hour spacing is unchanged and v1.4 plans continue in place. v1.4 added the OAP skill slot in the BP-focus session's PULL volume slot (self-assisted one-arm pull-up, fixed six-rung ladder, per-arm promotion/demotion, negatives from rung 4), eleven active fail streams, and a per-session revert to the v1.3 prescription",
   });
 
   const templateGreyskull = await upsertTemplate("greyskull-lp", {

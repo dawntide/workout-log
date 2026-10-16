@@ -280,19 +280,20 @@ const (
 
 // ref5HardGate is the §9 SQ hard gate: the server verdict plus the evidence it
 // was made from. Allowed always comes from the engine — the elapsed and
-// remaining spans are display-only and never redefine the 48/168-hour edges.
+// remaining spans are display-only and never redefine the 48-hour or
+// calendar-7-day edges.
 type ref5HardGate struct {
-	Present          bool
-	Allowed          bool
-	Micro            bool
-	HasLastStart     bool
-	LastStartAt      time.Time
-	HasElapsed       bool
-	Elapsed          time.Duration
-	Remaining        time.Duration
-	ElapsedMet       bool
-	DensityMet       bool
-	StartsIn168Hours int
+	Present           bool
+	Allowed           bool
+	Micro             bool
+	HasLastStart      bool
+	LastStartAt       time.Time
+	HasElapsed        bool
+	Elapsed           time.Duration
+	Remaining         time.Duration
+	ElapsedMet        bool
+	DensityMet        bool
+	StartsInSevenDays int
 }
 
 func ref5PreviewHardGate(s *api.GeneratedSession, mode string) ref5HardGate {
@@ -301,11 +302,11 @@ func ref5PreviewHardGate(s *api.GeneratedSession, mode string) ref5HardGate {
 	}
 	hard := s.Snapshot.Ref5.Decision.Hard
 	gate := ref5HardGate{
-		Present:          true,
-		Allowed:          hard.Allowed,
-		Micro:            strings.Contains(strings.ToUpper(mode), "MICRO"),
-		StartsIn168Hours: hard.StartsIn168Hours,
-		DensityMet:       hard.StartsIn168Hours < ref5HardDensityLimit,
+		Present:           true,
+		Allowed:           hard.Allowed,
+		Micro:             strings.Contains(strings.ToUpper(mode), "MICRO"),
+		StartsInSevenDays: hard.StartsInSevenDays,
+		DensityMet:        hard.StartsInSevenDays < ref5HardDensityLimit,
 		// No prior hard start means the elapsed rule is met and the first hard is H3.
 		ElapsedMet: true,
 	}
@@ -376,7 +377,7 @@ func ref5UnfinishedSessions(sessions []api.GeneratedSession, logs []api.LogItem)
 			continue
 		}
 		meta := session.Snapshot.Ref5
-		committedV12 := meta != nil && meta.StartCommitted && meta.ProtocolVersion == api.Ref5ProtocolVersion
+		committedV12 := meta != nil && meta.StartCommitted && api.IsRef5ReadableProtocolVersion(meta.ProtocolVersion)
 		if session.ID != "" && session.Snapshot.IsRef5() && committedV12 && !logged[session.ID] {
 			out = append(out, session)
 		}

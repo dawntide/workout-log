@@ -45,6 +45,14 @@ function offsetLocalDateTime(startAt: string, minutes: number) {
   return formatLocalDateTime(date);
 }
 
+/** `days`일 뒤 날짜의 자정. 플랜 시간대는 브라우저 시간대로 만들어지므로 둘의 날짜가 같다. */
+function localMidnightDaysAfter(startAt: string, days: number) {
+  const date = new Date(startAt);
+  date.setDate(date.getDate() + days);
+  date.setHours(0, 0, 0, 0);
+  return formatLocalDateTime(date);
+}
+
 async function signupThroughUi(page: Page, label: string, testInfo: TestInfo) {
   const email = uniqueEmail(label);
   await page.goto("/signup");
@@ -1097,7 +1105,7 @@ test("REF5 시작 세션 새로고침 재개와 멀티탭 중복 저장", async 
   expect(failures).toEqual([]);
 });
 
-test("REF5 하드 세션 48시간·168시간 경계", async ({ page }, testInfo) => {
+test("REF5 하드 세션 48시간·달력 7일 경계", async ({ page }, testInfo) => {
   test.setTimeout(180_000);
   const browserFailures = observeBrowser(page);
   const planId = await activateRef5ProgramThroughUi(page, "time-boundaries", testInfo);
@@ -1126,23 +1134,27 @@ test("REF5 하드 세션 48시간·168시간 경계", async ({ page }, testInfo)
     focus: "BP",
     setCount: 10,
   });
+  // v1.5 밀도는 시각이 아니라 날짜로 센다(오늘 포함 최근 7일). 첫 하드 날짜가 창에 남는
+  // 마지막 순간은 7일째 23:59이고, 8일째 0시면 빠진다. 168시간 창이었다면 8일째 0시는
+  // 첫 하드 후 159시간이라 아직 V였다.
+  const firstDayLeavesWindowAt = localMidnightDaysAfter(firstStartAt, 7);
   await openAndPreviewRef5Session(page, planId, {
-    startAt: offsetLocalDateTime(firstStartAt, 168 * 60 - 1),
+    startAt: offsetLocalDateTime(firstDayLeavesWindowAt, -1),
     mode: "NORMAL",
     squat: "V",
     focus: "PULL",
     setCount: 10,
   });
-  await page.screenshot({ path: testInfo.outputPath("ref5-167h59-volume.png"), fullPage: true });
+  await page.screenshot({ path: testInfo.outputPath("ref5-day7-2359-volume.png"), fullPage: true });
 
   await openAndPreviewRef5Session(page, planId, {
-    startAt: offsetLocalDateTime(firstStartAt, 168 * 60),
+    startAt: firstDayLeavesWindowAt,
     mode: "NORMAL",
     squat: "H3",
     focus: "PULL",
     setCount: 10,
   });
-  await page.screenshot({ path: testInfo.outputPath("ref5-168h-hard.png"), fullPage: true });
+  await page.screenshot({ path: testInfo.outputPath("ref5-day8-0000-hard.png"), fullPage: true });
 
   const status = await readRef5Status(page, planId);
   expect(status.startedSessionCount).toBe(2);

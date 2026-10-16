@@ -1,5 +1,5 @@
 /**
- * REF5 Adaptive Strength v1.4
+ * REF5 Adaptive Strength v1.5
  *
  * Framework/DB-independent domain model.  Direct kilogram standards are the
  * canonical state; control REFs, derived prescriptions and display loads are
@@ -10,23 +10,38 @@
  * becomes a self-assisted one-arm pull-up pair. Its ladder rung progresses per
  * arm and is deliberately disjoint from every kilogram standard, judgment
  * window, fail stream, focus queue and micro trigger.
+ *
+ * v1.5 counts the hard-squat density cap on plan calendar dates (§9): fewer
+ * than two hard starts on today and the six dates before it, replacing the
+ * open 168-hour lookback that flipped on the clock minute. v1.4 plans carry
+ * over in place (§24.3).
  */
 
 // 버전 리터럴의 정본은 ref5-protocol-version.ts다(클라이언트가 엔진을 끌지 않고
 // 참조할 수 있게 분리). 기존 소비자가 쓰던 import 경로를 유지하려고 여기서 재export한다.
 export {
+  REF5_ARCHIVED_PROTOCOL_VERSION,
+  REF5_CARRIED_PROTOCOL_VERSION,
   REF5_LEGACY_PROTOCOL_VERSION,
-  REF5_PRIOR_PROTOCOL_VERSION,
   REF5_PROTOCOL_VERSION,
+  isRef5ReadableProtocolVersion,
+  isRef5SessionVersionReadableForPlan,
+  type Ref5ReadableProtocolVersion,
 } from "./ref5-protocol-version";
 import {
+  REF5_CARRIED_PROTOCOL_VERSION,
   REF5_LEGACY_PROTOCOL_VERSION,
   REF5_PROTOCOL_VERSION,
+  type Ref5ReadableProtocolVersion,
 } from "./ref5-protocol-version";
+// v1.5 keeps the runtime state shape, so the carried v1.4 state needs only its
+// protocol relabelled (§24.3). The session snapshot shape changed (`decision.hard`
+// counts calendar dates), so v1.4 snapshots stay on schema 4.
 export const REF5_RUNTIME_SCHEMA_VERSION = 4 as const;
 export const REF5_LEGACY_RUNTIME_SCHEMA_VERSION = 1 as const;
-export const REF5_SNAPSHOT_SCHEMA_VERSION = 4 as const;
-export const REF5_PROGRAM_VERSION = 4 as const;
+export const REF5_SNAPSHOT_SCHEMA_VERSION = 5 as const;
+export const REF5_CARRIED_SNAPSHOT_SCHEMA_VERSION = 4 as const;
+export const REF5_PROGRAM_VERSION = 5 as const;
 export const REF5_START_CONFIG_VERSION = 3 as const;
 export const REF5_LEGACY_ENGINE_VERSION = 511 as const;
 
@@ -974,16 +989,30 @@ export interface Ref5OapDecision {
   right: Ref5OapArmDecision;
 }
 
+/** The hard-squat gate as it decided this session (§9). */
+export interface Ref5HardDecision {
+  allowed: boolean;
+  lastStartAt: string | null;
+  /** Hard starts on the plan calendar dates from six days before through today. */
+  startsInSevenDays: number;
+}
+
+/**
+ * The same gate as a carried v1.4 snapshot froze it: an open 168-hour lookback.
+ * Read-only history — nothing generates it any more (§24.3).
+ */
+export interface Ref5V14HardDecision {
+  allowed: boolean;
+  lastStartAt: string | null;
+  startsIn168Hours: number;
+}
+
 export interface Ref5SessionDecision {
   sessionType: Ref5SessionType;
   microReasons: Ref5MicroReason[];
   focus: Ref5Focus;
   squatPrescription: Ref5SquatPrescription;
-  hard: {
-    allowed: boolean;
-    lastStartAt: string | null;
-    startsIn168Hours: number;
-  };
+  hard: Ref5HardDecision;
   /** Null unless this session carries the OAP slot or its reverted form. */
   oap: Ref5OapDecision | null;
 }
@@ -1107,7 +1136,18 @@ export interface Ref5SessionSnapshot {
   totalWorkingSets: number;
 }
 
-export type Ref5DecodedSessionSnapshot = Ref5SessionSnapshot;
+/**
+ * A stored snapshot as the current decoder accepts it: a current-protocol one,
+ * or a carried v1.4 one whose decisions replay frozen and are never
+ * re-derived under v1.5 rules (§24.3).
+ */
+export type Ref5DecodedSessionSnapshot =
+  | Ref5SessionSnapshot
+  | (Omit<Ref5SessionSnapshot, "schemaVersion" | "protocolVersion" | "decision"> & {
+      schemaVersion: typeof REF5_CARRIED_SNAPSHOT_SCHEMA_VERSION;
+      protocolVersion: typeof REF5_CARRIED_PROTOCOL_VERSION;
+      decision: Omit<Ref5SessionDecision, "hard"> & { hard: Ref5V14HardDecision };
+    });
 
 function recordValue(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value)
@@ -1127,13 +1167,14 @@ function containsRef5V12RemovedField(value: unknown): boolean {
 }
 
 /**
- * Strict current-protocol decoder. Every earlier protocol — v1.3 included — is
- * refused rather than reinterpreted (§24.3); those plans are archived.
+ * Decodes a stored snapshot of the current protocol or the carried v1.4 one,
+ * each on its own schema. Every earlier protocol — v1.3 included — is refused
+ * rather than reinterpreted (§24.3); those plans are archived.
  */
-export function decodeRef5SessionSnapshot(value: unknown): Ref5SessionSnapshot {
+export function decodeRef5SessionSnapshot(value: unknown): Ref5DecodedSessionSnapshot {
   const candidate = recordValue(value);
   const protocolVersion = String(candidate.protocolVersion ?? "").trim();
-  if (protocolVersion !== REF5_PROTOCOL_VERSION) {
+  if (protocolVersion !== REF5_PROTOCOL_VERSION && protocolVersion !== REF5_CARRIED_PROTOCOL_VERSION) {
     throw new Ref5StaleVersionError(protocolVersion || null);
   }
   if (
@@ -1143,13 +1184,36 @@ export function decodeRef5SessionSnapshot(value: unknown): Ref5SessionSnapshot {
   ) {
     throw new Ref5ValidationError(["invalid REF5 domain snapshot shape"]);
   }
-  if (Number(candidate.schemaVersion) !== REF5_SNAPSHOT_SCHEMA_VERSION) {
+  const expectedSchema =
+    protocolVersion === REF5_PROTOCOL_VERSION
+      ? REF5_SNAPSHOT_SCHEMA_VERSION
+      : REF5_CARRIED_SNAPSHOT_SCHEMA_VERSION;
+  if (Number(candidate.schemaVersion) !== expectedSchema) {
     throw new Ref5ValidationError(["unsupported REF5 snapshot schema"]);
   }
   if (containsRef5V12RemovedField(candidate)) {
     throw new Ref5StaleVersionError(REF5_LEGACY_PROTOCOL_VERSION);
   }
-  return candidate as unknown as Ref5SessionSnapshot;
+  return candidate as unknown as Ref5DecodedSessionSnapshot;
+}
+
+/**
+ * Continues a carried v1.4 runtime state under the current protocol (§24.3).
+ * The state shape is unchanged in v1.5, so only the label moves: the windows,
+ * queues and hard-start history are protocol-neutral, and the frozen v1.4
+ * snapshots that produced them keep their own label. Every other protocol is
+ * returned untouched for the caller's strict check to refuse.
+ */
+export function carryRef5RuntimeState<T extends { protocolVersion?: unknown; schemaVersion?: unknown }>(
+  state: T,
+): T {
+  if (
+    state.protocolVersion === REF5_CARRIED_PROTOCOL_VERSION &&
+    state.schemaVersion === REF5_RUNTIME_SCHEMA_VERSION
+  ) {
+    return { ...state, protocolVersion: REF5_PROTOCOL_VERSION };
+  }
+  return state;
 }
 
 export function decideRef5SessionType(
@@ -1187,24 +1251,31 @@ export function selectRef5SquatPrescription(
   state: Ref5RuntimeState,
   actualStartAt: string,
   sessionType: Ref5SessionType,
+  timeZone: string,
 ): Pick<Ref5SessionDecision, "squatPrescription" | "hard"> {
   const now = timestampMs(actualStartAt, "actualStartAt");
   const prior = state.hardStartTimes
     // A distinct already-started session may have the exact same timestamp.
-    // It is prior canonical state and must fail the 48-hour test even though
-    // the mathematical 168-hour lookback retains its open upper endpoint.
+    // It is prior canonical state: it fails the 48-hour test and, falling on
+    // today, counts toward the seven calendar dates.
     .filter((entry) => timestampMs(entry.actualStartAt, "hardStart.actualStartAt") <= now)
     .sort((a, b) => timestampMs(a.actualStartAt, "a") - timestampMs(b.actualStartAt, "b"));
   const last = prior.at(-1) ?? null;
   const elapsedAllowed = last === null || now - timestampMs(last.actualStartAt, "lastHardStart") >= 48 * HOUR_MS;
-  const startsIn168Hours = prior.filter((entry) => {
-    const hardAt = timestampMs(entry.actualStartAt, "hardStart.actualStartAt");
-    return hardAt > now - 168 * HOUR_MS && hardAt < now;
-  }).length;
-  const hardAllowed = sessionType === "NORMAL" && elapsedAllowed && startsIn168Hours < 2;
+  // v1.5 (§9): the density cap counts plan calendar dates — today and the six
+  // before it, the same calendar the micro density rule reads (§8) — so a
+  // start's clock minute can no longer flip it the way the 168-hour lookback did.
+  const today = ref5CalendarDate(actualStartAt, timeZone);
+  const windowDates = new Set(
+    Array.from({ length: 7 }, (_, index) => subtractRef5CalendarDays(today, index)),
+  );
+  const startsInSevenDays = prior.filter((entry) =>
+    windowDates.has(ref5CalendarDate(entry.actualStartAt, timeZone)),
+  ).length;
+  const hardAllowed = sessionType === "NORMAL" && elapsedAllowed && startsInSevenDays < 2;
   return {
     squatPrescription: hardAllowed ? state.nextSquatHard : "V",
-    hard: { allowed: hardAllowed, lastStartAt: last?.actualStartAt ?? null, startsIn168Hours },
+    hard: { allowed: hardAllowed, lastStartAt: last?.actualStartAt ?? null, startsInSevenDays },
   };
 }
 
@@ -1578,7 +1649,12 @@ export function generateRef5Session(state: Ref5RuntimeState, input: Ref5SessionI
   }
 
   const typeDecision = decideRef5SessionType(state, input);
-  const squatDecision = selectRef5SquatPrescription(state, input.actualStartAt, typeDecision.sessionType);
+  const squatDecision = selectRef5SquatPrescription(
+    state,
+    input.actualStartAt,
+    typeDecision.sessionType,
+    input.timeZone,
+  );
   const direct = { ...state.directStandardsKg };
   const derived = deriveRef5Standards(direct);
   const pullContext = derivePullSessionContext(state, input, derived);
@@ -1665,6 +1741,22 @@ export interface Ref5FirstSquatStartResult {
   pullLockCommitted: boolean;
 }
 
+/**
+ * A live start or save acts only on a current-protocol snapshot. A canonical
+ * replay also re-applies carried v1.4 sessions, keeping their frozen decisions
+ * instead of re-deriving them under v1.5 rules (§24.3).
+ */
+function isRef5SnapshotApplicable(snapshot: Ref5DecodedSessionSnapshot, historicalReplay: boolean): boolean {
+  if (snapshot.protocolVersion === REF5_PROTOCOL_VERSION) {
+    return snapshot.schemaVersion === REF5_SNAPSHOT_SCHEMA_VERSION;
+  }
+  return (
+    historicalReplay &&
+    snapshot.protocolVersion === REF5_CARRIED_PROTOCOL_VERSION &&
+    snapshot.schemaVersion === REF5_CARRIED_SNAPSHOT_SCHEMA_VERSION
+  );
+}
+
 export function applyRef5FirstSquatStart(
   state: Ref5RuntimeState,
   snapshot: Ref5DecodedSessionSnapshot,
@@ -1695,8 +1787,7 @@ export function applyRef5FirstSquatStart(
     ]);
   }
   const versionsMatch =
-    snapshot.protocolVersion === REF5_PROTOCOL_VERSION &&
-    snapshot.schemaVersion === REF5_SNAPSHOT_SCHEMA_VERSION &&
+    isRef5SnapshotApplicable(snapshot, options.historicalReplay === true) &&
     state.protocolVersion === REF5_PROTOCOL_VERSION &&
     state.schemaVersion === REF5_RUNTIME_SCHEMA_VERSION;
   if (!versionsMatch) {
@@ -2156,7 +2247,10 @@ export function reduceRef5Completion(
   snapshot: Ref5DecodedSessionSnapshot,
   input: Ref5SessionCompletionInput,
 ): Ref5CompletionResult {
-  if (snapshot.protocolVersion !== state.protocolVersion) {
+  if (
+    state.protocolVersion !== REF5_PROTOCOL_VERSION ||
+    !isRef5SnapshotApplicable(snapshot, input.historicalReplay === true)
+  ) {
     throw new Ref5StaleVersionError(snapshot.protocolVersion);
   }
   if (!input.completionEventId.trim()) throw new Ref5ValidationError(["completionEventId is required"]);
@@ -2581,7 +2675,12 @@ export function replayRef5RawLogs(
       );
     });
 
-  let state = options.initialState ? cloneState(options.initialState) : createInitialRef5State();
+  // Raw logs regenerate every decision under the current protocol; this replay
+  // is for raw/synthetic histories. Stored plans replay their frozen snapshots
+  // through the canonical DB fold instead, carried v1.4 sessions included.
+  let state = options.initialState
+    ? cloneState(carryRef5RuntimeState(options.initialState))
+    : createInitialRef5State();
   const sessions: Ref5ReplaySessionResult[] = [];
   const appliedIdempotencyKeys: string[] = [];
   for (const event of canonical) {

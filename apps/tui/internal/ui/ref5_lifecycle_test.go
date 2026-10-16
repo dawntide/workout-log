@@ -131,6 +131,9 @@ func TestRef5UnfinishedSessionFilterExcludesLoggedAndNonRef5AndSortsNewest(t *te
 	uncommitted.Snapshot.Ref5.StartCommitted = false
 	stale := uiRef5Session("stale-v1.1", base.Add(3500*time.Millisecond))
 	stale.Snapshot.Ref5.ProtocolVersion = "1.1"
+	// A v1.4 session started before the v1.5 cutover continues in place (§24.3).
+	carried := uiRef5Session("carried-v1.4", base.Add(90*time.Minute))
+	carried.Snapshot.Ref5.ProtocolVersion = api.Ref5CarriedProtocolVersion
 	skipped := uiRef5Session("skipped", base.Add(4*time.Hour))
 	skipped.Status = "SKIPPED"
 	ordinary := api.GeneratedSession{
@@ -139,11 +142,11 @@ func TestRef5UnfinishedSessionFilterExcludesLoggedAndNonRef5AndSortsNewest(t *te
 	emptyID := uiRef5Session("", base.Add(3*time.Hour))
 
 	got := ref5UnfinishedSessions(
-		[]api.GeneratedSession{old, logged, ordinary, newest, uncommitted, stale, skipped, emptyID},
+		[]api.GeneratedSession{old, logged, ordinary, newest, uncommitted, stale, carried, skipped, emptyID},
 		[]api.LogItem{{ID: "log-finished", GeneratedSessionID: stringPtr(logged.ID)}},
 	)
-	if len(got) != 2 || got[0].ID != newest.ID || got[1].ID != old.ID {
-		t.Fatalf("unfinished sessions = %#v, want newest then old", got)
+	if len(got) != 3 || got[0].ID != newest.ID || got[1].ID != carried.ID || got[2].ID != old.ID {
+		t.Fatalf("unfinished sessions = %#v, want newest, carried, then old", got)
 	}
 }
 

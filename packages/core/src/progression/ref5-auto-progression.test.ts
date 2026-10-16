@@ -4,11 +4,16 @@ import test from "node:test";
 import type { WorkoutExecutor } from "@workout/core/db/client";
 
 import {
+  REF5_ARCHIVED_PROTOCOL_VERSION,
+  REF5_CARRIED_PROTOCOL_VERSION,
+  REF5_CARRIED_SNAPSHOT_SCHEMA_VERSION,
+  REF5_INITIAL_DIRECT_STANDARDS_KG,
   REF5_PROTOCOL_VERSION,
   Ref5StaleVersionError,
   applyRef5FirstSquatStart,
   createInitialRef5State,
   generateRef5Session,
+  type Ref5DecodedSessionSnapshot,
   type Ref5EndReason,
   type Ref5SessionSnapshot,
 } from "../program-engine/ref5";
@@ -23,7 +28,7 @@ import {
 
 const START = "2026-07-13T01:00:00.000Z";
 
-test("REF5 runtime decoder rejects protocol-less and v1.1 state", () => {
+test("REF5 runtime decoder rejects protocol-less, v1.1 and v1.3 state and carries v1.4 (§24.3)", () => {
   const active = createInitialRef5State() as unknown as Record<string, unknown>;
   assert.throws(
     () => decodeRef5RuntimeState({ ...active, protocolVersion: undefined }),
@@ -32,6 +37,14 @@ test("REF5 runtime decoder rejects protocol-less and v1.1 state", () => {
   assert.throws(
     () => decodeRef5RuntimeState({ ...active, schemaVersion: 1, protocolVersion: "1.1" }),
     Ref5StaleVersionError,
+  );
+  assert.throws(
+    () => decodeRef5RuntimeState({ ...active, protocolVersion: REF5_ARCHIVED_PROTOCOL_VERSION }),
+    Ref5StaleVersionError,
+  );
+  assert.deepEqual(
+    decodeRef5RuntimeState({ ...active, protocolVersion: REF5_CARRIED_PROTOCOL_VERSION }),
+    active,
   );
 });
 
@@ -48,13 +61,13 @@ function domainSnapshot() {
   });
 }
 
-function generatedEnvelope(domain: Ref5SessionSnapshot) {
+function generatedEnvelope(domain: Ref5DecodedSessionSnapshot) {
   return {
     schemaVersion: 4,
     actualStartAt: domain.actualStartAt,
     program: { slug: "ref5-adaptive-strength" },
     ref5: {
-      protocolVersion: REF5_PROTOCOL_VERSION,
+      protocolVersion: domain.protocolVersion,
       startCommitted: true,
       startEventId: "start-1",
       domainSnapshot: domain,
@@ -63,7 +76,7 @@ function generatedEnvelope(domain: Ref5SessionSnapshot) {
 }
 
 function submittedSets(
-  domain: Ref5SessionSnapshot,
+  domain: Ref5DecodedSessionSnapshot,
   reasonFor: (stream: string) => Ref5EndReason = () => "NORMAL",
 ) {
   return domain.exercises.flatMap((exercise) =>
@@ -78,7 +91,7 @@ function submittedSets(
             memo: "preserved",
             ref5: {
               prescription: exercise,
-              protocolVersion: REF5_PROTOCOL_VERSION,
+              protocolVersion: domain.protocolVersion,
               terminationReason: reasonFor(exercise.stream),
               actualStartAt: domain.actualStartAt,
               startEventId: "start-1",
@@ -259,6 +272,50 @@ test("REF5 raw replay deduplicates the same completion idempotency key", () => {
   assert.equal(replayed.state.completedSessions.length, 1);
 });
 
+/**
+ * The replay's DB reads for one plan. 이 목은 읽기 전용 경로가 정말 쓰기를 안 하는지만
+ * 보는 최소 스텁이라 drizzle 핸들의 표면을 다 갖추지 않는다. 호출자는 lockAlreadyHeld:
+ * true 분기(= db도 허용)로 들어가므로 락 불변식은 건드리지 않는다.
+ */
+function readOnlyReplayTx(rows: {
+  planParams: Record<string, unknown>;
+  generatedRows: unknown[];
+  logRows: unknown[];
+  setRows: unknown[];
+}) {
+  let writeCount = 0;
+  const chain = (result: unknown[]) => {
+    const query: Record<string, unknown> = {
+      from: () => query,
+      where: () => query,
+      orderBy: () => Promise.resolve(result),
+      limit: () => Promise.resolve(result),
+      then: (resolve: (value: unknown[]) => unknown, reject: (reason: unknown) => unknown) =>
+        Promise.resolve(result).then(resolve, reject),
+    };
+    return query;
+  };
+  const refuseWrite = (kind: string) => () => {
+    writeCount += 1;
+    throw new Error(`read-only helper attempted ${kind}`);
+  };
+  const tx = {
+    select(selection: Record<string, unknown>) {
+      if ("params" in selection) {
+        return chain([{ id: "plan-1", userId: "user-1", params: rows.planParams }]);
+      }
+      if ("sessionKey" in selection) return chain(rows.generatedRows);
+      if ("generatedSessionId" in selection) return chain(rows.logRows);
+      if ("logId" in selection) return chain(rows.setRows);
+      return chain([]);
+    },
+    insert: refuseWrite("an insert"),
+    update: refuseWrite("an update"),
+    delete: refuseWrite("a delete"),
+  };
+  return { tx: tx as unknown as WorkoutExecutor, writeCount: () => writeCount };
+}
+
 test("REF5 historical state helper is read-only and excludes tuples at/after target", async () => {
   const customStarts = {
     sqH3Kg: 90,
@@ -312,66 +369,83 @@ test("REF5 historical state helper is read-only and excludes tuples at/after tar
     id: `set-${index + 1}`,
     logId: "log-1",
   }));
-  let writeCount = 0;
-  const chain = (rows: unknown[]) => {
-    const query: Record<string, unknown> = {
-      from: () => query,
-      where: () => query,
-      orderBy: () => Promise.resolve(rows),
-      limit: () => Promise.resolve(rows),
-      then: (resolve: (value: unknown[]) => unknown, reject: (reason: unknown) => unknown) =>
-        Promise.resolve(rows).then(resolve, reject),
-    };
-    return query;
-  };
-  const tx = {
-    select(selection: Record<string, unknown>) {
-      if ("params" in selection) {
-        return chain([{
-          id: "plan-1",
-          userId: "user-1",
-          params: {
-            programFamily: "ref5",
-            protocolVersion: REF5_PROTOCOL_VERSION,
-            ref5: { startingValuesKg: customStarts },
-          },
-        }]);
-      }
-      if ("sessionKey" in selection) return chain(generatedRows);
-      if ("generatedSessionId" in selection) return chain(logRows);
-      if ("logId" in selection) return chain(storedSetRows);
-      return chain([]);
+  const replay = readOnlyReplayTx({
+    planParams: {
+      programFamily: "ref5",
+      protocolVersion: REF5_PROTOCOL_VERSION,
+      ref5: { startingValuesKg: customStarts },
     },
-    insert() {
-      writeCount += 1;
-      throw new Error("read-only helper attempted an insert");
-    },
-    update() {
-      writeCount += 1;
-      throw new Error("read-only helper attempted an update");
-    },
-    delete() {
-      writeCount += 1;
-      throw new Error("read-only helper attempted a delete");
-    },
-  };
+    generatedRows,
+    logRows,
+    setRows: storedSetRows,
+  });
 
   const derived = await deriveRef5StateBeforeStart({
-    // 이 목은 읽기 전용 경로가 정말 쓰기를 안 하는지만 보는 최소 스텁이라 drizzle 핸들의
-    // 표면을 다 갖추지 않는다. lockAlreadyHeld: true 분기(= db도 허용)로 들어가므로
-    // 락 불변식은 건드리지 않는다.
-    tx: tx as unknown as WorkoutExecutor,
+    tx: replay.tx,
     userId: "user-1",
     planId: "plan-1",
     actualStartAt: "2026-07-14T01:00:00.000Z",
     sessionKey: second.sessionId,
     lockAlreadyHeld: true,
   });
-  assert.equal(writeCount, 0);
+  assert.equal(replay.writeCount(), 0);
   assert.equal(derived.replayedSessionCount, 1);
   assert.equal(derived.replayedLogCount, 1);
   assert.equal(derived.state.startedSessions.length, 1);
   assert.equal(derived.state.completedSessions.length, 1);
   assert.equal(derived.state.startedSessions[0]!.sessionId, first.sessionId);
   assert.deepEqual(derived.state.directStandardsKg, customStarts);
+});
+
+/** A stored v1.4 session as the pre-v1.5 engine froze it (§24.3). */
+function asCarriedV14(domain: Ref5SessionSnapshot): Ref5DecodedSessionSnapshot {
+  const { startsInSevenDays, ...hard } = domain.decision.hard;
+  return {
+    ...domain,
+    schemaVersion: REF5_CARRIED_SNAPSHOT_SCHEMA_VERSION,
+    protocolVersion: REF5_CARRIED_PROTOCOL_VERSION,
+    decision: { ...domain.decision, hard: { ...hard, startsIn168Hours: startsInSevenDays } },
+  };
+}
+
+test("REF5 v1.5 folds a carried v1.4 plan's frozen sessions; other plans refuse them (§24.3)", async () => {
+  const carried = asCarriedV14(domainSnapshot());
+  const completion = canonicalizeRef5WorkoutLog({
+    generatedSnapshot: generatedEnvelope(carried),
+    performedAt: new Date(START),
+    sets: submittedSets(carried),
+    completedAt: "2026-07-13T02:00:00.000Z",
+  });
+  assert.equal(completion.protocolVersion, REF5_CARRIED_PROTOCOL_VERSION);
+
+  const deriveOnPlan = (planProtocolVersion: string) =>
+    deriveRef5StateBeforeStart({
+      tx: readOnlyReplayTx({
+        planParams: {
+          programFamily: "ref5",
+          protocolVersion: planProtocolVersion,
+          ref5: { startingValuesKg: { ...REF5_INITIAL_DIRECT_STANDARDS_KG } },
+        },
+        generatedRows: [
+          { id: "generated-1", sessionKey: carried.sessionId, snapshot: generatedEnvelope(carried) },
+        ],
+        logRows: [{ id: "log-1", generatedSessionId: "generated-1", performedAt: new Date(START) }],
+        setRows: completion.sets.map((set, index) => ({ ...set, id: `set-${index + 1}`, logId: "log-1" })),
+      }).tx,
+      userId: "user-1",
+      planId: "plan-1",
+      actualStartAt: "2026-07-16T01:00:00.000Z",
+      sessionKey: "REF5:2026-07-16T01:00:00.000Z:start-2",
+      lockAlreadyHeld: true,
+    });
+
+  const derived = await deriveOnPlan(REF5_CARRIED_PROTOCOL_VERSION);
+  assert.equal(derived.replayedLogCount, 1);
+  assert.equal(derived.state.protocolVersion, REF5_PROTOCOL_VERSION);
+  assert.equal(derived.state.completedSessions.length, 1);
+  assert.deepEqual(derived.state.hardStartTimes.map((entry) => entry.sessionId), [carried.sessionId]);
+
+  // A plan born on v1.5 never had a v1.4 session, and v1.3 plans stay archived.
+  await assert.rejects(deriveOnPlan(REF5_PROTOCOL_VERSION), Ref5StaleVersionError);
+  await assert.rejects(deriveOnPlan(REF5_ARCHIVED_PROTOCOL_VERSION), Ref5StaleVersionError);
 });

@@ -5,6 +5,7 @@ import {
   REF5_OAP_RUNGS,
   REF5_PROTOCOL_VERSION,
   REF5_RUNTIME_SCHEMA_VERSION,
+  carryRef5RuntimeState,
   createInitialRef5State,
   deriveRef5AuxiliaryCaps,
   deriveRef5ControlRefs,
@@ -74,8 +75,14 @@ function isRef5State(value: unknown): value is Ref5RuntimeState {
  * to show that plan's configured start rungs rather than the protocol default.
  */
 export function buildRef5Status(value: unknown, startConfig?: Ref5StartConfig) {
-  const state = isRef5State(value)
-    ? value
+  // A carried v1.4 state reads as current (§24.3); without this it would fail
+  // the check below and silently fall back to the plan's start values.
+  const carried =
+    value && typeof value === "object" && !Array.isArray(value)
+      ? carryRef5RuntimeState(value as Partial<Ref5RuntimeState>)
+      : value;
+  const state = isRef5State(carried)
+    ? carried
     : createInitialRef5State(startConfig?.startingValuesKg, startConfig?.oap);
   const directStandardsKg = { ...state.directStandardsKg };
   const stagnationPending = (["SQ", "BP", "PULL"] as const).filter(

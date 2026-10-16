@@ -86,9 +86,9 @@ type Ref5SessionDecision struct {
 	Focus             string   `json:"focus"`
 	SquatPrescription string   `json:"squatPrescription"`
 	Hard              struct {
-		Allowed          bool    `json:"allowed"`
-		LastStartAt      *string `json:"lastStartAt"`
-		StartsIn168Hours int     `json:"startsIn168Hours"`
+		Allowed           bool    `json:"allowed"`
+		LastStartAt       *string `json:"lastStartAt"`
+		StartsInSevenDays int     `json:"startsInSevenDays"`
 	} `json:"hard"`
 }
 

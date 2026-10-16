@@ -3,7 +3,8 @@ import type { ManualSession } from "../program-dsl/schema";
 
 /**
  * Snapshot v3 — 비-REF5 `generateSession`이 생산하고 `generated_session.snapshot`(jsonb)에
- * 저장하는 세션 처방 형태. REF5는 별도 형태(`Ref5SessionSnapshot`, schemaVersion 4)를 쓴다.
+ * 저장하는 세션 처방 형태. REF5는 별도 형태(`Ref5SessionSnapshot`, schemaVersion 5 — 이어받은
+ * v1.4 세션은 4)를 쓴다.
  *
  * 이 타입은 엔진의 *생산* 계약이다(엔진이 필드를 구성한다). 저장된 jsonb를 되읽는 소비자는
  * 레거시(v1/v2)·REF5·유저 fork 형태가 섞여 있을 수 있으므로 이 타입을 그대로 씌우지 말고
