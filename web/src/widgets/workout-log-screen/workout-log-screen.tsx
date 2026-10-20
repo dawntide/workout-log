@@ -336,16 +336,19 @@ function WorkoutLogScreenContent({
       draft?.session.ref5 ||
       isRef5PlanParams(selectedPlan?.params),
   );
-  const ref5WindowProgress = isRef5SelectedPlan ? (
-    <Ref5WindowProgressPanel
-      status={progressionFeedback.ref5Status}
-      locale={locale}
-      loading={
-        progressionFeedback.progressionStateLoading ||
-        !progressionFeedback.progressionStateSettled
-      }
-    />
-  ) : null;
+  // 시작 전에는 판정창 전체를 보여 주고, 기록 중에는 종목별 진행 한 줄로 접는다.
+  const renderRef5WindowProgress = (collapsible: boolean) =>
+    isRef5SelectedPlan ? (
+      <Ref5WindowProgressPanel
+        status={progressionFeedback.ref5Status}
+        locale={locale}
+        loading={
+          progressionFeedback.progressionStateLoading ||
+          !progressionFeedback.progressionStateSettled
+        }
+        collapsible={collapsible}
+      />
+    ) : null;
   const todayDateKey = useMemo(
     () =>
       new Intl.DateTimeFormat("en-CA", {
@@ -439,7 +442,7 @@ function WorkoutLogScreenContent({
             prevLabel={copy.workoutLog.dateNavPrev}
             nextLabel={copy.workoutLog.dateNavNext}
           />
-          {ref5WindowProgress}
+          {renderRef5WindowProgress(false)}
           <Ref5SessionStartPanel
             key={`${ref5StartContext.planId}:${ref5StartContext.dateKey}`}
             planId={ref5StartContext.planId}
@@ -488,7 +491,7 @@ function WorkoutLogScreenContent({
             locale={locale}
           />
 
-          {ref5WindowProgress}
+          {renderRef5WindowProgress(true)}
 
           {showBodyweightCheck ? (
             <BodyweightCheckBanner
