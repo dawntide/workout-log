@@ -35,8 +35,8 @@ PR 열림 / 푸시
 │  ② build   ③ e2e-smoke                    │  ~8분 (병렬)
 │  next build  PostgreSQL + next dev          │
 └─────────────────────────────────────────────┘
-    │  (3개 checks 모두 통과해야 main 머지 가능)
-    ▼  (main 머지 후 자동 실행)
+    │  (필수 체크 통과 + 브랜치 최신화(strict)해야 main 머지 가능)
+    ▼  (main 머지 즉시 자동 실행 — main push에서 CI를 다시 돌리지 않는다)
 ┌─────────────────────────────────────────────┐
 │  db-migrate.yml                             │
 │  prod + dev Supabase DB 마이그레이션        │
@@ -71,8 +71,8 @@ PR 열림 / 푸시
 | `build` | `next build` 검증 (`DB_MIGRATE_ENABLED=0`) | ~8분 |
 | `e2e-smoke` | PostgreSQL 서비스 + dev 서버 + smoke 테스트 | ~10분 |
 
-- `quality` 통과 후 `build`와 `e2e-smoke`가 병렬 실행된다.
-- 세 job 모두 통과해야 main 머지가 가능하다.
+- 모든 job이 병렬 실행된다(`e2e-smoke`도 `quality`를 기다리지 않는다).
+- 필수 체크는 `Lint · Typecheck · Unit Tests`, `E2E Smoke` 둘이다(룰셋). PR에서만 돈다.
 - `concurrency` 설정으로 같은 브랜치의 이전 실행은 자동 취소된다.
 
 ### `e2e-preview.yml` — Vercel Preview E2E (선택)
@@ -84,7 +84,8 @@ PR 열림 / 푸시
 
 ### `db-migrate.yml` — DB 마이그레이션 (main 머지 후)
 
-- `CI` 워크플로우가 main 브랜치에서 성공했을 때만 실행된다.
+- main push 즉시 실행된다. 예전엔 main push CI 성공을 기다렸으나, 룰셋이 strict(브랜치 최신화 후 머지)라 머지 트리 = PR에서 검증된 트리이므로 그 CI는 순수 중복이었다(머지→배포 확인 ~6분 → ~1분). main 회귀는 `e2e-nightly`가 매일 잡는다.
+- prod 스키마는 Vercel 프로덕션 빌드(`pnpm build` = `migrate.mjs && next build`)가 먼저 적용한다. 이 워크플로는 dev 스키마 적용 + prod 백스톱이다.
 - prod와 dev 두 환경에 병렬 마이그레이션한다. 둘 다 **같은 prod 인스턴스**(`SUPABASE_DIRECT_URL`)를 쓰되, dev는 `DB_SCHEMA=dev` matrix로 prod 인스턴스의 `dev` 스키마에 격리 적용한다(별도 dev 프로젝트는 Supabase free plan의 활성 2개 제한으로 폐기). advisory lock id를 prod/dev로 분리해 같은 인스턴스에서의 충돌을 피한다.
 - dev 스키마용 마이그레이션은 `web/src/server/db/migrations-dev/`에 별도 생성하며, 추적 테이블은 `drizzle_dev` 스키마로 분리된다. 자세한 격리 설계는 [reference 메모리/PR #392·#393] 참고.
 
