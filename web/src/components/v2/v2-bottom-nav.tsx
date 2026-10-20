@@ -14,7 +14,7 @@ function isActive(pathname: string, href: string): boolean {
 }
 
 const HOME_DECKS = [
-  { key: "today", icon: "today", labelKo: "오늘", labelEn: "Today" },
+  { key: "today", icon: "home", labelKo: "오늘", labelEn: "Today" },
   { key: "stats", icon: "monitoring", labelKo: "통계", labelEn: "Stats" },
 ];
 

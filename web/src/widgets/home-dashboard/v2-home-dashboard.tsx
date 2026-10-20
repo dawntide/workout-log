@@ -515,7 +515,7 @@ function TodayDeck({
 /* ─────────────────────────── Deck container ─────────────────────── */
 
 const DECKS: { key: string; icon: string; label: string; labelEn: string }[] = [
-  { key: "today", icon: "today", label: "오늘", labelEn: "Today" },
+  { key: "today", icon: "home", label: "오늘", labelEn: "Today" },
   { key: "stats", icon: "monitoring", label: "통계", labelEn: "Stats" },
 ];
 
