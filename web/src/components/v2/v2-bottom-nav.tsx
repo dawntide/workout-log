@@ -15,7 +15,7 @@ function isActive(pathname: string, href: string): boolean {
 
 const HOME_DECKS = [
   { key: "today", icon: "home", labelKo: "오늘", labelEn: "Today" },
-  { key: "stats", icon: "monitoring", labelKo: "통계", labelEn: "Stats" },
+  { key: "stats", icon: "analytics", labelKo: "통계", labelEn: "Stats" },
 ];
 
 export function V2BottomNav() {
@@ -44,7 +44,7 @@ export function V2BottomNav() {
       homeDeckItems[0],
       {
         key: "start",
-        icon: "play_arrow",
+        icon: "play_circle",
         label: locale === "ko" ? "기록" : "Log",
         href: "/workout/log",
         primary: true,
@@ -53,21 +53,21 @@ export function V2BottomNav() {
       ...homeDeckItems.slice(1),
       {
         key: "plan",
-        icon: "event_note",
+        icon: "calendar_month",
         label: locale === "ko" ? "계획" : "Plan",
         href: APP_ROUTES.calendarHome,
         active: isActive(pathname, APP_ROUTES.calendarHome),
       },
       {
         key: "store",
-        icon: "storefront",
+        icon: "shopping_bag",
         label: locale === "ko" ? "스토어" : "Store",
         href: APP_ROUTES.programStore,
         active: isActive(pathname, "/program-store"),
       },
       {
         key: "more",
-        icon: "more_horiz",
+        icon: "menu",
         label: locale === "ko" ? "더보기" : "More",
         href: "/settings",
         active: isActive(pathname, "/settings") || isActive(pathname, "/stats"),
