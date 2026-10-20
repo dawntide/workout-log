@@ -516,7 +516,7 @@ function TodayDeck({
 
 const DECKS: { key: string; icon: string; label: string; labelEn: string }[] = [
   { key: "today", icon: "home", label: "오늘", labelEn: "Today" },
-  { key: "stats", icon: "analytics", label: "통계", labelEn: "Stats" },
+  { key: "stats", icon: "bar_chart", label: "통계", labelEn: "Stats" },
 ];
 
 /* ─────────────────────────── Public API ─────────────────────────── */
