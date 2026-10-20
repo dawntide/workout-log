@@ -367,6 +367,8 @@ async function openAndPreviewRef5Session(
 async function startPreviewedRef5Session(page: Page) {
   await page.getByRole("button", { name: "SQ 첫 워크 세트 시작" }).click();
   await expect(page.getByLabel("REF5 종료 사유").first()).toBeVisible({ timeout: 20_000 });
+  // 시작 버튼을 누르느라 내려간 스크롤이 기록 화면에 남으면 운동 목록 중간에서 열린다.
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
 }
 
 async function saveCurrentRef5Session(page: Page) {

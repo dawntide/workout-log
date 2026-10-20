@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useAppDialog } from "@/components/ui/app-dialog-provider";
 import {
   EmptyStateRows,
@@ -381,6 +381,18 @@ function WorkoutLogScreenContent({
     },
     [sessionDate, query.date, handleDateChange],
   );
+
+  // REF5 시작 패널 → 기록 화면 교체는 같은 라우트 안의 렌더 전환이라 Next 라우터가
+  // 스크롤을 건드리지 않는다. 시작 버튼까지 내려간 스크롤이 그대로 남아 새 화면이
+  // 운동 목록 중간에서 열리므로, 패널이 빠지는 순간 맨 위로 되돌린다.
+  const showsRef5StartPanel = !noPlan && Boolean(ref5StartContext);
+  const showedRef5StartPanelRef = useRef(showsRef5StartPanel);
+  useLayoutEffect(() => {
+    if (showedRef5StartPanelRef.current && !showsRef5StartPanel) {
+      window.scrollTo(0, 0);
+    }
+    showedRef5StartPanelRef.current = showsRef5StartPanel;
+  }, [showsRef5StartPanel]);
 
   return (
     <>
