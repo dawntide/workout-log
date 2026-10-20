@@ -1,19 +1,10 @@
 name: CI
 
 on:
+  # main push에는 돌지 않는다. 룰셋이 "브랜치 최신화 후 머지"(strict)를 강제하므로 머지 결과
+  # 트리는 PR에서 이미 검증된 head와 같다 — main에서 같은 스위트를 다시 돌리면 ~5분을 더
+  # 쓰고 db-migrate·deploy만 늦춘다. 머지 후 main은 e2e-nightly가 매일 다시 확인한다.
   pull_request:
-  push:
-    branches: [main]
-    paths:
-      - "web/**"
-      - "apps/**"
-      - "packages/**"
-      - ".github/workflows/**"
-      - ".github/actions/**"
-      - "deploy/**"
-      - "pnpm-lock.yaml"
-      - "pnpm-workspace.yaml"
-      - "package.json"
   workflow_dispatch: {}
 
 # PR당 최신 push만 실행 — 이전 실행은 취소
@@ -27,7 +18,7 @@ permissions:
 jobs:
   # ──────────────────────────────────────────────
   # Job 1: lint + typecheck + unit tests
-  # 가장 빠른 피드백. 이 job이 통과해야 e2e 시작
+  # 가장 빠른 피드백. e2e-smoke와 병렬로 돈다(둘 다 필수 체크)
   # ──────────────────────────────────────────────
   quality:
     name: Lint · Typecheck · Unit Tests
@@ -207,7 +198,7 @@ jobs:
 
   # ──────────────────────────────────────────────
   # Job 2: Playwright smoke E2E (프로덕션 빌드 대상)
-  # quality 통과 후 실행. PostgreSQL 서비스 컨테이너 + `next build && next start`.
+  # quality와 병렬 실행(예전 needs: quality는 임계 경로에 ~80초를 더했다). PostgreSQL 서비스 컨테이너 + `next build && next start`.
   # 과거엔 next dev로 돌려 빌드 시간을 아꼈으나(빌드는 Vercel Preview가 담당), dev는
   # 관대해 RSC 직렬화 크래시 등 "프로덕션 빌드에서만 터지는 렌더 에러"를 못 잡았다
   # (#491 F4 사고: AppCopy를 서버→클라 prop으로 넘겨 홈 SSR 크래시, dev·번들 grep·Vercel
@@ -215,7 +206,6 @@ jobs:
   # ──────────────────────────────────────────────
   e2e-smoke:
     name: E2E Smoke
-    needs: quality
     runs-on: ubuntu-latest
     timeout-minutes: 25
     services:

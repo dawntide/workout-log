@@ -1,10 +1,10 @@
 name: db-migrate
 
 on:
-  # CI 워크플로우(lint+typecheck+build+e2e-smoke) 가 main에서 성공한 후 실행
-  workflow_run:
-    workflows: [CI]
-    types: [completed]
+  # main 머지 즉시 실행. 예전엔 main push CI 성공을 기다렸지만 그 CI는 PR에서 이미 통과한
+  # 트리를 반복할 뿐이었고(ci.yml 상단 주석), prod는 Vercel 프로덕션 빌드(`pnpm build` →
+  # migrate.mjs)가 어차피 먼저 마이그레이션한다. 여기는 dev 스키마 + prod 백스톱이다.
+  push:
     branches: [main]
   workflow_dispatch: {}
 
@@ -18,7 +18,6 @@ permissions:
 jobs:
   migrate:
     name: DB Migration (${{ matrix.env }})
-    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
     # Backstop: an unreachable DB should fail the job quickly, not hang for ~1h.
     timeout-minutes: 15
