@@ -45,7 +45,7 @@ permissions:
 jobs:
   run:
     name: E2E · External
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: ${{ inputs.timeout-minutes }}
     defaults:
       run:
