@@ -35,7 +35,7 @@ permissions:
 jobs:
   cleanup:
     name: E2E 계정 정리 (dev)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # 도달 불가한 DB가 한 시간을 매달리지 않도록.
     timeout-minutes: 15
     defaults:

@@ -18,7 +18,7 @@ permissions:
 jobs:
   migrate:
     name: DB Migration (${{ matrix.env }})
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # Backstop: an unreachable DB should fail the job quickly, not hang for ~1h.
     timeout-minutes: 15
     strategy:

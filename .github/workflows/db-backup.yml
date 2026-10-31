@@ -8,7 +8,7 @@ on:
 
 jobs:
   backup:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     # bash 기본은 'bash -e {0}'라 pg_dump | gzip 파이프라인의 앞쪽 실패가 무시된다.
     # pipefail을 켜야 pg_dump 실패가 step 실패로 이어진다.
