@@ -16,7 +16,7 @@ jobs:
   wait-vercel:
     name: Wait for Vercel Deployment
     if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     env:
       TARGET_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
     steps:
