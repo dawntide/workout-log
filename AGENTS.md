@@ -1,8 +1,8 @@
 # AGENTS.md
 
-This file provides guidance to Codex (Codex.ai/code) when working with code in this repository.
+이 파일은 이 저장소에서 작업하는 모든 코딩 에이전트(Claude Code, Codex, Antigravity 등)가 공유하는 단일 지침이다. `CLAUDE.md`는 `@AGENTS.md` 한 줄만 두므로 **이 파일만 고친다**. 도구 전용 운영 규칙(모델 배정, 스레드 운용 등)은 여기에 넣지 않는다.
 
-# Workout Log — Codex 가이드
+# Workout Log — 에이전트 가이드
 
 ## 프로젝트 개요
 
@@ -18,6 +18,28 @@ This file provides guidance to Codex (Codex.ai/code) when working with code in t
     - 두 모드는 요청 정규화가 동일해 **전환·롤백·재분리가 전부 env 하나**다. 이 성질은 CI 게이트 `pnpm -C apps/api lint:boundary`가 강제한다(규칙 2개: apps/api에 `@/`·next·react 금지 + node 서버 어댑터는 `src/index.ts` 전용) — **apps/api에서 next/react를 import하지 말 것**.
     - 인증은 모드 무관: **실제 로그인**으로 `wl_session` 쿠키 획득(prod에서 apps/api는 `WORKOUT_AUTH_USER_ID` fallback 없음). `auth`·`ops`·web잔류(stats migration-telemetry[FS결합, 마이그레이션 실행지]·page-bootstrap·health)은 web 자체 처리(구체적 route가 catch-all보다 우선; ux-snapshot은 apps/api로 이식됨). 상세: [`apps/api/deploy/DEPLOY.md`](apps/api/deploy/DEPLOY.md), [아키텍처 레이어 모델](web/docs/architecture-layers.md).
 
+## 작업 규칙 (도구 공통)
+
+- **시작할 때**: 이 파일 → [`docs/handoff.md`](docs/handoff.md)(현재 상태·진행 중·막힌 점) 순으로 읽는다. 이유가 필요한 결정은 [`docs/decisions.md`](docs/decisions.md)에서 먼저 찾고, 거기 있는 결정·폐기한 방식을 뒤집기 전에 멈추고 보고한다.
+- **⚠️ 의무 — 인계 기록**: 작업을 마치거나 중단할 때 `docs/handoff.md`를 갱신하고(덮어쓰기), 설계 결정을 했으면 `docs/decisions.md`에 이유와 함께 추가한다(날짜 / 결정 / 이유 / 대안과 버린 이유). 시도했다가 버린 방식도 같은 곳에 남긴다. 도구마다 메모리가 따로 있어 저장소에 없는 맥락은 다른 도구가 볼 수 없다.
+- **설계 정본**: REF5 훈련 프로그램은 [`docs/ref5-program-spec.md`](docs/ref5-program-spec.md)(정본 순서는 스펙 §2: 스펙 → `packages/core/src/program-engine/ref5.ts` → 테스트 → 세션 스냅샷 → UI 문구), 구조·레이어는 [`web/docs/architecture-layers.md`](web/docs/architecture-layers.md). 단일 설계 문서 `docs/design.md`는 아직 없다(만들지 여부는 사용자 결정 대기 — `docs/handoff.md` 참조).
+- **설계 영향 작업**(상태 모델·모듈 경계·데이터 구조·API 계약·REF5 규칙 변경)은 구현 전에 수정안(스펙은 §26 변경관리 형식, 한 번에 한 요소)을 먼저 제안하고 사용자 승인을 받는다. 설계 변경이 없는 기능 추가·버그 수정은 바로 진행한다. 구현 중 설계와 다르게 해야 할 이유가 생기면 임의로 바꾸지 말고 멈춰서 보고한다.
+- **브랜치·PR**: 기본 브랜치에서 브랜치를 따고, 작업당 draft PR 1개. 머지, force-push, CI 설정 변경은 사용자 승인 후에만 한다.
+- **완료 전 검증**: 완료라고 하기 전에 해당하는 lint·typecheck·테스트·빌드를 실행하고 결과 요약을 마지막 보고에 붙인다(명령은 아래 "자주 쓰는 명령").
+- **접근 불가 시**: 필요한 저장소·시크릿·API에 접근할 수 없으면 무엇이 없는지 밝히고 멈춘다. mock이나 추측으로 대체하지 않는다.
+- **보고**: 분석·조사 결과는 확인된 사실과 추정을 구분한다.
+- **REF5 판정은 완화하지 않는다**: FAIL 0·HOLD ≤1·볼륨 veto 기준을 느슨하게 만드는 변경(예정 디로드 추가, 피로를 `EXTERNAL`로 분류하기 등)은 사용자가 명시하기 전에는 하지 않는다. 근거: [`docs/decisions.md`](docs/decisions.md).
+- **운영 DB 쓰기 금지(에이전트)**: 기록 정정은 앱 UI 또는 사용자가 직접 실행하는 가드된 SQL로만 한다. 읽기 전용 조회는 허용.
+
+### 함정 (실제로 틀렸던 것들)
+
+- **세션 평가 쿼리는 반드시 `user_id::text LIKE '6f47ec53%'`(Dev 계정)로 거른다.** `f7e726df…`는 합성 데이터를 매일 재생하는 데모 계정이라 섞이면 결과가 오염된다. 상태는 `plan_runtime_state.state`, 세트는 `workout_log` ⨝ `workout_set`.
+- **체중은 상수 75로 기록된다.** 사용자가 세션 체중을 입력하지 않고 실제 체중도 거의 그대로라 지금은 대체로 맞다(2026-10-16). 감량을 시작하면 실측 입력이 필요하다(스펙 §10.1·§20: 창 시작 때 `목표 총중량 − 계산 체중`으로 추가중량을 잠근다).
+- **하드 SQ는 하이바**(로우바 아님, 스펙 §3.2).
+- **CI 러너는 `ubuntu-24.04` 고정.** `ubuntu-latest`(26.04)는 Playwright 1.58.2 chromium 미지원 + 새 `pg_dump`의 `SET transaction_timeout`이 PG16 복원을 깬다.
+- **피로·그라인딩은 `EXTERNAL`이 아니다**(스펙 §11.1–§11.3). "너무 피곤해서 시작 못 함"의 정식 밸브는 시작 시점의 MICRO 선택(§8-1)이다.
+- **새 프로그램·§26 근거 작업**은 기존 근거 자료(출처 341건·주장 24건)에서 시작한다. 위치는 `docs/handoff.md`.
+
 ## 핵심 문서
 
 | 문서 | 내용 |
@@ -28,6 +50,9 @@ This file provides guidance to Codex (Codex.ai/code) when working with code in t
 | [QA 테스트 가이드](web/docs/qa-test-guide.md) | 라이트/헤비 유저 E2E 시나리오, 비동기 UX 연속성 체크리스트 |
 | [프로그램 Seed 가이드](web/docs/program-seed-guide.md) | 6개 근력 프로그램 canonical 규칙, seed 명령, 자동 진행 구현 상세 |
 | [아키텍처 레이어 모델](web/docs/architecture-layers.md) | 정식 레이어 흐름(app→widgets→features→primitives→lib→server), 의존 방향 규칙, 파사드, 린트 강제를 미루는 이유, **시스템 토폴로지(멀티프론트/단일백엔드 — web↔apps/api 프록시 cutover)** |
+| [REF5 규범 사양서](docs/ref5-program-spec.md) | 훈련 프로그램의 판정·진행·처방 규칙 정본(현재 v1.5). 변경은 §26 |
+| [결정 기록](docs/decisions.md) | 날짜 / 결정 / 이유 / 대안과 버린 이유 |
+| [인계 문서](docs/handoff.md) | 현재 상태·진행 중·다음 할 일·막힌 점 (덮어쓰기) |
 | [전체 시스템 점검 2026-08](docs/codebase-audit-2026-08.md) | **최신 감사**. 게이트 전수 실행 + prod DB 실측 + 프로덕션 블랙박스 확인. P0은 인증 폴백 비대칭(S1) 하나, 성능은 데이터 규모상 결론 유보. non-goal(가상화·DSL 4b·pg_stat 판단) 포함 |
 | [전체 시스템 점검 2026-07](docs/codebase-audit-2026-07.md) | 이전 감사 — monorepo 전체 구조/성능/보안 + 개선 계획(**전부 종결**). 진단 표는 이력으로 보존 |
 
