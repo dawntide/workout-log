@@ -22,7 +22,7 @@
 
 - **시작할 때**: 이 파일 → [`docs/handoff.md`](docs/handoff.md)(현재 상태·진행 중·막힌 점) 순으로 읽는다. 이유가 필요한 결정은 [`docs/decisions.md`](docs/decisions.md)에서 먼저 찾고, 거기 있는 결정·폐기한 방식을 뒤집기 전에 멈추고 보고한다.
 - **⚠️ 의무 — 인계 기록**: 작업을 마치거나 중단할 때 `docs/handoff.md`를 갱신하고(덮어쓰기), 설계 결정을 했으면 `docs/decisions.md`에 이유와 함께 추가한다(날짜 / 결정 / 이유 / 대안과 버린 이유). 시도했다가 버린 방식도 같은 곳에 남긴다. 도구마다 메모리가 따로 있어 저장소에 없는 맥락은 다른 도구가 볼 수 없다.
-- **설계 정본**: REF5 훈련 프로그램은 [`docs/ref5-program-spec.md`](docs/ref5-program-spec.md)(정본 순서는 스펙 §2: 스펙 → `packages/core/src/program-engine/ref5.ts` → 테스트 → 세션 스냅샷 → UI 문구), 구조·레이어는 [`web/docs/architecture-layers.md`](web/docs/architecture-layers.md). 단일 설계 문서 `docs/design.md`는 아직 없다(만들지 여부는 사용자 결정 대기 — `docs/handoff.md` 참조).
+- **설계 정본**: REF5 훈련 프로그램은 [`docs/ref5-program-spec.md`](docs/ref5-program-spec.md)(정본 순서는 스펙 §2: 스펙 → `packages/core/src/program-engine/ref5.ts` → 테스트 → 세션 스냅샷 → UI 문구), 구조·레이어는 [`web/docs/architecture-layers.md`](web/docs/architecture-layers.md). 설계 정본의 위치는 [`docs/design.md`](docs/design.md)(색인)에 모여 있다.
 - **설계 영향 작업**(상태 모델·모듈 경계·데이터 구조·API 계약·REF5 규칙 변경)은 구현 전에 수정안(스펙은 §26 변경관리 형식, 한 번에 한 요소)을 먼저 제안하고 사용자 승인을 받는다. 설계 변경이 없는 기능 추가·버그 수정은 바로 진행한다. 구현 중 설계와 다르게 해야 할 이유가 생기면 임의로 바꾸지 말고 멈춰서 보고한다.
 - **브랜치·PR**: 기본 브랜치에서 브랜치를 따고, 작업당 draft PR 1개. 머지, force-push, CI 설정 변경은 사용자 승인 후에만 한다.
 - **완료 전 검증**: 완료라고 하기 전에 해당하는 lint·typecheck·테스트·빌드를 실행하고 결과 요약을 마지막 보고에 붙인다(명령은 아래 "자주 쓰는 명령").
@@ -51,6 +51,7 @@
 | [프로그램 Seed 가이드](web/docs/program-seed-guide.md) | 6개 근력 프로그램 canonical 규칙, seed 명령, 자동 진행 구현 상세 |
 | [아키텍처 레이어 모델](web/docs/architecture-layers.md) | 정식 레이어 흐름(app→widgets→features→primitives→lib→server), 의존 방향 규칙, 파사드, 린트 강제를 미루는 이유, **시스템 토폴로지(멀티프론트/단일백엔드 — web↔apps/api 프록시 cutover)** |
 | [REF5 규범 사양서](docs/ref5-program-spec.md) | 훈련 프로그램의 판정·진행·처방 규칙 정본(현재 v1.5). 변경은 §26 |
+| [설계 색인](docs/design.md) | 설계 정본 위치와 읽는 순서 |
 | [결정 기록](docs/decisions.md) | 날짜 / 결정 / 이유 / 대안과 버린 이유 |
 | [REF5 근거 자료](docs/research/ref5-evidence-2026-10/README.md) | 출처 341건·주장 24건 평가 원본. 새 프로그램·§26 근거 작업의 시작점 |
 | [REF5 현재 기준 요약](docs/notes/ref5-context.md) | 훈련 제약·열린 항목 요약(과거 핸드오프 3건 대체). 같은 폴더에 평가·스케줄·휴식타이머 푸시 노트 |
