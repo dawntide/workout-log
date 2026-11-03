@@ -16,7 +16,7 @@
 
 ## 다음 할 일 / 열린 항목
 
-1. **(사용자 결정 대기) `docs/design.md` 신설 여부.** 프로젝트 지침은 설계 원본이 `docs/design.md`라고 했으나 파일이 없다. 현재 설계 정본은 `docs/ref5-program-spec.md`와 `web/docs/architecture-layers.md`.
+1. **(완료 2026-11-03) `docs/design.md` 신설.** 정본(스펙, 레이어 문서 등)을 가리키는 색인으로 만들었다. 내용 복제는 하지 않는다.
 2. **(완료 2026-11-03) 공유 폴더 자료 이전.** `docs/research/ref5-evidence-2026-10/`(출처 341건·주장 24건·반박 검토·내부 분석·재실행 스크립트, `README.md`가 색인, 새 프로그램·§26 근거 작업은 여기서 시작)와 `docs/notes/`(`ref5-context.md` 현재 기준 요약 외 4건). 스크린샷 폴더는 이전하지 않음(공유 폴더에만 존재, 미참조). 근거: [`decisions.md`](decisions.md) 맨 아래.
 3. **REF5 열린 항목**(출처 [`docs/notes/ref5-context.md`](notes/ref5-context.md) §5):
    - 체중 입력 — 감량을 시작하면 그날부터 실측 입력 필요(AGENTS.md 함정 참조).
