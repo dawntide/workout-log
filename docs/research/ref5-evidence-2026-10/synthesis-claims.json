@@ -1,0 +1,780 @@
+{
+ "sport-science": [
+  {
+   "id": "C01",
+   "area": "intensity",
+   "claim": "The hard slots sit in the load zone that current evidence links most strongly to 1RM gains: SQ H3 3x3 at ~82-83% and H2 3x2 at ~87% of the ~103 kg reference, and BP/PULL focus 3x3 at ~82-85% of reference maxima. V squats (~70% x5), BP volume (~70% x5), DL (~64-67%) and OHP (~56-59%) are practice and volume work, not 1RM-specific stimuli.",
+   "verdict": "strength",
+   "evidence": [
+    "Currier et al. 2023, Br J Sports Med 57(18):1211-1220, Bayesian network meta-analysis of 178 strength studies: higher-load (>80% 1RM) multi-set prescriptions ranked top for strength (HM3 SMD 1.60 vs control). The 3x vs 2x ordering was not robust. https://bjsm.bmj.com/content/57/18/1211",
+    "ACSM Position Stand 2026 (Currier ... Phillips), Med Sci Sports Exerc 58(4):851-872, overview of 137 reviews: strength is enhanced by loads >=~80% 1RM, 2-3 sets, placing the exercise first, and >=2 sessions/wk. Much of the evidence comes from inexperienced trainees. https://doi.org/10.1249/MSS.0000000000003897",
+    "Robinson et al. 2024, Sports Med 54(9):2209-2231 (Key Points): load (% of 1RM) is the more influential variable for maximal strength. https://link.springer.com/article/10.1007/s40279-024-02069-2",
+    "Lopez et al. 2021, MSSE 53(6):1206-1216: <=8RM beat >15RM for strength (SMD ~0.6). Heavy vs moderate was not significant (P=.068). https://jyx.jyu.fi/jyx/Record/jyx_123456789_75929",
+    "Swinton et al. 2024, Sports Med 54(6):1579-1594: the strength-load curve is monotonic, with a reduced incline from 65 to 100%. So ~70% V work is not a 'moderate' stimulus on this model, but it is less 1RM-specific. https://link.springer.com/article/10.1007/s40279-024-02006-3",
+    "[D] Loads as of 10/14: H3 85, H2 90, V 72.5, BP focus 85, PULL focus total 90 (+15). Reference maxima from the athlete's own pre-REF5 records: SQ ~102-103, BP ~100, PULL total 110 (internal analysis §1a-1b)."
+   ],
+   "reasoning": "Direct evidence: meta-analytic and position-stand support for >=~80% 1RM in multi-set work. Extrapolation: the %1RM figures depend on an old e1RM (~103 from 92.5x3 at RPE 9-10) that may have moved. The evidence base is mostly short trials in less-trained people. The structure is sound. The weak point is that the athlete's true %1RM is unknown (see C09).",
+   "confidence": "high",
+   "changeClass": "none"
+  },
+  {
+   "id": "C02",
+   "area": "proximity/autoregulation",
+   "claim": "Ending every set before technique loss or at the first obvious slowdown, with no intentional failure (§11.1), is well supported for strength and for recovery between sessions. Its cost falls on hypertrophy, not strength. The athlete's diagnosis that earlier stalls came partly from 'insufficient proximity' is not supported for strength.",
+   "verdict": "strength",
+   "evidence": [
+    "Robinson et al. 2024, Sports Med 54(9):2209-2231: estimated-RIR slope for strength 0.003 SMC (95% CI -0.012 to 0.018), i.e. negligible. For hypertrophy the slope was -0.019 (CI excludes 0). Load-adjusted and exploratory. https://link.springer.com/article/10.1007/s40279-024-02069-2",
+    "Robinson et al. 2025, Int J Strength Cond 5(1), 38 trained men over 8 wk: bench 4-6 RIR +9.05 kg vs 0 RIR +0.71 kg. Velocity data show the nominal 4-6 RIR squat group actually trained near 8 RIR and still gained +13.8 kg. 1-3 RIR gained +18.1 kg; CIs overlap. https://journal.iusca.org/index.php/Journal/article/view/393",
+    "Grgic et al. 2022, J Sport Health Sci 11(2):202-211: failure vs non-failure for strength ES -0.09 (-0.22 to 0.05). https://doi.org/10.1016/j.jshs.2021.01.007",
+    "Pareja-Blanco et al. 2017, Scand J Med Sci Sports 27(7):724-735: VL20 and VL40 squat strength gains were similar, with 40% fewer reps and MHC IIX preserved at VL20. Smith machine. https://pubmed.ncbi.nlm.nih.gov/27038416/",
+    "Moran-Navarro et al. 2017, Eur J Appl Physiol 117(12):2387-2399: non-failure squat and bench protocols recovered significantly faster at 24-48 h than to-failure sets. https://pubmed.ncbi.nlm.nih.gov/28965198/",
+    "Ruple et al. 2023, Physiol Rep 11(9):e15679: 0-1 vs 4-6 RIR on SQ/BP/DL over 5 wk showed no 1RM condition x time interaction. https://pubmed.ncbi.nlm.nih.gov/37144554/"
+   ],
+   "reasoning": "This is one of the best-supported features of REF5. It also matches the athlete's C11 (no grinding). Caveats: every proximity RCT ran 5-12 weeks, mostly in young men. Small strength differences cannot be ruled out, since Robinson 2025's squat point estimate favoured 1-3 RIR by about 4 kg. Hypertrophy cost is real (see C05). Going closer to failure is not the evidence-favoured first fix for a strength stall.",
+   "confidence": "high",
+   "changeClass": "none"
+  },
+  {
+   "id": "C03",
+   "area": "frequency",
+   "claim": "Squatting every session, with hard squat limited to 2 starts per 168 h at least 48 h apart, captures most of the frequency benefit for strength. A 3rd-4th weekly session adds only V or micro work, which volume-equated trials suggest costs little. The zero-tolerance 168 h boundary is an artefact: it has cost 2 hard exposures, each missed by under 15 minutes.",
+   "verdict": "tradeoff",
+   "evidence": [
+    "Pelland et al. 2026, Sports Med 56(2):481-505: frequency had a positive effect on strength with diminishing returns; the frequency model was volume-adjusted. Preprint values: 12.7% at 1 vs 17.3% at 2 sessions/wk, then accelerating diminishing returns. https://link.springer.com/article/10.1007/s40279-025-02344-w",
+    "Tao et al. 2026, Int J Sports Sci Coach 21(4):2628-2648 (47 studies): higher frequency gave a small strength advantage (|g|=0.17) and no muscle-mass effect. https://ro.ecu.edu.au/ecuworks2022-2026/8044",
+    "Colquhoun et al. 2018, JSCR 32(5):1207-1213: trained men at 3 vs 6 sessions/wk with volume equated showed no squat difference (p=0.845). https://pubmed.ncbi.nlm.nih.gov/29324578/ . Johnsen & van den Tillaar 2021, PeerJ 9:e10781: 2 vs 4 sessions/wk, squat +13.25 vs +14.31 kg (p=0.64). https://peerj.com/articles/10781/",
+    "Grgic et al. 2018, Sports Med 48(5):1207-1220: no frequency effect when volume was equated (p=0.421), and the lower-body effect was not significant (p=0.070). https://pubmed.ncbi.nlm.nih.gov/29470825/",
+    "Raastad & Hallen 2000, Eur J Appl Physiol 82(3):206-214: in strength athletes, all variables were back to baseline by 33 h after 3RM-load squats. Belcher et al. 2019 (APNM 44(10):1033-1042) found squat velocity still -8.6% at 72 h after sets to failure, so the 48 h rule is adequate only if hard sets stay short of failure. https://link.springer.com/article/10.1007/s004210050673",
+    "[D] Normal sessions: 18 hard, 7 V. Five V sessions came from the 48 h gate (gaps of 44, 24, 24, 23 and 44 h). Two came from the 168 h count, missed by 13.9 min (8/29) and 10.5 min (9/12), each about 1/6 of a window. [C] Hard squat is capped at 2/wk whether the athlete trains 2, 3 or 4 times a week."
+   ],
+   "reasoning": "Direct evidence supports at least 2 squat exposures per week and suggests little extra from more when volume is matched. The cap does not limit recovery, but it does limit progression cadence. 'Squat first' shows up in session order, not in extra hard dose. A minutes-level boundary has no physiological meaning. Frequency studies use regular calendars, so applying them to REF5's irregular clusters is extrapolation.",
+   "confidence": "medium",
+   "recommendation": "Operational first: when timing allows, start the next session at least 168 h after the second-to-last hard start. If a protocol change is wanted, the single candidate is a small tolerance on the 168 h lookback (for example, treating >=166 h as eligible). It touches only the density gate and leaves the judgment criteria unchanged.",
+   "changeClass": "operational"
+  },
+  {
+   "id": "C04",
+   "area": "volume",
+   "claim": "The realized weekly dose meets the evidence-informed minimum effective strength dose and sits near the point where extra sets stop producing detectable short-term strength gains. Plan B delivered SQ 7.0 sets (4.7 hard), BP 5.6 (3.15 focus) and PULL focus 3.15 per week. That is below the spec's own 3x/wk table, and whether ~3 hard sets/wk suffices for BP and PULL over years is contested.",
+   "verdict": "tradeoff",
+   "evidence": [
+    "Pelland et al. 2026 (SportRxiv preprint values, consistent with the published abstract): strength rose 0.21%/fractional set. Increments stayed above the 3.96% smallest detectable effect only up to ~4 fractional sets/wk: returns diminish but do not reach zero. https://sportrxiv.org/index.php/server/preprint/view/460",
+    "Androulakis-Korakakis et al. 2021, Front Sports Act Living 3:713655: minimum effective dose for powerlifters ~3-6 working sets/wk of 1-5 reps at >80% 1RM, RPE 7.5-9.5. This is mainly expert consensus plus small trials. https://www.frontiersin.org/journals/sports-and-active-living/articles/10.3389/fspor.2021.713655/full",
+    "Schoenfeld et al. 2019, MSSE 51(1):94-103: 1, 3 and 5 sets per exercise gave similar squat and bench 1RM gains in trained men. https://pubmed.ncbi.nlm.nih.gov/30153194/",
+    "Enes et al. 2024, Int J Sports Med 45(9):690-697: 6 and 9 weekly sets beat 3 for squat and bench in strength-trained athletes; 9 was no better than 6. https://doi.org/10.1055/a-2312-5103",
+    "Ralston et al. 2017, Sports Med 47(12):2585-2601: high vs low weekly sets ES 0.18, but the 1RM-specific comparison was not significant (p=0.06). https://link.springer.com/article/10.1007/s40279-017-0762-7",
+    "[D] Plan B (9/05-10/14) averaged 2.45 sessions/wk. Weekly totals ranged from 0 to 34 sets. The spec §19.3 table at 3x/wk gives SQ 9, BP 7-8, PULL 4-5."
+   ],
+   "reasoning": "For squat, the dose is adequate on current evidence. For BP and PULL at ~3 focus sets/wk, Enes 2024 points to a mild under-dose, but Schoenfeld 2019 contradicts that. No trial covers weighted pull-ups. The dose-response models are fitted to ~10-week trials, so cumulative multi-year effects of a little more volume cannot be excluded. Every window so far ended INCREASE, so there is no internal signal for change.",
+   "confidence": "medium",
+   "recommendation": "No change while windows keep ending INCREASE. Pre-register this: if SQ windows start ending MAINTAIN after a clean §23.1 recovery audit, the first single-element candidate is weekly squat volume. It belongs after the recovery audit, not before it.",
+   "changeClass": "observation-only"
+  },
+  {
+   "id": "C05",
+   "area": "volume",
+   "claim": "Under the fixed constraints, REF5 delivers little hypertrophy stimulus: no accessories, non-failure sets, about 3-7 direct sets per muscle per week, and a mild deficit. For a multi-year target needing about +70% squat strength, this is a plausible long-run limiter, but the evidence linking hypertrophy dose to long-term 1RM in intermediates is indirect.",
+   "verdict": "weakness",
+   "evidence": [
+    "ACSM 2026, MSSE 58(4):851-872: hypertrophy is enhanced by >=10 sets per muscle per week, with a dose-response that plateaus around 18-20. https://doi.org/10.1249/MSS.0000000000003897",
+    "Schoenfeld, Ogborn & Krieger 2017, J Sports Sci 35(11):1073-1082: each additional weekly set gave +0.37% muscle size. https://doi.org/10.1080/02640414.2016.1210197",
+    "Robinson et al. 2024: hypertrophy rose as sets ended closer to failure, while strength did not. https://link.springer.com/article/10.1007/s40279-024-02069-2",
+    "Murphy & Koehler 2022, Scand J Med Sci Sports 32(1):125-137: an energy deficit impaired lean-mass gains (ES -0.57) but not strength (ES -0.31, p=0.28). A deficit of ~500 kcal/d prevented lean gains. https://pubmed.ncbi.nlm.nih.gov/34623696/",
+    "Counterpoint: Rantila & Ahtiainen 2026, J Sci Sport Exerc: in trained athletes, 1.5x extra volume did not improve muscle size or back squat, and the deadlift favoured lower volume. https://journal.hep.com.cn/josisae/EN/10.1007/s42978-026-00387-7"
+   ],
+   "reasoning": "This is the price of C5 (5 lifts, no accessories) and C11 (no grinding), not a design error. The direct evidence is about short-term hypertrophy. That lean mass will become the limiter on the way to 2.5x bodyweight is an extrapolation. The athlete's recomp to ~70 kg makes adding muscle harder, though a ~200 kcal/d deficit is well below the threshold that abolished lean gains.",
+   "confidence": "medium",
+   "recommendation": "None within the fixed principles. This describes a cost only. Revisit it only through the §23.1 order (recovery audit first) if long-run stagnation appears.",
+   "changeClass": "none"
+  },
+  {
+   "id": "C06",
+   "area": "volume",
+   "claim": "DL (2x4 at ~64-67% of e1RM) and OHP (2x6 at ~56-59% of e1RM) are effectively maintenance-or-lower doses with near-zero hard sets. Both are frozen in practice by caps expressed in REF units, whose baselines sit below this athlete's DL and OHP capacities. In addition, an auxiliary window that closes just before a squat increase can throw away 4 PASS exposures.",
+   "verdict": "weakness",
+   "evidence": [
+    "[D] The DL REF baseline (100 at 72.5 kg) is about 15% below the athlete's DL e1RM (~112-117). OHP has been at 32.5 since 8/24, with 8 straight PASS, frozen by the cap (max 33.8 at BP 85). On 8/11 a DL window ended MAINTAIN by cap with 4 PASS, and the squat increase came 2 days later.",
+    "[C] The OHP cap works out to OHP <= floor2.5(0.398 x BP focus), against a historical OHP:BP e1RM ratio of ~0.58. One OHP step is 7.7% of load, against ~2.9% for the main lifts. The next OHP step needs BP focus 90, so not before about December.",
+    "Androulakis-Korakakis, Fisher & Steele 2020, Sports Med 50(4):751-765: the minimum dose for trained men was 1 set of 6-12 reps at ~70-85%, to failure, 2-3x/wk. Deadlift evidence is lacking. https://pubmed.ncbi.nlm.nih.gov/31797219/",
+    "Spiering et al. 2021, JSCR 35(5):1449-1458: strength was maintained with low volume when relative intensity was maintained. Data are from younger general adults. https://pubmed.ncbi.nlm.nih.gov/33629972/",
+    "Plotkin et al. 2022, PeerJ 10:e14142: adding reps at a fixed load was a viable overload route in trained adults. It was tested with 8-12RM sets to failure on lower-body lifts. https://peerj.com/articles/14142/"
+   ],
+   "reasoning": "This follows directly from C7 (DL <= SQ) and C8 (OHP <= 0.5 x BP). The athlete's 1RM-terms OHP:BP ratio (~0.58) already exceeds C8, so the cap is meant to bind. Expect DL and OHP to hold or drift rather than rise. The window discard is a mechanism inefficiency, not a physiological issue.",
+   "confidence": "high",
+   "recommendation": "The evidence requires no change; this is the intended price of C7/C8. If OHP progress inside C8 is ever wanted, the single candidate is rep progression at fixed load (2x6 to 2x8) while the cap holds load. The expected effect is small because the sets stay far from failure, and the evidence is indirect.",
+   "changeClass": "none"
+  },
+  {
+   "id": "C07",
+   "area": "progression/windows",
+   "claim": "The 6- and 4-exposure windows with +2.5 kg steps are a conservative, noise-tolerant progression filter. Their cadence ceiling (~43 kg/yr of H3 for SQ; ~34 kg/yr at the observed cadence) is above the best competitive squat gains, so cadence is not the long-run limiter. The cost is lag during the current re-climb: windows took 17-25 days. Squat, the top priority, has both the slowest cadence and the strictest gate.",
+   "verdict": "strength",
+   "evidence": [
+    "Grgic et al. 2020, Sports Med Open 6:31: 1RM test-retest CV in trained lifters is 3.3%, about one 2.5 kg step at 85 kg. So a single exposure is near noise level, and multi-exposure windows damp it. https://link.springer.com/article/10.1186/s40798-020-00260-z",
+    "Latella et al. 2022, MSSE 54(5):841-850 (1,896 competitors): maximum squat gains 20.2-25.4 kg/yr, with the strongest men gaining more slowly. https://doi.org/10.1249/MSS.0000000000002858",
+    "Graham & Cleather 2021, JSCR 35(9):2451-2456: RIR-autoregulated vs fixed loading gave back squat +10.8% vs +7.1%, with mean intensity 83.6% vs 80.4%. This shows the cost when load lags capacity. https://journals.lww.com/nsca-jscr/fulltext/2021/09000/autoregulation_by__repetitions_in_reserve__leads.14.aspx",
+    "Hickmott et al. 2022, Sports Med Open 8:9: autoregulated vs standardized load for 1RM MD +2.07 kg (CI -0.32 to 4.46), not significant. https://link.springer.com/article/10.1186/s40798-021-00404-9",
+    "[D] Window durations: SQ 25 and 24 days, BP 20 and 17, PULL 23 and 18. [C] Plan B cadence: hard SQ 1.58/wk, giving ~3.8 wk per window. Chance a window ends INCREASE at P(HOLD)=0.2 and P(FAIL)=0.05 per exposure: SQ 0.46 vs BP/PULL 0.65."
+   ],
+   "reasoning": "Increment-to-noise matching and the gap between ceiling and biology are well grounded. The lag is real but small in autoregulation meta-analyses. No study tests window length or step size inside a fixed-increment program, so window design rests on arithmetic and coaching reasoning. Long term, outcome quality (the share of clean windows), not cadence, will set the rate.",
+   "confidence": "medium",
+   "recommendation": "No change now. Every window has ended INCREASE, and the user forbids relaxing the gate. Any shorter SQ window is at most a later single §26 candidate.",
+   "changeClass": "none"
+  },
+  {
+   "id": "C08",
+   "area": "measurement",
+   "claim": "The 106/106 PASS record (0 HOLD, 0 FAIL) cannot yet separate 'loads inside capacity' from 'insensitive detector'. Working loads are still below the June 2026 3x3 loads. Sets at ~82-88% end at 2-3 reps, before a visible slowdown would normally appear. Perceived slowdown is noisy, and §11.1 resolves ambiguity toward 'no slowdown'. The first informative zone is H3 ~90-92.5 / H2 ~95-97.5, about 2-3 squat increments away.",
+   "verdict": "unknown",
+   "evidence": [
+    "[D] All 106 kg-lift exposures were PASS / NORMAL at 100% of prescribed reps. Current vs June 2026 3x3 working loads: SQ 85 vs 92.5, BP 85 vs 90, PULL total 90 vs 94, DL 75 vs 100, OHP 32.5 vs 50. The 10/04 memo ('strength wasn't coming') was still logged PASS.",
+    "Dello Iacono et al. 2023, IJSPP 18(5):488-494: the mean absolute error of perceived 20% and 40% velocity loss on bench was about 1 rep, and worse at loads above 60% 1RM. https://doi.org/10.1123/ijspp.2022-0298",
+    "Sindiani et al. 2020, Physiol Behav 224:113025: perception error grew across reps, and squat velocity change was 4.2x more likely to be underestimated (at 60-70% loads). https://doi.org/10.1016/j.physbeh.2020.113025",
+    "Shaw et al. 2023, Int J Strength Cond: in the deadlift, the probability of perceiving >=20% velocity loss better than chance was only 10.49% (n=17). https://journal.iusca.org/index.php/Journal/article/view/161",
+    "Halperin et al. 2022, Sports Med 52:377-390: reps to failure were underpredicted by ~0.95 reps, which pushes toward conservative calls. So the net direction of bias is uncertain. https://pubmed.ncbi.nlm.nih.gov/34542869/",
+    "Jukic et al. 2023, Eur J Appl Physiol 123:1343-1357: in the free-weight back squat, the velocity-loss vs %reps relationship did not reproduce between sessions. https://link.springer.com/article/10.1007/s00421-023-05155-x"
+   ],
+   "reasoning": "The record is fully consistent with re-climbing to capacity the athlete already demonstrated. It is not yet evidence about adaptation rate. The slowdown judgment has not been validated in any study. Perception data mostly come from bench, Smith machines or moderate loads, so mapping them onto heavy free-weight triples is extrapolation. HOLD <= 1 absorbs isolated noise, and clustered HOLDs carry the signal. This needs no change to the judgment criteria.",
+   "confidence": "medium",
+   "recommendation": "Logging only, judgment unchanged: on hard and focus sets, record which rep (if any) first slowed, plus a 3-level slowdown tag (none / slight / obvious). Occasionally film a hard set for self-calibration. This adds resolution without RIR, AMRAP or tests.",
+   "changeClass": "operational"
+  },
+  {
+   "id": "C09",
+   "area": "measurement",
+   "claim": "Control REF is a deterministic multiple of the working standard, not an estimate of capacity. SQ, BP and PULL REFs (107.2 / 104.1 / 111.1) already exceed the last demonstrated maxima (~103 / ~100 / 110), even though working loads are still below the June 3x3 loads. With no max test, AMRAP, RIR or velocity device, nothing ties REF back to true 1RM, so REF cannot verify attainment of G1.",
+   "verdict": "weakness",
+   "evidence": [
+    "[D] Current REFs vs reference maxima (internal analysis §1a). The spec itself acknowledges this in §6.3 and §22.4.8.",
+    "[C] REF rises ~3.15 per H3 increment whatever happens to true 1RM. The only brake is the binary slowdown judgment (C08).",
+    "Nuzzo et al. 2024, Sports Med 54(2):303-321 (952 tests, 7,289 people): the between-person SD of reps at a given %1RM is large, so population mappings cannot calibrate one individual's REF. https://link.springer.com/article/10.1007/s40279-023-01937-7",
+    "Grgic et al. 2020: trained 1RM tests are highly reliable (ICC 0.98, CV 3.3%). That is the information C9 gives up. https://link.springer.com/article/10.1186/s40798-020-00260-z",
+    "Coaching contrast: the 5/3/1 7th-week protocol (AMRAP at 100% TM; fewer than 3 reps lowers the TM) and Tactical Barbell's 6-12-week retests give a periodic reality check that REF5 lacks by user constraint. https://liftvault.com/resources/7th-week-protocol/ ; https://www.liftosaur.com/programs/tactical-barbell-operator"
+   ],
+   "reasoning": "This is a cost of C9 and C10, accepted knowingly, not a hidden bug. It matters because the user's KPI is e1RM per kg of bodyweight. Displaying REF as if it were a 1RM would mislead. The first HOLD/FAIL clusters on hard sets will be the earliest internal sign that loads have reached capacity.",
+   "confidence": "high",
+   "recommendation": "Display only: label REF as a 'training-load index (not 1RM)' and show it beside the last demonstrated reference (~103 kg SQ). Treat the first HOLD/FAIL cluster on hard sets as the internal calibration point. No tests, AMRAP or RIR are introduced.",
+   "changeClass": "doc-or-display"
+  },
+  {
+   "id": "C10",
+   "area": "measurement",
+   "claim": "Bodyweight is effectively unmeasured: 75.00 is logged in 28 of 29 sessions and 76 once, and the body_measurement table has 0 rows. As a result, none of these can be observed: the G1 KPI (e1RM/BW), the §21 REF/7-day-BW trend, true PULL total load, the §23.1 weight-loss-rate audit, or whether the planned 0.25%/wk cut is happening.",
+   "verdict": "weakness",
+   "evidence": [
+    "[D] Read-only DB check: logged bodyweight 75.00 in 28 of 29 REF5 sessions (76 on 10/14), with 0 body_measurement rows for the user.",
+    "[C] Logged PULL total = logged bodyweight + added load. At a real 70-72 kg, logged totals overstate load by 3-5 kg (up to ~6.7%), and that error feeds the PULL REF and every PULL volume prescription.",
+    "Garthe et al. 2011, IJSNEM 21(2):97-104: the rate of weight loss mattered for lean mass (0.7%/wk: +2.1% LBM; faster: no gain), so the rate has to be measured to be managed. https://pubmed.ncbi.nlm.nih.gov/21558571/",
+    "Murphy & Koehler 2022: lean-mass loss depends on the size of the deficit. A deficit that cannot be observed cannot be audited. https://pubmed.ncbi.nlm.nih.gov/34623696/"
+   ],
+   "reasoning": "This is purely a data-quality fact and does not depend on the literature. It is the highest-leverage fix available because it unblocks the athlete's own KPI and the spec's recovery audit, at no cost to the protocol.",
+   "confidence": "high",
+   "recommendation": "Operational: weigh on waking 3-7 times a week and enter the value. Use the 7-day mean for the KPI and for PULL total load. No protocol change.",
+   "changeClass": "operational"
+  },
+  {
+   "id": "C11",
+   "area": "stagnation/decrease",
+   "claim": "The decrease logic tolerates noise but is slow and cannot tell causes apart. An immediate -2.5 kg needs 2 consecutive FAILs in the same stream, and SQ_H3 and SQ_H2 are separate streams. A stagnation decrease needs about 3 windows (~9-12 weeks at the observed cadence). The stagnation micro is a single 4-set session, so it acts as a delay, not a recovery intervention. Plan cutovers erase in-progress windows, stagnation history and hard-start history: 13 exposures were discarded at the 9/01 to 9/05 cutover.",
+   "verdict": "tradeoff",
+   "evidence": [
+    "Grgic et al. 2020: CV 3.3%, so one FAIL pair at a 2.5 kg resolution is a reasonable noise filter. https://link.springer.com/article/10.1186/s40798-020-00260-z",
+    "Coaching contrast: Alter 2018 (Starting Strength) resets 5-10% after a second consecutive failure at the same load. StrongLifts resets ~10% after 3 failures. REF5's -2.5 kg is smaller, so a real deficit may need several FAIL pairs. https://startingstrength.com/article/the-reset-why-and-how ; https://stronglifts.com/stronglifts-5x5/failure/",
+    "Wendler 2024 (coaching): at a plateau, progress takes 'several months or even longer'; stay at a lighter TM 'one cycle longer than you think'. https://www.jimwendler.com/blogs/jimwendler-com/building-strength-and-the-training-max",
+    "Pelland et al. 2026 and Enes et al. 2024 (MSSE 56(3):553-563): realized volume predicts strength gain. That supports §23.1 checking missed sessions and volume before lowering the standard. https://pubmed.ncbi.nlm.nih.gov/37796222/",
+    "[D] The cutover discarded SQ 3/6, BP 2/4, PULL 3/4, DL 3/4 and OHP 2/4 exposures. H3 then ran twice in a row, and the BP focus gap stretched to 9 days. [C] A new plan resets hardStartTimes, startedSessions, the stagnation phase and history, and the structureReview flag."
+   ],
+   "reasoning": "The evidence says nothing about reset size or stall-detection rules in trained lifters, so these parts rest on arithmetic and coaching convention. The spec already admits that stagnation cannot separate overload from underload (§22.4.3). The §23.1 order (recovery, then stimulus) is the right mitigation. The reset-on-cutover problem is an implementation fact that can silently defeat the §23 'second stagnation decrease at the same basis' trigger.",
+   "confidence": "medium",
+   "recommendation": "Operational: start a new plan or recalibrate only right after a squat window closes (§19.6). Before any cutover, record the stagnation and structureReview state by hand so the §23 trigger is not silently reset.",
+   "changeClass": "operational"
+  },
+  {
+   "id": "C12",
+   "area": "deload/fatigue",
+   "claim": "Leaving out scheduled deloads is consistent with the evidence, which is too weak to require them. The density valve works as an autoregulated reduced-stress session: a micro after back-to-back days or after 3 or more normal starts in 6 days, and a forced micro after FAILs in 2 different lifts. The irregular schedule has also produced three 8-day breaks. The spec does overstate Coleman 2024 by calling lower-body strength gains 'inferior'.",
+   "verdict": "strength",
+   "evidence": [
+    "Coleman et al. 2024, PeerJ 12:e16777: one week of complete cessation in a high-volume, to-failure program changed squat 1RM by -3.6 kg (95% CrI -10.4 to 3.2; posterior 0.851 favouring continuous training). Credible intervals cross zero, and a reduced-load deload was not tested. https://peerj.com/articles/16777/",
+    "Bell et al. 2023, Sports Med Open 9:87 (Delphi): a deload is a period of reduced training stress, may be applied autoregulatorily, and is 'under-researched'. This is expert opinion. https://link.springer.com/article/10.1186/s40798-023-00633-0",
+    "Rogerson et al. 2024, Sports Med Open 10:26: athletes deload every 5.6 +/- 2.3 wk; 13.4% deload purely reactively; the authors note a 'clear lack of empirical research'. https://link.springer.com/article/10.1186/s40798-024-00691-y",
+    "Bosquet et al. 2013, Scand J Med Sci Sports 23(3):e140-e149: losses from training cessation grow with duration and are smaller in recreationally trained than inactive people. https://onlinelibrary.wiley.com/doi/10.1111/sms.12047",
+    "[D] 4 micros: 1 manual, 3 from density. There were 3 eight-day gaps; the 10/14 return was a full hard session, all PASS. Spec §22.2 (around line 842) calls lower-body strength gains in Coleman 2024 'inferior'."
+   ],
+   "reasoning": "The deload evidence is a single cessation RCT plus consensus and survey data, which is not strong enough for a §26 proposal. In practice, REF5's micros plus the athlete's natural gaps give periodic unloading. The spec's wording should match the actual effect size.",
+   "confidence": "medium",
+   "recommendation": "Documentation only: reword §22.2 to say that one week of complete cessation in a high-volume, to-failure program produced a small, uncertain strength disadvantage (credible intervals cross zero), and that reduced-load deloads are untested. No scheduled-deload proposal is warranted.",
+   "changeClass": "doc-or-display"
+  },
+  {
+   "id": "C13",
+   "area": "recovery/deficit",
+   "claim": "A ~0.25%/wk cut (~200 kcal/d at 75 kg) is compatible with continued strength gains, and §23.1's 'recovery audit before stimulus audit' order is well founded. But the protein criterion (>=1.6 g/kg) is an energy-balance figure. And the audit inputs (sleep, protein, stress, weight-loss rate) are not recorded, so the audit cannot currently be run.",
+   "verdict": "strength",
+   "evidence": [
+    "Murphy & Koehler 2022: strength gains were not significantly impaired in a deficit; lean-mass gains were (ES -0.57), with ~500 kcal/d preventing them. https://pubmed.ncbi.nlm.nih.gov/34623696/",
+    "Morton et al. 2018, BJSM 52(6):376-384: FFM gains plateaued at ~1.62 g/kg/d, mostly in energy balance. https://pubmed.ncbi.nlm.nih.gov/28698222/ . Helms et al. 2014, IJSNEM 24(2):127-138: lean athletes in a deficit likely need 2.3-3.1 g/kg FFM. https://pubmed.ncbi.nlm.nih.gov/24092765/",
+    "Refalo, Trexler & Helms 2025, Strength Cond J: >97% probability of a linear protein dose-response per kg FFM (beta 0.06); the per-kg-bodyweight interval included zero. Exploratory. https://doi.org/10.1519/SSC.0000000000000888",
+    "Knowles et al. 2018, J Sci Med Sport 21(9):959-968: consecutive nights of sleep restriction reduced multi-joint force, while single nights had little effect. https://pubmed.ncbi.nlm.nih.gov/29422383/ . Craven et al. 2022, Sports Med 52(11):2669-2690: the strength-specific effect was -2.85%, significant only after total deprivation. https://link.springer.com/article/10.1007/s40279-022-01706-y",
+    "Bartholomew et al. 2008, JSCR 22(4):1215-1221: high life-event stress gave smaller squat and bench gains over 12 wk. https://doi.org/10.1519/JSC.0b013e318173d0bf"
+   ],
+   "reasoning": "The direct evidence supports a mild cut alongside strength work. Most deficit studies are short and use larger deficits and non-athletes, so the size of the effect at 0.25%/wk is extrapolated. Given C2 (poor nutrition and recovery), recovery is a plausible first cause of any future HOLD or FAIL, which is why the audit needs its inputs.",
+   "confidence": "medium",
+   "recommendation": "Operational: add a 3-item pre-session note (nights under 6 h in the last 3; protein roughly adequate yes/no; unusual stress yes/no) so §23.1 can be executed, and read sleep as a multi-night pattern. Documentation note: in a deficit, frame the protein target per kg FFM; it plausibly sits above 1.6 g/kg bodyweight.",
+   "changeClass": "operational"
+  },
+  {
+   "id": "C14",
+   "area": "concurrent climbing",
+   "claim": "Climbing is unlikely to blunt SQ, DL or BP strength when it falls in separate sessions, so leaving it out of the kg logic is defensible. Its real cost is local upper-limb overuse load (fingers, elbow, shoulder) stacked on heavy pull-ups and OAP. The engine does not model this, and the records do not capture it.",
+   "verdict": "tradeoff",
+   "evidence": [
+    "Schumann et al. 2022, Sports Med 52(3):601-612 (43 studies): concurrent aerobic training did not blunt maximal strength (SMD -0.06) or hypertrophy. Explosive strength was attenuated only within the same session. https://link.springer.com/article/10.1007/s40279-021-01587-7",
+    "Petre et al. 2021, Sports Med 51(5):991-1010: in trained lifters, lower-body 1RM interference was ES -0.66 within the same session and -0.10 (not significant) across different sessions. https://doi.org/10.1007/s40279-021-01426-9",
+    "Schoffl et al. 2015, Wilderness Environ Med 26(1):62-67 (911 injuries): 58% were overstrain, shoulder 17.2%, forearm/elbow 9.1%. https://doi.org/10.1016/j.wem.2014.08.013 . Gronhaug 2018, BMJ Open Sport Exerc Med: elbows were 17.7% of chronic climbing injuries. https://bmjopensem.bmj.com/content/4/1/e000406",
+    "Quarmby et al. 2023, Front Sports Act Living 5:1269870: bouldering, higher intensity and previous injury were risk factors; evidence on volume conflicted. https://www.frontiersin.org/journals/sports-and-active-living/articles/10.3389/fspor.2023.1269870/full",
+    "Gaspari et al. 2024, Front Sports Act Living 6:1251047 (n=9 elite boulderers): grip recovered by 24 h; readiness normalised by ~60 h. https://www.frontiersin.org/journals/sports-and-active-living/articles/10.3389/fspor.2024.1251047/full",
+    "[D] No climbing sessions or elbow notes are stored in the DB."
+   ],
+   "reasoning": "The interference evidence is about aerobic training, so applying it to climbing is extrapolation. The local-overuse risk is supported by climbing injury epidemiology, which is mostly cross-sectional. How often the athlete climbs is unclear (1-2 times a month on the constraints sheet, 'ongoing' elsewhere). Without records, the §19.5 operational rules cannot be audited.",
+   "confidence": "medium",
+   "recommendation": "Operational: log each climbing session (date, bouldering or routes, hard or easy) and a next-morning elbow pain score (0-10), so the §19.5 spacing rules can be checked. Keep hard bouldering at least ~48 h before OAP days (coaching-level evidence).",
+   "changeClass": "operational"
+  },
+  {
+   "id": "C15",
+   "area": "exercise order",
+   "claim": "Putting squat first in every session is directly supported. Placing OAP third, after squat and heavy bench, puts a near-limit unilateral skill and strength task under accumulated fatigue. Coaching sources advise against that, and skill-learning data weakly caution against it.",
+   "verdict": "tradeoff",
+   "evidence": [
+    "Nunes JP et al. 2021, Eur J Sport Sci 21(2):149-157 (11 studies): multi-joint strength favoured performing multi-joint exercises first (ES 0.32). Strength gains are largest for exercises done at the start of a session. https://pubmed.ncbi.nlm.nih.gov/32077380/",
+    "ACSM 2026: strength is enhanced by placing the exercise at the beginning of the session. https://pubmed.ncbi.nlm.nih.gov/41843416/",
+    "Branscheidt et al. 2019, eLife 8:e40578: practising under fatigue impaired later motor-skill learning, partly through central mechanisms. This was a lab finger task, so the link to OAP is extrapolation. https://doi.org/10.7554/eLife.40578",
+    "Lopez-Rivera 2013 (coaching): lock-off training 'always at the beginning of the workout and after a good warm-up'. http://en-eva-lopez.blogspot.com/2013/05/lock-off-training-for-climbers-v-goal.html",
+    "[D] 7 of 12 OAP arm-exposures were not PASS. Net rung change after 5.7 weeks: left -1, right 0."
+   ],
+   "reasoning": "Squat-first rests on meta-analytic and position-stand evidence, so confidence is high for that part. The OAP slot concern is low-certainty: there is no OAP-specific trial, and moving OAP earlier would cost bench in turn. The current OAP data are too few to tell slot fatigue apart from strength shortfall (C21) or rung-definition noise (C16).",
+   "confidence": "medium",
+   "recommendation": "None now. If OAP stalls (no rung gain over ~8 exposures per arm after rung contact is standardized), the single §26-style candidate is moving the OAP slot to position 2, before BP focus, and accepting a likely small BP cost.",
+   "changeClass": "observation-only"
+  },
+  {
+   "id": "C16",
+   "area": "OAP",
+   "claim": "A per-arm, independent OAP ladder kept separate from kg progression is well grounded. Strength is task-specific, and cross-education transfers only about a third of the trained-arm gain. Gating negatives behind a rung matches coaching practice. The weaknesses: the rungs are ordinal, assist force is uncontrolled, the left-arm memo shows grip position confounds outcomes, and the §19.5c '>=2 weeks per rung' guideline has no compliant way to be enforced.",
+   "verdict": "strength",
+   "evidence": [
+    "Munn, Herbert & Gandevia 2004, J Appl Physiol 96:1861-1866: the contralateral limb gained +7.8%, about 35% of the trained-limb effect. https://journals.physiology.org/doi/full/10.1152/japplphysiol.00541.2003 . Manca et al. 2017, Eur J Appl Physiol 117(11):2335-2354: upper-limb cross-education +9.4% (high risk of bias). https://doi.org/10.1007/s00421-017-3720-z",
+    "Kassiano et al. 2025, Sports Med 55:923-936: unilateral strength was favoured by unilateral training (ES -0.65). https://doi.org/10.1007/s40279-024-02169-z . Saeterbakken et al. 2025: dynamic training transferred only SMD 0.42 to isometric strength, which bears on the lock-off phase. https://pmc.ncbi.nlm.nih.gov/articles/PMC12296774/",
+    "Roig et al. 2009, BJSM 43:556-568: the eccentric advantage appeared only at higher intensity and was mode-specific. That supports negatives as a gated add-on, not the main tool. https://bjsm.bmj.com/content/43/8/556",
+    "Coaching: leverage.fit says finger-assisted reps work but 'assistance is hard to measure'. Brookshire 2013 found positions past the elbow awkward. https://www.hybridcalisthenics.com/advanced-onehand-pullups",
+    "[D] 12 arm-exposures: 4 FAIL, 3 HOLD, 5 PASS. The 9/21 left memo: rung-1 grip felt awkward, 'may have had strength left'. [C] Promotion can happen within ~8 calendar days, and neither INVALID nor revert is a compliant way to hold a rung."
+   ],
+   "reasoning": "Per-arm states and task-specific practice rest on meta-analyses, although these are mostly lower-limb and single-joint. Ladder validity rests on coaching sources only, since no OAP acquisition study exists. Measurement noise in rung definitions can produce FAIL/HOLD streaks that are not about strength, which matters because demotion follows 2 FAILs.",
+   "confidence": "medium",
+   "recommendation": "Operational, measurement only: standardize the assisting-hand contact per rung (fixed landmark, open palm, no gripping) and note it per arm, so rung outcomes reflect strength rather than hand placement. Promote/demote rules stay unchanged.",
+   "changeClass": "operational"
+  },
+  {
+   "id": "C17",
+   "area": "OAP",
+   "claim": "The v1.4 swap removed little pulling stimulus but added high-tension elbow-flexor load. The replaced PULL volume 2x6 was always bodyweight +0 kg (~68% of the pull total, far from failure), whereas OAP sets are near-limit unilateral pulls. The PULL volume veto now rests only on micro bodyweight x6, so it is effectively inert, and the judgment in practice reduces to FAIL 0 / HOLD <= 1 on focus exposures.",
+   "verdict": "tradeoff",
+   "evidence": [
+    "[D] Every PULL volume prescription has been bodyweight +0, because the target total (70-75) is at or below the logged bodyweight of 75. OAP: 7 of 12 arm-exposures were HOLD or FAIL, indicating near-limit effort.",
+    "[C] At about 68% of the pull total, 6 reps leaves roughly 8-10 reps in reserve. The veto's only input is the micro 1x6, which is unlikely to fire.",
+    "Nuzzo et al. 2024: about 15 reps to failure at 70% 1RM, consistent with bodyweight x6 being far from failure. https://pmc.ncbi.nlm.nih.gov/articles/PMC10933212/",
+    "Coaching: Antranik (2018) calls one-arm pull-ups and chin-ups 'NOTORIOUS for causing elbow pain if the exercise is rushed through'. DeMarco reports elbow tendonitis on a rushed OAC attempt (n=1). https://antranik.org/one-arm-pullup/ ; https://divergentstrengthacademy.com/blog/one-arm-chinups",
+    "Gronhaug 2018: elbows were 17.7% of chronic climbing injuries, which adds to the same tissue load. https://bmjopensem.bmj.com/content/4/1/e000406"
+   ],
+   "reasoning": "The spec frames v1.4 mainly as a loss of PULL volume (§22.4.9). The records show the bigger change is more elbow-flexor tension on top of heavy pull-ups and climbing. This is inference: no trial measures OAP tissue load. The inert veto is a description and does not change the user's criteria.",
+   "confidence": "medium",
+   "recommendation": "Documentation only: reframe §22.4.9 as 'v1.4 trades a low-stimulus bodyweight set block for more high-tension elbow-flexor loading', so that elbow monitoring, not PULL volume loss, is the watched risk.",
+   "changeClass": "doc-or-display"
+  },
+  {
+   "id": "C18",
+   "area": "knee/elbow",
+   "claim": "Spec §7.3 says the 48 h separation between heavy pull and OAP is 'structurally guaranteed'. The engine only guarantees they fall in different sessions, and the records show 3 of 11 heavy-pull/OAP adjacencies under 48 h (23 h, 24 h, 44 h). The physiological evidence that 48 h is needed rather than ~24 h is weak, so this is mainly a documentation error with a modest, unquantified elbow-risk implication.",
+   "verdict": "weakness",
+   "evidence": [
+    "[D] docs/ref5-program-spec.md:302: '헤비 풀업(PULL 집중)이 없는 날에만 OAP가 오므로 두 고장력 당기기 사이의 48시간 분리는 구조적으로 보장된다' ('OAP comes only on days without heavy pull (PULL focus), so 48 h separation between the two high-tension pulls is structurally guaranteed'). Focus alternates on every normal session, so any two normal sessions under 48 h apart pair heavy PULL with OAP.",
+    "[D] Adjacencies: 9/07 OAP to 9/08 PULL (23 h), 9/21 OAP to 9/23 PULL (44 h), 9/23 PULL to 9/24 OAP (24 h). 7 of 28 session gaps were 1 day.",
+    "Magnusson, Langberg & Kjaer 2010, Nat Rev Rheumatol 6:262-268: net collagen loss for ~18-36 h after loading, then net synthesis. Its key point is that 24 h of rest is 'sufficient'. Data are from lower-limb tendons after running. https://www.nature.com/articles/nrrheum.2010.43",
+    "Lopez-Rivera 2013 (coaching): rest 24-72 h between lock-off sessions, and stop if the elbow hurts the next day. http://en-eva-lopez.blogspot.com/2013/05/lock-off-training-for-climbers-v-goal.html",
+    "Bohm et al. 2015, Sports Med Open 1:7: tendon stiffness adapts to high-strain loading (SMD 0.90) in interventions of >=8 weeks. There are no data on short windows or elbow tendons. https://link.springer.com/article/10.1186/s40798-015-0009-9"
+   ],
+   "reasoning": "The factual error is certain. The physiological consequence is uncertain because all tendon timing data are lower-limb or in vitro, and no study covers weighted pull-up or OAP recovery. No performance effect is visible in the sample of 11.",
+   "confidence": "high",
+   "recommendation": "Documentation only: correct §7.3 to 'different sessions, not 48 h'. If an engine guarantee is wanted later, the single protocol candidate is an OAP gate: if a PULL focus start was less than 48 h ago, that session uses the existing revert (v1.3 PULL volume). Certainty of benefit is low to moderate.",
+   "changeClass": "doc-or-display"
+  },
+  {
+   "id": "C19",
+   "area": "knee/elbow",
+   "claim": "The undiagnosed suprapatellar knee pain is the most likely binding constraint on a high-bar, squat-first program, yet REF5's judgment does not see it (by design), and the evidence for quadriceps-tendon pain is thin. The athlete's out-of-program management (isometric warm-up at pain 0-3/10, depth and stance control) matches patellar-tendinopathy loading practice. But stance has changed at least twice, and there is no structured pain record.",
+   "verdict": "risk",
+   "evidence": [
+    "King et al. 2019, Ann Transl Med 7(4):72: there is a 'paucity of studies' on quadriceps tendinopathy; non-operative care comes first. The prognosis data come from jumper's knee, which is mostly patellar. https://atm.amegroups.org/article/view/23948/html",
+    "Breda et al. 2021, BJSM 55(9):501-509 (JUMPER): progressive tendon loading, with progression gated by pain <=3/10 on a single-leg squat test, beat eccentric training (VISA-P +28 vs +18). https://bjsm.bmj.com/content/55/9/501",
+    "Agergaard et al. 2021, Am J Sports Med 49(4):982-993: heavy (90% 1RM) and moderate (55%) slow resistance gave similar results at 52 weeks in patellar tendinopathy. https://journals.sagepub.com/doi/10.1177/0363546520988741",
+    "Rio et al. 2015, BJSM 49:1277-1283 (n=6): isometric loading gave acute analgesia, still present at 45 min. This is small and short-term evidence. https://bjsm.bmj.com/content/49/19/1277",
+    "Crossley et al. 2016, BJSM 50:839-843: patellofemoral pain is aggravated by squatting and stairs, so the diagnosis overlaps. https://bjsm.bmj.com/content/50/14/839",
+    "[D] Memos: 7/24 'wide stance, knees-out cue is improving the knee pain'; 10/04 'narrowed stance slightly'. Stance changes reduce how comparable exposures are."
+   ],
+   "reasoning": "Keeping pain outside the judgment system is consistent with the user's choice that auto-micro is not rehab. Without a diagnosis or a fixed pain metric, however, a knee-driven HOLD/FAIL cannot be told apart from a strength-driven one. Tendinopathy evidence is extrapolated from the patellar tendon.",
+   "confidence": "low",
+   "recommendation": "Operational, outside the judgment system: score a fixed provocation test (for example, a bodyweight or single-leg squat to a set depth) from 0 to 10 before and about 24 h after hard squat days, and get a clinical diagnosis to separate quadriceps tendinopathy from patellofemoral pain.",
+   "changeClass": "operational"
+  },
+  {
+   "id": "C20",
+   "area": "goal feasibility",
+   "claim": "G1 (175 kg high-bar at ~70 kg) is a rare, upper-percentile outcome that needs about +70% from the ~103 kg reference. Population data put typical long-term competitor gains well below that per decade. The goal is defensible as a direction, but it cannot be credibly dated, and REF5's cadence is not what limits it.",
+   "verdict": "unknown",
+   "evidence": [
+    "Gonzalez et al. 2025, Appl Sci 15(6):3143: low-bar 1RM was ~7% above high-bar. https://doi.org/10.3390/app15063143 . Nuckols (SBS, coaching): typically 5-10% more low-bar. So 175 kg high-bar is roughly 184-193 kg low-bar (2.6-2.75x bodyweight at 70 kg).",
+    "Latella et al. 2019, JSCR 33(7S):S103-S112: 74 kg class squat means were 172.7 kg for local and 200.2 kg for international raw competitors. https://acuresearchbank.acu.edu.au/download/f50fbd80af80bb0182c6d2df3de9874197aaf9db5354cacaff4089cf71d01cde/280151/Latella_2019_Differences_in_Strength_Performance_Between_Novice.pdf",
+    "van den Hoek et al. 2024, J Sci Med Sport 27(10):734-742: the drug-tested male 90th-percentile squat is 2.83x bodyweight for young adults. https://doi.org/10.1016/j.jsams.2024.07.005",
+    "Latella et al. 2024, Sports Med 54(3):753-774: powerlifters gain ~7.5-12.5% in the first competitive year and up to ~20% after 10 years; progress is front-loaded. https://doi.org/10.1007/s40279-023-01962-6",
+    "Nuckols 2022 (SBS): each equally spaced milestone takes about twice as long as the previous one. https://www.strongerbyscience.com/?p=57447 . Nuckols 2018: sex, age and strength models explain only ~11% of the variance. https://www.strongerbyscience.com/?p=46506",
+    "[C] 175/103 = 1.70. REF5's SQ ceiling (~34-43 kg/yr of H3) exceeds the best competitive squat gains (20-25 kg/yr; Latella 2022)."
+   ],
+   "reasoning": "Competitor data are selected and mostly low-bar, belted and peaked, and individual variance is large. The athlete's history (a plateau on poorly matched programs, 1.37x bodyweight) could mean unrealized potential. The planned cut slightly lowers absolute strength potential, which is an extrapolation. Honest reading: plausible but low-probability on population priors, on a horizon of many years. Rate of true adaptation, knee tolerance and recovery, not program cadence, will decide it.",
+   "confidence": "medium",
+   "recommendation": "Documentation/display: present G1 as a direction with interim milestones, such as a measured-bodyweight REF/BW trend and first HOLD-free windows at H3 90-92.5, rather than a date.",
+   "changeClass": "doc-or-display"
+  },
+  {
+   "id": "C21",
+   "area": "goal feasibility",
+   "claim": "For G6 (one-arm chin-up), current weighted pull-up strength (+35 kg 1RM, ~47% of bodyweight) is below the practitioner heuristics usually cited before a free OAC (+60-67% of bodyweight). So the bilateral PULL standard, not ladder speed, is the likely limiter. No peer-reviewed data on OAP acquisition exist.",
+   "verdict": "unknown",
+   "evidence": [
+    "Willoughby rule, via Legendary Strength (2018): one one-arm chin is about a two-arm chin with +2/3 of bodyweight. Commenters dispute it. https://legendarystrength.com/chinups-two-arm-one-arm-weighted/",
+    "J Aust Strength Cond 2019;27(7):62-68, a practitioner 9-step model: a 3RM chin-up with +60% bodyweight before one-arm negatives. https://lida.sport-iat.de/ta/Record/4058980?lng=en",
+    "DeMarco (coaching, n=1): ~3 years to the first OAC; begin specific work at about +2/3 bodyweight. leverage.fit says no research-backed bodyweight threshold guarantees an OAP. https://divergentstrengthacademy.com/blog/one-arm-chinups",
+    "Latella et al. 2022: the best competitive bench gains are 10.5-12.8 kg/yr, the closest upper-body rate analogue. https://doi.org/10.1249/MSS.0000000000002858",
+    "[C] At 75 kg the heuristics imply about +45-50 kg added, a gap of ~10-15 kg. Cutting to 70 kg at constant total raises the ratio from 1.47x to 1.57x, worth ~7.9 kg of added load. The ladder minimum is >=15 PASS per arm (about 10-14 weeks at the observed cadence)."
+   ],
+   "reasoning": "All thresholds are unvalidated coaching heuristics. Since bodyweight is unmeasured (C10), the relative-strength gap itself is uncertain by several kg. The cut helps G6 more than any ladder tweak would.",
+   "confidence": "low",
+   "recommendation": "Observation only: track PULL added load as a percentage of measured bodyweight against the +60-67% heuristic, treated as a non-validated readiness marker.",
+   "changeClass": "observation-only"
+  },
+  {
+   "id": "C22",
+   "area": "comparison",
+   "claim": "At the level of principles, REF5 keeps what was useful in the athlete's failed programs and avoids their diagnosed failure modes. It squats more often than 5/3/1 (Krypteia rotates squat about once every 2 weeks), uses far less volume than nSuns (9 main-lift plus 8 secondary sets per session), and gates loading on performance where Tactical Barbell Operator runs largely open-loop from a TM. What it gives up relative to these and to RTS or AMRAP systems is a periodic maximal reality check and finer load-tracking. In autoregulation trials that trade has a small, uncertain measured cost.",
+   "verdict": "strength",
+   "evidence": [
+    "Wendler 2021, Krypteia (2 days/wk): main lifts rotate over 2 weeks, so squat is trained about once every 2 weeks. https://www.jimwendler.com/blogs/jimwendler-com/krypteia-2-days-week",
+    "nSuns 5/3/1 LP (Lift Vault, secondary): TM 90%, 9 main-lift sets including an AMRAP plus 8 secondary sets per session, with AMRAP-driven weekly TM increases. https://liftvault.com/programs/powerlifting/n-suns-lifting-spreadsheets/",
+    "Tactical Barbell Operator (Liftosaur, secondary): TM 90%, waves of 63-85% 1RM, no AMRAP and no built-in autoregulation beyond a crude miss rule, retests every 6-12 weeks. https://www.liftosaur.com/programs/tactical-barbell-operator",
+    "Pritchard & Androulakis-Korakakis 2023, SBS 'Effective Strength Training for the Time-Poor' (coaching synthesis): a handful of 1-5 rep sets per lift per week at RPE ~7.5-9.5, with SQ/BP 2-3x/wk and DL ~1x/wk. Structurally close to REF5. https://www.strongerbyscience.com/training-for-time-poor/",
+    "Hickmott et al. 2022: autoregulated vs fixed load, 1RM MD +2.07 kg (not significant). Zhang et al. 2021 (Front Physiol 12:651112): pooled ES 0.64, driven by APRE (AMRAP-based); RPE and VBT subgroups not significant. https://www.frontiersin.org/articles/10.3389/fphys.2021.651112/full",
+    "Huang et al. 2025, J Exerc Sci Fit 23(4):360-369: no moderate or large back-squat differences between autoregulation methods and fixed percentages, although APRE ranked first. https://pubmed.ncbi.nlm.nih.gov/40791980/ . GZCLP (r/Fitness wiki) uses the same 'bar speed slows noticeably' stopping cue as REF5's slowdown rule. https://thefitness.wiki/routines/gzclp/"
+   ],
+   "reasoning": "The coaching programs themselves have essentially no controlled trials, so this is a principles-level comparison resting on program documents and secondary summaries. Correction: Tactical Barbell does offer a 2-day template (Fighter); the 'wouldn't recommend' remark was about splitting lifts across 2 sessions, not about training twice a week. REF5's closest documented relative is the time-poor minimal-dose approach, with a deterministic, low-input closed loop in place of RPE. Its unique gap, no maximal reality check, comes from C9 and C10, not from the design.",
+   "confidence": "medium",
+   "changeClass": "none"
+  }
+ ],
+ "coaching": [
+  {
+   "id": "R5-01",
+   "area": "volume",
+   "claim": "For the strength goal, REF5's realized weekly hard-set dose is in the range where meta-regressions put most of the attainable strength benefit, so volume is not the near-term limiter for SQ or BP. The dose is: SQ about 4.7 hard sets plus about 2.3 V sets; BP focus about 3.2 plus BP volume; PULL focus about 3.2 (Plan B averages). Per session it is 2–3 work sets per lift. PULL, at about 3 focus sets per week, is the thinnest.",
+   "verdict": "strength",
+   "evidence": [
+    "Pelland et al. 2026, Sports Med 56(2):481-505. Strength shows strongly diminishing returns to weekly volume. Preprint values: increments above the smallest detectable effect only up to about 4 fractional sets per week. https://link.springer.com/article/10.1007/s40279-025-02344-w",
+    "ACSM 2026 Position Stand (Currier et al.). Strength dose-response plateaus beyond about 2–3 sets per exercise. https://doi.org/10.1249/MSS.0000000000003897",
+    "Androulakis-Korakakis et al. 2021. Powerlifter minimum effective dose is about 3–6 sets per week of 1–5 reps at >80%, over 1–3 sessions. This is expert consensus plus small trials. https://doi.org/10.3389/fspor.2021.713655",
+    "Enes et al. 2024, IJSM, trained athletes: 6 weekly sets ≈ 9 > 3 for squat and bench. https://doi.org/10.1055/a-2312-5103",
+    "Schoenfeld et al. 2019, MSSE: 1, 3 and 5 sets per exercise gave similar squat and bench 1RM gains in trained men. https://pubmed.ncbi.nlm.nih.gov/30153194/",
+    "Ralston et al. 2017: for 1RM specifically, high vs low weekly sets was not significant (p=0.06). https://pubmed.ncbi.nlm.nih.gov/28755103/",
+    "Internal record, Plan B 9/05–10/14: SQ 7.0 sets/wk (4.7 hard), BP 5.6 (3.15 focus), PULL 3.5 (3.15 focus), OAP 2.1 pairs, DL 2.1, OHP 2.1."
+   ],
+   "reasoning": "Direct evidence: 2–3 sets per lift per session, and strength being relatively insensitive to volume beyond about 4 weekly sets in short trials. Extrapolation: the tier numbers come from the Pelland preprint, in mostly short, partly untrained, failure-based studies, so they may understate what an intermediate on a one-year plateau needs. Enes 2024 (3 < 6 sets) puts BP-focus-only and PULL (about 3 heavy sets) at the low edge. Applying this to weighted pull-ups has no direct trial. Multi-year adequacy is unknown.",
+   "confidence": "medium",
+   "changeClass": "observation-only",
+   "recommendation": "No change now. If structureReview fires, keep the pre-registered §23.1 order: recovery audit, then realized-volume audit, then +1 volume-slot set as a §26 candidate. That is the evidence-consistent single lever."
+  },
+  {
+   "id": "R5-02",
+   "area": "volume",
+   "claim": "REF5 doses every muscle group well below hypertrophy-oriented levels. Three things combine to do this: C5 (no accessories), stopping well short of failure, and a planned deficit. Long-run strength potential that depends on gaining muscle (moving from about 1.37×BW to 2.5×BW while losing weight) is therefore under-served. This is a cost of the fixed constraints, not a structural error.",
+   "verdict": "tradeoff",
+   "evidence": [
+    "ACSM 2026: hypertrophy is enhanced by ≥10 sets per muscle per week. https://doi.org/10.1249/MSS.0000000000003897",
+    "Schoenfeld, Ogborn & Krieger 2017: about +0.37% muscle size per additional weekly set. https://doi.org/10.1080/02640414.2016.1210197",
+    "Robinson et al. 2024: hypertrophy slope improves closer to failure, while the strength slope is about zero. https://link.springer.com/article/10.1007/s40279-024-02069-2",
+    "Murphy & Koehler 2022: an energy deficit impairs lean-mass gains (ES −0.57), with a threshold around 500 kcal/day. https://doi.org/10.1111/sms.14075",
+    "Internal inference: sets within about 4 RIR are about 4–5/wk for SQ and about 3 each for BP and PULL. DL and OHP are effectively 0, at about 56–67% of e1RM.",
+    "Internal record: the PULL 2×6 removed in v1.4 was always bodyweight +0 kg (likely RIR ≥8), so its hypertrophy loss is small."
+   ],
+   "reasoning": "Direct: hypertrophy dose-response and the proximity effect. Extrapolation: how much multi-year squat strength at a lower bodyweight depends on added muscle. Mattocks-style short-term strength/size dissociation may not hold over years. Recommending accessories would violate C5, so this is reported as a cost only.",
+   "confidence": "medium",
+   "changeClass": "observation-only",
+   "recommendation": "None within the fixed constraints. The only in-protocol volume lever is §23.1 step 3 (+1 set on a volume slot via §26), and only after a structureReview."
+  },
+  {
+   "id": "R5-03",
+   "area": "frequency",
+   "claim": "Squatting every session, with hard H3/H2 work capped at 2 per rolling 168 h and at least 48 h apart, captures nearly all the frequency benefit the evidence supports, so the cap is cheap for strength. The one clear cost in the record: 2 hard exposures were lost because sessions missed the exact 168 h boundary by 13.9 and 10.5 minutes. Each loss is about 1/6 of a squat window, roughly 4–5 days.",
+   "verdict": "strength",
+   "evidence": [
+    "Pelland et al. 2026: volume-adjusted strength-frequency effect, largest from 1 to 2 sessions per week, with diminishing returns after. Preprint: 12.72% at 1 session vs 17.32% at 2. https://link.springer.com/article/10.1007/s40279-025-02344-w",
+    "Colquhoun 2018 (3 vs 6/wk), Saric 2019 (3 vs 6), Johnsen & van den Tillaar 2021 (2 vs 4) and Hamarsland 2022 (2 vs 4): volume-equated, no strength difference in trained lifters. https://pubmed.ncbi.nlm.nih.gov/29324578/ ; https://pubmed.ncbi.nlm.nih.gov/30363041/ ; https://peerj.com/articles/10781/",
+    "Tao et al. 2026: small independent frequency effect on strength (|g|=0.17). https://ro.ecu.edu.au/ecuworks2022-2026/8044",
+    "Raastad & Hallén 2000: contractility back to baseline by 33 h after 3RM-load squatting. https://link.springer.com/article/10.1007/s004210050673",
+    "Morán-Navarro 2017: non-failure sets recover faster at 24–48 h. https://link.springer.com/article/10.1007/s00421-017-3725-7",
+    "Internal record: 18 hard and 7 V normal sessions. 5 V came from the 48 h gate (44, 24, 24, 23 and 44 h); 2 came from the 168 h count, missed by 13.9 min (8/29) and 10.5 min (9/12). Plan B hard rate 1.58/wk.",
+    "Spec §9: exact boundaries, no tolerance; the UI may display the remaining time."
+   ],
+   "reasoning": "Direct: volume-equated frequency trials in trained lifters (6–9 weeks) and recovery time-course studies. Grgic 2018's lower-body frequency effect was non-significant (p=0.07), so the benefit runs mostly through volume. The 168 h cap itself is unvalidated (evidence is silent), but losing exposures by minutes is a pure scheduling artefact with no physiological rationale.",
+   "confidence": "medium",
+   "changeClass": "operational",
+   "recommendation": "Operational only. Show the hard-eligibility countdown in the session preview (§9 already allows this). When eligibility is less than about 1 h away, start the session after it. Changing the 168 h boundary is unnecessary and would be a §26 protocol change."
+  },
+  {
+   "id": "R5-04",
+   "area": "intensity",
+   "claim": "The focus and hard prescriptions sit in the ≥80% band that the strongest evidence links to maximal-strength gains: SQ H3 ≈82–83%, H2 ≈87–88%, BP focus ≈85% and PULL focus ≈82% of best-estimate 1RM. The SQ V (~71%), BP volume (~70%), DL (~64–67%) and OHP (~56–59%) slots are well below this. They act as practice and volume, not as maximal-strength stimuli.",
+   "verdict": "strength",
+   "evidence": [
+    "Currier et al. 2023, BJSM network meta-analysis: higher-load (>80% 1RM) multi-set prescriptions ranked top for strength (HM3 SMD 1.60). https://bjsm.bmj.com/content/57/18/1211",
+    "ACSM 2026: strength is enhanced by loads ≥80% 1RM and 2–3 sets. https://doi.org/10.1249/MSS.0000000000003897",
+    "Lopez et al. 2021, MSSE: heavy (≤8RM) beat light load for strength. https://jyx.jyu.fi/jyx/Record/jyx_123456789_75929",
+    "Swinton et al. 2024: strength is maximised with the heaviest loads; the curve flattens between 65% and 100%. https://link.springer.com/article/10.1007/s40279-024-02006-3",
+    "Internal record and DB: e1RM references SQ ≈102–103, BP ≈100, PULL 110 total, DL ≈112–117, OHP ≈55–58. Current loads are SQ 85/90/72.5, BP 85/70, PULL 90 total, DL 75, OHP 32.5."
+   ],
+   "reasoning": "Direct: load–strength relationships, though ACSM and network meta-analysis evidence comes mostly from novices. All percentages rest on an Epley e1RM from 92.5×3 at RPE 9–10, uncertain by about ±3–5 kg. If capacity has already risen, the true percentages are lower. Because Swinton's curve flattens from about 65%, the ~70% V and volume sets are not trivial stimuli.",
+   "confidence": "medium",
+   "changeClass": "none"
+  },
+  {
+   "id": "R5-05",
+   "area": "proximity/autoregulation",
+   "claim": "The no-failure, stop-at-first-obvious-slowdown rule and the session RPE target of about 7–8 are well supported for strength and recovery. At current loads, effort is set by the load prescription (inferred RIR about 2.5–5 on hard sets), not by the stop rule. The evidence also does not favour the athlete's adopted diagnosis that past stalls came from 'insufficient proximity'. Taking sets closer to failure is not the evidence-based first fix for a future stall; load tracking capacity matters more.",
+   "verdict": "strength",
+   "evidence": [
+    "Robinson et al. 2024: strength RIR slope 0.003 (95% CI −0.012 to 0.018); load is the more influential variable. https://link.springer.com/article/10.1007/s40279-024-02069-2",
+    "Robinson et al. 2025, IJSC, 38 trained men: bench 4–6 RIR ≈ 1–3 RIR, 0 RIR worst. The squat '4–6 RIR' group actually trained at about 8 RIR and still gained +13.8 kg, vs +18.1 kg at 1–3 RIR (CIs overlap). https://journal.iusca.org/index.php/Journal/article/view/393",
+    "Pareja-Blanco et al. 2017: VL20 ≈ VL40 squat strength with 40% fewer reps; VL20 preserved MHC IIX. https://pubmed.ncbi.nlm.nih.gov/27038416/",
+    "Jukic et al. 2023: velocity-loss threshold did not affect strength gains. https://doi.org/10.1007/s40279-022-01754-4",
+    "Grgic et al. 2022: failure vs non-failure for strength, ES −0.09. https://doi.org/10.1016/j.jshs.2021.01.007",
+    "Graham & Cleather 2021: squat gains were larger when load kept pace with capacity (+10.8% vs +7.1%; mean 83.6% vs 80.4% 1RM). https://doi.org/10.1519/JSC.0000000000003164",
+    "Morán-Navarro 2017: failure delays recovery by 24–48 h. https://link.springer.com/article/10.1007/s00421-017-3725-7"
+   ],
+   "reasoning": "Direct for strength over 5–12 weeks (RCTs and meta-regressions). The rule also fits C11 (no grinding) and REF5's 48 h spacing. Caveat: Robinson 2025's point estimate favoured 1–3 RIR by about 4 kg, so very-high-RIR hard sets may cost a little. That gap closes on its own as standards rise. The REF5 RIR figures are inferred (Nuzzo 2024 population means plus one RPE 9–10 triple).",
+   "confidence": "medium",
+   "changeClass": "observation-only",
+   "recommendation": "No protocol change. Pre-register that a future stall is not answered by pushing sets closer to failure. The §21.1 and §23.1 path (recovery, then realized volume) is consistent with the evidence."
+  },
+  {
+   "id": "R5-06",
+   "area": "measurement",
+   "claim": "The binary 'obvious slowdown' judge is low-resolution and probably biased toward PASS at current loads. Perceived velocity loss carries about 1 rep of error and is barely perceived in the deadlift. The spec's tie-break ('if ambiguous, do not record slowdown') pushes borderline sets to PASS. Because nothing checks against a max, control REF (SQ 107.2, BP 104.1, PULL 111.1) has already risen above the last-known maxima while working loads stay below the June 2026 3×3 loads. Nothing in the program re-anchors REF to true capacity.",
+   "verdict": "weakness",
+   "evidence": [
+    "Dello Iacono et al. 2023, IJSPP: perceived 20% and 40% velocity loss on bench had about 1-rep mean absolute error, worse above 60% 1RM. https://doi.org/10.1123/ijspp.2022-0298",
+    "Shaw et al. 2023, IJSC: in the deadlift, only a 10.49% probability of perceiving ≥20% velocity loss better than chance. https://journal.iusca.org/index.php/Journal/article/view/161",
+    "Jukic et al. 2023, EJAP: in the free-weight back squat, velocity-loss to %-reps relationships were unreliable between sessions. https://link.springer.com/article/10.1007/s00421-023-05155-x",
+    "Halperin et al. 2022: reps-to-failure underpredicted by 0.95 (I² 97.9%); bias direction is opposite to leniency. https://pubmed.ncbi.nlm.nih.gov/34542869/",
+    "Internal record: 106/106 kg-lift exposures PASS (0 HOLD, 0 FAIL). Current REFs exceed the e1RM references (SQ ≈102–103, BP ≈100, PULL 110).",
+    "Spec §11 tie-break; §22.4.7–8 already list binary-judgment information loss and that REF cannot prove goal attainment.",
+    "Comparison: 5/3/1's 7th-week TM test (LiftVault) and Tactical Barbell's 6–12-week retests (Liftosaur, LiftVault) provide a periodic maximal reality check that REF5 does not have. https://liftvault.com/resources/7th-week-protocol/"
+   ],
+   "reasoning": "Direct: perception-accuracy studies, mostly on bench, deadlift, Smith machines or moderate loads, so transfer to free-weight high-bar sets of 2–3 reps at 82–88% is extrapolation. The direction of perceptual bias is mixed (Halperin suggests people feel closer to failure), but the tie-break makes under-recording of HOLD the likely net effect. At RIR 3–5 there may genuinely be no slowdown, so PASS may also simply be correct. REF exceeding the old maxima is partly by design, since REF is not a 1RM. The risk is REF inflation, which spec §21.1 itself warns about. C9, C10 and the AMRAP ban rule out the standard fixes.",
+   "confidence": "medium",
+   "changeClass": "doc-or-display",
+   "recommendation": "Logging only. Add an optional per-exposure field, 'first rep that visibly slowed (or none)', that the judge does not read. Outcomes, criteria and C10 are unchanged. This gives a graded trend for the §21.1 review."
+  },
+  {
+   "id": "R5-07",
+   "area": "progression/windows",
+   "claim": "The all-INCREASE record cannot yet separate an effective program from loads that are still below demonstrated capacity. Over 87 days, SQ, BP and PULL are 6 for 6 on windows, and 106 of 106 exposures were PASS. But every current working load is below the athlete's June 2026 3×3 loads: SQ 85 vs 92.5, BP 85 vs 90, PULL 90 vs 94 total, DL 75 vs 100, OHP 32.5 vs 50. The first informative zone (H3 ≈90–92.5, H2 ≈95–97.5) is about 2–3 squat increments away, roughly 7–11 weeks at the observed cadence.",
+   "verdict": "unknown",
+   "evidence": [
+    "Internal DB: June 2026 Tactical Barbell sets were SQ 92.5×3×3, BP 90×3×3 and PULL 94×3×3 (total). Current standards are SQ H3 85, BP 85 and PULL 90 total.",
+    "Internal DB: no HOLD, FAIL, veto, stagnation or structureReview has fired. The DL and OHP MAINTAIN windows were forced by their caps.",
+    "Halonen et al. 2024, SJMSS: strength and size lost during detraining were regained faster than the initial gains (untrained subjects). https://pubmed.ncbi.nlm.nih.gov/39364857/",
+    "Spec §19.4 also states that re-acquisition is faster than first acquisition."
+   ],
+   "reasoning": "This is a record-based inference with high confidence: the loads are verifiably below recent working loads. It does not mean the program is ineffective; it means the data cannot test effectiveness yet. The 10/04 memo ('strength wasn't coming', with a stance change) still recorded PASS, which hints that the first non-PASS outcomes may be close.",
+   "confidence": "high",
+   "changeClass": "observation-only",
+   "recommendation": "Doc-only pre-registration. In the §21.1 three-window review, count windows as evidence of adaptation rate only once the standard exceeds the June 2026 3×3 load for that lift. Treat earlier INCREASE windows as re-acquisition."
+  },
+  {
+   "id": "R5-08",
+   "area": "progression/windows",
+   "claim": "The cadence ceiling will not be the long-run limiter. SQ H3 can rise at most about 43 kg/yr in theory, or about 34 kg/yr at the observed 3.8 weeks per window. That is roughly 1.3–2.1× the best yearly squat gains of competitive powerlifters, so outcome quality will become the binding constraint as adaptation slows. Squat has the longest window (6) under the same HOLD ≤1 / FAIL 0 gate. At equal per-exposure noise, its windows therefore pass less often than BP/PULL windows: 0.46 vs 0.65 at P(HOLD)=0.2 and P(FAIL)=0.05. The top-priority lift will show MAINTAIN windows first and most often.",
+   "verdict": "tradeoff",
+   "evidence": [
+    "Latella et al. 2022, MSSE: maximum yearly gains in competitive powerlifters were squat 20.2–25.4 kg, deadlift 18.1–21.1 kg, bench 10.5–12.8 kg. https://doi.org/10.1249/MSS.0000000000002858",
+    "Latella et al. 2020, JSCR: the strongest male quartile gained about half as fast as the weakest (0.102 vs 0.211 kg/day of total). https://doi.org/10.1519/JSC.0000000000003657",
+    "Nuckols 2022, coaching analysis of three datasets: each equally spaced milestone takes about twice as long as the last. https://www.strongerbyscience.com/?p=57447",
+    "Latella et al. 2024: about 7.5–12.5% gain in the first competitive year and up to about 20% after 10 years. https://doi.org/10.1007/s40279-023-01962-6",
+    "Internal computation: binomial window-success table. SQ windows took 24–25 days. REF rises 3.15 per H3 increment of 2.5 kg."
+   ],
+   "reasoning": "The arithmetic is computed from engine rules. The rate benchmarks are direct observational data from selected competitive samples, a different population, so the ratio is approximate. Implication: at plausible true rates of 3–10% per year, many MAINTAIN windows and eventually stagnation decreases are the expected steady state, not a malfunction. The squat-first priority shows up in session order and exclusivity, not in a faster kg rate. The judgment criteria are fixed by the user and are not challenged here.",
+   "confidence": "medium",
+   "changeClass": "doc-or-display",
+   "recommendation": "Doc-only. Keep the §21.1 first reading (insufficient stimulus or recovery), and add to the §23.1 audit an expected long-run REF slope benchmark of about 3–10% per year. MAINTAIN windows at that rate are then read as predicted, not as a signal to restructure. Criteria are unchanged."
+  },
+  {
+   "id": "R5-09",
+   "area": "progression/windows",
+   "claim": "The decrease and stagnation logic is noise-tolerant but slow and partly blind. The −2.5 kg cut after 2 consecutive same-stream FAILs is about one test-retest CV, a sensible noise filter that is gentler than coaching resets of 5–10%. Weaknesses:\n- Stagnation detection needs about 3 windows: about 9–12 weeks for SQ at the observed cadence.\n- It cannot tell overload from underload (§22.4.3).\n- The 'stagnation micro' is one 4-set session, not a recovery period.\n- Any recalibration, new plan or version cutover wipes the stagnation history and structureReview state. The 9/01→9/05 cutover discarded 13 in-progress exposures and caused H3 twice in a row and a 9-day BP-focus gap.",
+   "verdict": "tradeoff",
+   "evidence": [
+    "Grgic et al. 2020: in trained lifters, 1RM test-retest CV is 3.3%, about one 2.5 kg step at 85 kg. https://link.springer.com/article/10.1186/s40798-020-00260-z",
+    "Alter 2018, Starting Strength: reset of 5–10% after a second consecutive failure (coaching). https://startingstrength.com/article/the-reset-why-and-how",
+    "StrongLifts: −10% after failing the same weight three times (coaching). https://stronglifts.com/stronglifts-5x5/failure/",
+    "Bell et al. 2023 Delphi: a deload is a period of reduced training stress. Rogerson et al. 2024: deloads last about 6.4 days. https://link.springer.com/article/10.1186/s40798-023-00633-0 ; https://link.springer.com/article/10.1186/s40798-024-00691-y",
+    "Spec §15, §19.6 and §24.3: the v1.4 decoder rejects v1.3 state.",
+    "Internal record: cutover discarded SQ 3/6, BP 2/4, PULL 3/4, DL 3/4 and OHP 2/4 exposures."
+   ],
+   "reasoning": "The rule values are an unvalidated design (the evidence is silent). Calling −2.5 kg a noise-scale step is arithmetic plus reliability data. The concern that history is wiped is a code and spec fact: the §23 trigger 'second stagnation decrease at the same basis' can be silently reset by §23.1 step 4. The stagnation micro being too small for recovery is an inference from deload definitions. Its role in the spec is really a pause before reassessment.",
+   "confidence": "medium",
+   "changeClass": "operational",
+   "recommendation": "Operational. Before any plan change (recalibration or version cutover), record the current MAINTAIN-window, stagnation-decrease and structureReview history in the plan notes. Make the change only right after a SQ window closes (§19.6), so the second-stagnation trigger and the window time are not lost."
+  },
+  {
+   "id": "R5-10",
+   "area": "deload/fatigue",
+   "claim": "Leaving out scheduled deloads is defensible for this dose. No trial shows a planned deload improves strength, and the main RCT tested a full week off, finding only a weak, uncertain strength disadvantage. REF5's low per-session volume, non-failure sets and micro valve, plus the athlete's own irregular gaps (three 8-day gaps in 87 days), already provide unplanned unloading. Spec §22.2 overstates the RCT when it says lower-body strength gains were 'inferior'.",
+   "verdict": "strength",
+   "evidence": [
+    "Coleman et al. 2024, PeerJ (Table 3): squat 1RM −3.6 kg (95% CrI −10.4 to +3.2), posterior 0.851 favouring continuous training. The deload was complete cessation, in a high-volume program trained to failure. https://peerj.com/articles/16777/",
+    "Bell et al. 2023 Delphi: deloads may be pre-planned or autoregulated; expert opinion only. https://link.springer.com/article/10.1186/s40798-023-00633-0",
+    "Rogerson et al. 2024: 'clear lack of empirical research'; only 13.4% of athletes deload purely reactively. https://link.springer.com/article/10.1186/s40798-024-00691-y",
+    "Bosquet et al. 2013: strength losses grow with cessation duration and are smaller in recreationally trained people. https://onlinelibrary.wiley.com/doi/10.1111/sms.12047",
+    "Internal record: 8-day gaps 7/26→8/03, 8/13→8/21 and 10/06→10/14. The 10/14 return session was all PASS.",
+    "Spec §22.2 line: '하체 근력 향상이 열위였고' (lower-body strength gains were inferior)."
+   ],
+   "reasoning": "The direct evidence is thin: one cessation RCT plus consensus and survey data. Reduced-load deloads in low-volume submaximal programs are untested, so the decision is 'not contradicted' rather than proven. The user's bar for a §26 deload proposal (strong evidence) is not met.",
+   "confidence": "medium",
+   "changeClass": "doc-or-display",
+   "recommendation": "Doc-only. Reword §22.2: 'a weak, uncertain tendency favouring continuous training after a full week off (squat −3.6 kg, 95% CrI −10.4 to +3.2; reduced-load deloads untested).' No deload proposal."
+  },
+  {
+   "id": "R5-11",
+   "area": "recovery/deficit",
+   "claim": "The planned slow recomposition (about 0.25% of bodyweight per week, about 200 kcal/day) is compatible with continued strength gains. Energy deficits did not significantly impair strength gains in meta-analysis, and lean-mass gains were blocked only around 500 kcal/day. The profile's protein start range (1.6–2.2 g/kg) and the 'stop the cut on a SQ decrease' rule are evidence-consistent. Deficit-specific data point toward the upper end of the protein range.",
+   "verdict": "strength",
+   "evidence": [
+    "Murphy & Koehler 2022: strength ES −0.31 (p=0.28) vs lean mass ES −0.57 (p=0.02); about 500 kcal/day prevented lean-mass gain. https://doi.org/10.1111/sms.14075",
+    "Garthe et al. 2011: elite athletes losing about 0.7%/wk gained 2.1% lean mass; the faster arm did not. https://pubmed.ncbi.nlm.nih.gov/21558571/",
+    "Morton et al. 2018: protein benefit plateaus around 1.62 g/kg/d in energy balance. https://pubmed.ncbi.nlm.nih.gov/28698222/",
+    "Helms et al. 2014: 2.3–3.1 g/kg fat-free mass in caloric restriction. https://pubmed.ncbi.nlm.nih.gov/24092765/",
+    "Refalo, Trexler & Helms 2025: linear protein dose-response per kg fat-free mass in a deficit (exploratory). https://doi.org/10.1519/SSC.0000000000000888",
+    "Spec §20 and §23.1."
+   ],
+   "reasoning": "Direct: the meta-analysis and RCT, though mostly in non-athletes and with larger deficits. Converting 0.25%/wk to about 200 kcal/day assumes typical tissue energy density. The protein figure is per kg fat-free mass, so a g/kg-bodyweight target is extrapolated. Work and social constraints (C2) are the bigger practical risk and are not quantifiable from the records.",
+   "confidence": "medium",
+   "changeClass": "operational",
+   "recommendation": "Personal-profile note, not protocol: once the cut begins, aim for the upper half of the existing 1.6–2.2 g/kg range."
+  },
+  {
+   "id": "R5-12",
+   "area": "measurement",
+   "claim": "Most of the program's own evaluation inputs are not being observed:\n- Bodyweight is logged as exactly 75.00 kg in 28 of 29 sessions (76 on 10/14), with 0 rows in body_measurement. PULL total load, the G1 KPI (e1RM ÷ bodyweight), the §21 REF ÷ 7-day bodyweight trend and the §23.1 weight-loss audit therefore cannot be computed.\n- Sleep, protein, session RPE, climbing and pain are not stored.\nIf a HOLD/FAIL cluster appears, the pre-registered first step (§23.1 recovery audit) cannot be carried out.",
+   "verdict": "weakness",
+   "evidence": [
+    "Internal DB, verified 10/14: today and calculation bodyweight = 75.00 in 28/29 sessions; body_measurement has 0 rows for the user.",
+    "Spec §10.1, §20, §21 (REF ÷ 7-day bodyweight trend) and §23.1 step 1 (sleep, protein, weight-loss rate).",
+    "Knowles et al. 2018: consecutive nights of sleep restriction reduce multi-joint force. https://pubmed.ncbi.nlm.nih.gov/29422383/",
+    "Craven et al. 2022: strength −2.85% overall, significant only after total sleep deprivation. https://link.springer.com/article/10.1007/s40279-022-01706-y",
+    "Bartholomew et al. 2008: high life-stress lifters gained less squat and bench 1RM over 12 weeks. https://doi.org/10.1519/JSC.0b013e318173d0bf"
+   ],
+   "reasoning": "This is a record fact, so confidence is high. The consequence is structural: the spec's audit-first logic, which protects the fixed judgment criteria, depends on data that are not collected. Sleep and stress evidence say patterns over weeks matter more than single nights, which favours routine logging over ad-hoc recall.",
+   "confidence": "high",
+   "changeClass": "operational",
+   "recommendation": "Operational. Weigh in on waking on at least 3 mornings a week and enter the real value at each session (and in body measurements), so the 7-day average and PULL totals are real. The spec already uses today's bodyweight, so no protocol change is needed."
+  },
+  {
+   "id": "R5-13",
+   "area": "concurrent climbing",
+   "claim": "Climbing is unlikely to blunt squat, bench or deadlift strength. It does add unmodelled load to the same elbow and finger tissues as heavy pull-ups and OAP. The engine has no climbing input (removed in v1.2), and adherence to the rules 'no climbing the day before or of OAP' and 'no PULL focus within 48 h of hard climbing' is not recorded.",
+   "verdict": "risk",
+   "evidence": [
+    "Schumann et al. 2022: concurrent aerobic training did not blunt maximal strength (SMD −0.06). https://link.springer.com/article/10.1007/s40279-021-01587-7",
+    "Petré et al. 2021: in trained lifters, lower-body interference appeared only in the same session (−0.66), not in different sessions (−0.10, ns). https://doi.org/10.1007/s40279-021-01426-9",
+    "Schöffl et al. 2015: of 911 climbing injuries, 58.3% were overstrain; forearm/elbow 9.1%. https://doi.org/10.1016/j.wem.2014.08.013",
+    "Grønhaug 2018: elbows were 17.7% of chronic climbing injuries. https://bmjopensem.bmj.com/content/4/1/e000406",
+    "Quarmby et al. 2023: bouldering, intensity and previous injury are risk factors. https://www.frontiersin.org/journals/sports-and-active-living/articles/10.3389/fspor.2023.1269870/full",
+    "Gáspari et al. 2024 (n=9 elite boulderers): readiness normalised 48–60 h after competition. https://www.frontiersin.org/journals/sports-and-active-living/articles/10.3389/fspor.2024.1251047/full",
+    "Spec §19.4 and §19.5.1(a): manual rules, not enforced."
+   ],
+   "reasoning": "The no-interference point is an extrapolation from aerobic concurrent-training data; there are no climbing-specific trials. The elbow risk rests on observational injury epidemiology plus the athlete's own risk ledger. How much OAP plus weighted pull-ups adds on top of climbing cannot be quantified. Climbing frequency itself is inconsistent across sources (1–2 times a month vs ongoing).",
+   "confidence": "medium",
+   "changeClass": "operational",
+   "recommendation": "Operational, outside the protocol: log each climbing session (date, bouldering or routes, hard or easy) and a next-morning elbow pain rating (0–10) in the session memo. This lets the elbow ledger and the §19.5 rules be audited."
+  },
+  {
+   "id": "R5-14",
+   "area": "OAP",
+   "claim": "Spec §7.3 says 48 h separation between heavy pull-ups and OAP is 'structurally guaranteed'. That is false. The engine only guarantees they fall in different sessions, and because focus alternates every normal session, any two normal sessions less than 48 h apart pair a heavy PULL day with an OAP day. In the record, 3 of 11 heavy-PULL/OAP adjacencies were under 48 h (23 h, 44 h and 24 h). Micro bodyweight pull-ups also fell about 21–24 h from OAP twice.",
+   "verdict": "weakness",
+   "evidence": [
+    "Spec line 302: '두 고장력 당기기 사이의 48시간 분리는 구조적으로 보장된다' (the 48-hour separation between the two high-tension pulls is structurally guaranteed). §12: focus alternates on every valid normal session.",
+    "Internal record: 9/07 OAP → 9/08 PULL focus (23 h); 9/21 OAP → 9/23 PULL (44 h); 9/23 PULL → 9/24 OAP (24 h). 7 of 28 inter-session gaps were 1 day.",
+    "Magnusson et al. 2010: net collagen loss for about 18–36 h after loading; the review's key point names 24 h as sufficient rest. https://www.nature.com/articles/nrrheum.2010.43",
+    "Lopez-Rivera 2013 (coaching): 24–72 h between lock-off sessions. http://en-eva-lopez.blogspot.com/2013/05/lock-off-training-for-climbers-v-goal.html"
+   ],
+   "reasoning": "That the spec claim is false is a logic and record fact (high confidence). Whether under-48 h spacing harms the elbow is uncertain: the collagen time-course comes from lower-limb tendons after running, and the cited sources accept 24 h. No performance effect is visible at n=11. So the documentation error is certain, while the case for an engine gate is low-to-moderate.",
+   "confidence": "high",
+   "changeClass": "doc-or-display",
+   "recommendation": "Doc-only. Replace the sentence with 'not guaranteed; separation depends on session spacing', and list it in §19.5 as a user-discipline rule. A hard 48 h engine gate would be a §26 proposal of low-to-moderate certainty, and should wait until the gap-vs-OAP-outcome data are examined."
+  },
+  {
+   "id": "R5-15",
+   "area": "OAP",
+   "claim": "The core design of the OAP slot is evidence-consistent:\n- a dedicated unilateral slot, because strength is task-specific and transfers poorly to the isometric lock-off;\n- independent per-arm state, because cross-education transfers only about a third of the trained-limb effect;\n- complete isolation from kg progression;\n- rule-based demotion;\n- one-arm negatives gated behind rung 4 with 5–8 s lowering.\nThese match specificity meta-analyses and practitioner elbow-safety guidance. The automatic demotion of both arms to rung 1 on 9/12 worked as the spec intended.",
+   "verdict": "strength",
+   "evidence": [
+    "Kassiano et al. 2025: unilateral strength favoured unilateral training (ES −0.65). https://doi.org/10.1007/s40279-024-02169-z",
+    "Spitz et al. 2023: d 1.84 in the trained task vs 0.8 in untrained tests. https://doi.org/10.1007/s40279-022-01790-0",
+    "Saeterbakken et al. 2025: dynamic training transfers SMD 0.42 to isometric strength. https://pmc.ncbi.nlm.nih.gov/articles/PMC12296774/",
+    "Munn et al. 2004: contralateral gain about 35% of the trained-limb effect. https://journals.physiology.org/doi/full/10.1152/japplphysiol.00541.2003",
+    "Manca et al. 2017: upper-limb cross-education +9.4%. https://doi.org/10.1007/s00421-017-3720-z",
+    "Roig et al. 2009: the eccentric advantage depends on higher intensity and is mode-specific. https://bjsm.bmj.com/content/43/8/556",
+    "Hooper's Beta (coaching): 5 s one-arm lowers; falling fast into extension strains the brachialis. https://www.hoopersbeta.com/library/one-arm-pull-up-progressions",
+    "Antranik 2018 (coaching): rushed one-arm work is notorious for elbow pain. https://antranik.org/one-arm-pullup/",
+    "Internal record: 9/07 and 9/12 FAIL on both arms led to automatic demotion to rung 1, as intended by spec §19.5.6."
+   ],
+   "reasoning": "Specificity and cross-education evidence is direct but comes mostly from lower-limb or single-joint tasks, so transfer to elbow flexors and lats is extrapolation. No trial exists on one-arm pull-up acquisition, so the ladder mechanics rest on coaching practice.",
+   "confidence": "medium",
+   "changeClass": "none"
+  },
+  {
+   "id": "R5-16",
+   "area": "OAP",
+   "claim": "Measurement is the slot's weak point:\n- Rungs are ordinal and the assisting-hand force is uncontrolled.\n- The default start (rung 2) was too hard for both arms: 4 FAILs in the first 4 arm-exposures.\n- After 5.7 weeks, net progress is −1 rung on the left and 0 on the right; 7 of 12 arm-exposures were not PASS.\n- A left-arm memo blames a HOLD on the awkward rung-1 grip, not on strength.\n- Exposure is about 1.05 per week, against the spec's about 1.5.\n- The '≥2 weeks on a new rung' guideline has no compliant way to be followed when the engine promotes.",
+   "verdict": "weakness",
+   "evidence": [
+    "Internal record, left arm: 9/07 r2 FAIL, 9/12 r2 FAIL → r1, 9/21 HOLD (memo: awkward rung-1 grip on the left, may have had strength left), 9/24 HOLD, 10/04 PASS, 10/14 PASS.",
+    "Internal record, right arm: 9/07 and 9/12 FAIL → r1; 9/21, 9/24 and 10/04 PASS → r2; 10/14 HOLD.",
+    "Spec §22.4.11 (ordinal scale) and §19.5.1(c) (2-week dwell, not enforced).",
+    "leverage.fit, Hybrid Calisthenics and Brookshire (coaching): finger or hand assistance is hard to measure; positions past the elbow are awkward. https://www.hybridcalisthenics.com/advanced-onehand-pullups",
+    "Bohm et al. 2015: tendon adaptation was studied only in interventions of 8 weeks or longer, so 2 weeks is untested as an adaptation window. https://link.springer.com/article/10.1186/s40798-015-0009-9"
+   ],
+   "reasoning": "The record facts are direct. That assist force and grip ergonomics, not strength, drive part of the variance is an inference supported by the memo and by coaching sources. Five exposures per arm cannot separate insufficient stimulus from insufficient recovery. At about 1 exposure per week, the 2-week dwell will usually happen by accident anyway.",
+   "confidence": "medium",
+   "changeClass": "operational",
+   "recommendation": "Operational. Fix and note the assisting-hand contact (same grip type and the same 'support only as needed' cue on both arms) for the rest of the plan, so exposures stay comparable. Propose a rung-definition refinement under §26 only if the v1.4 oscillation trigger in §23 (3 promote/demote cycles on one arm) fires."
+  },
+  {
+   "id": "R5-17",
+   "area": "exercise order",
+   "claim": "Session order puts the priority lift first every session: squat first, and focus 3×3 before volume work. This matches the exercise-order evidence. The cost is that OAP, now the athlete's #1 upper-body goal and a skill/lock-off task, sits third, after SQ and BP 3×3. There, fatigue may blunt both performance and skill learning.",
+   "verdict": "tradeoff",
+   "evidence": [
+    "Nunes JP et al. 2021: multi-joint strength favoured performing the exercise first (ES 0.32); gains are largest for exercises at the start of a session. https://pubmed.ncbi.nlm.nih.gov/32077380/",
+    "ACSM 2026: strength is enhanced when the exercise is performed at the beginning of the session. https://doi.org/10.1249/MSS.0000000000003897",
+    "Lopez-Rivera 2013 (coaching): lock-off training should come at the beginning of the workout, after a warm-up. http://en-eva-lopez.blogspot.com/2013/05/lock-off-training-for-climbers-v-goal.html",
+    "Branscheidt et al. 2019: practising while fatigued impaired motor-skill learning beyond the session (partly central; lab finger task). https://doi.org/10.7554/eLife.40578",
+    "Internal record: OAP 7/12 arm-exposures not PASS; spec §7.3 order is SQ → BP focus → OAP → OHP."
+   ],
+   "reasoning": "SQ-first support is direct. The OAP-placement cost is extrapolation from order meta-analyses and a lab skill-learning study, plus coaching opinion. Moving OAP earlier would push BP focus later, with a predictable BP cost under the same order evidence. Five exposures cannot attribute the OAP results to order.",
+   "confidence": "low",
+   "changeClass": "protocol",
+   "recommendation": "A §26-style single proposal, not a directive. On BP-focus days, move the OAP slot to position 2 (SQ → OAP → BP focus → OHP), keeping squat first. Do this only if the §21.1 review shows no net rung gain. Expected cost: somewhat lower BP-focus performance."
+  },
+  {
+   "id": "R5-18",
+   "area": "knee/elbow",
+   "claim": "The undiagnosed suprapatellar (quadriceps-tendon-insertion) pain is the most likely non-program limiter of G1, and the program has no structured pain signal. Twice-weekly heavy, non-failure high-bar squats are a tendon-friendly kind of loading. However, the squat stance has changed at least twice within the program (7/24 wider for knee pain; 10/04 narrower), which also weakens how comparable the exposures are.",
+   "verdict": "risk",
+   "evidence": [
+    "Breda et al. 2021, BJSM, JUMPER RCT: progressive tendon loading beat eccentric training (VISA-P +28 vs +18); progression was gated on pain ≤3/10 on a standard provocation test. https://bjsm.bmj.com/content/55/9/501",
+    "Agergaard et al. 2021: heavy (90%) and moderate (55%) slow resistance gave similar long-term outcomes in patellar tendinopathy. https://journals.sagepub.com/doi/10.1177/0363546520988741",
+    "Bohm et al. 2015: tendon stiffness adapts to high-intensity (>70%) loading. https://link.springer.com/article/10.1186/s40798-015-0009-9",
+    "Crossley et al. 2016: patellofemoral pain overlaps in presentation; pain during a squat is the best available test. https://bjsm.bmj.com/content/50/14/839",
+    "King et al. 2019: few studies focus on quadriceps tendinopathy. https://atm.amegroups.org/article/view/23948",
+    "Rio et al. 2015 (n=6): isometric pain relief; small, short follow-up. https://bjsm.bmj.com/content/49/19/1277",
+    "Internal record memos 7/24 and 10/04; brief: pain on stairs and sit-to-stand, managed outside the program."
+   ],
+   "reasoning": "Evidence for quadriceps tendinopathy is sparse and mostly extrapolated from patellar tendinopathy. Without a diagnosis, patellofemoral pain is also plausible, and depth and load guidance differ between them. That REF5's load profile suits tendon adaptation is an extrapolation. Keeping pain outside the judgment system follows the user's own design and does not relax any criterion.",
+   "confidence": "low",
+   "changeClass": "operational",
+   "recommendation": "Operational, outside the protocol. The morning after each SQ session, rate knee pain 0–10 on one fixed provocation test (for example, a bodyweight single-leg squat to the same depth) and log it. A clinical assessment to separate patellofemoral pain from quadriceps tendinopathy is also advised."
+  },
+  {
+   "id": "R5-19",
+   "area": "intensity",
+   "claim": "The fixed caps C7 and C8 are applied through REF baselines that understate this athlete's DL and OHP, so both lifts sit at roughly maintenance intensity:\n- DL: 75 kg is about 64–67% of e1RM, and a DL window of 4 PASS exposures was discarded because the squat increase came 2 days later.\n- OHP: 32.5 kg is about 56–59% of e1RM. It has been frozen since 8/24 through 8 straight PASS, and cannot move until BP focus reaches 90. A +2.5 kg OHP step is 7.7% of the load, vs about 2.9% for SQ.\nThis is a cost of the user's fixed constraints combined with the REF baselines.",
+   "verdict": "tradeoff",
+   "evidence": [
+    "Internal record: DL REF baseline 100 at 72.5 kg vs DL e1RM ≈112–117. Historical OHP/BP e1RM ratio ≈0.58 vs cap 0.398 × BP focus. 8/11 DL window MAINTAIN by cap; OHP MAINTAIN by cap in Plan B.",
+    "Spiering et al. 2021: strength is maintained with low dose if intensity is kept (younger general adults, not athletes). https://pubmed.ncbi.nlm.nih.gov/33629972/",
+    "Androulakis-Korakakis et al. 2020: the minimal effective dose for trained men used sets to failure 2–3 times a week; deadlift data are lacking. https://pubmed.ncbi.nlm.nih.gov/31797219/",
+    "Räntilä & Ahtiainen 2026: extra volume did not help, and the deadlift favoured lower volume. https://journal.hep.com.cn/josisae/EN/10.1007/s42978-026-00387-7",
+    "Plotkin et al. 2022: rep progression at fixed load is a viable overload route in trained adults. https://peerj.com/articles/14142/",
+    "Zourdos (SBS, coaching): on a stall, repeat the load or add a rep or set. https://www.strongerbyscience.com/weekly-load-progression/"
+   ],
+   "reasoning": "The intensities are record and engine facts. That this dose maintains rather than builds DL and OHP is an extrapolation, because minimum-dose studies used sets to failure. The low priority is the user's choice (C6–C8), so this describes a cost. Plotkin used lower-body sets to failure at 8–12RM, so applying it to non-failure OHP is indirect.",
+   "confidence": "medium",
+   "changeClass": "protocol",
+   "recommendation": "A §26-style single proposal, low priority. While OHP is frozen by the cap, progress OHP reps at a fixed load (2×6 → 2×8) under the existing all-PASS rule, keeping the load within C8. DL and OHP judgment criteria are unchanged."
+  },
+  {
+   "id": "R5-20",
+   "area": "goal feasibility",
+   "claim": "G1 (175 kg high-bar at about 70 kg, 2.5×BW) is a rare, upper-tier outcome. It needs about +70% on an estimated ~103 kg 1RM. At a sustained 5–10% per year that takes roughly 5.6–11 years, and real gains usually slow over time. REF5 cannot confirm attainment, because REF is not a 1RM. The program is a reasonable vehicle for the goal, but it is not a predictor of reaching it.",
+   "verdict": "unknown",
+   "evidence": [
+    "Gonzalez et al. 2025, Appl Sci: low-bar 1RM about 7% higher than high-bar in men. https://doi.org/10.3390/app15063143 ; Nuckols (coaching): typically 5–10%. https://www.strongerbyscience.com/its-time-to-end-this-nonsense-high-bar-vs-low-bar-squatting/",
+    "Latella et al. 2019: raw 74 kg class squat means were 172.7 kg (local) vs 200.2 kg (international). https://acuresearchbank.acu.edu.au/download/f50fbd80af80bb0182c6d2df3de9874197aaf9db5354cacaff4089cf71d01cde/280151/Latella_2019_Differences_in_Strength_Performance_Between_Novice.pdf",
+    "van den Hoek et al. 2024: drug-tested male 90th percentile squat about 2.83×BW in young adults. https://doi.org/10.1016/j.jsams.2024.07.005",
+    "StrengthLog: 95th percentile at 70 kg is 157 kg. https://www.strengthlog.com/squat-strength-standards-kg/",
+    "Latella et al. 2024: about 7.5–12.5% in year 1, up to about 20% after 10 years in powerlifters. https://doi.org/10.1007/s40279-023-01962-6",
+    "Nuckols 2018 (coaching analysis): median monthly gain fell from 0.78% to 0.26% over about 770 days. https://www.strongerbyscience.com/?p=46506",
+    "Spec §20: REF or REF ÷ bodyweight cannot confirm a real 175 kg."
+   ],
+   "reasoning": "Rarity: 175 kg high-bar is about 184–193 kg low-bar-equivalent (2.6–2.75× at 70 kg), above the local 74 kg competitor mean and below the drug-tested 90th percentile. That is reasonably well anchored, with medium confidence. The timeline is constant-rate arithmetic against data from selected competitors and is low confidence. The athlete's history (1-year plateau under suboptimal programs) could allow faster early gains, while the deficit and the knee could slow them.",
+   "confidence": "low",
+   "changeClass": "doc-or-display",
+   "recommendation": "Doc-only. State G1 as a multi-year direction with an interim measurable KPI: the trend of control REF ÷ 7-day measured bodyweight. Keep the spec's statement that REF cannot prove 175 kg."
+  },
+  {
+   "id": "R5-21",
+   "area": "goal feasibility",
+   "claim": "G6 (first one-arm chin-up) is plausible but limited by pulling strength relative to bodyweight, not by how fast the ladder can promote. Practitioner heuristics put the threshold around a two-arm chin-up with +60–67% of bodyweight added. The athlete's tested total was 110 kg at 75 kg, about +47% of bodyweight. The planned cut to 70 kg would narrow the relative gap by roughly 7–8 kg-equivalent. On the other side, v1.4 reduced PULL sets, and the logged bodyweight is a default, so the real gap is uncertain.",
+   "verdict": "unknown",
+   "evidence": [
+    "Legendary Strength 2018, quoting Willoughby (heuristic): one one-arm chin ≈ a two-arm chin with +2/3 bodyweight. https://legendarystrength.com/chinups-two-arm-one-arm-weighted/",
+    "J Aust Strength Cond 2019 9-step model (practitioner): 3RM chin-up at +60% bodyweight before one-arm negatives and partials. https://lida.sport-iat.de/ta/Record/4058980?lng=en",
+    "DeMarco (coaching anecdote): start specific work at about +2/3 bodyweight; about 3 years to the first one-arm chin. https://divergentstrengthacademy.com/blog/one-arm-chinups",
+    "Lopez-Rivera 2013: lock-off and elbow adaptation takes 'years'. http://en-eva-lopez.blogspot.com/2013/05/lock-off-training-for-climbers-v-goal.html",
+    "Internal: ladder minimum ≥15 PASS exposures per arm (≥10–14 weeks). Spec §22.4.9: PULL weekly sets drop from about 8 to about 6. Bodyweight logged as a default."
+   ],
+   "reasoning": "No peer-reviewed study links weighted pull-up strength to one-arm chin-up achievement or timing. Everything here is coaching heuristics, so confidence is low. The arithmetic: at 75 kg, the Willoughby rule implies a total of about 125 kg (+15 kg vs 110). At 70 kg it is about 117 kg, so the cut alone closes about half the gap if pulling strength holds.",
+   "confidence": "low",
+   "changeClass": "observation-only",
+   "recommendation": "Display only: track PULL focus total ÷ measured bodyweight as the G6 readiness proxy next to the rung state. No protocol change."
+  },
+  {
+   "id": "R5-22",
+   "area": "comparison",
+   "claim": "Compared with the programs the athlete has failed on, REF5 addresses each documented failure mode at the level of principle:\n- squat frequency: 5/3/1 Krypteia trains each main lift about once every 2 weeks;\n- per-session volume: nSuns runs about 17 sets of two main lifts per session, vs REF5's 10 in total;\n- unnoticed TM drift: Tactical Barbell Operator has no routine feedback and relies on 6–12-week retests.\nIts session queue, micro valve and no-debt rule also fit an irregular schedule: 14 Plan-B sessions at 2.45/wk, median 47 minutes, three 8-day gaps absorbed without manual action. Its nearest relatives are GZCLP, which cuts AMRAPs at a noticeable bar slowdown, and Sheiko-style submaximal practice. What it gives up versus 5/3/1 and Tactical Barbell is a periodic maximal reality check (see R5-06).",
+   "verdict": "strength",
+   "evidence": [
+    "Wendler 2021, Krypteia: main lifts rotate over 2 weeks. https://www.jimwendler.com/blogs/jimwendler-com/krypteia-2-days-week",
+    "Lift Vault, nSuns: TM 90%, 9 main sets including AMRAP plus 8 secondary sets per session. https://liftvault.com/programs/powerlifting/n-suns-lifting-spreadsheets/",
+    "Liftosaur, Tactical Barbell Operator: wave 63–85% 1RM, ≥80% only in weeks 3 and 6, 'no AMRAP' and 'no built-in auto-regulation'. https://www.liftosaur.com/programs/tactical-barbell-operator",
+    "GZCLP (r/Fitness wiki): AMRAPs stop with about 1–2 RIR 'when bar speed slows noticeably'. https://thefitness.wiki/routines/gzclp/",
+    "JTS Russian seminar: average intensity about 70%, lifters 'rarely ever miss a rep'. https://www.jtsstrength.com/what-i-learned-at-the-russian-strength-seminar/",
+    "Wendler 2024: 'When there is a doubt, there is no doubt'; progress at a plateau takes months. https://www.jimwendler.com/blogs/jimwendler-com/building-strength-and-the-training-max",
+    "Fyfe et al. 2022: minimal-dose training may limit negative affective responses that hurt adherence. https://link.springer.com/article/10.1007/s40279-021-01605-8",
+    "Internal record: 14 Plan-B sessions over 5.7 weeks; median 47 min from the first squat work set to save; 4 micros, 3 of them automatic."
+   ],
+   "reasoning": "This is a coaching-level comparison. None of these programs has controlled trials of its own, and several descriptions come from secondary summaries. The match between REF5's design and the athlete's reported failures is a direct reading of the program documents and the athlete's history. That this improves outcomes is a hypothesis the next 2–3 months of data will test (see R5-07).",
+   "confidence": "medium",
+   "changeClass": "none"
+  }
+ ]
+}

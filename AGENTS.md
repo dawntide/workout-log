@@ -38,7 +38,7 @@
 - **하드 SQ는 하이바**(로우바 아님, 스펙 §3.2).
 - **CI 러너는 `ubuntu-24.04` 고정.** `ubuntu-latest`(26.04)는 Playwright 1.58.2 chromium 미지원 + 새 `pg_dump`의 `SET transaction_timeout`이 PG16 복원을 깬다.
 - **피로·그라인딩은 `EXTERNAL`이 아니다**(스펙 §11.1–§11.3). "너무 피곤해서 시작 못 함"의 정식 밸브는 시작 시점의 MICRO 선택(§8-1)이다.
-- **새 프로그램·§26 근거 작업**은 기존 근거 자료(출처 341건·주장 24건)에서 시작한다. 위치는 `docs/handoff.md`.
+- **새 프로그램·§26 근거 작업**은 기존 근거 자료(출처 341건·주장 24건)에서 시작한다. 위치는 `docs/research/ref5-evidence-2026-10/README.md`.
 
 ## 핵심 문서
 
@@ -52,6 +52,8 @@
 | [아키텍처 레이어 모델](web/docs/architecture-layers.md) | 정식 레이어 흐름(app→widgets→features→primitives→lib→server), 의존 방향 규칙, 파사드, 린트 강제를 미루는 이유, **시스템 토폴로지(멀티프론트/단일백엔드 — web↔apps/api 프록시 cutover)** |
 | [REF5 규범 사양서](docs/ref5-program-spec.md) | 훈련 프로그램의 판정·진행·처방 규칙 정본(현재 v1.5). 변경은 §26 |
 | [결정 기록](docs/decisions.md) | 날짜 / 결정 / 이유 / 대안과 버린 이유 |
+| [REF5 근거 자료](docs/research/ref5-evidence-2026-10/README.md) | 출처 341건·주장 24건 평가 원본. 새 프로그램·§26 근거 작업의 시작점 |
+| [REF5 현재 기준 요약](docs/notes/ref5-context.md) | 훈련 제약·열린 항목 요약(과거 핸드오프 3건 대체). 같은 폴더에 평가·스케줄·휴식타이머 푸시 노트 |
 | [인계 문서](docs/handoff.md) | 현재 상태·진행 중·다음 할 일·막힌 점 (덮어쓰기) |
 | [전체 시스템 점검 2026-08](docs/codebase-audit-2026-08.md) | **최신 감사**. 게이트 전수 실행 + prod DB 실측 + 프로덕션 블랙박스 확인. P0은 인증 폴백 비대칭(S1) 하나, 성능은 데이터 규모상 결론 유보. non-goal(가상화·DSL 4b·pg_stat 판단) 포함 |
 | [전체 시스템 점검 2026-07](docs/codebase-audit-2026-07.md) | 이전 감사 — monorepo 전체 구조/성능/보안 + 개선 계획(**전부 종결**). 진단 표는 이력으로 보존 |
