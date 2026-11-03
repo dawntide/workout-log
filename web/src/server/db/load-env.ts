@@ -3,7 +3,7 @@ import { config as loadDotenv } from "dotenv";
 /**
  * CLI/툴 스크립트용 로컬 env 로더 — `import "dotenv/config"` 대신 쓴다.
  *
- * `dotenv/config`는 `.env`만 읽는다. 이 리포의 로컬 설정은 `.env.local`이고(CLAUDE.md·
+ * `dotenv/config`는 `.env`만 읽는다. 이 리포의 로컬 설정은 `.env.local`이고(AGENTS.md·
  * [로컬 개발 가이드](../../../docs/local-dev-after-clone-guide.md)) `.env`는 아예 없어서,
  * clone 직후 문서대로 `pnpm -C web db:seed`를 돌리면 `DATABASE_URL is not set`으로 죽었다.
  *
