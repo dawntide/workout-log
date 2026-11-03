@@ -17,11 +17,8 @@
 ## 다음 할 일 / 열린 항목
 
 1. **(사용자 결정 대기) `docs/design.md` 신설 여부.** 프로젝트 지침은 설계 원본이 `docs/design.md`라고 했으나 파일이 없다. 현재 설계 정본은 `docs/ref5-program-spec.md`와 `web/docs/architecture-layers.md`.
-2. **(사용자 결정 대기) 저장소 밖 자료를 저장소로 옮길지.** 프로젝트 공유 폴더(`/mnt/project-files/`, Claude Projects 전용)에만 있다:
-   - `research/ref5-evidence-2026-10/` — 출처 341건(검증 상태 포함)·주장 24건과 반박 검토·내부 분석·재실행 스크립트. 새 프로그램·§26 근거 작업은 여기서 시작. `README.md`가 색인. 약 2MB(`claims.md` 351KB, `sources.json` 529KB 등).
-   - `notes/ref5-context.md`(현재 기준 요약), `notes/ref5-evidence-evaluation-2026-10-15.md`, `notes/ref5-handoff-review-2026-10-14.md`, `notes/ref5-schedule-pattern-2026-10-16.md`, `notes/rest-timer-push-plan.md`, 스크린샷 폴더.
-   다른 도구는 이 폴더를 볼 수 없다.
-3. **REF5 열린 항목**(출처 `notes/ref5-context.md` §5):
+2. **(완료 2026-11-03) 공유 폴더 자료 이전.** `docs/research/ref5-evidence-2026-10/`(출처 341건·주장 24건·반박 검토·내부 분석·재실행 스크립트, `README.md`가 색인, 새 프로그램·§26 근거 작업은 여기서 시작)와 `docs/notes/`(`ref5-context.md` 현재 기준 요약 외 4건). 스크린샷 폴더는 이전하지 않음(공유 폴더에만 존재, 미참조). 근거: [`decisions.md`](decisions.md) 맨 아래.
+3. **REF5 열린 항목**(출처 [`docs/notes/ref5-context.md`](notes/ref5-context.md) §5):
    - 체중 입력 — 감량을 시작하면 그날부터 실측 입력 필요(AGENTS.md 함정 참조).
    - 평가 권고 중 미착수: 판정 밖 기록(수면·클라이밍·통증·무릎·스탠스), §21.1 사전 등록 보강(예전 최고 무게를 넘기 전 INCREASE는 효과 증거로 세지 않음), 플랜 전환 전 상태 수기 기록 규율.
    - 알려진 구조적 비용: OHP 동결(§22.4 #5), DL이 SQ 상한에 묶여 창이 버려짐, PULL 볼륨 veto 사실상 미발동(§22.4 #10), 플랜 전환 시 창·정체 이력 초기화.
