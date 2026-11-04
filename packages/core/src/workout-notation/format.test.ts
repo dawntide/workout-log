@@ -264,3 +264,75 @@ test("formatPlannedGroups: load 컨텍스트로 맨몸 총무게 병기", () => 
     "1 × 5, 1 × 3 (max 100kg (+30))",
   );
 });
+
+test("formatPrescription: intensityLabel은 weightKg·percent보다 우선하고 weightSuffix는 적용되지 않음", () => {
+  assert.equal(
+    formatPrescription({
+      sets: 3,
+      reps: 5,
+      weightKg: 100,
+      weightSuffix: "(+10)",
+      percent: 80,
+      intensityLabel: "단 4",
+    }),
+    "3 × 5 @ 단 4",
+  );
+  assert.equal(
+    formatPrescription({
+      sets: 1,
+      reps: 3,
+      percent: 80,
+      intensityLabel: "단 2",
+      rpe: 8,
+      lastSetAmrap: true,
+    }),
+    "3+ @ 단 2 RPE 8",
+  );
+});
+
+test("formatPrescription: 유효하지 않은 sets/reps는 빈 문자열", () => {
+  const invalidValues = [0, -1, Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY];
+  for (const value of invalidValues) {
+    assert.equal(formatPrescription({ sets: value, reps: 5, weightKg: 100 }), "", `sets=${value}`);
+    assert.equal(formatPrescription({ sets: 3, reps: value, weightKg: 100 }), "", `reps=${value}`);
+  }
+});
+
+test("formatPrescription: 맨몸 총부하 0kg은 suffix가 있을 때만 표시", () => {
+  assert.equal(
+    formatPrescription({ sets: 3, reps: 5, weightKg: 0, weightSuffix: "(체중)" }),
+    "3 × 5 @ 0kg (체중)",
+  );
+  assert.equal(
+    formatPrescription({ sets: 3, reps: 5, weightKg: 0, percent: 70 }),
+    "3 × 5 @ 70%",
+  );
+  assert.equal(formatPrescription({ sets: 3, reps: 5, weightKg: -5 }), "3 × 5");
+});
+
+test("summarizePerformedHistory/formatPerformedHistoryLine: 빈 수행 기록", () => {
+  assert.deepEqual(summarizePerformedHistory([]), { mode: "expanded", sets: [] });
+  assert.equal(formatPerformedHistoryLine([]), "");
+});
+
+test("summarizePerformedHistory: 세트별 무게가 다르면 compact로 압축하지 않음", () => {
+  const sets = [
+    { weightKg: 100, reps: 5 },
+    { weightKg: 105, reps: 5 },
+  ];
+  assert.deepEqual(summarizePerformedHistory(sets), { mode: "expanded", sets });
+  assert.equal(formatPerformedHistoryLine(sets), "100kg × 5 / 105kg × 5");
+});
+
+test("formatPerformedHistoryLine: 맨몸 체중만 수행(추가중량 0)은 체중 라벨 병기", () => {
+  assert.equal(
+    formatPerformedHistoryLine(
+      [
+        { weightKg: 74, reps: 5 },
+        { weightKg: 74, reps: 5 },
+      ],
+      { exerciseName: "Pull-Up", bodyweightKg: 74, locale: "en" },
+    ),
+    "74kg (BW) × 5 × 2",
+  );
+});
