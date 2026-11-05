@@ -35,5 +35,6 @@
 
 ## 참고 (운영 환경)
 
+- 호스팅·인증·경로·로컬 env 상세는 2026-11-05에 `AGENTS.md`에서 `docs/agent-reference.md`로 옮겼다.
 - 세션 평가 Supabase 프로젝트: `edaoieuohxtqiyzcwnjj`(workout-log-prod), Dev 계정 필터는 AGENTS.md 함정 참조.
 - 휴식 종료 Web Push(#755)는 서버 흔적이 거의 없다: `rest_push_schedule` 행은 claim/cancel 때 삭제, Vercel hobby는 런타임 로그 미보존. 확인 가능한 증거는 `pg_stat_user_tables`의 `public.rest_push_schedule` 누적 카운터(2026-10-29 기준 ins 44 / upd 8 / del 44)와 `net._http_response`(약 6시간 보존, 날씨 앱 cron `weather-push-check`는 같은 DB라 제외). "푸시가 안 옴" 보고는 먼저 PWA를 홈 화면에 다시 추가했는지(iOS 재설치 = 구독 소실)와 "휴식 끝 알림" 토글을 확인한다. 2026-10-29 사례가 그랬고, 화면 안내 추가는 사용자가 거절했다.

@@ -24,4 +24,5 @@
 
 - 결정의 이유·버린 대안: [`docs/decisions.md`](decisions.md).
 - 현재 상태·열린 항목: [`docs/handoff.md`](handoff.md).
+- 호스팅·인증·경로·로컬 env 상세: [`docs/agent-reference.md`](agent-reference.md).
 - 감사: [`codebase-audit-2026-08.md`](codebase-audit-2026-08.md)(최신), [`codebase-audit-2026-07.md`](codebase-audit-2026-07.md).
