@@ -4,7 +4,7 @@
 
 ## 패키지와 호스팅
 
-- **모노레포**: 루트 pnpm 워크스페이스(`pnpm-workspace.yaml`) — `web` + `apps/api` + `packages/core`, lockfile은 루트 1개. **clone 후 루트에서 `pnpm install` 1회**로 전 패키지 설치.
+- **모노레포**: 루트 pnpm 워크스페이스(`pnpm-workspace.yaml`) — `web` + `apps/api` + `apps/mcp` + `packages/core`, lockfile은 루트 1개. **clone 후 루트에서 `pnpm install` 1회**로 전 패키지 설치.
 - **`packages/core` (@workout/core)**: web(Next.js)·apps/api(Hono)가 공유하는 프레임워크-무지 도메인/인프라 코드 — db(schema·client)·auth 코어·progression/program-engine·stats/home/export/import 서비스·순수 lib(session-key·bodyweight-load·program-store 등). source-only 패키지(web은 `transpilePackages`, apps/api는 tsx로 소비). **경계 규칙**: core는 next/react/DOM·요청 컨텍스트(쿠키) 무지 — userId·locale은 명시 인자, 쿠키/OAuth/RSC 어댑터(`user.ts`·`oauth-*`·messages.ts·bootstraps)는 web 잔류. 상세: [`packages/core/README.md`](../packages/core/README.md).
 - **로컬 실행**: `pnpm -C web dev` (Next.js dev 서버), 접속 `http://localhost:3000`. Postgres 접속 정보는 `web/.env.local`의 `DATABASE_URL`로 전달. 배포는 Vercel(웹앱) + Supabase(Postgres).
   - ⚠️ **web 데이터 API는 apps/api(Hono 백엔드)가 처리**([`web/src/app/api/[...path]/route.ts`](../web/src/app/api/[...path]/route.ts)): 브라우저 `/api/*` same-origin 호출 → catch-all이 `wl_session` 쿠키를 `Authorization: Bearer`로 변환(동일 `auth_session` 토큰) + 앱 locale을 `Accept-Language`로 주입. **호스팅은 `APPS_API_BASE` 하나로 갈린다**:
