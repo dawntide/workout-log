@@ -159,6 +159,8 @@
 - 변경 금지: DOM 구조, 컴포넌트, spacing, typography, radius, motion
 - 초기 렌더 전에 로컬 캐시를 적용하고, 서버 설정 수신 후 canonical 값으로 동기화한다.
 - `pnpm -C web test:a11y:contrast`가 14개 스키마의 필수 토큰과 주요 텍스트 대비를 검사한다.
+- **테마를 추가·수정할 때 표면 사다리의 인접 단차를 지킨다.** 원본 팔레트의 기본 배경색을 `--v2-bg`와 `--v2-paper-2` 양쪽에 쓰면 ΔE=0이 되어 paper-2 요소(검색창·보조버튼·칩·아이콘버튼·스켈레톤 등 100+ 사용처)의 배경이 통째로 사라진다(#653에서 테마 3개 교정). 원본에 중간 톤이 없으면 이웃 값 사이를 보간하고, 간격이 좁으면 paper-3까지 한 칸씩 내려 다시 잡는다.
+- E2E `color-themes.spec.ts`가 이를 강제한다: `surface ladder`는 전 테마 × 인접쌍 5개(paper/bg, paper-2/bg, paper-2/paper, paper-3/paper-2, accent-weak/paper-2)에 ΔE ≥ 1.5, `semantic tone surfaces`는 의미 톤(accent·danger·success)에 같은 기준(paper 위 틴트만 3.0). 테마 목록은 core의 `LIGHT_COLOR_THEMES`/`DARK_COLOR_THEMES`에서 와서 새 테마가 자동으로 들어온다. 걸리면 임계값을 낮추기 전에 사다리를 의심한다(근거: [`surface-contrast.ts`](../e2e/surface-contrast.ts)).
 
 ### 1-3. CSS 토큰 매핑 (앱 실제 사용)
 

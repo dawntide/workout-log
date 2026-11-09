@@ -15,6 +15,8 @@ IronGraph V2 ("Quiet Premium") 디자인 시스템의 React 빌딩 블록. 화�
 5. **아이콘은 Material Symbols Outlined만**. `<span className="material-symbols-outlined">icon_name</span>`.
 6. **No-Line 규칙**: 섹션 구분은 `V2Hairline` 또는 paper 톤 전환. `border: 1px solid ...` 금지.
 7. **터치 영역 ≥ 44×44px** — interactive primitive는 모두 충족.
+8. **표면을 그리는 primitive는 `tone`(전경·의미)과 `surface`(배경 사다리)를 나눈다.** 표면색을 안에서 잠그면 다른 카드 안에 넣을 수 없다 — paper 카드 안의 paper 타일은 ΔE=0이고 No-Line이라 통째로 안 보인다(`V2MetricCard`가 그래서 `surface` prop을 갖는다). 카드 안에 처음 넣을 때는 배경이 실제로 다른지 확인하고, 보통 한 칸 내린다(paper → inset). `BottomSheet` 패널이 `--v2-paper`라 시트 안 카드도 기본 톤 대신 `inset`을 쓴다.
+9. **`V2Switch`는 반드시 `<label>` 안에 둔다.** 실제 checkbox는 투명하게 깔리고 그 위에 트랙이 그려져 탭은 트랙이 받는다. `<label>`이 감싸야 탭이 input에 전달된다. `<div>` 안에 두면 렌더는 되는데 눌러도 토글되지 않는다.
 
 ---
 

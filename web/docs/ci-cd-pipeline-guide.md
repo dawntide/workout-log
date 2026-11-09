@@ -88,6 +88,10 @@ PR 열림 / 푸시
 - prod 스키마는 Vercel 프로덕션 빌드(`pnpm build` = `migrate.mjs && next build`)가 먼저 적용한다. 이 워크플로는 dev 스키마 적용 + prod 백스톱이다.
 - prod와 dev 두 환경에 병렬 마이그레이션한다. 둘 다 **같은 prod 인스턴스**(`SUPABASE_DIRECT_URL`)를 쓰되, dev는 `DB_SCHEMA=dev` matrix로 prod 인스턴스의 `dev` 스키마에 격리 적용한다(별도 dev 프로젝트는 Supabase free plan의 활성 2개 제한으로 폐기). advisory lock id를 prod/dev로 분리해 같은 인스턴스에서의 충돌을 피한다.
 - dev 스키마용 마이그레이션은 `web/src/server/db/migrations-dev/`에 별도 생성하며, 추적 테이블은 `drizzle_dev` 스키마로 분리된다. 자세한 격리 설계는 [reference 메모리/PR #392·#393] 참고.
+- **수기로 만든 마이그레이션 SQL은 `meta/_journal.json`에 등재해야 적용된다.** drizzle 마이그레이터는 폴더를 훑지 않고 저널만 본다. 빠뜨리면 로컬 `db:migrate`가 `[migrate] migrations applied`로 끝나고 테이블은 생기지 않는다. 두 벌 모두다: prod `migrations/NNNN_name.sql` + `migrations/meta/_journal.json`, dev `migrations-dev/NNNN_name.sql` + `migrations-dev/meta/_journal.json`(dev는 번호 체계가 따로다).
+  - 저널 항목: `{ "idx": <직전+1>, "version": "7", "when": <앞선 모든 항목보다 큰 값>, "tag": "NNNN_name", "breakpoints": true }`. `when`이 이미 적용된 항목보다 작으면 운영 DB에서는 영구히 건너뛰고, 빈 DB에서 시작하는 CI는 통과한다.
+  - `pnpm -C web test:unit`의 [`migration-journal-guard.test.mjs`](../scripts/migration-journal-guard.test.mjs)가 저널에 없는 SQL·`when` 역전·`idx` 불연속을 잡는다. 수기 마이그레이션 뒤에는 이걸 돌리고, DB에서도 적용 여부를 직접 확인한다(`information_schema.tables`).
+  - `user_id`를 가진 테이블은 `account_lifecycle_write_guard` 트리거를 두 벌 다 넣어야 `packages/core/src/data/deleteUserData.coverage.test.ts`를 통과한다.
 
 ### `db-seed.yml` — 시드 동기화 (마이그레이션 후)
 
@@ -115,6 +119,10 @@ PR 열림 / 푸시
 - `db-migrate` 완료 후 실행된다.
 - Vercel API를 폴링해서 해당 commit SHA의 production 배포가 `READY` 상태가 될 때까지 대기한다.
 - ⚠️ `db-seed`와 **순서가 보장되지 않는다**(둘 다 `db-migrate`를 트리거로 삼는 별도 워크플로). 새 시드 데이터에 의존하는 코드를 배포할 때는 잠깐 동안 코드만 먼저 살아 있을 수 있다.
+- **런북 — 머지 커밋의 프로덕션 배포가 아예 생기지 않았을 때**(2026-08-27 실제 발생, GitHub→Vercel 웹훅 유실로 추정):
+  - 증상: "Wait for Vercel deployment to be ready"가 40회 폴링하며 `State for <sha>: NOT_FOUND` / `Most recent deployment commit seen: <직전 sha>`를 반복하다 실패하고, `deploy-failure` 라벨 이슈가 열린다. CI·db-migrate·db-seed는 성공이라 **DB만 최신이고 앱은 옛 버전**이다.
+  - 확진: Vercel 대시보드나 API에서 그 SHA의 배포를 찾는다. PR 프리뷰는 있는데 production 배포만 없으면 확정이다. deploy.yml 재실행은 소용없다 — 배포를 만들지 않고 기다리기만 한다.
+  - 복구: Vercel 프로덕션 배포는 main push로만 트리거되고 main은 직접 push가 막혀 있다. 빈 커밋 PR(`git commit --allow-empty` → PR → 머지)을 태우거나, Vercel 대시보드에서 Redeploy·Promote to Production을 한다(사용자 조작). 빈 커밋이어도 소스 전체를 다시 빌드하므로 직전 머지의 변경이 함께 나가고, 마이그레이션·시드는 멱등이라 체인이 다시 돌아도 안전하다.
 
 ---
 
