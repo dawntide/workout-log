@@ -149,6 +149,8 @@ git push origin v0.1.0        # → tui-release 워크플로가 멀티플랫폼 
 
 설정: [.goreleaser.yaml](.goreleaser.yaml) · [.github/workflows/tui-release.yml](../../.github/workflows/tui-release.yml).
 
+- 버전: TUI 기능 추가면 minor, 수정만이면 patch. 최신 태그는 `git tag --sort=-v:refname | head -3`으로 확인한다(위 예시 번호가 아니다). TUI 릴리스는 웹 머지와 별개라 밀리기 쉽다.
+
 ## 구조
 
 ```
