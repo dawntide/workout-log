@@ -4,12 +4,40 @@
 
 출처: 2026-11-03 프로젝트 메모리(Claude Projects)에서 옮김. 메모리 본문과 연결 페이지 10개를 근거로 했고, 옮긴 항목은 사용자가 목록을 확인·승인했다. 항목 번호는 승인 목록의 번호다. PR 번호는 `dawntide/workout-log` 기준.
 
+"2026-06-24 ~ 2026-08-26" 절은 2026-11-09에 Claude Code 프로젝트 메모리에서 옮긴 결정이며, 원래 날짜 자리에 넣었다.
+
 ---
 
 ### 알 수 없는 날짜
 
 **(번호 13) 날짜 미기록 / 인프라는 유지보수가 가장 적은 쪽을 고른다 (Vercel + Supabase).**
 이유: 사용자 선호(세부 이유 미기록). 대안과 버린 이유: 미기록. 참고: apps/api 전용 VPS 배포는 내려가 있고 인프로세스 모드가 현행 프로덕션이다(AGENTS.md).
+
+### 2026-06-24 ~ 2026-08-26
+
+**(2026-06-24) `apps/tui` 스택은 Go + Bubble Tea v2 + Lip Gloss v2 + Bubbles v2 + ntcharts v2로 한다.**
+이유: 사용자 결정(세부 이유 미기록). 대안과 버린 이유: 미기록.
+주의: 임포트 경로는 `charm.land/{bubbletea,lipgloss,bubbles}/v2`다(github.com 경로는 v1). v1과 섞지 않는다 — v2 `View()`는 문자열이 아니라 `tea.View`를 돌려주는데 온라인 예제 대부분이 v1이다.
+
+**(2026-07-23) 프로그램 정의 DSL(raw jsonb)의 타입은 zod 판별 유니온(`packages/core/src/program-dsl/`)으로 모델링하고, 파서는 서버 사이드에만 둔다.**
+이유: 스키마=타입(`z.infer`)=파서가 한 소스라 타입과 실데이터의 드리프트를 막는다. 실데이터에 seed 밖 형태(유저 fork 필드, 문자열 `protocolVersion`)가 있어 dev·prod 인벤토리로 스키마를 교정했다. 미지 kind는 throw 대신 `{ok:false}` 폴백, 미지 필드는 `.passthrough()`로 보존한다.
+대안과 버린 이유: 수제 내로잉 유지(계획서 초안의 권장안, core 의존성 경량) — 드리프트를 구조적으로 막지 못해 버림. 상세: [`program-dsl-typing-plan.md`](program-dsl-typing-plan.md) §7.
+
+**(2026-07-23) DSL 타입 작업의 성공 기준은 출력 불변이다. 골든 마스터(`packages/core/fixtures/dsl/golden-logic.json`)와 바이트 동일해야 하고, 폴백 제거·"정리"는 하지 않으며, 한 PR에 Phase 하나만 담는다.**
+이유: 출력이 변하면 실사용자 세션이 변한다. 여러 Phase를 합치면 골든 diff의 원인을 추적할 수 없다.
+대안과 버린 이유: typecheck·기존 테스트를 게이트로 삼기 — typecheck는 이 종류의 회귀를 못 잡아 버림(앞선 FK 작업과 같은 교훈).
+
+**(2026-07-23) 저장된 jsonb를 좁힐 때 경계에서 런타임 parse를 하지 않는다. `plan.params`·`defaults`는 경계 캐스트로, 저장 스냅샷은 `toRecord()` 관용 파싱으로 읽는다 (#606·#610).**
+이유: 런타임 parse는 미지 형태에서 params를 통째로 떨어뜨릴 위험이 있다. 저장 스냅샷은 레거시 v1/v2·REF5(v4)·fork 형태가 섞여 있다.
+대안과 버린 이유: 경계에서 `parsePlanParams` 등으로 런타임 parse — 위 드롭 위험으로 버림. 저장 스냅샷을 `SnapshotV3`로 직접 캐스트 — 섞인 형태에 거짓 좁힘이라 버림.
+
+**(2026-08-04) workout-log SSR의 `generateAndSaveSession` persist를 없애지 않는다(홈처럼 read-only로 바꾸지 않는다).**
+이유: 이 persist는 렌더 최적화가 아니라 `workout_log.generated_session_id` 링크를 만드는 유일한 지점이다. 없애면 기록 수정 시 처방 메타(`amrap`·`progressionExcluded`)가 빠진 채 재저장돼 진행 판정이 조용히 뒤집히고, 캘린더 "다음 할 세션"·플랜 사이클 뷰·ux-snapshot 텔레메트리가 죽는다. REF5만 `upsert-log`의 세션 없는 저장 거부 가드가 있어 안전하다.
+대안과 버린 이유: 홈처럼 read-only `generateSessionSnapshot`으로 바꾸기 — 로딩 성능 진단 중 조사 후 철회(위 이유). 상세: [`codebase-audit-2026-07.md`](codebase-audit-2026-07.md)의 "기각한 안".
+
+**(2026-08-26) PAT 공개 표면(`apps/api/src/api-token-surface.ts`)은 데이터 읽기·쓰기용이고 클라이언트 로그인 수단이 아니다. 기본 거부를 유지하고, 클라이언트를 붙이려고 표면을 넓히지 않는다.**
+이유: TUI가 부르는 경로 상당수가 표면 밖이고(2026-08-26 실측 37개 중 26개) 그중에 부팅 게이트 `GET /api/auth/me`가 있다. 토큰 관리 경로(`/api/auth/api-tokens`)는 세션 전용이다 — 토큰이 토큰을 낳으면 폐기가 무의미해진다. stats는 `:metric` 패턴이 아니라 전수 열거라 새 지표가 검토 없이 열리지 않는다.
+대안과 버린 이유: PAT를 TUI 로그인 대안으로 쓰기(표면 고정 #702 이전 로드맵 계획서의 안) — 표면이 생긴 뒤로 성립하지 않아 버림. 새 클라이언트를 PAT로 붙이려면 먼저 호출 경로를 `decideApiTokenSurface`에 넣어 본다.
 
 ### 2026-10-14
 
