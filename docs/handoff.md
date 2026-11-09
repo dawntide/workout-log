@@ -26,6 +26,11 @@
    - §21.1 3창 평가에서 재검토할 것: 166시간 허용(§26 후보, v1.5로 사실상 무의미해짐), 볼륨 +1세트(§23.1 순서), §8 엔진의 연속일 처리(n=1이라 #766에서 보류).
 4. **미채택 제안**(ChatGPT 검토, 2026-10-14, 승인 안 됨): P0 문서·UI 수정(일부는 #760으로 반영), P1 관찰 데이터, P2 순서 SQ→OAP→BP→OHP, P3 SQ V 3×5→4×5. P2·P3는 근거 부족으로 보류.
 5. **의심 사항 A–F 판정**(2026-10-14): A OAP 쌍 순서·휴식 UI 갭(L1→L2→R1→R2, 판정과 무관, 미착수), B 스펙 문구 결함(#760에서 정정), C 문구만 정리(#760), D·E·F 스펙이 알고 받아들인 비용(§22.4 #9–#11).
+6. **문서 점검에서 나온 백로그**(2026-11-09, #776 작업 중 발견, 미착수):
+   - `V2Switch`가 `<label>` 밖에 있는 5곳: `rest-timer-page-content.tsx` 3곳(휴식 타이머 설정, 사용자 화면), `save-policy-section.tsx` 2곳(관리자 화면). 헤드리스 Chromium에서는 탭해도 토글되지 않았다. 실기기 확인 전이고 덮는 E2E가 없다. 규칙은 [v2 primitives README](../web/src/components/v2/primitives/README.md).
+   - `AGENTS.md`의 apps/api 인증 폴백 설명이 플래그로 production 폴백이 열리는 것처럼 읽힌다. 코드는 production에서 항상 닫는다(`apps/api/src/auth.ts`).
+   - `docs/codebase-audit-2026-07.md`의 앵커 인터셉터 "기우로 판명" 문단이 낡았다. `app-shell.tsx`의 `defaultPrevented` 처리와 `link-navigation.spec.ts` 가드가 이미 있다.
+   - `apps/tui/README.md` 로드맵에 overrides가 아직 "다음"으로 남아 있다(이미 구현됨).
 
 ## 막힌 점
 
