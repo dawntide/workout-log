@@ -23,6 +23,7 @@ jobs:
   quality:
     name: Lint · Typecheck · Unit Tests
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: web
@@ -79,6 +80,7 @@ jobs:
   apps-api:
     name: apps/api Typecheck · Boundary
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-pnpm-node
@@ -110,6 +112,7 @@ jobs:
   mcp:
     name: apps/mcp Typecheck · Boundary · Smoke
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-pnpm-node
@@ -133,6 +136,7 @@ jobs:
   core:
     name: packages/core Typecheck · Test
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-pnpm-node
@@ -158,6 +162,7 @@ jobs:
   bundle-budget:
     name: Next.js Client Bundle Budget
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-pnpm-node
@@ -177,6 +182,7 @@ jobs:
   tui:
     name: TUI Build · Vet · Test
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
