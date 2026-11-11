@@ -1,5 +1,5 @@
 # 인계 문서 (덮어쓰기)
-- 갱신: 2026-11-11 14:14 / 브랜치: main / HEAD: f048c46f
+- 갱신: 2026-11-11 15:45 / 브랜치: main / HEAD: 3926a106
 
 작업을 마치거나 중단할 때 이 문서를 **덮어써서** 갱신한다. 이력은 `docs/decisions.md`와 git에 있다. 아래는 2026-11-03 프로젝트 메모리에서 옮긴 초기 내용이며, 메모리 기준 시점(마지막 갱신 2026-10-31)이라 **운영 DB·최신 main으로 검증하지 않았다**. 쓰기 전에 확인할 것.
 
@@ -32,15 +32,10 @@
    - `AGENTS.md`의 apps/api 인증 폴백 설명이 플래그로 production 폴백이 열리는 것처럼 읽힌다. 코드는 production에서 항상 닫는다(`apps/api/src/auth.ts`).
    - `docs/codebase-audit-2026-07.md`의 앵커 인터셉터 "기우로 판명" 문단이 낡았다. `app-shell.tsx`의 `defaultPrevented` 처리와 `link-navigation.spec.ts` 가드가 이미 있다.
    - `apps/tui/README.md` 로드맵에 overrides가 아직 "다음"으로 남아 있다(이미 구현됨).
-7. **전체 점검**(2026-11-11). 결과로 draft PR 7개를 올렸고 전부 머지 전이다(#778–#783 CI 통과, #784는 올린 직후라 [미확인]). 화면 렌더와 로컬 E2E는 어느 PR도 확인하지 않았다.
-   - #778 통계 운동 목록 200개 제한 제거. 머지 전 프리뷰에서 통계 화면에 스쿼트·풀업이 나오는지 볼 것.
-   - #779 휴식 타이머 리렌더 4/s→1/s, 스크래치 5개 삭제, `ci.yml` 6개 잡 타임아웃 15분, 이 문서.
-   - #780 `claimDevData`를 프로덕션에서 잠금. 운영 env에 `WORKOUT_AUTH_USER_ID`가 있는지는 [미확인].
-   - #781 추적 중이던 운영 DB 덤프 삭제 + `.gitignore`. 히스토리는 다시 쓰지 않기로 했다(사용자 승인).
-   - #782 운동 사전의 수정·삭제·별칭을 관리자 전용으로(API 계약 변경, `decisions.md`).
-   - #783 DB·네트워크 예외 문구를 API 응답에서 가림, health의 `requiredTables` 상한 20.
-   - #784 세션 토큰을 `sha256:` 해시로 저장(이중 조회 전환, `decisions.md`). 평문 행 승격 경로는 실제 DB로 [미확인]. 후속: 2027-05-10 이후 평문 분기 제거.
-   - #782와 #784는 둘 다 `docs/decisions.md` 끝에 항목을 추가해서 나중에 머지하는 쪽에서 충돌이 난다(둘 다 남기면 된다).
+7. **전체 점검**(2026-11-11). 결과로 올린 PR 7개(#778–#784)를 모두 main에 머지했고 프로덕션 배포까지 성공했다(HEAD `3926a106`). 머지된 브랜치는 원격·로컬 모두 지웠다.
+   - 운영 확인(DB 읽기 전용): 배포 전부터 있던 세션 1개가 접속 후 `sha256:` 형식으로 바뀌고 활성으로 남았다(평문 행 승격 경로 동작 확인). 나머지 활성 세션 2개는 아직 평문이고 다음 접속 때 바뀐다.
+   - 운영에서 화면으로 [미확인]: 통계 필터에 스쿼트·풀업·OHP가 나오는지(#778), `/exercises`에서 admin 수정·삭제(#782), 설정 세션 목록의 "현재 세션" 표시(#784), 휴식 타이머 표시(#779).
+   - 후속: 2027-05-10 이후 세션 토큰의 평문 분기 제거(`decisions.md`). 운영 env에 `WORKOUT_AUTH_USER_ID`가 있는지는 [미확인](있어도 #780으로 가입 시 이전은 막힌다).
    - 남은 것([미확인], 서브에이전트 보고만): `.next/cache` CI 캐시, `eslint-config-next`·`@types/node`·`tsx` 버전 불일치, REF5 저장마다 전체 replay, `requireAuth` 세션 2회 조회, `auth_event_log`·만료 토큰 보존 정책 없음(`pruneExpiredApiTokens` 호출처 0건은 확인), 통계 메모리 캐시 인스턴스 로컬, 로그인 속도 제한 폴백, `logAuthEvent` 빈 catch, 플랜 생성 시 템플릿 visibility 검사, Material Symbols FOUT, `revalidatePath("/workout/log")`.
    - 남은 것(확인): `apiMutate` 기본 전체 캐시 무효화(`web/src/lib/api.ts:429`), 통계 부트스트랩 직렬 await(`get-stats-page-bootstrap.ts:150,151,245`), 통계 클라이언트 폴백의 `/api/exercises?limit=200`(`use-stats-1rm-controller.ts:144`), core의 `test`·`lint:boundary` 스크립트가 POSIX 전용이라 Windows에서 `pnpm` 스크립트로 안 돈다(Git Bash에서 명령을 직접 실행).
 
