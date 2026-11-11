@@ -1,4 +1,5 @@
 # 인계 문서 (덮어쓰기)
+- 갱신: 2026-11-11 14:14 / 브랜치: main / HEAD: f048c46f
 
 작업을 마치거나 중단할 때 이 문서를 **덮어써서** 갱신한다. 이력은 `docs/decisions.md`와 git에 있다. 아래는 2026-11-03 프로젝트 메모리에서 옮긴 초기 내용이며, 메모리 기준 시점(마지막 갱신 2026-10-31)이라 **운영 DB·최신 main으로 검증하지 않았다**. 쓰기 전에 확인할 것.
 
@@ -31,10 +32,21 @@
    - `AGENTS.md`의 apps/api 인증 폴백 설명이 플래그로 production 폴백이 열리는 것처럼 읽힌다. 코드는 production에서 항상 닫는다(`apps/api/src/auth.ts`).
    - `docs/codebase-audit-2026-07.md`의 앵커 인터셉터 "기우로 판명" 문단이 낡았다. `app-shell.tsx`의 `defaultPrevented` 처리와 `link-navigation.spec.ts` 가드가 이미 있다.
    - `apps/tui/README.md` 로드맵에 overrides가 아직 "다음"으로 남아 있다(이미 구현됨).
+7. **전체 점검**(2026-11-11). 결과로 draft PR 7개를 올렸고 전부 머지 전이다(#778–#783 CI 통과, #784는 올린 직후라 [미확인]). 화면 렌더와 로컬 E2E는 어느 PR도 확인하지 않았다.
+   - #778 통계 운동 목록 200개 제한 제거. 머지 전 프리뷰에서 통계 화면에 스쿼트·풀업이 나오는지 볼 것.
+   - #779 휴식 타이머 리렌더 4/s→1/s, 스크래치 5개 삭제, `ci.yml` 6개 잡 타임아웃 15분, 이 문서.
+   - #780 `claimDevData`를 프로덕션에서 잠금. 운영 env에 `WORKOUT_AUTH_USER_ID`가 있는지는 [미확인].
+   - #781 추적 중이던 운영 DB 덤프 삭제 + `.gitignore`. 히스토리는 다시 쓰지 않기로 했다(사용자 승인).
+   - #782 운동 사전의 수정·삭제·별칭을 관리자 전용으로(API 계약 변경, `decisions.md`).
+   - #783 DB·네트워크 예외 문구를 API 응답에서 가림, health의 `requiredTables` 상한 20.
+   - #784 세션 토큰을 `sha256:` 해시로 저장(이중 조회 전환, `decisions.md`). 평문 행 승격 경로는 실제 DB로 [미확인]. 후속: 2027-05-10 이후 평문 분기 제거.
+   - #782와 #784는 둘 다 `docs/decisions.md` 끝에 항목을 추가해서 나중에 머지하는 쪽에서 충돌이 난다(둘 다 남기면 된다).
+   - 남은 것([미확인], 서브에이전트 보고만): `.next/cache` CI 캐시, `eslint-config-next`·`@types/node`·`tsx` 버전 불일치, REF5 저장마다 전체 replay, `requireAuth` 세션 2회 조회, `auth_event_log`·만료 토큰 보존 정책 없음(`pruneExpiredApiTokens` 호출처 0건은 확인), 통계 메모리 캐시 인스턴스 로컬, 로그인 속도 제한 폴백, `logAuthEvent` 빈 catch, 플랜 생성 시 템플릿 visibility 검사, Material Symbols FOUT, `revalidatePath("/workout/log")`.
+   - 남은 것(확인): `apiMutate` 기본 전체 캐시 무효화(`web/src/lib/api.ts:429`), 통계 부트스트랩 직렬 await(`get-stats-page-bootstrap.ts:150,151,245`), 통계 클라이언트 폴백의 `/api/exercises?limit=200`(`use-stats-1rm-controller.ts:144`), core의 `test`·`lint:boundary` 스크립트가 POSIX 전용이라 Windows에서 `pnpm` 스크립트로 안 돈다(Git Bash에서 명령을 직접 실행).
 
 ## 막힌 점
 
-- **운영 DB의 모든 테이블에서 RLS가 꺼져 있다.** 핸드오프에서 긴급으로 표시됐으나 미해결. 훈련 외 인프라.
+- **운영 DB의 `public`·`dev` 54개 테이블에서 RLS가 꺼져 있다(정책 0건).** 2026-11-11 확인: `anon`·`authenticated`에 두 스키마 USAGE와 테이블 권한이 없어 Data API로는 읽히지 않고, 보안 어드바이저도 RLS 경고를 내지 않는다. 긴급은 아니고 방어 겹이 하나뿐인 상태다. 같은 어드바이저 경고: `guard_deleted_account_write`의 `search_path` 미고정, `pg_net`이 `public`에 설치됨.
 - 에이전트는 운영 Supabase에 직접 쓸 수 없다(차단됨, 읽기 전용 조회만). 기록 정정은 앱 UI 또는 사용자가 실행하는 가드된 SQL.
 - 9일 공백 뒤 정상/micro 선택 같은 질문에는 §19.4가 둘 다 허용하며, 지난번(2026-10-29)에는 정상(SQ H3 85 + PULL 집중)을 권고했다. 결정이 아니라 권고였다.
 
