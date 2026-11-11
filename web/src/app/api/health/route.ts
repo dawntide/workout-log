@@ -3,6 +3,7 @@ import path from "node:path";
 import { NextResponse } from "next/server";
 import { sql } from "drizzle-orm";
 import { db } from "@workout/core/db/client";
+import { logError } from "@workout/core/observability/logger";
 import { readMigrationLedgerSnapshot } from "@/server/db/migrationLedger";
 import { withApiLogging } from "@/server/observability/apiRoute";
 import { resolveRequestLocale } from "@/lib/i18n/messages";
@@ -34,13 +35,16 @@ type HealthCheckResult = {
   error?: string;
 };
 
+/** 무인증 엔드포인트라 테이블마다 나가는 쿼리 수를 묶는다. */
+const MAX_REQUIRED_TABLES = 20;
+
 function parseRequiredTables(raw: string | null) {
   const parsed = (raw ?? "")
     .split(",")
     .map((token) => token.trim())
     .filter((token) => /^[a-zA-Z0-9_]+$/.test(token));
   if (parsed.length === 0) return ["program_template"];
-  return Array.from(new Set(parsed));
+  return Array.from(new Set(parsed)).slice(0, MAX_REQUIRED_TABLES);
 }
 
 async function readLocalMigrationCount() {
@@ -132,6 +136,8 @@ async function GETImpl(req: Request) {
 
     return NextResponse.json(payload, { status: ok ? 200 : 503 });
   } catch (error: unknown) {
+    // 무인증 응답에 예외 문구(SQL·접속 정보)를 싣지 않는다. 상세는 로그에만 남긴다.
+    logError("api.health_check_failed", { error });
     const payload: HealthCheckResult = {
       ok: false,
       mode: "deep",
@@ -144,10 +150,7 @@ async function GETImpl(req: Request) {
           missing: ["program_template"],
         },
       },
-      error:
-        error instanceof Error
-          ? error.message
-          : (locale === "ko" ? "DB 점검에 실패했습니다." : "The DB health check failed."),
+      error: locale === "ko" ? "DB 점검에 실패했습니다." : "The DB health check failed.",
     };
     return NextResponse.json(payload, { status: 503 });
   }

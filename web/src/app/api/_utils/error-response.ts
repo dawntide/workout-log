@@ -1,4 +1,9 @@
 import { NextResponse } from "next/server";
+import {
+  clientErrorMessage,
+  isInternalError,
+} from "@workout/core/observability/client-error-message";
+import { logError } from "@workout/core/observability/logger";
 import { resolveRequestLocale } from "@/lib/i18n/messages";
 import { ForbiddenError, UnauthorizedError } from "@/server/auth/user";
 
@@ -27,9 +32,14 @@ export async function apiErrorResponse(error: unknown, init?: ApiErrorResponseIn
         ? 403
         : 500);
 
+  // DB·네트워크 계층 예외는 SQL·파라미터가 실리므로 고정 문구로 바꾸고 상세는 로그에만 남긴다.
+  if (isInternalError(error)) {
+    logError("api.handler_error", { error });
+  }
+
   return NextResponse.json(
     {
-      error: error instanceof Error ? error.message : fallbackMessage,
+      error: clientErrorMessage(error, fallbackMessage),
       ...(init?.extra ?? {}),
     },
     { status },
