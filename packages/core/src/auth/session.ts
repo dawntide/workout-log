@@ -1,4 +1,4 @@
-import { and, eq, gt, lt } from "drizzle-orm";
+import { and, eq, gt, inArray, lt } from "drizzle-orm";
 import { db } from "@workout/core/db/client";
 import { authSession, appUser, type UserRole } from "@workout/core/db/schema";
 import { acquireActiveAccountMutationLock } from "./account-lifecycle";
@@ -7,6 +7,7 @@ import {
   SESSION_ABSOLUTE_MAX_MS,
   computeSlideTarget,
 } from "./session-policy";
+import { sessionTokenCandidates, storedSessionToken } from "./session-token";
 
 const SESSION_COOKIE = "wl_session";
 const TOKEN_BYTE_LENGTH = 32;
@@ -33,13 +34,15 @@ export type SessionRecord = {
 
 export async function createSession(userId: string): Promise<SessionRecord> {
   const token = generateToken();
+  // DB에는 해시만 둔다. 원문은 반환값(쿠키)으로만 나간다 — session-token.ts 참조.
+  const storedToken = await storedSessionToken(token);
   const now = Date.now();
   const expiresAt = new Date(now + SESSION_IDLE_TTL_MS);
   const cookieExpiresAt = new Date(now + SESSION_ABSOLUTE_MAX_MS);
   await db.transaction(async (tx) => {
     await acquireActiveAccountMutationLock(tx, userId);
     await tx.insert(authSession).values({
-      token,
+      token: storedToken,
       userId,
       expiresAt,
     });
@@ -51,9 +54,12 @@ export async function findActiveSession(
   token: string,
 ): Promise<{ userId: string; role: UserRole } | null> {
   if (!token) return null;
+  const candidates = await sessionTokenCandidates(token);
+  const hashedToken = candidates[0];
   const now = new Date();
   const rows = await db
     .select({
+      storedToken: authSession.token,
       userId: authSession.userId,
       role: appUser.role,
       expiresAt: authSession.expiresAt,
@@ -64,10 +70,23 @@ export async function findActiveSession(
     // 권한은 세션이 아니라 계정에서 매 요청 읽는다(이미 join하므로 추가 쿼리 0):
     // 세션에 구우면 승격·강등이 재로그인 전까지 반영되지 않는다.
     .innerJoin(appUser, eq(authSession.userId, appUser.id))
-    .where(and(eq(authSession.token, token), gt(authSession.expiresAt, now)))
-    .limit(1);
-  const r = rows[0];
+    .where(and(inArray(authSession.token, candidates), gt(authSession.expiresAt, now)))
+    .limit(2);
+  const r = rows.find((row) => row.storedToken === hashedToken) ?? rows[0];
   if (!r) return null;
+
+  // 전환 전에 평문으로 저장된 행이면 이 자리에서 해시로 바꾼다. best-effort — 실패해도
+  // 인증은 막지 않고 다음 요청이 다시 시도한다. 동시 요청이 먼저 바꿨으면 0행 갱신이다.
+  let storedToken = r.storedToken;
+  if (storedToken !== hashedToken) {
+    const upgraded = await db
+      .update(authSession)
+      .set({ token: hashedToken })
+      .where(eq(authSession.token, storedToken))
+      .then(() => true)
+      .catch(() => false);
+    if (upgraded) storedToken = hashedToken;
+  }
 
   // Sliding: 활동 시 idle 창을 연장(절대 상한 clamp, REFRESH_INTERVAL 스로틀).
   // best-effort — 갱신 실패는 인증을 막지 않는다(다음 요청에 재시도).
@@ -81,7 +100,7 @@ export async function findActiveSession(
       .update(authSession)
       .set({ expiresAt: nextExpiry })
       // 아직 만료 전인 동일 토큰만 — 동시성/경합에 안전(무해).
-      .where(and(eq(authSession.token, token), gt(authSession.expiresAt, now)))
+      .where(and(eq(authSession.token, storedToken), gt(authSession.expiresAt, now)))
       .catch(() => {});
   }
   return { userId: r.userId, role: r.role };
@@ -89,7 +108,8 @@ export async function findActiveSession(
 
 export async function deleteSession(token: string): Promise<void> {
   if (!token) return;
-  await db.delete(authSession).where(eq(authSession.token, token));
+  const candidates = await sessionTokenCandidates(token);
+  await db.delete(authSession).where(inArray(authSession.token, candidates));
 }
 
 export async function deleteSessionsForUser(userId: string): Promise<void> {
