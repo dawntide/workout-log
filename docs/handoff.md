@@ -32,15 +32,17 @@
    - `AGENTS.md`의 apps/api 인증 폴백 설명이 플래그로 production 폴백이 열리는 것처럼 읽힌다. 코드는 production에서 항상 닫는다(`apps/api/src/auth.ts`).
    - `docs/codebase-audit-2026-07.md`의 앵커 인터셉터 "기우로 판명" 문단이 낡았다. `app-shell.tsx`의 `defaultPrevented` 처리와 `link-navigation.spec.ts` 가드가 이미 있다.
    - `apps/tui/README.md` 로드맵에 overrides가 아직 "다음"으로 남아 있다(이미 구현됨).
-7. **전체 점검**(2026-11-11). 4건을 draft PR 2개로 올렸다(머지 전): `fix/stats-exercise-options-limit`에 통계 200개 제한 제거, `chore/audit-2026-11-quick-fixes`에 나머지 3건. 내용: 휴식 타이머 틱을 초 경계로 양자화(리렌더 4/s→1/s, 표시값 동일), 스크래치 5개 `git rm`, `ci.yml` 6개 잡 `timeout-minutes: 15`. typecheck·lint·lint:design·core 753·web unit 255 통과, E2E·빌드·화면 렌더는 [미확인]. 아래 목록에서 이 4건을 뺀 나머지는 미착수. ("확인"은 코드·운영 DB로 직접 본 것, "[미확인]"은 서브에이전트 보고만 받은 것):
-   - 확인 · 공개 저장소에 운영 DB 덤프 `workoutlog_backup_20260401_043001.sql.gz`가 추적된다(커밋 `ff4f35e5`). 운동 기록·체중 설정만 있고 이메일·비밀값·auth 테이블은 없다. 히스토리 제거는 force-push라 사용자 결정.
-   - 확인 · 통계 운동 목록이 이름순 200개로 잘린다(`packages/core/src/stats/e1rm-service.ts:68,84`, 운영 `exercise` 약 761행). High-Bar Back Squat(296위)·Pull-Up(505위)·Overhead Press(474위)가 빠진다. 화면 렌더는 미확인.
-   - 확인 · 운동 카탈로그 쓰기(POST/PATCH/DELETE/alias)가 `requireAuth`뿐이다(`apps/api/src/routes/exercises.ts:81`). 전역 테이블이라 로그인한 누구나 남의 종목을 바꾸거나 지울 수 있다. 권한 모델은 설계 결정.
-   - 확인 · `claimEnvFallbackData`가 production 차단 없이 `WORKOUT_AUTH_USER_ID`를 직접 읽는다(`packages/core/src/auth/claim-fallback.ts:33`). prod env에 값이 있는지는 [미확인].
-   - 확인 · 500 응답이 `e.message`를 그대로 내보낸다(`apps/api/src/lib/http.ts:44`). 세션 토큰은 평문 저장(`packages/core/src/auth/session.ts:42,67`).
-   - 확인 · 휴식 타이머 250ms 틱(`use-rest-timer.ts:32,79`), `apiMutate` 기본 전체 캐시 무효화(`web/src/lib/api.ts:429`), 통계 부트스트랩 직렬 await(`get-stats-page-bootstrap.ts:150,151,245`), 호출처 없는 `pruneExpiredApiTokens`.
-   - 확인 · 추적 중인 스크래치: `Implementation_plan.md`, `web/walkthrough.md`, `web/node`, `web/web@0.1.0`, `web/scripts/seed-if-empty.mjs`.
-   - [미확인] CI(`.next/cache` 캐시 없음, 6개 잡 타임아웃 없음, `eslint-config-next`·`@types/node`·`tsx` 버전 불일치), REF5 저장마다 전체 replay, `requireAuth` 세션 2회 조회, `auth_event_log`·만료 토큰 보존 정책 없음, 통계 메모리 캐시 인스턴스 로컬, health 엔드포인트 오류 문구·`requiredTables`, 로그인 속도 제한 폴백, `logAuthEvent` 빈 catch, 플랜 생성 시 템플릿 visibility 검사, Material Symbols FOUT, `revalidatePath("/workout/log")`.
+7. **전체 점검**(2026-11-11). 결과로 draft PR 7개를 올렸고 전부 머지 전이다(#778–#783 CI 통과, #784는 올린 직후라 [미확인]). 화면 렌더와 로컬 E2E는 어느 PR도 확인하지 않았다.
+   - #778 통계 운동 목록 200개 제한 제거. 머지 전 프리뷰에서 통계 화면에 스쿼트·풀업이 나오는지 볼 것.
+   - #779 휴식 타이머 리렌더 4/s→1/s, 스크래치 5개 삭제, `ci.yml` 6개 잡 타임아웃 15분, 이 문서.
+   - #780 `claimDevData`를 프로덕션에서 잠금. 운영 env에 `WORKOUT_AUTH_USER_ID`가 있는지는 [미확인].
+   - #781 추적 중이던 운영 DB 덤프 삭제 + `.gitignore`. 히스토리는 다시 쓰지 않기로 했다(사용자 승인).
+   - #782 운동 사전의 수정·삭제·별칭을 관리자 전용으로(API 계약 변경, `decisions.md`).
+   - #783 DB·네트워크 예외 문구를 API 응답에서 가림, health의 `requiredTables` 상한 20.
+   - #784 세션 토큰을 `sha256:` 해시로 저장(이중 조회 전환, `decisions.md`). 평문 행 승격 경로는 실제 DB로 [미확인]. 후속: 2027-05-10 이후 평문 분기 제거.
+   - #782와 #784는 둘 다 `docs/decisions.md` 끝에 항목을 추가해서 나중에 머지하는 쪽에서 충돌이 난다(둘 다 남기면 된다).
+   - 남은 것([미확인], 서브에이전트 보고만): `.next/cache` CI 캐시, `eslint-config-next`·`@types/node`·`tsx` 버전 불일치, REF5 저장마다 전체 replay, `requireAuth` 세션 2회 조회, `auth_event_log`·만료 토큰 보존 정책 없음(`pruneExpiredApiTokens` 호출처 0건은 확인), 통계 메모리 캐시 인스턴스 로컬, 로그인 속도 제한 폴백, `logAuthEvent` 빈 catch, 플랜 생성 시 템플릿 visibility 검사, Material Symbols FOUT, `revalidatePath("/workout/log")`.
+   - 남은 것(확인): `apiMutate` 기본 전체 캐시 무효화(`web/src/lib/api.ts:429`), 통계 부트스트랩 직렬 await(`get-stats-page-bootstrap.ts:150,151,245`), 통계 클라이언트 폴백의 `/api/exercises?limit=200`(`use-stats-1rm-controller.ts:144`), core의 `test`·`lint:boundary` 스크립트가 POSIX 전용이라 Windows에서 `pnpm` 스크립트로 안 돈다(Git Bash에서 명령을 직접 실행).
 
 ## 막힌 점
 
