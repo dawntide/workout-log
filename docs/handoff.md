@@ -1,4 +1,5 @@
 # 인계 문서 (덮어쓰기)
+- 갱신: 2026-11-11 14:14 / 브랜치: main / HEAD: f048c46f
 
 작업을 마치거나 중단할 때 이 문서를 **덮어써서** 갱신한다. 이력은 `docs/decisions.md`와 git에 있다. 아래는 2026-11-03 프로젝트 메모리에서 옮긴 초기 내용이며, 메모리 기준 시점(마지막 갱신 2026-10-31)이라 **운영 DB·최신 main으로 검증하지 않았다**. 쓰기 전에 확인할 것.
 
@@ -31,10 +32,19 @@
    - `AGENTS.md`의 apps/api 인증 폴백 설명이 플래그로 production 폴백이 열리는 것처럼 읽힌다. 코드는 production에서 항상 닫는다(`apps/api/src/auth.ts`).
    - `docs/codebase-audit-2026-07.md`의 앵커 인터셉터 "기우로 판명" 문단이 낡았다. `app-shell.tsx`의 `defaultPrevented` 처리와 `link-navigation.spec.ts` 가드가 이미 있다.
    - `apps/tui/README.md` 로드맵에 overrides가 아직 "다음"으로 남아 있다(이미 구현됨).
+7. **전체 점검**(2026-11-11). 4건을 draft PR 2개로 올렸다(머지 전): `fix/stats-exercise-options-limit`에 통계 200개 제한 제거, `chore/audit-2026-11-quick-fixes`에 나머지 3건. 내용: 휴식 타이머 틱을 초 경계로 양자화(리렌더 4/s→1/s, 표시값 동일), 스크래치 5개 `git rm`, `ci.yml` 6개 잡 `timeout-minutes: 15`. typecheck·lint·lint:design·core 753·web unit 255 통과, E2E·빌드·화면 렌더는 [미확인]. 아래 목록에서 이 4건을 뺀 나머지는 미착수. ("확인"은 코드·운영 DB로 직접 본 것, "[미확인]"은 서브에이전트 보고만 받은 것):
+   - 확인 · 공개 저장소에 운영 DB 덤프 `workoutlog_backup_20260401_043001.sql.gz`가 추적된다(커밋 `ff4f35e5`). 운동 기록·체중 설정만 있고 이메일·비밀값·auth 테이블은 없다. 히스토리 제거는 force-push라 사용자 결정.
+   - 확인 · 통계 운동 목록이 이름순 200개로 잘린다(`packages/core/src/stats/e1rm-service.ts:68,84`, 운영 `exercise` 약 761행). High-Bar Back Squat(296위)·Pull-Up(505위)·Overhead Press(474위)가 빠진다. 화면 렌더는 미확인.
+   - 확인 · 운동 카탈로그 쓰기(POST/PATCH/DELETE/alias)가 `requireAuth`뿐이다(`apps/api/src/routes/exercises.ts:81`). 전역 테이블이라 로그인한 누구나 남의 종목을 바꾸거나 지울 수 있다. 권한 모델은 설계 결정.
+   - 확인 · `claimEnvFallbackData`가 production 차단 없이 `WORKOUT_AUTH_USER_ID`를 직접 읽는다(`packages/core/src/auth/claim-fallback.ts:33`). prod env에 값이 있는지는 [미확인].
+   - 확인 · 500 응답이 `e.message`를 그대로 내보낸다(`apps/api/src/lib/http.ts:44`). 세션 토큰은 평문 저장(`packages/core/src/auth/session.ts:42,67`).
+   - 확인 · 휴식 타이머 250ms 틱(`use-rest-timer.ts:32,79`), `apiMutate` 기본 전체 캐시 무효화(`web/src/lib/api.ts:429`), 통계 부트스트랩 직렬 await(`get-stats-page-bootstrap.ts:150,151,245`), 호출처 없는 `pruneExpiredApiTokens`.
+   - 확인 · 추적 중인 스크래치: `Implementation_plan.md`, `web/walkthrough.md`, `web/node`, `web/web@0.1.0`, `web/scripts/seed-if-empty.mjs`.
+   - [미확인] CI(`.next/cache` 캐시 없음, 6개 잡 타임아웃 없음, `eslint-config-next`·`@types/node`·`tsx` 버전 불일치), REF5 저장마다 전체 replay, `requireAuth` 세션 2회 조회, `auth_event_log`·만료 토큰 보존 정책 없음, 통계 메모리 캐시 인스턴스 로컬, health 엔드포인트 오류 문구·`requiredTables`, 로그인 속도 제한 폴백, `logAuthEvent` 빈 catch, 플랜 생성 시 템플릿 visibility 검사, Material Symbols FOUT, `revalidatePath("/workout/log")`.
 
 ## 막힌 점
 
-- **운영 DB의 모든 테이블에서 RLS가 꺼져 있다.** 핸드오프에서 긴급으로 표시됐으나 미해결. 훈련 외 인프라.
+- **운영 DB의 `public`·`dev` 54개 테이블에서 RLS가 꺼져 있다(정책 0건).** 2026-11-11 확인: `anon`·`authenticated`에 두 스키마 USAGE와 테이블 권한이 없어 Data API로는 읽히지 않고, 보안 어드바이저도 RLS 경고를 내지 않는다. 긴급은 아니고 방어 겹이 하나뿐인 상태다. 같은 어드바이저 경고: `guard_deleted_account_write`의 `search_path` 미고정, `pg_net`이 `public`에 설치됨.
 - 에이전트는 운영 Supabase에 직접 쓸 수 없다(차단됨, 읽기 전용 조회만). 기록 정정은 앱 UI 또는 사용자가 실행하는 가드된 SQL.
 - 9일 공백 뒤 정상/micro 선택 같은 질문에는 §19.4가 둘 다 허용하며, 지난번(2026-10-29)에는 정상(SQ H3 85 + PULL 집중)을 권고했다. 결정이 아니라 권고였다.
 
