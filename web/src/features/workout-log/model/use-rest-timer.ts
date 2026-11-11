@@ -31,6 +31,15 @@ import {
 /** 리렌더 주기. 값은 매번 타임스탬프에서 파생하므로 이 값이 정확도를 좌우하지 않는다. */
 const TICK_MS = 250;
 
+/**
+ * 틱 시각을 타이머의 초 경계로 내린다. 남은 시간·진행률은 경과 초(floor)로만 계산하므로
+ * 결과가 같고, 같은 초 안의 틱은 같은 값이 되어 React가 리렌더를 건너뛴다(초당 4회 -> 1회).
+ */
+function quantizeToTimerSecond(startedAtMs: number, nowMs: number): number {
+  if (nowMs <= startedAtMs) return nowMs;
+  return startedAtMs + Math.floor((nowMs - startedAtMs) / 1000) * 1000;
+}
+
 export type RestTimerStartInput = {
   exerciseId: string;
   exerciseName: string;
@@ -73,10 +82,13 @@ export function useRestTimer(persistenceKey: string | null): RestTimerView {
     }
   }, [persistenceKey, setTimer]);
 
-  // 틱: 리렌더만 유발한다. 누적 카운터가 아니므로 백그라운드 스로틀에 영향받지 않는다.
+  // 틱: 초가 바뀔 때만 리렌더를 유발한다. 누적 카운터가 아니므로 백그라운드 스로틀에 영향받지 않는다.
   useEffect(() => {
     if (!timer) return;
-    const id = window.setInterval(() => setNowMs(Date.now()), TICK_MS);
+    const id = window.setInterval(
+      () => setNowMs(quantizeToTimerSecond(timer.startedAtMs, Date.now())),
+      TICK_MS,
+    );
     const onVisible = () => setNowMs(Date.now());
     document.addEventListener("visibilitychange", onVisible);
     return () => {
