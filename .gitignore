@@ -76,3 +76,7 @@ coverage/
 
 .claude/settings.local.json
 .playwright-mcp/
+
+# DB 백업 산출물(db-backup.yml이 만드는 이름). 저장소에 넣지 않는다.
+workoutlog_backup_*.sql.gz
+*.sql.gz

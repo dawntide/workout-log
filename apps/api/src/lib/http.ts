@@ -1,4 +1,5 @@
 import type { Context, Next } from "hono";
+import { clientErrorMessage } from "@workout/core/observability/client-error-message";
 import { logError, logInfo } from "@workout/core/observability/logger";
 
 export type Locale = "ko" | "en";
@@ -32,7 +33,8 @@ export function normalizeTimezone(raw: string | null | undefined): string {
 /**
  * Map a thrown error to a JSON response, mirroring the web `apiErrorResponse`:
  * an `UnauthorizedError` becomes 401, anything else 500, with the error message
- * (services throw localized messages) in the body. `requireAuth` already guards
+ * (services throw localized messages) in the body — except database/network
+ * errors, which are replaced by the fallback. `requireAuth` already guards
  * authentication, so the 401 branch here is a belt-and-suspenders path.
  */
 export function apiError(c: Context, e: unknown, locale: Locale = "ko") {
@@ -41,7 +43,8 @@ export function apiError(c: Context, e: unknown, locale: Locale = "ko") {
     locale === "ko"
       ? "알 수 없는 오류가 발생했습니다."
       : "An unknown error occurred.";
-  const message = e instanceof Error ? e.message : fallback;
+  // DB·네트워크 계층 예외는 SQL·파라미터가 실리므로 고정 문구로 바꾼다(상세는 위 로그에만).
+  const message = clientErrorMessage(e, fallback);
   const isUnauthorized = (e as { name?: string })?.name === "UnauthorizedError";
   return c.json({ error: message }, isUnauthorized ? 401 : 500);
 }
