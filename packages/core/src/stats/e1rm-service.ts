@@ -65,7 +65,8 @@ async function resolveExerciseSelection({
 
 export async function fetchStats1RMFilterOptions(userId: string): Promise<Stats1RMFilterOptions> {
   const [exerciseRows, planRows] = await Promise.all([
-    db.select({ id: exercise.id, name: exercise.name }).from(exercise).orderBy(exercise.name).limit(200),
+    // limit 없음: 카탈로그가 200종을 넘으면 이름순 뒤쪽 종목(High-Bar Back Squat, Pull-Up 등)이 빠진다.
+    db.select({ id: exercise.id, name: exercise.name }).from(exercise).orderBy(exercise.name),
     db.select({ id: plan.id, name: plan.name }).from(plan).where(eq(plan.userId, userId)).orderBy(desc(plan.createdAt)),
   ]);
 
@@ -80,8 +81,7 @@ export async function fetchDefaultStatsExerciseId(userId: string): Promise<strin
     db
       .select({ id: exercise.id, name: exercise.name })
       .from(exercise)
-      .orderBy(exercise.name)
-      .limit(200),
+      .orderBy(exercise.name),
     db
       .select({
         exerciseId: workoutSet.exerciseId,
