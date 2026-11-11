@@ -1,5 +1,6 @@
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
 
+import { findUserRole } from "@workout/core/auth/session";
 import { db } from "@workout/core/db/client";
 import { and, eq, inArray, isNotNull, ne, sql } from "@workout/core/db/ops";
 import { exercise, exerciseAlias, workoutLog, workoutSet } from "@workout/core/db/schema";
@@ -17,7 +18,8 @@ import { apiError, resolveLocale } from "../lib/http";
 // user-scoped: the `exercise`/`exercise_alias` tables have no userId). The web
 // routes don't auth-gate these, but a standalone backend shouldn't expose the
 // write endpoints unauthenticated, so requireAuth is applied here (the TUI always
-// sends a token — no behavior change for it). Inline CRUD ported verbatim from
+// sends a token — no behavior change for it). Writes that change an existing
+// exercise are additionally admin-only (see rejectUnlessCatalogAdmin). Inline CRUD ported verbatim from
 // web/src/app/api/exercises/**.
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -79,6 +81,28 @@ async function loadLoggedExerciseNames(userId: string): Promise<Set<string>> {
 export const exercisesRoutes = new Hono<AppEnv>();
 
 exercisesRoutes.use("*", requireAuth);
+
+/**
+ * 기존 종목을 바꾸는 쓰기(이름·분류 수정, 삭제, 별칭 연결)는 관리자 전용이다.
+ *
+ * 사전은 전역이라 한 계정의 수정·삭제가 모든 사용자의 기록에 닿는다 — 삭제는
+ * `workout_set.exercise_id`를 NULL로 만들고, 별칭은 다른 사용자의 이름 해석을 바꾼다.
+ * 생성(POST /)은 추가만 하고 이름이 겹치면 아무것도 하지 않으므로 열어 둔다.
+ * 판정은 UI가 아니라 여기서 한다(화면은 같은 기준으로 버튼만 숨긴다).
+ */
+async function rejectUnlessCatalogAdmin(c: Context<AppEnv>, locale: "ko" | "en") {
+  const role = await findUserRole(c.get("userId"));
+  if (role === "admin") return null;
+  return c.json(
+    {
+      error:
+        locale === "ko"
+          ? "운동종목 수정·삭제는 관리자만 할 수 있습니다."
+          : "Only an admin can edit or delete exercises.",
+    },
+    403,
+  );
+}
 
 // GET /api/exercises — search the dictionary (empty query = all, up to 200),
 // each item with its aliases.
@@ -263,6 +287,9 @@ exercisesRoutes.get("/categories", async (c) => {
 exercisesRoutes.post("/alias", async (c) => {
   const locale = resolveLocale(c);
   try {
+    const forbidden = await rejectUnlessCatalogAdmin(c, locale);
+    if (forbidden) return forbidden;
+
     const body = await c.req.json();
     const exerciseId = String(body.exerciseId ?? "").trim();
     const alias = String(body.alias ?? "").trim();
@@ -350,6 +377,9 @@ exercisesRoutes.post("/alias", async (c) => {
 exercisesRoutes.patch("/:exerciseId", async (c) => {
   const locale = resolveLocale(c);
   try {
+    const forbidden = await rejectUnlessCatalogAdmin(c, locale);
+    if (forbidden) return forbidden;
+
     const id = String(c.req.param("exerciseId") ?? "").trim();
     if (!id) {
       return c.json(
@@ -432,6 +462,9 @@ exercisesRoutes.patch("/:exerciseId", async (c) => {
 exercisesRoutes.delete("/:exerciseId", async (c) => {
   const locale = resolveLocale(c);
   try {
+    const forbidden = await rejectUnlessCatalogAdmin(c, locale);
+    if (forbidden) return forbidden;
+
     const id = String(c.req.param("exerciseId") ?? "").trim();
     if (!id) {
       return c.json(
