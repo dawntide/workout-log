@@ -284,12 +284,14 @@ func ref5StartingValuesFromE1rms(e1rms ref5E1rmValues) (ref5StartingValues, []st
 	return starts, adjustments, nil
 }
 
+// ref5DeadliftCap and ref5OhpCap mirror core's deriveRef5AuxiliaryCaps
+// (spec §6.4, v1.6): the caps compare direct working weight.
 func ref5DeadliftCap(values ref5StartingValues) float64 {
-	return math.Floor(((104*values.SqH3Kg/82.5)*72.5/100)/2.5) * 2.5
+	return values.SqH3Kg
 }
 
 func ref5OhpCap(values ref5StartingValues) float64 {
-	return math.Floor((((101*values.BpFocusKg/82.5)*0.5)*32.5/50)/2.5) * 2.5
+	return math.Floor((values.BpFocusKg*0.5)/2.5+1e-9) * 2.5
 }
 
 func ref5StartModePickerCmd() tea.Cmd {

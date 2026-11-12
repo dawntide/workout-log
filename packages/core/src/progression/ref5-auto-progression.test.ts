@@ -8,11 +8,14 @@ import {
   REF5_CARRIED_PROTOCOL_VERSION,
   REF5_CARRIED_SNAPSHOT_SCHEMA_VERSION,
   REF5_INITIAL_DIRECT_STANDARDS_KG,
+  REF5_PRIOR_PROTOCOL_VERSION,
   REF5_PROTOCOL_VERSION,
   Ref5StaleVersionError,
   applyRef5FirstSquatStart,
   createInitialRef5State,
   generateRef5Session,
+  reduceRef5Completion,
+  type Ref5ReadableProtocolVersion,
   type Ref5DecodedSessionSnapshot,
   type Ref5EndReason,
   type Ref5SessionSnapshot,
@@ -28,7 +31,7 @@ import {
 
 const START = "2026-07-13T01:00:00.000Z";
 
-test("REF5 runtime decoder rejects protocol-less, v1.1 and v1.3 state and carries v1.4 (§24.3)", () => {
+test("REF5 runtime decoder rejects protocol-less, v1.1 and v1.3 state and carries v1.4 and v1.5 (§24.3)", () => {
   const active = createInitialRef5State() as unknown as Record<string, unknown>;
   assert.throws(
     () => decodeRef5RuntimeState({ ...active, protocolVersion: undefined }),
@@ -45,6 +48,11 @@ test("REF5 runtime decoder rejects protocol-less, v1.1 and v1.3 state and carrie
   assert.deepEqual(
     decodeRef5RuntimeState({ ...active, protocolVersion: REF5_CARRIED_PROTOCOL_VERSION }),
     active,
+  );
+  assert.deepEqual(
+    decodeRef5RuntimeState({ ...active, protocolVersion: REF5_PRIOR_PROTOCOL_VERSION }),
+    active,
+    "the v1.5 state is relabelled and its auxiliary standards are untouched",
   );
 });
 
@@ -408,7 +416,7 @@ function asCarriedV14(domain: Ref5SessionSnapshot): Ref5DecodedSessionSnapshot {
   };
 }
 
-test("REF5 v1.5 folds a carried v1.4 plan's frozen sessions; other plans refuse them (§24.3)", async () => {
+test("REF5 folds a carried v1.4 plan's frozen sessions; other plans refuse them (§24.3)", async () => {
   const carried = asCarriedV14(domainSnapshot());
   const completion = canonicalizeRef5WorkoutLog({
     generatedSnapshot: generatedEnvelope(carried),
@@ -445,7 +453,116 @@ test("REF5 v1.5 folds a carried v1.4 plan's frozen sessions; other plans refuse 
   assert.equal(derived.state.completedSessions.length, 1);
   assert.deepEqual(derived.state.hardStartTimes.map((entry) => entry.sessionId), [carried.sessionId]);
 
-  // A plan born on v1.5 never had a v1.4 session, and v1.3 plans stay archived.
+  // A plan born on v1.5 or v1.6 never had a v1.4 session, and v1.3 plans stay archived.
+  await assert.rejects(deriveOnPlan(REF5_PRIOR_PROTOCOL_VERSION), Ref5StaleVersionError);
   await assert.rejects(deriveOnPlan(REF5_PROTOCOL_VERSION), Ref5StaleVersionError);
   await assert.rejects(deriveOnPlan(REF5_ARCHIVED_PROTOCOL_VERSION), Ref5StaleVersionError);
+});
+
+/**
+ * Stored rows of an all-PASS plan whose sessions were written under the given
+ * protocols in order, as each engine of the time froze them (§24.3).
+ */
+function storedPlanRows(protocols: readonly Ref5ReadableProtocolVersion[]) {
+  const DAY = 24 * 60 * 60 * 1000;
+  const generatedRows: unknown[] = [];
+  const logRows: unknown[] = [];
+  const setRows: unknown[] = [];
+  let state = createInitialRef5State();
+  protocols.forEach((protocolVersion, index) => {
+    const actualStartAt = new Date(Date.parse(START) + index * 4 * DAY).toISOString();
+    const startEventId = `start-${index + 1}`;
+    const current = generateRef5Session(state, {
+      sessionId: `REF5:${actualStartAt}:${startEventId}`,
+      snapshotId: `${startEventId}:snapshot`,
+      actualStartAt,
+      timeZone: "Asia/Seoul",
+      todayBodyweightKg: 75,
+      recent7DayMeasurementCount: 0,
+      recent7DayAverageKg: null,
+      manualMicro: false,
+    });
+    const domain: Ref5DecodedSessionSnapshot =
+      protocolVersion === REF5_CARRIED_PROTOCOL_VERSION
+        ? asCarriedV14(current)
+        : { ...current, protocolVersion };
+    const envelope = {
+      ...generatedEnvelope(domain),
+      ref5: { ...generatedEnvelope(domain).ref5, startEventId },
+    };
+    const completedAt = new Date(Date.parse(actualStartAt) + 60 * 60 * 1000).toISOString();
+    const completion = canonicalizeRef5WorkoutLog({
+      generatedSnapshot: envelope,
+      performedAt: new Date(actualStartAt),
+      sets: submittedSets(domain).map((set) => ({
+        ...set,
+        meta: {
+          ...set.meta,
+          ref5: { ...set.meta.ref5, startEventId, completionEventId: `${startEventId}:completion` },
+        },
+      })),
+      completedAt,
+    });
+    const generatedId = `generated-${index + 1}`;
+    const logId = `log-${index + 1}`;
+    generatedRows.push({ id: generatedId, sessionKey: domain.sessionId, snapshot: envelope });
+    logRows.push({ id: logId, generatedSessionId: generatedId, performedAt: new Date(actualStartAt) });
+    completion.sets.forEach((set, setIndex) => {
+      setRows.push({ ...set, id: `${logId}-set-${setIndex + 1}`, logId });
+    });
+    // Advance the fixture the way the engine of that protocol did.
+    const historicalReplay = protocolVersion !== REF5_PROTOCOL_VERSION;
+    const started = applyRef5FirstSquatStart(state, domain, startEventId, { historicalReplay }).nextState;
+    state = reduceRef5Completion(started, domain, {
+      completionEventId: completion.completionEventId,
+      rawLogId: logId,
+      completedAt,
+      outcomes: Object.fromEntries(
+        completion.exerciseOutcomes.map((exercise) => [exercise.stream, exercise.outcome]),
+      ),
+      historicalReplay,
+    }).nextState;
+  });
+  const lastStart = Date.parse(START) + protocols.length * 4 * DAY;
+  return { generatedRows, logRows, setRows, nextStartAt: new Date(lastStart).toISOString() };
+}
+
+test("REF5 replay keeps the auxiliary cap of each session's protocol: no retroactive OHP increase (§24.3)", async () => {
+  const deriveFor = async (protocols: readonly Ref5ReadableProtocolVersion[], planProtocolVersion: string) => {
+    const rows = storedPlanRows(protocols);
+    return deriveRef5StateBeforeStart({
+      tx: readOnlyReplayTx({
+        planParams: {
+          programFamily: "ref5",
+          protocolVersion: planProtocolVersion,
+          ref5: { startingValuesKg: { ...REF5_INITIAL_DIRECT_STANDARDS_KG } },
+        },
+        ...rows,
+      }).tx,
+      userId: "user-1",
+      planId: "plan-1",
+      actualStartAt: rows.nextStartAt,
+      sessionKey: `REF5:${rows.nextStartAt}:next`,
+      lockAlreadyHeld: true,
+    });
+  };
+
+  // The production plan's shape: born on v1.4, continued on v1.5. Eight
+  // all-PASS sessions close one OHP window under the REF cap of the time.
+  const carriedOnly = await deriveFor(["1.4", "1.4", "1.4", "1.4", "1.5", "1.5", "1.5", "1.5"], "1.4");
+  assert.equal(carriedOnly.replayedLogCount, 8);
+  assert.equal(carriedOnly.state.protocolVersion, REF5_PROTOCOL_VERSION);
+  assert.equal(carriedOnly.state.directStandardsKg.bpFocusKg, 85);
+  assert.equal(carriedOnly.state.directStandardsKg.ohpKg, 32.5, "35 was over the v1.5 REF cap and stays denied");
+  assert.deepEqual(carriedOnly.state.auxiliaryWindows.OHP.recentResults, ["MAINTAIN"]);
+  assert.equal(carriedOnly.state.directStandardsKg.deadliftKg, 75);
+
+  // The same history with the window-closing session written under v1.6: that
+  // window, and only that window, is judged with the working-weight cap.
+  const closedOnCurrent = await deriveFor(["1.4", "1.4", "1.4", "1.4", "1.5", "1.5", "1.5", "1.6"], "1.4");
+  assert.equal(closedOnCurrent.state.directStandardsKg.ohpKg, 35);
+  assert.deepEqual(closedOnCurrent.state.auxiliaryWindows.OHP.recentResults, ["INCREASE"]);
+
+  // A plan born on v1.6 cannot hold an earlier session.
+  await assert.rejects(deriveFor(["1.5"], REF5_PROTOCOL_VERSION), Ref5StaleVersionError);
 });

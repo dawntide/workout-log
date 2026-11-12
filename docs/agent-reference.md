@@ -23,7 +23,7 @@
 | [QA 테스트 가이드](../web/docs/qa-test-guide.md) | 라이트/헤비 유저 E2E 시나리오, 비동기 UX 연속성 체크리스트 |
 | [프로그램 Seed 가이드](../web/docs/program-seed-guide.md) | 6개 근력 프로그램 canonical 규칙, seed 명령, 자동 진행 구현 상세 |
 | [아키텍처 레이어 모델](../web/docs/architecture-layers.md) | 정식 레이어 흐름(app→widgets→features→primitives→lib→server), 의존 방향 규칙, 파사드, 린트 강제를 미루는 이유, **시스템 토폴로지(멀티프론트/단일백엔드 — web↔apps/api 프록시 cutover)** |
-| [REF5 규범 사양서](ref5-program-spec.md) | 훈련 프로그램의 판정·진행·처방 규칙 정본(현재 v1.5). 변경은 §26 |
+| [REF5 규범 사양서](ref5-program-spec.md) | 훈련 프로그램의 판정·진행·처방 규칙 정본(현재 v1.6). 변경은 §26 |
 | [설계 색인](design.md) | 설계 정본 위치와 읽는 순서 |
 | [결정 기록](decisions.md) | 날짜 / 결정 / 이유 / 대안과 버린 이유 |
 | [REF5 근거 자료](research/ref5-evidence-2026-10/README.md) | 출처 341건·주장 24건 평가 원본. 새 프로그램·§26 근거 작업의 시작점 |

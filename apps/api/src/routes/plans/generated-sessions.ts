@@ -126,8 +126,8 @@ export function registerGeneratedSessionRoutes(plansRoutes: Hono<AppEnv>) {
         );
       }
       const planProtocolVersion = readRef5PlanProtocolVersion(planRow.params);
-      // A carried v1.4 plan resumes both its v1.5 sessions and a v1.4 one
-      // started before the cutover (§24.3).
+      // A carried plan resumes its current-protocol sessions and an earlier
+      // one started before a cutover (§24.3).
       if (!isRef5SessionVersionReadableForPlan(domain.protocolVersion, planProtocolVersion)) {
         return c.json(
           {

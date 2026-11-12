@@ -11,10 +11,10 @@
 
 ## 훈련 프로그램 (REF5 Adaptive Strength)
 
-- 정본: [`docs/ref5-program-spec.md`](ref5-program-spec.md) (현재 v1.5, 규범 문서). 정본 순서는 스펙 §2: 스펙 → `packages/core/src/program-engine/ref5.ts` → 테스트 → 세션 스냅샷 → UI 문구. 변경은 §26 형식으로 한 번에 한 요소.
+- 정본: [`docs/ref5-program-spec.md`](ref5-program-spec.md) (현재 v1.6, 규범 문서). 정본 순서는 스펙 §2: 스펙 → `packages/core/src/program-engine/ref5.ts` → 테스트 → 세션 스냅샷 → UI 문구. 변경은 §26 형식으로 한 번에 한 요소.
 - 현재 상태 요약: [`docs/notes/ref5-context.md`](notes/ref5-context.md). 스펙과 다르면 스펙이 맞다.
 - 근거 자료: [`docs/research/ref5-evidence-2026-10/`](research/ref5-evidence-2026-10/README.md), 평가 [`docs/notes/ref5-evidence-evaluation-2026-10-15.md`](notes/ref5-evidence-evaluation-2026-10-15.md).
-- 비규범 기록: `ref5-v1.4-oap-proposal.md`, `ref5-v1.4-implementation-plan.md`. 미승인 수정안: `ref5-v1.6-aux-cap-proposal.md`(보조 상한 기준). 폐기본(`ref5-program-spec-v1.3*`, `hybrid-*`, `async_protocol_*`)은 근거로 쓰지 않는다.
+- 비규범 기록: `ref5-v1.4-oap-proposal.md`, `ref5-v1.4-implementation-plan.md`. `ref5-v1.6-aux-cap-proposal.md`(보조 상한 기준, 승인되어 스펙 v1.6에 반영). 폐기본(`ref5-program-spec-v1.3*`, `hybrid-*`, `async_protocol_*`)은 근거로 쓰지 않는다.
 
 ## 기능별 계획 문서
 

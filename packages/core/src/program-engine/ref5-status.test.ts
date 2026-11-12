@@ -35,7 +35,8 @@ test("REF5 status exposes open-ended queues, windows, refs and caps", () => {
   assert.equal(status.directStandardsKg.sqH3Kg, 82.5);
   assert.equal(status.derivedStandardsKg.sqH2Kg, 87.5);
   assert.equal(status.controlRefsKg.sqKg, 104);
-  assert.equal(status.auxiliaryCapsKg.ohpMaxKg, 32.5);
+  assert.equal(status.auxiliaryCapsKg.deadliftMaxKg, 82.5);
+  assert.equal(status.auxiliaryCapsKg.ohpMaxKg, 40);
 });
 
 test("REF5 status surfaces §18 gain rate and the recent window flow", () => {
@@ -76,8 +77,8 @@ test("REF5 status before the first session uses the plan's custom starts", () =>
   const status = buildRef5Status(null, normalizeRef5StartConfig(starts));
   assert.deepEqual(status.directStandardsKg, starts);
   assert.equal(status.revision, 0);
-  assert.equal(status.auxiliaryCapsKg.deadliftMaxKg, 80);
-  assert.equal(status.auxiliaryCapsKg.ohpMaxKg, 35);
+  assert.equal(status.auxiliaryCapsKg.deadliftMaxKg, 90);
+  assert.equal(status.auxiliaryCapsKg.ohpMaxKg, 45);
 });
 
 test("REF5 status reads a carried v1.4 state instead of falling back to the starts (§24.3)", () => {
