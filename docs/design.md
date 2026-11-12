@@ -18,7 +18,7 @@
 
 ## 기능별 계획 문서
 
-`docs/` 아래 `*-plan.md`(rest-timer, rir-input, set-type, exercise-catalog, plate-calculator, muscle-freshness, bodyweight-timeseries, db-multiuser-isolation, program-dsl-typing, public-api-mcp, judgment-history-and-roadmap)와 `docs/notes/rest-timer-push-plan.md`. 각 문서가 해당 기능의 설계 정본이다. 미승인 제안: [`coach-prescribed-sessions-proposal.md`](coach-prescribed-sessions-proposal.md)(코치가 세션 처방을 넣는 경로).
+`docs/` 아래 `*-plan.md`(rest-timer, rir-input, set-type, exercise-catalog, plate-calculator, muscle-freshness, bodyweight-timeseries, db-multiuser-isolation, program-dsl-typing, public-api-mcp, judgment-history-and-roadmap)와 `docs/notes/rest-timer-push-plan.md`. 각 문서가 해당 기능의 설계 정본이다. 코치가 세션 처방을 넣는 경로는 [`coach-prescribed-sessions-proposal.md`](coach-prescribed-sessions-proposal.md)(2026-11-12 승인·구현, 계약은 [`api/README.md`](api/README.md)).
 
 ## 결정과 상태
 

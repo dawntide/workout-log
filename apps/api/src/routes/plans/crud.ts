@@ -27,6 +27,11 @@ import {
   Ref5ValidationError,
   readRef5PlanStartConfig,
 } from "@workout/core/program-engine/ref5";
+import {
+  COACH_IDENTIFIERS,
+  isCoachPlanParams,
+  isCoachProgramDefinition,
+} from "@workout/core/program-engine/coach-prescription";
 import { isProgramTemplateAccessible } from "@workout/core/program-store/template-access";
 import { apiError, normalizeTimezone, resolveLocale } from "../../lib/http";
 import { resolveRef5PlanStartConfig } from "../../lib/ref5-plan-creation";
@@ -36,6 +41,21 @@ import {
   validateIncrementOverrides,
   asRecord,
 } from "./shared";
+
+/** 코치 플랜의 정규 params. 시간대와 시작일만 클라이언트 값을 받는다. */
+function coachPlanParams(submitted: Record<string, unknown>) {
+  const startDate =
+    typeof submitted.startDate === "string" && /^\d{4}-\d{2}-\d{2}$/.test(submitted.startDate)
+      ? submitted.startDate
+      : undefined;
+  return {
+    timezone: normalizeTimezone(typeof submitted.timezone === "string" ? submitted.timezone : null),
+    ...(startDate ? { startDate } : {}),
+    autoProgression: false,
+    programFamily: COACH_IDENTIFIERS.family,
+    sessionKeyMode: "DATE",
+  };
+}
 
 /**
  * 플랜 CRUD — 목록·생성·수정·삭제.
@@ -296,7 +316,13 @@ export function registerPlanCrudRoutes(plansRoutes: Hono<AppEnv>) {
           400,
         );
       }
-      const canonicalParams = isRef5Root
+      // 코치 플랜의 params는 서버가 정한다. 클라이언트가 보낸 1RM·스케줄은 쓰이지 않고,
+      // autoProgression이 켜져 있으면 저장 때 진행 reducer가 돌 이유가 없는데도 돈다.
+      const isCoachRoot =
+        !isRef5Root && isCoachProgramDefinition(templateRows[0]?.slug, definition);
+      const canonicalParams = isCoachRoot
+        ? coachPlanParams(submittedParams)
+        : isRef5Root
         ? {
             timezone: normalizeTimezone(
               typeof submittedParams.timezone === "string" ? submittedParams.timezone : null,
@@ -391,6 +417,7 @@ export function registerPlanCrudRoutes(plansRoutes: Hono<AppEnv>) {
       const currentParams = asRecord(found.params);
       const paramPatch = asRecord(body.params);
       const nextParams: Record<string, unknown> = { ...currentParams, ...paramPatch };
+      const coachPlan = isCoachPlanParams(currentParams);
 
       if (Object.prototype.hasOwnProperty.call(paramPatch, "incrementOverrides")) {
         const validation = validateIncrementOverrides(paramPatch.incrementOverrides, locale);
@@ -406,6 +433,13 @@ export function registerPlanCrudRoutes(plansRoutes: Hono<AppEnv>) {
 
       if (typeof body.autoProgression === "boolean") {
         nextParams.autoProgression = body.autoProgression;
+      }
+      // 코치 플랜을 가르는 필드는 패치로 바뀌지 않는다. 바뀌면 다음 세션 열기가 일반 MANUAL
+      // 경로로 떨어져 저장된 처방을 빈 스냅샷으로 덮어쓴다.
+      if (coachPlan) {
+        nextParams.programFamily = COACH_IDENTIFIERS.family;
+        nextParams.sessionKeyMode = "DATE";
+        nextParams.autoProgression = false;
       }
 
       const [updated] = await db

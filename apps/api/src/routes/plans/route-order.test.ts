@@ -29,6 +29,8 @@ const EXPECTED = [
   "GET /:planId/progression-state",
   "POST /:planId/runtime-targets",
   "GET /:planId/cycle-overview",
+  "GET /:planId/coach-sessions/:date",
+  "PUT /:planId/coach-sessions/:date",
 ];
 
 function registeredRoutes(): string[] {

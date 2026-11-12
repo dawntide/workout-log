@@ -7,6 +7,7 @@ import { registerGenerateRoute } from "./plans/generate";
 import { registerOverrideRoutes } from "./plans/overrides";
 import { registerProgressionRoutes } from "./plans/progression";
 import { registerCycleOverviewRoute } from "./plans/cycle-overview";
+import { registerCoachSessionRoutes } from "./plans/coach-sessions";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Plans — the TUI-critical plan workflow (list/create/rename/delete/generate/
@@ -35,3 +36,4 @@ registerGenerateRoute(plansRoutes);
 registerOverrideRoutes(plansRoutes);
 registerProgressionRoutes(plansRoutes);
 registerCycleOverviewRoute(plansRoutes);
+registerCoachSessionRoutes(plansRoutes);

@@ -9,6 +9,7 @@ import {
 
 export { ASYMPTOTE_HYBRID_TM_PERCENT };
 import { lookupProgramFamily, usesPercentDerivedSets } from "./program-registry";
+import { isCoachProgramDefinition } from "../program-engine/coach-prescription";
 import {
   tacticalBarbellCluster,
   tacticalBarbellSessionKeys,
@@ -246,6 +247,8 @@ const PROGRAM_DESCRIPTIONS: Record<ProgramStoreLocale, Partial<Record<string, st
       "5/3/1의 구조 위에 훨씬 많은 볼륨을 얹어 r/Fitness에서 태어난 고볼륨 선형 진행 프로그램입니다. 메인 리프트는 훈련 최대 중량(TM)의 퍼센트로 9세트를 수행하고, 95% AMRAP 세트에서 뽑아낸 횟수가 다음 주 TM 상승폭을 결정합니다 — 많이 할수록 크게 오릅니다. 각 요일마다 보조 리프트 8세트가 따라붙어 세션은 길지만, 후기 초보자와 초기 중급자에게는 그만큼 빠르게 진행됩니다.",
     "asymptote-protocol":
       "회복·영양·수면이 불안정한 중급 리프터를 위한 성과 기반(performance-gated) 스트렝스 프로그램입니다. 3개 세션(A/B/C)이 블록마다 적응·빌드·검증·디로드 네 단계를 순환하며, 훈련 최대 중량(TM)은 자동으로 오르지 않고 사이클 3의 AMRAP 검증을 통과해야만 갱신됩니다. 스쿼트·벤치·중량 풀업·데드리프트·오버헤드 프레스 5개 종목으로 구성되고, 보조 TM은 메인 종목에서 파생되며, 캘린더에 묶이지 않는 세션 기반 로테이션으로 진행됩니다.",
+    "coach-prescribed":
+      "고정된 프로그램 없이, 코치가 세션마다 넣어 주는 처방을 그대로 받아 수행하는 플랜입니다. 처방은 공개 API(개인 액세스 토큰)로 날짜별로 들어오고, 앱은 무게를 계산하지 않고 검증·저장만 합니다. 처방이 없는 날은 빈 세션으로 열려 자유롭게 기록할 수 있으며, 자동 진행은 없습니다.",
     "ref5-adaptive-strength":
       "불규칙한 주 2–4회 일정에 맞춰 다음 처방을 자동 결정하는 세션 기반 스트렝스 프로그램입니다. 하이바 스쿼트를 최우선으로 다섯 종목만 사용하며, 시작할 때 최근 기록이나 e1RM으로 첫 작업중량을 추천할 수 있습니다. 이후에는 실측 1RM 테스트나 AMRAP 없이 유효 반복과 종료 사유를 PASS·HOLD·FAIL·INVALID로 분류하고, 직접 작업 기준과 보조 상한을 독립 상태 머신이 조정합니다.",
   },
@@ -284,6 +287,8 @@ const PROGRAM_DESCRIPTIONS: Record<ProgramStoreLocale, Partial<Record<string, st
       "A high-volume linear progression born on r/Fitness that rebuilt 5/3/1 around far more work per session. Every main lift runs nine sets off a 90% training max, and the 95% AMRAP set decides how much the training max moves next week: more reps, bigger jump. Each day pairs that main lift with a second lift for another eight sets, so sessions are long but progress is fast for late novices and early intermediates.",
     "asymptote-protocol":
       "A performance-gated strength program for intermediates whose recovery, nutrition, or sleep is inconsistent. Three rotating sessions (A/B/C) cycle through four phases per block — acclimation, build, validation, deload — and the training max only moves when a cycle-3 AMRAP earns it. Five lifts (Squat, Bench, Weighted Pull-Up, Deadlift, Overhead Press) with auxiliary TMs derived from the mains, on a session-based rotation that ignores the calendar.",
+    "coach-prescribed":
+      "A plan with no fixed program: a coach supplies each session's prescription and you perform it as written. Prescriptions arrive per date through the public API (personal access token); the app validates and stores them and never computes loads. A date without a prescription opens as an empty session for free logging, and there is no automatic progression.",
     "ref5-adaptive-strength":
       "A session-based strength program for an irregular 2–4 day training schedule. High-bar squat stays first priority across exactly five lifts. Recent records or e1RM can suggest the first work loads; after start, there is no 1RM test or AMRAP. Valid reps and stop reasons produce PASS, HOLD, FAIL, or INVALID while an independent state machine manages direct work baselines and auxiliary caps without finite weeks or blocks.",
   },
@@ -803,6 +808,13 @@ export function isRef5Template(template: ProgramTemplate | null | undefined) {
   return slug === "ref5-adaptive-strength" || kind === "ref5" || family === "ref5";
 }
 
+/** 코치 처방 플랜의 템플릿인가. 시작 화면이 1RM 입력을 묻지 않게 하는 데 쓴다. */
+export function isCoachTemplate(template: ProgramTemplate | null | undefined) {
+  if (!template) return false;
+  const definition = toJsonRecord(template.latestVersion?.definition);
+  return isCoachProgramDefinition(template.slug, definition);
+}
+
 export type ProgramFlowStyle = "uniform" | "slotted";
 
 // 프로그램의 자동진행 "무게 흐름"이 모든 운동에 균일한가(uniform), 세션마다 슬롯별로 다른가(slotted).
@@ -934,6 +946,8 @@ function oneRmTargetsFromManualDefinition(rawDefinition: unknown): OneRmTarget[]
 
 export function extractOneRmTargetsFromTemplate(template: ProgramTemplate): OneRmTarget[] {
   if (isRef5Template(template)) return [];
+  // 코치 플랜은 앱이 무게를 계산하지 않는다. 물어볼 1RM이 없다.
+  if (isCoachTemplate(template)) return [];
   const definition = toJsonRecord(template.latestVersion?.definition);
   const fromLogic: OneRmTarget[] = normalizeTargets(definition)
     .map(canonicalTarget)

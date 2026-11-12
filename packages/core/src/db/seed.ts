@@ -413,6 +413,27 @@ export async function runSeed(options: SeedRunOptions = {}) {
     changelog: "Local demo manual sessions",
   });
 
+  // 2-1) 코치 처방 플랜 (MANUAL, 고정 세션 없음). 세션은 프로그램 정의가 아니라
+  // 처방 API(`PUT /api/plans/:planId/coach-sessions/:date`)로 날짜마다 들어온다.
+  // slug·family는 `COACH_IDENTIFIERS`와 같은 값이다. import하지 않고 리터럴로 둔 이유:
+  // seed가 import하는 파일은 db-seed.yml의 추적 목록에 있어야 하고(가드 테스트), 그 목록은
+  // CI 설정이다. 값이 어긋나지 않는지는 coach-prescription.test.ts가 이 파일을 읽어 확인한다.
+  const templateCoach = await upsertTemplate("coach-prescribed", {
+    slug: "coach-prescribed",
+    name: "Coach-Prescribed Sessions",
+    type: "MANUAL",
+    visibility: "PUBLIC",
+    description:
+      "A plan with no fixed program: a coach supplies each session's prescription and you perform it as written. Prescriptions arrive per date through the public API (personal access token); the app validates and stores them and never computes loads. A date without a prescription opens as an empty session for free logging, and there is no automatic progression.",
+    tags: ["manual", "coach", "custom"],
+  });
+
+  await upsertVersion(templateCoach.id, 1, {
+    definition: { kind: "manual", programFamily: "coach", sessions: [] },
+    defaults: {},
+    changelog: "Coach-prescribed sessions — per-date prescriptions via the public API",
+  });
+
   const templateStartingStrength = await upsertTemplate("starting-strength-lp", {
     slug: "starting-strength-lp",
     name: "Starting Strength LP (Base)",

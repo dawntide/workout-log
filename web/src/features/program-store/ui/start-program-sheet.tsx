@@ -15,6 +15,7 @@ import {
 import { Ref5StartSetup } from "@/features/program-store/ui/ref5-start-setup";
 import type { Ref5Lift, Ref5OapArm, Ref5OapRung } from "@workout/core/program-engine/ref5";
 import { REF5_PROTOCOL_VERSION } from "@workout/core/program-engine/ref5-protocol-version";
+import { isCoachTemplate } from "@workout/core/program-store/model";
 
 const BottomSheet = dynamic(
   () => import("@/components/ui/bottom-sheet").then((mod) => mod.BottomSheet),
@@ -62,6 +63,7 @@ export const StartProgramSheet = memo(function StartProgramSheet({
   onApplyRecommendation,
 }: StartProgramSheetProps) {
   const isRef5 = draft?.mode === "REF5";
+  const isCoach = isCoachTemplate(draft?.template);
   // 이어서 하기는 기존 플랜으로 이동만 하므로 시작 기준을 검증할 필요가 없다.
   const isContinue = draft?.restartMode === "CONTINUE" && Boolean(draft?.existingPlanId);
   const ref5ValidationMessage =
@@ -157,7 +159,11 @@ export const StartProgramSheet = memo(function StartProgramSheet({
               <V2Chip tone="weight">
                 {isRef5
                   ? `REF5 v${draft.ref5Config?.protocolVersion ?? REF5_PROTOCOL_VERSION}`
-                  : `TM ${Math.round(draft.tmPercent * 100)}%`}
+                  : isCoach
+                    ? locale === "ko"
+                      ? "코치 처방"
+                      : "Coach"
+                    : `TM ${Math.round(draft.tmPercent * 100)}%`}
               </V2Chip>
             </div>
           </V2Card>
@@ -245,6 +251,13 @@ export const StartProgramSheet = memo(function StartProgramSheet({
               onChangeStartingValue={onChangeRef5StartingValue}
               onChangeOapStartRung={onChangeRef5OapStartRung}
             />
+          ) : null}
+          {!isContinue && isCoach ? (
+            <p className="v2-small" style={{ color: "var(--v2-ink-2)", margin: 0 }}>
+              {locale === "ko"
+                ? "이 플랜은 앱이 무게를 계산하지 않습니다. 코치가 날짜별 처방을 넣으면 그날 세션으로 뜨고, 처방이 없는 날은 자유롭게 기록합니다."
+                : "This plan never computes loads. A coach's prescription for a date becomes that day's session; a date without one is logged freely."}
+            </p>
           ) : null}
           {!isContinue && !isRef5 && draft.recommendationStatus === "loading" ? (
             <p className="v2-small" style={{ color: "var(--v2-ink-2)", margin: 0 }}>
