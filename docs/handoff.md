@@ -23,7 +23,7 @@
   - 로컬 확인(임시 Postgres + dev 서버): 처방 PUT 201, 같은 본문 재전송 `unchanged`, 검증 오류 400, 카탈로그 밖 종목 400, 기록 화면에 처방과 근거 표시, UI로 저장(세트 9개·메모·세션 연결), 저장 뒤 PUT 409, 처방 없는 날 빈 세션 안내, `plan_runtime_state` 0행.
   - 머지 뒤 확인: 머지 전 CI 9개 체크(E2E, `Verify coach sessions` 포함) 통과. 머지 뒤 `db-migrate`·`db-seed`·`deploy` 성공, Vercel 프로덕션 배포 완료. 운영 DB 읽기 전용 조회로 `program_template`에 `coach-prescribed` v1이 있고, Dev 계정 REF5 상태는 revision 50 그대로(SQ 85·BP 87.5·PULL 92.5)이며 코치 플랜은 0개임을 봤다.
   - 운영 API 테스트(2026-11-12, 테스트 계정 `f7e726df`(`role='test'`)의 `read_write` PAT, 코치 플랜 `ea74f192`): 2027-12-31에 PUT 201(`Back Squat`→`High-Bar Back Squat` 정규화), 같은 본문 재전송 200 `unchanged:true`, 무게만 바꾸면 200 revision 2, GET 일치, 범위 밖 값 400(`details` 4건), 없는 날짜(2027-02-30) 400, 카탈로그에 없는 종목 400 `COACH_UNKNOWN_EXERCISE`(행 안 생김), 보관된 REF5 플랜 PUT·GET 400 `COACH_PLAN_REQUIRED`, `generatedSessionId`를 단 POST /api/logs 201 뒤 GET `locked:true`·PUT 409 `COACH_SESSION_LOCKED`. 전후로 Dev 계정 REF5 `plan_runtime_state`는 revision 50·state md5 동일, Dev 계정의 새 로그·generated_session 0건.
-  - 테스트가 남긴 것(테스트 계정, PAT로는 못 지움): 2027-12-31 코치 처방 1건과 수행 기록 1건(log `67ce9f4f`, 메모 "[운영 테스트]"). 필요하면 테스트 계정으로 앱에서 지운다.
+  - 정리: 테스트 처방(generated_session `72c31a97`)과 수행 기록 `67ce9f4f`는 사용자가 가드된 SQL로 지웠고 읽기 조회로 0행을 확인했다. 테스트 계정 코치 플랜에는 앱을 열 때 생긴 빈 처방 행 2개(2026-11-12, 2028-01-01, 종목 0·기록 0)가 남아 있다.
   - 발견(미수정): ①`validateCoachPrescription`은 **최상위 모르는 필드**(예: `"extra":1`)를 거부하지 않고 무시한다(종목·세트 수준만 검사). `docs/api/README.md`의 "모르는 필드는 400"과 어긋난다. ②기록이 연결돼 잠긴 뒤에도 `generated_session.status`는 `PLANNED`로 남는다(의도인지 미확인).
   - [미확인]: 운영 화면(스토어 카드·시작 시트 문구, 기록 화면의 처방 근거 카드·세션 메모 입력란)은 브라우저로 보지 않았다.
   - 사용자가 정할 것: (머지와 CI 검증 추가는 2026-11-12에 승인받았다. `db:verify:coach-sessions`는 CI E2E 잡의 seed 뒤에서 돈다.) 운영에서 코치 플랜을 실제로 쓰기 시작하는 시점과 `read_write` 토큰 발급은 프로그램 전환 때다.
