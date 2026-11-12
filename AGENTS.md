@@ -22,9 +22,11 @@
 - **설계 정본**: REF5 훈련 프로그램은 [`docs/ref5-program-spec.md`](docs/ref5-program-spec.md)(정본 순서는 스펙 §2: 스펙 → `packages/core/src/program-engine/ref5.ts` → 테스트 → 세션 스냅샷 → UI 문구), 구조·레이어는 [`web/docs/architecture-layers.md`](web/docs/architecture-layers.md). 설계 정본의 위치는 [`docs/design.md`](docs/design.md)(색인)에 모여 있다.
 - **설계 영향 작업**(상태 모델·모듈 경계·데이터 구조·API 계약·REF5 규칙 변경)은 구현 전에 수정안(스펙은 §26 변경관리 형식, 한 번에 한 요소)을 먼저 제안하고 사용자 승인을 받는다. 설계 변경이 없는 기능 추가·버그 수정은 바로 진행한다. 구현 중 설계와 다르게 해야 할 이유가 생기면 임의로 바꾸지 말고 멈춰서 보고한다.
 - **브랜치·PR**: 기본 브랜치에서 브랜치를 따고, 작업당 draft PR 1개. 머지, force-push, CI 설정 변경은 사용자 승인 후에만 한다.
+- **스테이징**: `git add -A` 금지(남은 스크래치 파일·다른 세션의 편집이 섞인다). 경로로 담고 커밋 전 `git diff --cached`를 `--stat`이 아니라 내용으로 읽는다.
 - **완료 전 검증**: 완료라고 하기 전에 해당하는 lint·typecheck·테스트·빌드를 실행하고 결과 요약을 마지막 보고에 붙인다(명령은 아래 "자주 쓰는 명령").
 - **접근 불가 시**: 필요한 저장소·시크릿·API에 접근할 수 없으면 무엇이 없는지 밝히고 멈춘다. mock이나 추측으로 대체하지 않는다.
 - **보고**: 분석·조사 결과는 확인된 사실과 추정을 구분한다.
+- **감사·계획 문서의 항목은 착수 전에 grep·`git log -S`로 재검증한다**(몇 주면 낡고, 닫힌 항목이 열린 채 남기도 한다). 죽은 항목은 종결 근거를 문서에 남긴다. 컬럼에 정책을 붙일 땐 그 테이블을 읽는 지점을 전수 분류해 가드로 굳힌다(`warmup-exclusion-guard`).
 - **REF5 판정은 완화하지 않는다**: FAIL 0·HOLD ≤1·볼륨 veto 기준을 느슨하게 만드는 변경(예정 디로드 추가, 피로를 `EXTERNAL`로 분류하기 등)은 사용자가 명시하기 전에는 하지 않는다. 근거: [`docs/decisions.md`](docs/decisions.md).
 - **운영 DB 쓰기 금지(에이전트)**: 기록 정정은 앱 UI 또는 사용자가 직접 실행하는 가드된 SQL로만 한다. 읽기 전용 조회는 허용.
 
@@ -36,6 +38,9 @@
 - **CI 러너는 `ubuntu-24.04` 고정.** `ubuntu-latest`(26.04)는 Playwright 1.58.2 chromium 미지원 + 새 `pg_dump`의 `SET transaction_timeout`이 PG16 복원을 깬다.
 - **피로·그라인딩은 `EXTERNAL`이 아니다**(스펙 §11.1–§11.3). "너무 피곤해서 시작 못 함"의 정식 밸브는 시작 시점의 MICRO 선택(§8-1)이다.
 - **새 프로그램·§26 근거 작업**은 기존 근거 자료(출처 341건·주장 24건)에서 시작한다. 위치는 `docs/research/ref5-evidence-2026-10/README.md`.
+- **E2E는 로컬 통과 ≠ CI 통과**(DB 데이터·기능 플래그·서버 모드가 다르다). 쓰기 전에 [QA 가이드 §8](web/docs/qa-test-guide.md#8-e2e-작성-함정), 로컬 실행 전에 `docs/agent-reference.md` "로컬 E2E"를 읽는다.
+- **수기 마이그레이션은 prod·dev 두 벌의 `meta/_journal.json`에 등재해야 적용된다.** 빠뜨려도 `db:migrate`는 성공으로 끝나고 `pnpm -C web test:unit`이 잡는다. 상세: [CI/CD 가이드](web/docs/ci-cd-pipeline-guide.md) `db-migrate.yml`.
+- **NULL이 기본값인 컬럼의 제외 필터는 `IS DISTINCT FROM`**(`<>`는 NULL 행을 전부 떨어뜨린다). 단일 함수로 두고(`excludeWarmupSets()`) `.toSQL()`로 단언한다.
 
 ## 핵심 문서
 
@@ -89,6 +94,9 @@ pnpm -C web build
 - **아이콘**: 웹 UI는 Material Symbols Outlined (`<span className="material-symbols-outlined">name</span>`)만. custom SVG UI 아이콘 금지. `apps/tui`의 터미널 글리프는 독립 클라이언트 규칙을 따른다.
 - **테마 경계**: 웹 테마는 동일한 컴포넌트 트리·레이아웃을 유지하고 색상 토큰만 교체한다. 테마별 조건부 화면·셸·컴포넌트 포크 금지.
 - **SWR 캐시**: 데이터 fetch는 `apiGet`/`apiPost` ([web/src/lib/api.ts](web/src/lib/api.ts)) 사용.
+- **SWR 무효화**: 자동 무효화는 `apiMutate` 계열에만 걸리고(서버 액션 저장은 `save.ts`가 직접 지운다) IDB 웜업은 늘 stale로 시작한다. GET에 캐시 키를 달거나 순서를 개인화하기 전에 `docs/agent-reference.md` "클라이언트 API 캐시"를 읽는다.
 - **관측성**: 기록 저장 실패는 서버 액션이 `{success:false}`로 돌려줘 Vercel 에러 그룹에 안 잡히고, 사후 기록은 `ux_event_log`의 `workout_save_failed`뿐이다. 이벤트 이름은 [`workout-ux-event-names.ts`](packages/core/src/observability/workout-ux-event-names.ts) **한 곳**에서만 정의하고 모든 이름에 emit 지점을 둔다. 기능이 없어지면 카탈로그·소비처에서 **함께** 지울 것.
+- **`console.error`는 예상 못 한 예외에만**(여정 E2E가 실패로 센다). 입력 거부 같은 정상 경로는 텔레메트리만 남기고(`shouldLogSaveFailure`), 가드를 느슨하게 고치지 않는다.
 - **Auth**: 이메일/비밀번호 + `wl_session` httpOnly cookie, Google OAuth. `WORKOUT_AUTH_USER_ID`는 로컬/dev fallback이고 프로덕션에서는 기본 차단이다. 해제 플래그(`WORKOUT_WEB_ALLOW_ENV_AUTH`, `WORKOUT_API_ALLOW_ENV_AUTH`)는 CI E2E에서만 세우고, prod 시드 잡(db-seed.yml)에 `WORKOUT_SEED_ADMIN_FALLBACK`을 세우지 않는다. 권한·테스트 계정 전환·복구·OAuth를 고치기 전에 [`docs/agent-reference.md`](docs/agent-reference.md)의 인증 절을 읽는다.
+- **인증 경계는 한 겹이 아니다**(라우터마다 `requireAuth`가 다르고 `/api/auth/*` 상당수는 web이 쿠키로 처리). 새 인증·인가 검사는 apps/api `app.use("*", ...)` 최상단에 건다. 상세: `docs/agent-reference.md` 인증 절.
 - **라우트 네이밍**: 설계 문서의 `/workout-record` → 실제 구현 `/workout/log`, `/stats-1rm` → `/stats`.

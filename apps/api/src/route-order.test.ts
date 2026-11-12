@@ -97,6 +97,8 @@ const EXPECTED = [
   "GET /api/plans/:planId/progression-state",
   "POST /api/plans/:planId/runtime-targets",
   "GET /api/plans/:planId/cycle-overview",
+  "GET /api/plans/:planId/coach-sessions/:date",
+  "PUT /api/plans/:planId/coach-sessions/:date",
   "GET /api/templates",
   "DELETE /api/templates/:slug",
   "PATCH /api/templates/:slug",

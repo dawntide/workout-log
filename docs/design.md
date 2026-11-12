@@ -11,14 +11,14 @@
 
 ## 훈련 프로그램 (REF5 Adaptive Strength)
 
-- 정본: [`docs/ref5-program-spec.md`](ref5-program-spec.md) (현재 v1.5, 규범 문서). 정본 순서는 스펙 §2: 스펙 → `packages/core/src/program-engine/ref5.ts` → 테스트 → 세션 스냅샷 → UI 문구. 변경은 §26 형식으로 한 번에 한 요소.
+- 정본: [`docs/ref5-program-spec.md`](ref5-program-spec.md) (현재 v1.6, 규범 문서). 정본 순서는 스펙 §2: 스펙 → `packages/core/src/program-engine/ref5.ts` → 테스트 → 세션 스냅샷 → UI 문구. 변경은 §26 형식으로 한 번에 한 요소.
 - 현재 상태 요약: [`docs/notes/ref5-context.md`](notes/ref5-context.md). 스펙과 다르면 스펙이 맞다.
-- 근거 자료: [`docs/research/ref5-evidence-2026-10/`](research/ref5-evidence-2026-10/README.md), 평가 [`docs/notes/ref5-evidence-evaluation-2026-10-15.md`](notes/ref5-evidence-evaluation-2026-10-15.md).
-- 비규범 기록: `ref5-v1.4-oap-proposal.md`, `ref5-v1.4-implementation-plan.md`. 폐기본(`ref5-program-spec-v1.3*`, `hybrid-*`, `async_protocol_*`)은 근거로 쓰지 않는다.
+- 근거 자료: [`docs/research/ref5-evidence-2026-10/`](research/ref5-evidence-2026-10/README.md), 평가 [`docs/notes/ref5-evidence-evaluation-2026-10-15.md`](notes/ref5-evidence-evaluation-2026-10-15.md). 앱 이전 기록까지 합친 전체 히스토리 검토와 12월 재평가 절차는 [`docs/notes/training-history-review-2026-11-12.md`](notes/training-history-review-2026-11-12.md)(비규범).
+- 비규범 기록: `ref5-v1.4-oap-proposal.md`, `ref5-v1.4-implementation-plan.md`. `ref5-v1.6-aux-cap-proposal.md`(보조 상한 기준, 승인되어 스펙 v1.6에 반영). 폐기본(`ref5-program-spec-v1.3*`, `hybrid-*`, `async_protocol_*`)은 근거로 쓰지 않는다.
 
 ## 기능별 계획 문서
 
-`docs/` 아래 `*-plan.md`(rest-timer, rir-input, set-type, exercise-catalog, plate-calculator, muscle-freshness, bodyweight-timeseries, db-multiuser-isolation, program-dsl-typing, public-api-mcp, judgment-history-and-roadmap)와 `docs/notes/rest-timer-push-plan.md`. 각 문서가 해당 기능의 설계 정본이다.
+`docs/` 아래 `*-plan.md`(rest-timer, rir-input, set-type, exercise-catalog, plate-calculator, muscle-freshness, bodyweight-timeseries, db-multiuser-isolation, program-dsl-typing, public-api-mcp, judgment-history-and-roadmap)와 `docs/notes/rest-timer-push-plan.md`. 각 문서가 해당 기능의 설계 정본이다. 코치가 세션 처방을 넣는 경로는 [`coach-prescribed-sessions-proposal.md`](coach-prescribed-sessions-proposal.md)(2026-11-12 승인·구현, 계약은 [`api/README.md`](api/README.md)).
 
 ## 결정과 상태
 

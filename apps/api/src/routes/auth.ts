@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 
 import { db } from "@workout/core/db/client";
-import { and, desc, eq, ne } from "@workout/core/db/ops";
+import { and, desc, eq, notInArray } from "@workout/core/db/ops";
 import {
   appUser,
   authOauthAccount,
@@ -30,6 +30,10 @@ import {
   revokeApiToken,
 } from "@workout/core/auth/api-token";
 import { claimEnvFallbackData } from "@workout/core/auth/claim-fallback";
+import {
+  sessionTokenCandidates,
+  sessionTokenDisplayValue,
+} from "@workout/core/auth/session-token";
 import { createEmailVerificationToken } from "@workout/core/auth/email-verification";
 import { createPasswordResetToken } from "@workout/core/auth/password-reset";
 import {
@@ -496,11 +500,14 @@ authRoutes.get("/sessions", requireAuth, async (c) => {
       .orderBy(desc(authSession.createdAt))
       .limit(50);
 
+    // DB에는 토큰의 해시가 저장돼 있어 요청의 원문 토큰과 직접 비교할 수 없다.
+    const currentStored = currentToken ? await sessionTokenCandidates(currentToken) : [];
+
     const items = rows.map((row) => ({
-      tokenMask: maskToken(row.token),
+      tokenMask: maskToken(sessionTokenDisplayValue(row.token)),
       createdAt: row.createdAt.toISOString(),
       expiresAt: row.expiresAt.toISOString(),
-      isCurrent: currentToken === row.token,
+      isCurrent: currentStored.includes(row.token),
       isExpired: row.expiresAt.getTime() <= Date.now(),
     }));
 
@@ -598,9 +605,11 @@ authRoutes.delete("/sessions", requireAuth, async (c) => {
     const userId = c.get("userId");
     const currentToken = sessionToken(c) || null;
 
-    const condition = currentToken
-      ? and(eq(authSession.userId, userId), ne(authSession.token, currentToken))
-      : eq(authSession.userId, userId);
+    const currentStored = currentToken ? await sessionTokenCandidates(currentToken) : [];
+    const condition =
+      currentStored.length > 0
+        ? and(eq(authSession.userId, userId), notInArray(authSession.token, currentStored))
+        : eq(authSession.userId, userId);
 
     const result = await db.delete(authSession).where(condition);
     const revoked =

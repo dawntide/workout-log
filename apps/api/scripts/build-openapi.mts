@@ -76,6 +76,11 @@ const DESCRIPTIONS = {
     summary: "생성 세션 상세",
     description: "특정 생성 세션의 처방.",
   },
+  "GET /api/plans/:planId/coach-sessions/:date": {
+    summary: "코치 처방 조회",
+    description:
+      "코치 플랜의 한 날짜(`YYYY-MM-DD`)에 들어 있는 처방. 없으면 `session: null`. `locked: true`면 수행 기록이 연결돼 더는 고칠 수 없다.",
+  },
   "GET /api/exercises": {
     summary: "운동 검색",
     description:
@@ -102,6 +107,11 @@ const DESCRIPTIONS = {
     description: "저장된 세션의 세트·메모를 고친다.",
   },
   "POST /api/bodyweight": { summary: "체중 기록", description: "같은 시각이면 덮어쓴다." },
+  "PUT /api/plans/:planId/coach-sessions/:date": {
+    summary: "코치 처방 넣기",
+    description:
+      "코치 플랜의 한 날짜(`YYYY-MM-DD`)에 세션 처방을 넣거나 고친다. 본문은 `{ exercises: [{ exerciseName, role?, sets: [{ reps, targetWeightKg, rpe?, note? }] }], rationale }`. 서버는 범위를 검증할 뿐 무게를 계산하지 않고, 범위 밖 값은 고치지 않고 **400**으로 거부한다. 코치 플랜이 아니면 400, 그 날짜에 수행 기록이 있으면 **409**(수행한 처방은 바뀌지 않는다). 같은 본문을 다시 보내면 개정 번호가 오르지 않는다. 삭제 경로는 없다.",
+  },
 };
 
 

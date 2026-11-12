@@ -938,7 +938,8 @@ export function useProgramStoreStartProgramController({
         targets,
         oneRmInputs,
         recommendations: {},
-        recommendationStatus: existing ? "idle" : "loading",
+        // 물어볼 1RM이 없으면(코치 플랜) 추천값도 찾지 않는다.
+        recommendationStatus: existing || (!ref5 && targets.length === 0) ? "idle" : "loading",
         recommendationMessage: null,
         ref5Config,
         ref5SetupMode: ref5 && !existing ? "E1RM" : "DIRECT",
@@ -954,7 +955,7 @@ export function useProgramStoreStartProgramController({
         void loadExistingProgress(existing.id, existing.lastPerformedAt ?? null);
       } else if (ref5) {
         void loadRef5Recommendations(template);
-      } else {
+      } else if (targets.length > 0) {
         void loadOneRmRecommendations(template, targets);
       }
     },

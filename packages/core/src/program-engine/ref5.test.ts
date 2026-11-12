@@ -9,7 +9,10 @@ import {
   REF5_PRESCRIPTION_KEYS,
   REF5_ARCHIVED_PROTOCOL_VERSION,
   REF5_CARRIED_PROTOCOL_VERSION,
+  REF5_CARRIED_PROTOCOL_VERSIONS,
   REF5_CARRIED_SNAPSHOT_SCHEMA_VERSION,
+  REF5_PRIOR_PROTOCOL_VERSION,
+  REF5_PROGRAM_VERSION,
   REF5_PROTOCOL_VERSION,
   REF5_RUNTIME_SCHEMA_VERSION,
   REF5_REVERTED_ONLY_STREAM,
@@ -31,6 +34,8 @@ import {
   nearestRef5To2p5,
   readRef5PlanStartConfig,
   ref5AuxiliaryCandidateIsWithinCap,
+  ref5AuxiliaryCapRuleForProtocol,
+  isRef5SessionVersionReadableForPlan,
   reduceRef5Completion,
   ref5CalendarDate,
   replayRef5RawLogs,
@@ -154,12 +159,15 @@ function fakeStarted(
   };
 }
 
-test("v1.5 constants, direct-derived formulas, refs, caps and 2.5 kg rounding are canonical", () => {
-  assert.equal(REF5_PROTOCOL_VERSION, "1.5");
+test("v1.6 constants, direct-derived formulas, refs, caps and 2.5 kg rounding are canonical", () => {
+  assert.equal(REF5_PROTOCOL_VERSION, "1.6");
+  assert.deepEqual([...REF5_CARRIED_PROTOCOL_VERSIONS], ["1.4", "1.5"]);
   assert.equal(REF5_CARRIED_PROTOCOL_VERSION, "1.4");
+  assert.equal(REF5_PRIOR_PROTOCOL_VERSION, "1.5");
   assert.equal(REF5_ARCHIVED_PROTOCOL_VERSION, "1.3");
-  assert.equal(REF5_RUNTIME_SCHEMA_VERSION, 4, "v1.5 keeps the runtime state shape");
-  assert.equal(REF5_SNAPSHOT_SCHEMA_VERSION, 5);
+  assert.equal(REF5_PROGRAM_VERSION, 6);
+  assert.equal(REF5_RUNTIME_SCHEMA_VERSION, 4, "v1.6 keeps the runtime state shape");
+  assert.equal(REF5_SNAPSHOT_SCHEMA_VERSION, 5, "v1.6 keeps the snapshot shape");
   assert.equal(REF5_CARRIED_SNAPSHOT_SCHEMA_VERSION, 4);
   assert.equal(REF5_START_CONFIG_VERSION, 3);
   assert.deepEqual(REF5_INITIAL_DIRECT_STANDARDS_KG, {
@@ -171,12 +179,25 @@ test("v1.5 constants, direct-derived formulas, refs, caps and 2.5 kg rounding ar
   });
   assert.deepEqual(deriveRef5Standards({ ...REF5_INITIAL_DIRECT_STANDARDS_KG }), REF5_INITIAL_DERIVED_STANDARDS_KG);
   assert.deepEqual(deriveRef5ControlRefs({ ...REF5_INITIAL_DIRECT_STANDARDS_KG }), REF5_INITIAL_CONTROL_REFS_KG);
-  assert.deepEqual(deriveRef5AuxiliaryCaps({ ...REF5_INITIAL_DIRECT_STANDARDS_KG }), {
+  // §6.4 (v1.6): DL up to SQ H3, OHP up to floor2.5(BP focus × 0.5).
+  const caps = deriveRef5AuxiliaryCaps({ ...REF5_INITIAL_DIRECT_STANDARDS_KG });
+  assert.equal(caps.deadliftMaxKg, 82.5);
+  assert.equal(caps.ohpMaxKg, 40);
+  assert.equal(
+    deriveRef5AuxiliaryCaps({ ...REF5_INITIAL_DIRECT_STANDARDS_KG, sqH3Kg: 85, bpFocusKg: 87.5 }).ohpMaxKg,
+    42.5,
+    "43.75 floors to the 2.5 kg grid",
+  );
+  // The rule of v1.5 and earlier survives for replay only (§24.3).
+  assert.deepEqual(deriveRef5AuxiliaryCaps({ ...REF5_INITIAL_DIRECT_STANDARDS_KG }, "CONTROL_REF"), {
     deadliftMaxKg: 75,
     ohpMaxKg: 32.5,
     deadliftControlRefMaxKg: 104,
     ohpControlRefMaxKg: 50.5,
   });
+  assert.equal(ref5AuxiliaryCapRuleForProtocol("1.6"), "WORKING_WEIGHT");
+  assert.equal(ref5AuxiliaryCapRuleForProtocol("1.5"), "CONTROL_REF");
+  assert.equal(ref5AuxiliaryCapRuleForProtocol("1.4"), "CONTROL_REF");
   assert.equal(floorRef5To2p5(83.74), 82.5);
   assert.equal(floorRef5To2p5(-0.1), -2.5, "floor helper does not invent a zero floor");
   assert.equal(nearestRef5To2p5(11.25), 12.5, "exact midpoint rounds upward");
@@ -188,8 +209,8 @@ test("plan creation accepts custom direct starts, derives REFs, and rejects grid
     sqH3Kg: 100,
     bpFocusKg: 100,
     pullFocusTotalKg: 110,
-    deadliftKg: 90,
-    ohpKg: 37.5,
+    deadliftKg: 100,
+    ohpKg: 50,
   };
   const valid = validateRef5StartConfig(custom);
   assert.equal(valid.ok, true);
@@ -205,13 +226,13 @@ test("plan creation accepts custom direct starts, derives REFs, and rejects grid
   assert.equal(offGrid.ok, false);
   if (!offGrid.ok) assert.ok(offGrid.errors.some((error) => error.includes("2.5 kg grid")));
 
-  const deadliftOverCap = validateRef5StartConfig({ ...custom, deadliftKg: 92.5 });
+  const deadliftOverCap = validateRef5StartConfig({ ...custom, deadliftKg: 102.5 });
   assert.equal(deadliftOverCap.ok, false);
   if (!deadliftOverCap.ok) {
     assert.ok(deadliftOverCap.errors.some((error) => error.includes("deadliftKg exceeds")));
   }
 
-  const ohpOverCap = validateRef5StartConfig({ ...custom, ohpKg: 40 });
+  const ohpOverCap = validateRef5StartConfig({ ...custom, ohpKg: 52.5 });
   assert.equal(ohpOverCap.ok, false);
   if (!ohpOverCap.ok) {
     assert.ok(ohpOverCap.errors.some((error) => error.includes("ohpKg exceeds")));
@@ -690,7 +711,7 @@ test("closing unperformed prescriptions INVALID does not enter windows or fail s
   assert.equal(result.state.failStreams.PULL_FOCUS.lastComparableOutcome, null);
 });
 
-test("SQ6 and BP/PULL4 all-pass windows increase direct kg; aux uses new caps and initial OHP increase is denied", () => {
+test("SQ6 and BP/PULL4 all-pass windows increase direct kg; DL and OHP step once under the working-weight cap", () => {
   let state = createInitialRef5State();
   const base = "2026-01-01T09:00:00.000Z";
   for (let index = 0; index < 8; index += 1) {
@@ -700,8 +721,110 @@ test("SQ6 and BP/PULL4 all-pass windows increase direct kg; aux uses new caps an
   assert.equal(state.directStandardsKg.pullFocusTotalKg, 90, "four PULL focus exposures");
   assert.equal(state.directStandardsKg.bpFocusKg, 85, "four BP focus exposures");
   assert.equal(state.directStandardsKg.deadliftKg, 75, "four PASS DL exposures fit the post-SQ cap");
-  assert.equal(state.directStandardsKg.ohpKg, 32.5, "35 kg still exceeds the post-BP cap, so no slack is banked");
+  assert.equal(state.directStandardsKg.ohpKg, 35, "35 kg fits the v1.6 cap of 42.5; one step per window");
+  assert.equal(state.auxiliaryWindows.OHP.lastWindowResult, "INCREASE");
+});
+
+test("an all-PASS auxiliary window at the working-weight cap maintains and banks no slack (§6.4, §16)", () => {
+  let state = createInitialRef5State({ ...REF5_INITIAL_DIRECT_STANDARDS_KG, deadliftKg: 82.5, ohpKg: 40 });
+  // HOLD on every main focus exposure keeps SQ and BP, and so both caps, in place.
+  const base = "2026-01-01T09:00:00.000Z";
+  for (let index = 0; index < 8; index += 1) {
+    state = runSession(state, sessionInput(`at-cap-${index}`, at(base, index * 4 * DAY)), {
+      SQ_H3: "HOLD",
+      SQ_H2: "HOLD",
+      BP_FOCUS: "HOLD",
+    }).state;
+  }
+  assert.equal(state.directStandardsKg.sqH3Kg, 82.5);
+  assert.equal(state.directStandardsKg.bpFocusKg, 82.5);
+  assert.equal(state.directStandardsKg.deadliftKg, 82.5, "85 would exceed SQ H3 82.5");
+  assert.equal(state.directStandardsKg.ohpKg, 40, "42.5 would exceed BP 82.5 × 0.5 = 41.25");
+  assert.equal(state.auxiliaryWindows.DL.lastWindowResult, "MAINTAIN");
   assert.equal(state.auxiliaryWindows.OHP.lastWindowResult, "MAINTAIN");
+});
+
+function runCarriedSession(
+  state: Ref5RuntimeState,
+  input: Ref5SessionInput,
+  protocolVersion: typeof REF5_PRIOR_PROTOCOL_VERSION,
+) {
+  // A v1.5 snapshot has the current shape; only its label differs (§24.3).
+  const snapshot = { ...generateRef5Session(state, input), protocolVersion };
+  const start = applyRef5FirstSquatStart(state, snapshot, `start-${input.sessionId}`, {
+    historicalReplay: true,
+  });
+  const completion = reduceRef5Completion(start.nextState, snapshot, {
+    completionEventId: `complete-${input.sessionId}`,
+    rawLogId: `log-${input.sessionId}`,
+    completedAt: at(input.actualStartAt, 2 * HOUR),
+    outcomes: completionOutcomes(snapshot, {}),
+    historicalReplay: true,
+  });
+  return { snapshot, state: completion.nextState };
+}
+
+test("the auxiliary cap is not retroactive: carried v1.5 completions replay under the REF cap (§24.3)", () => {
+  let state = createInitialRef5State();
+  const base = "2026-01-01T09:00:00.000Z";
+  for (let index = 0; index < 8; index += 1) {
+    state = runCarriedSession(
+      state,
+      sessionInput(`carried-${index}`, at(base, index * 4 * DAY)),
+      REF5_PRIOR_PROTOCOL_VERSION,
+    ).state;
+  }
+  assert.equal(state.directStandardsKg.bpFocusKg, 85);
+  assert.equal(state.directStandardsKg.ohpKg, 32.5, "the v1.5 REF cap still denies 35 on replay");
+  assert.deepEqual(state.auxiliaryWindows.OHP.recentResults, ["MAINTAIN"]);
+  assert.equal(state.directStandardsKg.deadliftKg, 75);
+
+  // The same plan continues on v1.6: the next all-PASS window uses the new cap,
+  // and moves one 2.5 kg step rather than jumping to the cap.
+  for (let index = 8; index < 16; index += 1) {
+    state = runSession(state, sessionInput(`current-${index}`, at(base, index * 4 * DAY))).state;
+  }
+  assert.equal(state.directStandardsKg.ohpKg, 35);
+  assert.deepEqual(state.auxiliaryWindows.OHP.recentResults, ["MAINTAIN", "INCREASE"]);
+  assert.equal(state.directStandardsKg.deadliftKg, 77.5);
+});
+
+test("a carried v1.5 snapshot is replay-only: the live start and save reducers refuse it (§24.3)", () => {
+  const state = createInitialRef5State();
+  const snapshot = {
+    ...generateRef5Session(state, sessionInput("live-carried", "2026-01-01T09:00:00.000Z")),
+    protocolVersion: REF5_PRIOR_PROTOCOL_VERSION,
+  };
+  assert.throws(() => applyRef5FirstSquatStart(state, snapshot, "start-live-carried"), Ref5StaleVersionError);
+  const started = applyRef5FirstSquatStart(state, snapshot, "start-live-carried", { historicalReplay: true });
+  assert.throws(
+    () =>
+      reduceRef5Completion(started.nextState, snapshot, {
+        completionEventId: "complete-live-carried",
+        rawLogId: "log-live-carried",
+        completedAt: "2026-01-01T11:00:00.000Z",
+        outcomes: completionOutcomes(snapshot, {}),
+      }),
+    Ref5StaleVersionError,
+  );
+});
+
+test("a session is readable only when it is not older than its plan (§24.3)", () => {
+  for (const [session, plan, expected] of [
+    ["1.6", "1.6", true],
+    ["1.6", "1.5", true],
+    ["1.6", "1.4", true],
+    ["1.5", "1.5", true],
+    ["1.5", "1.4", true],
+    ["1.4", "1.4", true],
+    ["1.5", "1.6", false],
+    ["1.4", "1.6", false],
+    ["1.4", "1.5", false],
+    ["1.3", "1.4", false],
+    ["1.6", "1.3", false],
+  ] as const) {
+    assert.equal(isRef5SessionVersionReadableForPlan(session, plan), expected, `${session} in ${plan}`);
+  }
 });
 
 test("two FAILs in the same stream decrease immediately; another stream and INVALID do not break the streak", () => {
@@ -737,6 +860,7 @@ test("DL/OHP two-FAIL and four-exposure rules run after main changes and enforce
   const capped = createInitialRef5State({
     ...REF5_INITIAL_DIRECT_STANDARDS_KG,
     sqH3Kg: 80,
+    deadliftKg: 80,
   });
   capped.failStreams.SQ_H3 = {
     consecutiveFails: 1,
@@ -749,7 +873,7 @@ test("DL/OHP two-FAIL and four-exposure rules run after main changes and enforce
     { SQ_H3: "FAIL" },
   );
   assert.equal(capResult.state.directStandardsKg.sqH3Kg, 77.5);
-  assert.equal(capResult.state.directStandardsKg.deadliftKg, 70, "new SQ REF cap is applied after SQ decrease");
+  assert.equal(capResult.state.directStandardsKg.deadliftKg, 77.5, "the new SQ H3 cap is applied after the SQ decrease");
   assert.ok(
     capResult.completion.changes.some(
       (change) => change.lift === "DL" && change.kind === "AUXILIARY_CAP_DECREASE",
@@ -1099,19 +1223,33 @@ test("the withdrawn OHP microloading option leaves every lift on the 2.5 kg grid
   assert.equal(legacy.startingValuesKg.ohpKg, 32.5);
 });
 
-test("REF5 auxiliary cap is REF-based, so the OHP 2.5 kg step waits for BP (§6.4)", () => {
-  assert.equal(ref5AuxiliaryCandidateIsWithinCap("OHP", 35, { ...REF5_INITIAL_DIRECT_STANDARDS_KG }), false);
-  const headroom = { ...REF5_INITIAL_DIRECT_STANDARDS_KG, ohpKg: 30, bpFocusKg: 80 };
+test("REF5 auxiliary cap compares working weight, so a capped OHP step waits for BP (§6.4)", () => {
+  const initial = { ...REF5_INITIAL_DIRECT_STANDARDS_KG };
+  assert.equal(ref5AuxiliaryCandidateIsWithinCap("OHP", 35, initial), true);
+  assert.equal(ref5AuxiliaryCandidateIsWithinCap("OHP", 40, initial), true);
+  assert.equal(ref5AuxiliaryCandidateIsWithinCap("OHP", 42.5, initial), false, "42.5 > 82.5 × 0.5");
   assert.equal(
-    ref5AuxiliaryCandidateIsWithinCap("OHP", 32.5, headroom),
+    ref5AuxiliaryCandidateIsWithinCap("OHP", 42.5, { ...initial, bpFocusKg: 85 }),
+    true,
+    "the same step clears once BP advances to 85",
+  );
+  assert.equal(ref5AuxiliaryCandidateIsWithinCap("DL", 82.5, initial), true, "DL may equal SQ H3");
+  assert.equal(ref5AuxiliaryCandidateIsWithinCap("DL", 85, initial), false);
+});
+
+test("the v1.5 REF-space cap is kept for replay (§6.4, §24.3)", () => {
+  const initial = { ...REF5_INITIAL_DIRECT_STANDARDS_KG };
+  assert.equal(ref5AuxiliaryCandidateIsWithinCap("OHP", 35, initial, "CONTROL_REF"), false);
+  const headroom = { ...initial, ohpKg: 30, bpFocusKg: 80 };
+  assert.equal(
+    ref5AuxiliaryCandidateIsWithinCap("OHP", 32.5, headroom, "CONTROL_REF"),
     false,
     "BP 80 caps the OHP control REF below the 32.5 kg candidate",
   );
-  assert.equal(
-    ref5AuxiliaryCandidateIsWithinCap("OHP", 32.5, { ...headroom, bpFocusKg: 82.5 }),
-    true,
-    "the same step clears once BP advances to 82.5",
-  );
+  assert.equal(ref5AuxiliaryCandidateIsWithinCap("OHP", 32.5, { ...headroom, bpFocusKg: 82.5 }, "CONTROL_REF"), true);
+  // DL 80 waits for SQ H3 90 under the old rule: 110.34 > 110.30 at 87.5.
+  assert.equal(ref5AuxiliaryCandidateIsWithinCap("DL", 80, { ...initial, sqH3Kg: 87.5 }, "CONTROL_REF"), false);
+  assert.equal(ref5AuxiliaryCandidateIsWithinCap("DL", 80, { ...initial, sqH3Kg: 90 }, "CONTROL_REF"), true);
 });
 
 function ohpImmediateDecrease(): number {
@@ -1168,10 +1306,10 @@ test("completed judgment windows accumulate the §18 gain-rate flow", () => {
   assert.equal(state.mainWindows.BP.increaseWindowCount, 1);
   assert.equal(state.mainWindows.PULL.increaseWindowCount, 1);
   assert.equal(state.auxiliaryWindows.DL.increaseWindowCount, 1);
-  // OHP's window completes but 35 kg exceeds the cap, so it records MAINTAIN.
+  // OHP's window completes and 35 kg fits the v1.6 cap, so it records INCREASE.
   assert.equal(state.auxiliaryWindows.OHP.completedWindowCount, 1);
-  assert.equal(state.auxiliaryWindows.OHP.increaseWindowCount, 0);
-  assert.deepEqual(state.auxiliaryWindows.OHP.recentResults, ["MAINTAIN"]);
+  assert.equal(state.auxiliaryWindows.OHP.increaseWindowCount, 1);
+  assert.deepEqual(state.auxiliaryWindows.OHP.recentResults, ["INCREASE"]);
 });
 
 test("normal session runs ten working sets with two-set upper-body volume; micro stays four (§7)", () => {
@@ -1519,13 +1657,13 @@ test("OAP results stay out of PULL judgment, streams, forced micro and every kg 
   const before = createInitialRef5State();
   const after = repeatOapOutcome(before, 4, "FAIL");
 
-  // BP is the one standard that legitimately moves here: its own four focus
-  // exposures all passed and closed a window. Everything the skill slot could
-  // conceivably have touched is unchanged.
+  // BP and OHP legitimately move here: their own four exposures all passed and
+  // closed a window each. Everything the skill slot could conceivably have
+  // touched is unchanged.
   assert.equal(after.directStandardsKg.pullFocusTotalKg, before.directStandardsKg.pullFocusTotalKg);
   assert.equal(after.directStandardsKg.sqH3Kg, before.directStandardsKg.sqH3Kg);
   assert.equal(after.directStandardsKg.deadliftKg, before.directStandardsKg.deadliftKg);
-  assert.equal(after.directStandardsKg.ohpKg, before.directStandardsKg.ohpKg);
+  assert.equal(after.directStandardsKg.ohpKg, before.directStandardsKg.ohpKg + 2.5);
   const bpIncrease = after.progressionChanges.find(
     (change) => change.lift === "BP" && change.kind === "INCREASE",
   );

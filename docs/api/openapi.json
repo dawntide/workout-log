@@ -597,6 +597,97 @@
         }
       }
     },
+    "/api/plans/{planId}/coach-sessions/{date}": {
+      "get": {
+        "summary": "코치 처방 조회",
+        "description": "코치 플랜의 한 날짜(`YYYY-MM-DD`)에 들어 있는 처방. 없으면 `session: null`. `locked: true`면 수행 기록이 연결돼 더는 고칠 수 없다.",
+        "security": [
+          {
+            "personalAccessToken": []
+          }
+        ],
+        "x-required-scopes": [
+          "read",
+          "read_write"
+        ],
+        "parameters": [
+          {
+            "name": "planId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "date",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "성공"
+          },
+          "401": {
+            "description": "토큰이 없거나, 폐기됐거나, 이 경로가 공개 표면 밖이다(기본은 거부)."
+          },
+          "403": {
+            "description": "토큰 스코프가 이 작업을 허용하지 않는다(read 토큰의 쓰기)."
+          },
+          "429": {
+            "description": "요청 한도 초과. 읽기 120/분, 쓰기 30/분. `Retry-After` 헤더를 볼 것."
+          }
+        }
+      },
+      "put": {
+        "summary": "코치 처방 넣기",
+        "description": "코치 플랜의 한 날짜(`YYYY-MM-DD`)에 세션 처방을 넣거나 고친다. 본문은 `{ exercises: [{ exerciseName, role?, sets: [{ reps, targetWeightKg, rpe?, note? }] }], rationale }`. 서버는 범위를 검증할 뿐 무게를 계산하지 않고, 범위 밖 값은 고치지 않고 **400**으로 거부한다. 코치 플랜이 아니면 400, 그 날짜에 수행 기록이 있으면 **409**(수행한 처방은 바뀌지 않는다). 같은 본문을 다시 보내면 개정 번호가 오르지 않는다. 삭제 경로는 없다.",
+        "security": [
+          {
+            "personalAccessToken": []
+          }
+        ],
+        "x-required-scopes": [
+          "read_write"
+        ],
+        "parameters": [
+          {
+            "name": "planId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "date",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "성공"
+          },
+          "401": {
+            "description": "토큰이 없거나, 폐기됐거나, 이 경로가 공개 표면 밖이다(기본은 거부)."
+          },
+          "403": {
+            "description": "토큰 스코프가 이 작업을 허용하지 않는다(read 토큰의 쓰기)."
+          },
+          "429": {
+            "description": "요청 한도 초과. 읽기 120/분, 쓰기 30/분. `Retry-After` 헤더를 볼 것."
+          }
+        }
+      }
+    },
     "/api/exercises": {
       "get": {
         "summary": "운동 검색",

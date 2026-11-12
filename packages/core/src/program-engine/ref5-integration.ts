@@ -30,13 +30,14 @@ import {
 import { acquireActiveAccountMutationLock } from "@workout/core/auth/account-lifecycle";
 
 // 511 is the immutable v1.1 identifier; 512 is v1.2, 513 is v1.3, 514 is v1.4.
-// Active v1.5 writes use 515 so historical snapshots are never relabelled in
-// place (§24.3).
+// 515 is v1.5. Active v1.6 writes use 516 so historical snapshots are never
+// relabelled in place (§24.3).
 export const REF5_ENGINE_VERSION = REF5_LEGACY_ENGINE_VERSION;
 export const REF5_ENGINE_VERSION_V12 = 512;
 export const REF5_ENGINE_VERSION_V13 = 513;
 export const REF5_ENGINE_VERSION_V14 = 514;
 export const REF5_ENGINE_VERSION_V15 = 515;
+export const REF5_ENGINE_VERSION_V16 = 516;
 
 export type Ref5GenerateRequest = {
   protocolVersion: typeof REF5_PROTOCOL_VERSION;
@@ -108,8 +109,9 @@ export function normalizeRef5GenerationRequest(
   if (input.ref5.protocolVersion !== REF5_PROTOCOL_VERSION) {
     throw new Ref5StaleVersionError(input.ref5.protocolVersion);
   }
-  // A carried v1.4 plan keeps its creation stamp and generates v1.5 sessions
-  // from here on (§24.3). Archived protocols stay refused.
+  // A carried v1.4 or v1.5 plan keeps its creation stamp and generates
+  // current-protocol sessions from here on (§24.3). Archived protocols stay
+  // refused.
   const planProtocolVersion = readRef5PlanProtocolVersion(planParams);
   if (!isRef5ReadableProtocolVersion(planProtocolVersion)) {
     throw new Ref5StaleVersionError(planProtocolVersion);

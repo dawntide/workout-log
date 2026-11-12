@@ -331,10 +331,10 @@ func TestRef5E1rmCalibrationFloorsAndAppliesAuxiliaryCaps(t *testing.T) {
 		t.Fatal(err)
 	}
 	if starts.SqH3Kg != 82.5 || starts.BpFocusKg != 82.5 || starts.PullFocusTotalKg != 87.5 ||
-		starts.DeadliftKg != 75 || starts.OhpKg != 32.5 {
+		starts.DeadliftKg != 82.5 || starts.OhpKg != 40 {
 		t.Fatalf("calibrated starts = %#v", starts)
 	}
-	if strings.Join(adjustments, ",") != "DL 145→75,OHP 65→32.5" {
+	if strings.Join(adjustments, ",") != "DL 145→82.5,OHP 65→40" {
 		t.Fatalf("cap adjustments = %#v", adjustments)
 	}
 }
@@ -421,9 +421,9 @@ func TestRef5StartLoadPickerRejectsOffGridAndAuxiliaryCap(t *testing.T) {
 		t.Fatalf("off-grid validation = %q, cmd=%v", programs.err, cmd != nil)
 	}
 
-	scr, cmd = programs.Update(pickedMsg{tag: "ref5-ohp", value: "35"})
+	scr, cmd = programs.Update(pickedMsg{tag: "ref5-ohp", value: "42.5"})
 	programs = scr.(Programs)
-	if !strings.Contains(programs.err, "상한 32.5kg") || cmd == nil || cmd().(openPickerMsg).tag != "ref5-ohp" {
+	if !strings.Contains(programs.err, "상한 40kg") || cmd == nil || cmd().(openPickerMsg).tag != "ref5-ohp" {
 		t.Fatalf("OHP cap validation = %q, cmd=%v", programs.err, cmd != nil)
 	}
 	if programs.pendingRef5TemplateID != template.ID {

@@ -303,7 +303,8 @@ function ExerciseRowView({
   locale,
 }: {
   item: ExerciseItem;
-  onEdit: () => void;
+  /** 없으면 수정 버튼을 그리지 않는다(관리자가 아닌 경우). */
+  onEdit?: () => void;
   disabled?: boolean;
   locale: "ko" | "en";
 }) {
@@ -333,14 +334,16 @@ function ExerciseRowView({
       </div>
 
       {/* Action buttons */}
-      <div style={{ display: "flex", gap: "2px", flexShrink: 0 }}>
-        <V2IconBtn
-          icon="edit"
-          label={locale === "ko" ? `${item.name} 수정` : `Edit ${item.name}`}
-          disabled={disabled}
-          onClick={onEdit}
-        />
-      </div>
+      {onEdit && (
+        <div style={{ display: "flex", gap: "2px", flexShrink: 0 }}>
+          <V2IconBtn
+            icon="edit"
+            label={locale === "ko" ? `${item.name} 수정` : `Edit ${item.name}`}
+            disabled={disabled}
+            onClick={onEdit}
+          />
+        </div>
+      )}
     </div>
   );
 }
@@ -432,7 +435,11 @@ function StatsGrid({ total, items, locale }: { total: number; items: ExerciseIte
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export function ExerciseCatalogContent() {
+/**
+ * `canManage`는 관리자 여부다. 기존 종목의 수정·삭제·별칭은 서버가 관리자에게만 허용하고
+ * (apps/api `rejectUnlessCatalogAdmin`), 화면은 같은 기준으로 그 진입점만 숨긴다.
+ */
+export function ExerciseCatalogContent({ canManage }: { canManage: boolean }) {
   const { locale } = useLocale();
   const { confirm } = useAppDialog();
   const [loading, setLoading] = useState(true);
@@ -522,7 +529,9 @@ export function ExerciseCatalogContent() {
       setNotice(null);
       const newName = createName.trim();
       const newCategory = createCategory.trim() || null;
-      const newAliases = createAliases.split(",").map((a) => a.trim()).filter(Boolean);
+      const newAliases = canManage
+        ? createAliases.split(",").map((a) => a.trim()).filter(Boolean)
+        : [];
 
       // Optimistic
       const tempId = `temp-${Date.now()}`;
@@ -614,7 +623,9 @@ export function ExerciseCatalogContent() {
           {locale === "ko" ? "운동 종목 관리" : "Exercise Management"}
         </h1>
         <p className="v2-small" style={{ color: "var(--v2-ink-2)", margin: 0, lineHeight: 1.5 }}>
-          {locale === "ko" ? "종목을 추가·수정하거나 카테고리와 별칭을 관리합니다." : "Add and edit exercises, categories, and aliases."}
+          {canManage
+            ? (locale === "ko" ? "종목을 추가·수정하거나 카테고리와 별칭을 관리합니다." : "Add and edit exercises, categories, and aliases.")
+            : (locale === "ko" ? "종목을 찾아보고 새 종목을 추가합니다. 수정·삭제는 관리자만 할 수 있습니다." : "Browse exercises and add new ones. Only an admin can edit or delete.")}
         </p>
       </div>
 
@@ -645,8 +656,8 @@ export function ExerciseCatalogContent() {
             onNameChange={setCreateName}
             category={createCategory}
             onCategoryChange={setCreateCategory}
-            aliases={createAliases}
-            onAliasesChange={setCreateAliases}
+            aliases={canManage ? createAliases : undefined}
+            onAliasesChange={canManage ? setCreateAliases : undefined}
             categories={categories}
             onSubmit={handleCreate}
             onCancel={() => { setCreateOpen(false); setCreateName(""); setCreateCategory(""); setCreateAliases(""); }}
@@ -720,7 +731,7 @@ export function ExerciseCatalogContent() {
                   submitLabel={locale === "ko" ? "수정 저장" : "Save Changes"}
                   locale={locale}
                 />
-              ) : (
+              ) : canManage ? (
                 <SwipeableExerciseRow
                   onDelete={makeDeleteHandler(item)}
                   deleteLabel={locale === "ko" ? "운동종목 삭제" : "Delete exercise"}
@@ -733,6 +744,8 @@ export function ExerciseCatalogContent() {
                     onEdit={() => setEditing({ id: item.id, name: item.name, category: item.category ?? "" })}
                   />
                 </SwipeableExerciseRow>
+              ) : (
+                <ExerciseRowView item={item} locale={locale} />
               )}
             </div>
           );

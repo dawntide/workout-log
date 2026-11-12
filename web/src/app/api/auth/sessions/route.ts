@@ -1,11 +1,15 @@
 import { errorMessage } from "@/lib/error-message";
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { and, desc, eq, ne } from "drizzle-orm";
+import { and, desc, eq, notInArray } from "drizzle-orm";
 import { db } from "@workout/core/db/client";
 import { authSession } from "@workout/core/db/schema";
 import { requireAuthenticatedUserId } from "@/server/auth/user";
 import { SESSION_COOKIE_NAME } from "@workout/core/auth/session";
+import {
+  sessionTokenCandidates,
+  sessionTokenDisplayValue,
+} from "@workout/core/auth/session-token";
 import { withApiLogging } from "@/server/observability/apiRoute";
 import { logError } from "@workout/core/observability/logger";
 import { logAuthEvent } from "@workout/core/auth/security-events";
@@ -35,11 +39,14 @@ async function GETImpl(_req: Request) {
       .orderBy(desc(authSession.createdAt))
       .limit(50);
 
+    // DB에는 토큰의 해시가 저장돼 있어 쿠키 원문과 직접 비교할 수 없다.
+    const currentStored = currentToken ? await sessionTokenCandidates(currentToken) : [];
+
     const items = rows.map((row) => {
-      const isCurrent = currentToken === row.token;
+      const isCurrent = currentStored.includes(row.token);
       const isExpired = row.expiresAt.getTime() <= Date.now();
       return {
-        tokenMask: maskToken(row.token),
+        tokenMask: maskToken(sessionTokenDisplayValue(row.token)),
         createdAt: row.createdAt.toISOString(),
         expiresAt: row.expiresAt.toISOString(),
         isCurrent,
@@ -74,9 +81,11 @@ async function DELETEImpl(req: Request) {
     const cookieStore = await cookies();
     const currentToken = cookieStore.get(SESSION_COOKIE_NAME)?.value ?? null;
 
-    const condition = currentToken
-      ? and(eq(authSession.userId, userId), ne(authSession.token, currentToken))
-      : eq(authSession.userId, userId);
+    const currentStored = currentToken ? await sessionTokenCandidates(currentToken) : [];
+    const condition =
+      currentStored.length > 0
+        ? and(eq(authSession.userId, userId), notInArray(authSession.token, currentStored))
+        : eq(authSession.userId, userId);
 
     const result = await db.delete(authSession).where(condition);
     const revoked =

@@ -251,6 +251,11 @@ export type AppCopy = {
     badgeAdded: string;
     addSet: string;
     sessionMemoPlaceholder: string;
+    sessionMemoLabel: string;
+    coachRationaleTitle: string;
+    coachNoPrescriptionTitle: string;
+    coachNoPrescriptionBody: string;
+    coachSessionType: string;
     activePlanLabel: string;
     restoreDraftTitle: string;
     restoreDraftMessage: string;
@@ -690,7 +695,12 @@ export const appCopyByLocale: Record<AppLocale, AppCopy> = {
       badgeCustom: "사용자",
       badgeAdded: "추가",
       addSet: "세트 추가",
-      sessionMemoPlaceholder: "오늘 세션 전체 메모",
+      sessionMemoPlaceholder: "예: 수면 6h / 통증 없음 / 컨디션 보통",
+      sessionMemoLabel: "세션 메모",
+      coachRationaleTitle: "코치 처방 근거",
+      coachNoPrescriptionTitle: "오늘 코치 처방이 없습니다",
+      coachNoPrescriptionBody: "운동을 추가해 자유롭게 기록할 수 있습니다.",
+      coachSessionType: "코치 처방",
       activePlanLabel: "진행 중인 플랜",
       restoreDraftTitle: "기록 복구",
       restoreDraftMessage: "이전에 입력 중이던 기록을 불러왔습니다.",
@@ -1127,7 +1137,12 @@ export const appCopyByLocale: Record<AppLocale, AppCopy> = {
       badgeCustom: "Custom",
       badgeAdded: "Added",
       addSet: "Add Set",
-      sessionMemoPlaceholder: "Notes for the full session",
+      sessionMemoPlaceholder: "e.g. Sleep 6h / no pain / felt average",
+      sessionMemoLabel: "Session notes",
+      coachRationaleTitle: "Coach's rationale",
+      coachNoPrescriptionTitle: "No coach prescription for today",
+      coachNoPrescriptionBody: "Add exercises to log freely.",
+      coachSessionType: "Coach",
       activePlanLabel: "Active Plan",
       restoreDraftTitle: "Restore Workout Draft",
       restoreDraftMessage: "A previous in-progress workout draft was found.",

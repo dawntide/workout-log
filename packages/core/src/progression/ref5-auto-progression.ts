@@ -38,12 +38,13 @@ import {
 
 /** Kept numeric-compatible with the generation adapter without importing it. */
 // 511 is the immutable v1.1 identifier; 512 is v1.2, 513 is v1.3, 514 is v1.4.
-// Active v1.5 writes use 515.
+// 515 is v1.5. Active v1.6 writes use 516.
 export const REF5_PROGRESSION_ENGINE_VERSION = 511;
 export const REF5_PROGRESSION_ENGINE_VERSION_V12 = 512;
 export const REF5_PROGRESSION_ENGINE_VERSION_V13 = 513;
 export const REF5_PROGRESSION_ENGINE_VERSION_V14 = 514;
 export const REF5_PROGRESSION_ENGINE_VERSION_V15 = 515;
+export const REF5_PROGRESSION_ENGINE_VERSION_V16 = 516;
 
 const REF5_END_REASONS = new Set<Ref5EndReason>([
   "NORMAL",
@@ -949,7 +950,7 @@ function foldRef5ReplaySource(input: {
       afterState: cloneJson(runningState),
       meta: {
         protocolVersion: replaySnapshot.protocolVersion,
-        engineVersion: REF5_PROGRESSION_ENGINE_VERSION_V15,
+        engineVersion: REF5_PROGRESSION_ENGINE_VERSION_V16,
         startEventId: session.startEventId,
         snapshotId: replaySnapshot.snapshotId,
         sessionId: replaySnapshot.sessionId,
@@ -999,7 +1000,7 @@ function foldRef5ReplaySource(input: {
       afterState: cloneJson(runningState),
       meta: {
         protocolVersion: replaySnapshot.protocolVersion,
-        engineVersion: REF5_PROGRESSION_ENGINE_VERSION_V15,
+        engineVersion: REF5_PROGRESSION_ENGINE_VERSION_V16,
         startEventId: completion.startEventId,
         completionEventId: completion.completionEventId,
         completionFingerprint: completion.fingerprint,
@@ -1187,7 +1188,7 @@ export async function rebuildRef5ProgressionForPlan(
       .update(planRuntimeState)
       .set({
         userId: input.userId,
-        engineVersion: REF5_PROGRESSION_ENGINE_VERSION_V15,
+        engineVersion: REF5_PROGRESSION_ENGINE_VERSION_V16,
         state: folded.state,
         updatedAt: new Date(),
       })
@@ -1207,7 +1208,7 @@ export async function rebuildRef5ProgressionForPlan(
       .values({
         planId,
         userId: input.userId,
-        engineVersion: REF5_PROGRESSION_ENGINE_VERSION_V15,
+        engineVersion: REF5_PROGRESSION_ENGINE_VERSION_V16,
         state: folded.state,
       })
       .onConflictDoNothing({ target: planRuntimeState.planId })

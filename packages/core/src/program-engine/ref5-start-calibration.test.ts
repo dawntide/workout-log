@@ -47,12 +47,12 @@ test("REF5 e1RM calibration floors to 2.5 kg and exposes auxiliary cap adjustmen
     sqH3Kg: 82.5,
     bpFocusKg: 82.5,
     pullFocusTotalKg: 87.5,
-    deadliftKg: 75,
-    ohpKg: 32.5,
+    deadliftKg: 82.5,
+    ohpKg: 40,
   });
   assert.deepEqual(result.value.capAdjustments, {
-    DL: { fromKg: 145, toKg: 75 },
-    OHP: { fromKg: 65, toKg: 32.5 },
+    DL: { fromKg: 145, toKg: 82.5 },
+    OHP: { fromKg: 65, toKg: 40 },
   });
 });
 

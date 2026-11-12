@@ -1,5 +1,5 @@
 /**
- * REF5 Adaptive Strength v1.5
+ * REF5 Adaptive Strength v1.6
  *
  * Framework/DB-independent domain model.  Direct kilogram standards are the
  * canonical state; control REFs, derived prescriptions and display loads are
@@ -15,6 +15,11 @@
  * than two hard starts on today and the six dates before it, replacing the
  * open 168-hour lookback that flipped on the clock minute. v1.4 plans carry
  * over in place (§24.3).
+ *
+ * v1.6 compares the auxiliary caps on direct working weight (§6.4): DL up to
+ * SQ H3, OHP up to half the BP focus standard. The REF-space cap of v1.5 and
+ * earlier survives only for replaying the sessions completed under it, so no
+ * past window is re-judged (§24.3). v1.4 and v1.5 plans carry over in place.
  */
 
 // 버전 리터럴의 정본은 ref5-protocol-version.ts다(클라이언트가 엔진을 끌지 않고
@@ -22,16 +27,22 @@
 export {
   REF5_ARCHIVED_PROTOCOL_VERSION,
   REF5_CARRIED_PROTOCOL_VERSION,
+  REF5_CARRIED_PROTOCOL_VERSIONS,
   REF5_LEGACY_PROTOCOL_VERSION,
+  REF5_PRIOR_PROTOCOL_VERSION,
   REF5_PROTOCOL_VERSION,
+  isRef5CarriedProtocolVersion,
   isRef5ReadableProtocolVersion,
   isRef5SessionVersionReadableForPlan,
+  type Ref5CarriedProtocolVersion,
   type Ref5ReadableProtocolVersion,
 } from "./ref5-protocol-version";
 import {
   REF5_CARRIED_PROTOCOL_VERSION,
   REF5_LEGACY_PROTOCOL_VERSION,
+  REF5_PRIOR_PROTOCOL_VERSION,
   REF5_PROTOCOL_VERSION,
+  isRef5CarriedProtocolVersion,
   type Ref5ReadableProtocolVersion,
 } from "./ref5-protocol-version";
 // v1.5 keeps the runtime state shape, so the carried v1.4 state needs only its
@@ -41,7 +52,7 @@ export const REF5_RUNTIME_SCHEMA_VERSION = 4 as const;
 export const REF5_LEGACY_RUNTIME_SCHEMA_VERSION = 1 as const;
 export const REF5_SNAPSHOT_SCHEMA_VERSION = 5 as const;
 export const REF5_CARRIED_SNAPSHOT_SCHEMA_VERSION = 4 as const;
-export const REF5_PROGRAM_VERSION = 5 as const;
+export const REF5_PROGRAM_VERSION = 6 as const;
 export const REF5_START_CONFIG_VERSION = 3 as const;
 export const REF5_LEGACY_ENGINE_VERSION = 511 as const;
 
@@ -360,8 +371,36 @@ export function deriveRef5ControlRefs(direct: Ref5DirectStandardsKg): Ref5Contro
   };
 }
 
-export function deriveRef5AuxiliaryCaps(direct: Ref5DirectStandardsKg): Ref5AuxiliaryCapsKg {
+/**
+ * How an auxiliary candidate is compared with its main lift (§6.4).
+ * `WORKING_WEIGHT` is the v1.6 rule; `CONTROL_REF` is the rule of v1.5 and
+ * earlier, kept only so completions of those sessions replay unchanged.
+ */
+export type Ref5AuxiliaryCapRule = "WORKING_WEIGHT" | "CONTROL_REF";
+
+/** The cap rule a session of `protocolVersion` was, or will be, judged with (§24.3). */
+export function ref5AuxiliaryCapRuleForProtocol(protocolVersion: unknown): Ref5AuxiliaryCapRule {
+  return isRef5CarriedProtocolVersion(protocolVersion) ? "CONTROL_REF" : "WORKING_WEIGHT";
+}
+
+export function deriveRef5AuxiliaryCaps(
+  direct: Ref5DirectStandardsKg,
+  rule: Ref5AuxiliaryCapRule = "WORKING_WEIGHT",
+): Ref5AuxiliaryCapsKg {
   const refs = deriveRef5ControlRefs(direct);
+  if (rule === "WORKING_WEIGHT") {
+    // SQ H3 is already on the 2.5 kg grid; only the OHP cap needs flooring.
+    const deadliftMaxKg = cleanKg(direct.sqH3Kg);
+    const ohpMaxKg = floorRef5To2p5(direct.bpFocusKg * 0.5);
+    return {
+      deadliftMaxKg,
+      ohpMaxKg,
+      // The cap no longer lives in REF space. These fields keep the snapshot
+      // shape and report the control REF of the capped working weight.
+      deadliftControlRefMaxKg: cleanKg((100 * deadliftMaxKg) / 72.5),
+      ohpControlRefMaxKg: cleanKg((50 * ohpMaxKg) / 32.5),
+    };
+  }
   return {
     deadliftMaxKg: floorRef5To2p5((refs.sqKg * 72.5) / 100),
     // The REF inequality below is grid-free; only the displayed working-weight
@@ -494,7 +533,13 @@ export function ref5AuxiliaryCandidateIsWithinCap(
   lift: Ref5AuxiliaryLift,
   candidateKg: number,
   direct: Ref5DirectStandardsKg,
+  rule: Ref5AuxiliaryCapRule = "WORKING_WEIGHT",
 ): boolean {
+  if (rule === "WORKING_WEIGHT") {
+    return lift === "DL"
+      ? candidateKg <= direct.sqH3Kg + 1e-9
+      : candidateKg <= direct.bpFocusKg * 0.5 + 1e-9;
+  }
   const candidateRefs = deriveRef5ControlRefs({
     ...direct,
     ...(lift === "DL" ? { deadliftKg: candidateKg } : { ohpKg: candidateKg }),
@@ -505,16 +550,17 @@ export function ref5AuxiliaryCandidateIsWithinCap(
     : candidateRefs.ohpKg <= mainRefs.bpKg * 0.5 + 1e-9;
 }
 
-/** Lowers a candidate in grid steps until the REF inequality is satisfied. */
+/** Lowers a candidate in grid steps until the cap inequality is satisfied. */
 export function constrainRef5AuxiliaryCandidate(
   lift: Ref5AuxiliaryLift,
   candidateKg: number,
   direct: Ref5DirectStandardsKg,
   gridKg: number = REF5_DEFAULT_GRID_KG,
+  rule: Ref5AuxiliaryCapRule = "WORKING_WEIGHT",
 ): number {
   let constrained = cleanKg(candidateKg);
   let guard = 0;
-  while (!ref5AuxiliaryCandidateIsWithinCap(lift, constrained, direct)) {
+  while (!ref5AuxiliaryCandidateIsWithinCap(lift, constrained, direct, rule)) {
     constrained = cleanKg(constrained - gridKg);
     guard += 1;
     if (guard > 10_000) throw new Error(`Unable to constrain REF5 ${lift} candidate`);
@@ -1138,11 +1184,15 @@ export interface Ref5SessionSnapshot {
 
 /**
  * A stored snapshot as the current decoder accepts it: a current-protocol one,
- * or a carried v1.4 one whose decisions replay frozen and are never
- * re-derived under v1.5 rules (§24.3).
+ * a carried v1.5 one of the same shape whose completion replays under the
+ * REF-space auxiliary cap, or a carried v1.4 one whose decisions also replay
+ * frozen and are never re-derived under later rules (§24.3).
  */
 export type Ref5DecodedSessionSnapshot =
   | Ref5SessionSnapshot
+  | (Omit<Ref5SessionSnapshot, "protocolVersion"> & {
+      protocolVersion: typeof REF5_PRIOR_PROTOCOL_VERSION;
+    })
   | (Omit<Ref5SessionSnapshot, "schemaVersion" | "protocolVersion" | "decision"> & {
       schemaVersion: typeof REF5_CARRIED_SNAPSHOT_SCHEMA_VERSION;
       protocolVersion: typeof REF5_CARRIED_PROTOCOL_VERSION;
@@ -1166,15 +1216,25 @@ function containsRef5V12RemovedField(value: unknown): boolean {
   );
 }
 
+/** The snapshot schema each readable protocol wrote. */
+function ref5SnapshotSchemaForProtocol(protocolVersion: unknown): number | null {
+  if (protocolVersion === REF5_PROTOCOL_VERSION || protocolVersion === REF5_PRIOR_PROTOCOL_VERSION) {
+    return REF5_SNAPSHOT_SCHEMA_VERSION;
+  }
+  if (protocolVersion === REF5_CARRIED_PROTOCOL_VERSION) return REF5_CARRIED_SNAPSHOT_SCHEMA_VERSION;
+  return null;
+}
+
 /**
- * Decodes a stored snapshot of the current protocol or the carried v1.4 one,
+ * Decodes a stored snapshot of the current protocol or a carried one,
  * each on its own schema. Every earlier protocol — v1.3 included — is refused
  * rather than reinterpreted (§24.3); those plans are archived.
  */
 export function decodeRef5SessionSnapshot(value: unknown): Ref5DecodedSessionSnapshot {
   const candidate = recordValue(value);
   const protocolVersion = String(candidate.protocolVersion ?? "").trim();
-  if (protocolVersion !== REF5_PROTOCOL_VERSION && protocolVersion !== REF5_CARRIED_PROTOCOL_VERSION) {
+  const expectedSchema = ref5SnapshotSchemaForProtocol(protocolVersion);
+  if (expectedSchema === null) {
     throw new Ref5StaleVersionError(protocolVersion || null);
   }
   if (
@@ -1184,10 +1244,6 @@ export function decodeRef5SessionSnapshot(value: unknown): Ref5DecodedSessionSna
   ) {
     throw new Ref5ValidationError(["invalid REF5 domain snapshot shape"]);
   }
-  const expectedSchema =
-    protocolVersion === REF5_PROTOCOL_VERSION
-      ? REF5_SNAPSHOT_SCHEMA_VERSION
-      : REF5_CARRIED_SNAPSHOT_SCHEMA_VERSION;
   if (Number(candidate.schemaVersion) !== expectedSchema) {
     throw new Ref5ValidationError(["unsupported REF5 snapshot schema"]);
   }
@@ -1198,17 +1254,19 @@ export function decodeRef5SessionSnapshot(value: unknown): Ref5DecodedSessionSna
 }
 
 /**
- * Continues a carried v1.4 runtime state under the current protocol (§24.3).
- * The state shape is unchanged in v1.5, so only the label moves: the windows,
- * queues and hard-start history are protocol-neutral, and the frozen v1.4
- * snapshots that produced them keep their own label. Every other protocol is
- * returned untouched for the caller's strict check to refuse.
+ * Continues a carried v1.4 or v1.5 runtime state under the current protocol
+ * (§24.3). The state shape is unchanged since v1.4, so only the label moves:
+ * the windows, queues and hard-start history are protocol-neutral, and the
+ * frozen snapshots that produced them keep their own label. The auxiliary
+ * standards are not touched: the v1.6 cap is never below the earlier one.
+ * Every other protocol is returned untouched for the caller's strict check to
+ * refuse.
  */
 export function carryRef5RuntimeState<T extends { protocolVersion?: unknown; schemaVersion?: unknown }>(
   state: T,
 ): T {
   if (
-    state.protocolVersion === REF5_CARRIED_PROTOCOL_VERSION &&
+    isRef5CarriedProtocolVersion(state.protocolVersion) &&
     state.schemaVersion === REF5_RUNTIME_SCHEMA_VERSION
   ) {
     return { ...state, protocolVersion: REF5_PROTOCOL_VERSION };
@@ -1743,8 +1801,9 @@ export interface Ref5FirstSquatStartResult {
 
 /**
  * A live start or save acts only on a current-protocol snapshot. A canonical
- * replay also re-applies carried v1.4 sessions, keeping their frozen decisions
- * instead of re-deriving them under v1.5 rules (§24.3).
+ * replay also re-applies carried v1.4 and v1.5 sessions, keeping their frozen
+ * decisions and their REF-space auxiliary cap instead of re-deriving them
+ * under v1.6 rules (§24.3).
  */
 function isRef5SnapshotApplicable(snapshot: Ref5DecodedSessionSnapshot, historicalReplay: boolean): boolean {
   if (snapshot.protocolVersion === REF5_PROTOCOL_VERSION) {
@@ -1752,8 +1811,8 @@ function isRef5SnapshotApplicable(snapshot: Ref5DecodedSessionSnapshot, historic
   }
   return (
     historicalReplay &&
-    snapshot.protocolVersion === REF5_CARRIED_PROTOCOL_VERSION &&
-    snapshot.schemaVersion === REF5_CARRIED_SNAPSHOT_SCHEMA_VERSION
+    isRef5CarriedProtocolVersion(snapshot.protocolVersion) &&
+    snapshot.schemaVersion === ref5SnapshotSchemaForProtocol(snapshot.protocolVersion)
   );
 }
 
@@ -2469,9 +2528,12 @@ export function reduceRef5Completion(
     }
   }
 
-  // Auxiliary own candidates are evaluated only after all new main REFs/caps
-  // exist. An increase is all-or-nothing; a cap may force as many 2.5 steps as
-  // needed, while an own -2.5 and the first cap step overlap.
+  // Auxiliary own candidates are evaluated only after all new main standards
+  // and caps exist. An increase is all-or-nothing; a cap may force as many 2.5
+  // steps as needed, while an own -2.5 and the first cap step overlap. The cap
+  // rule is the one of the session being closed, so a replayed v1.4/v1.5
+  // completion is never re-judged under the v1.6 cap (§24.3).
+  const capRule = ref5AuxiliaryCapRuleForProtocol(snapshot.protocolVersion);
   for (const lift of ["DL", "OHP"] as const) {
     const window = next.auxiliaryWindows[lift];
     const completedWindow = window.exposures.length >= 4;
@@ -2489,13 +2551,19 @@ export function reduceRef5Completion(
     let ownWindowResult: "INCREASE" | "MAINTAIN" | null = completedWindow ? "MAINTAIN" : null;
     if (immediate.length === 0 && allPass) {
       const increaseCandidate = cleanKg(beforeKg + gridKg);
-      if (ref5AuxiliaryCandidateIsWithinCap(lift, increaseCandidate, next.directStandardsKg)) {
+      if (ref5AuxiliaryCandidateIsWithinCap(lift, increaseCandidate, next.directStandardsKg, capRule)) {
         ownCandidateKg = increaseCandidate;
         ownWindowResult = "INCREASE";
       }
     }
-    const afterKg = constrainRef5AuxiliaryCandidate(lift, ownCandidateKg, next.directStandardsKg, gridKg);
-    const capConstrainedCurrent = constrainRef5AuxiliaryCandidate(lift, beforeKg, next.directStandardsKg, gridKg);
+    const afterKg = constrainRef5AuxiliaryCandidate(lift, ownCandidateKg, next.directStandardsKg, gridKg, capRule);
+    const capConstrainedCurrent = constrainRef5AuxiliaryCandidate(
+      lift,
+      beforeKg,
+      next.directStandardsKg,
+      gridKg,
+      capRule,
+    );
     const capForced = capConstrainedCurrent < beforeKg;
     if (completedWindow) recordRef5WindowResult(window, ownWindowResult ?? "MAINTAIN");
     if (afterKg !== beforeKg) {

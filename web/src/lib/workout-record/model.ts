@@ -124,8 +124,24 @@ export type WorkoutSessionModel = {
   amrapDeferred?: boolean;
   lightBlockMode?: boolean;
   ref5?: WorkoutSessionRef5Meta | null;
+  /**
+   * 코치 플랜의 세션이면 채워진다. `rationale`이 null이면 그 날짜에 처방이 없다는 뜻이고,
+   * 사용자는 자유 기록을 한다. 코치 플랜이 아니면 필드 자체가 null/undefined다.
+   */
+  coach?: WorkoutSessionCoachMeta | null;
   note: WorkoutNoteModel;
 };
+
+export type WorkoutSessionCoachMeta = {
+  rationale: string | null;
+};
+
+/** 스냅샷에서 코치 세션 표식을 읽는다(`sessionType: "COACH"` + 선택적 `coach.rationale`). */
+function readCoachSessionMeta(snapshot: Record<string, unknown>): WorkoutSessionCoachMeta | null {
+  if (String(snapshot.sessionType ?? "") !== "COACH") return null;
+  const rationale = toRecord(snapshot.coach).rationale;
+  return { rationale: typeof rationale === "string" && rationale.trim() ? rationale.trim() : null };
+}
 
 export type SeedExerciseEditPatch = {
   exerciseId?: string | null;
@@ -1083,6 +1099,7 @@ export function createWorkoutRecordDraft(
       amrapDeferred: snapshot.amrapDeferred === true,
       lightBlockMode: snapshot.lightBlockMode === true,
       ref5: ref5Session,
+      coach: readCoachSessionMeta(snapshot),
       note: { memo: "" },
     },
     seedExercises: exercises.map(toSeedExercise),
@@ -1147,6 +1164,7 @@ export function createWorkoutRecordDraftFromLog(
       amrapDeferred: snapshot.amrapDeferred === true,
       lightBlockMode: snapshot.lightBlockMode === true,
       ref5: ref5Session,
+      coach: readCoachSessionMeta(snapshot),
       note: {
         memo: typeof log.notes === "string" ? log.notes.trim() : "",
       },

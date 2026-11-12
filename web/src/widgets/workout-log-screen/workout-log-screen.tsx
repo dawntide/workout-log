@@ -33,6 +33,7 @@ import { applyWorkoutLogWeightRulesToDraft } from "@/lib/workout-record/weight-r
 import { migrateWorkoutRecordDraft } from "@/entities/workout-record";
 import { BodyweightCheckBanner } from "./bodyweight-check-banner";
 import { DateNav } from "./date-nav";
+import { CoachSessionNotice } from "./coach-session-notice";
 import { SessionFeedbackNotices } from "./session-feedback-notices";
 import { SessionSaveBar } from "./session-save-bar";
 import { cancelRestPush } from "@/lib/push/rest-push-client";
@@ -49,7 +50,7 @@ import {
 } from "@/features/workout-log/ui/workout-log-stacked-list";
 import { WorkoutLogSummarySheet } from "@/features/workout-log/ui/workout-log-summary-sheet";
 import { AppPage } from "@/components/ui/page-layout";
-import { V2SectionHeader } from "@/components/v2/primitives";
+import { V2SectionHeader, V2Textarea } from "@/components/v2/primitives";
 import type {
   WorkoutLogInitialContext,
   WorkoutLogPageBootstrap,
@@ -198,7 +199,7 @@ function WorkoutLogScreenContent({
     onBootstrapOpenAddSheet: openAddSheetFromBootstrap,
   });
 
-  const { handleExerciseAction, handleSessionDateChange } =
+  const { handleExerciseAction, handleSessionDateChange, handleSessionMemoChange } =
     useWorkoutLogEditorController();
 
   const {
@@ -369,8 +370,10 @@ function WorkoutLogScreenContent({
       day: draft?.session.day ?? null,
     });
   const sessionLabel = deriveSessionLabel(draft?.session.sessionKey);
+  const coachSession = draft?.session.coach ?? null;
   const sessionTypeLabel = deriveSessionTypeLabel({
-    sessionType: draft?.session.sessionType,
+    // 스냅샷의 "COACH"는 언어 중립 코드다. 화면에는 번역해 보인다.
+    sessionType: coachSession ? copy.workoutLog.coachSessionType : draft?.session.sessionType,
     day: draft?.session.day,
     sessionLabel,
   });
@@ -491,6 +494,14 @@ function WorkoutLogScreenContent({
             locale={locale}
           />
 
+          {coachSession ? (
+            <CoachSessionNotice
+              rationale={coachSession.rationale}
+              showEmptyNotice={!isEditingExistingLog}
+              copy={copy.workoutLog}
+            />
+          ) : null}
+
           {renderRef5WindowProgress(true)}
 
           {showBodyweightCheck ? (
@@ -544,6 +555,19 @@ function WorkoutLogScreenContent({
                 ref={stackedListRef}
                 onExerciseAction={handleExerciseAction}
                 onOpenAddExerciseSheet={draft.session.ref5 ? undefined : openAddExerciseSheet}
+              />
+
+              {/* 판정 밖 기록(수면·통증·컨디션)을 남기는 유일한 칸이다. 저장 경로는
+                  `workout_log.notes`로 이미 있었고 입력란만 없었다. */}
+              <V2Textarea
+                size="sm"
+                label={copy.workoutLog.sessionMemoLabel}
+                value={draft.session.note.memo}
+                onChange={(event) => handleSessionMemoChange(event.target.value)}
+                placeholder={copy.workoutLog.sessionMemoPlaceholder}
+                rows={2}
+                maxLength={2000}
+                style={{ resize: "none" }}
               />
 
               <SessionSaveBar
