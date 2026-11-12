@@ -1,5 +1,5 @@
 # 인계 문서 (덮어쓰기)
-- 갱신: 2026-11-12 14:30 / 브랜치: docs/handoff-coach-merged / main `af181772` 기준
+- 갱신: 2026-11-12 14:45 / 브랜치: claude/project-thread-ukhh6b / main `9641074` 기준
 
 작업을 마치거나 중단할 때 이 문서를 **덮어써서** 갱신한다. 이력은 `docs/decisions.md`와 git에 있다. 아래는 2026-11-03 프로젝트 메모리에서 옮긴 초기 내용이며, 메모리 기준 시점(마지막 갱신 2026-10-31)이라 **운영 DB·최신 main으로 검증하지 않았다**. 쓰기 전에 확인할 것.
 
@@ -22,7 +22,10 @@
   - 들어간 것: 시드 템플릿 `coach-prescribed`(프로그램 스토어 노출), `PUT`·`GET /api/plans/:planId/coach-sessions/:date`(PAT 공개 표면), `buildSession`의 코치 분기, MCP 도구 `prescribe_session`·`get_prescribed_session`, 기록 화면의 처방 근거 카드와 **세션 메모 입력란(모든 플랜)**. DB 스키마 변경과 마이그레이션은 없다.
   - 로컬 확인(임시 Postgres + dev 서버): 처방 PUT 201, 같은 본문 재전송 `unchanged`, 검증 오류 400, 카탈로그 밖 종목 400, 기록 화면에 처방과 근거 표시, UI로 저장(세트 9개·메모·세션 연결), 저장 뒤 PUT 409, 처방 없는 날 빈 세션 안내, `plan_runtime_state` 0행.
   - 머지 뒤 확인: 머지 전 CI 9개 체크(E2E, `Verify coach sessions` 포함) 통과. 머지 뒤 `db-migrate`·`db-seed`·`deploy` 성공, Vercel 프로덕션 배포 완료. 운영 DB 읽기 전용 조회로 `program_template`에 `coach-prescribed` v1이 있고, Dev 계정 REF5 상태는 revision 50 그대로(SQ 85·BP 87.5·PULL 92.5)이며 코치 플랜은 0개임을 봤다.
-  - [미확인]: 프로그램 스토어 시작 시트의 코치 문구를 브라우저로 보지 않았다(타입체크만). 운영 화면(스토어의 코치 템플릿 카드, 기록 화면의 세션 메모 입력란)은 보지 않았고 운영 API도 호출하지 않았다. 이 클라우드 환경에서 운영 공개 API를 부를 수 있는지도 모른다.
+  - 운영 API 테스트(2026-11-12, 테스트 계정 `f7e726df`(`role='test'`)의 `read_write` PAT, 코치 플랜 `ea74f192`): 2027-12-31에 PUT 201(`Back Squat`→`High-Bar Back Squat` 정규화), 같은 본문 재전송 200 `unchanged:true`, 무게만 바꾸면 200 revision 2, GET 일치, 범위 밖 값 400(`details` 4건), 없는 날짜(2027-02-30) 400, 카탈로그에 없는 종목 400 `COACH_UNKNOWN_EXERCISE`(행 안 생김), 보관된 REF5 플랜 PUT·GET 400 `COACH_PLAN_REQUIRED`, `generatedSessionId`를 단 POST /api/logs 201 뒤 GET `locked:true`·PUT 409 `COACH_SESSION_LOCKED`. 전후로 Dev 계정 REF5 `plan_runtime_state`는 revision 50·state md5 동일, Dev 계정의 새 로그·generated_session 0건.
+  - 테스트가 남긴 것(테스트 계정, PAT로는 못 지움): 2027-12-31 코치 처방 1건과 수행 기록 1건(log `67ce9f4f`, 메모 "[운영 테스트]"). 필요하면 테스트 계정으로 앱에서 지운다.
+  - 발견(미수정): ①`validateCoachPrescription`은 **최상위 모르는 필드**(예: `"extra":1`)를 거부하지 않고 무시한다(종목·세트 수준만 검사). `docs/api/README.md`의 "모르는 필드는 400"과 어긋난다. ②기록이 연결돼 잠긴 뒤에도 `generated_session.status`는 `PLANNED`로 남는다(의도인지 미확인).
+  - [미확인]: 운영 화면(스토어 카드·시작 시트 문구, 기록 화면의 처방 근거 카드·세션 메모 입력란)은 브라우저로 보지 않았다.
   - 사용자가 정할 것: (머지와 CI 검증 추가는 2026-11-12에 승인받았다. `db:verify:coach-sessions`는 CI E2E 잡의 seed 뒤에서 돈다.) 운영에서 코치 플랜을 실제로 쓰기 시작하는 시점과 `read_write` 토큰 발급은 프로그램 전환 때다.
   - REF5 화면에도 세션 메모 입력란이 보인다. 판정에는 쓰이지 않는다(`workout_log.notes`).
 - 2026-11-12 방향성 자문에서 낸 의견(결정 아님): 3일 연속이 가능하면 가운데 날을 쉬어 하드 SQ 2회를 받는다, PULL 집중 다음 날 OAP를 피한다([`decisions.md`](decisions.md) (9)의 재검토 조건인 48시간 내 HOLD/FAIL 재발이 10/30에 충족됨), 체중 실측 전에는 감량을 시작하지 않는다. 10/18 FAIL을 연속일 피로로만 설명하기는 약하다(6/07–09 SQ 82.5×5×3 사흘 연속 뒤 6/11 92.5×3×3 완료).
