@@ -10,20 +10,32 @@ import (
 const (
 	Ref5TemplateSlug         = "ref5-adaptive-strength"
 	Ref5ProgramFamily        = "ref5"
-	Ref5ProtocolVersion      = "1.5"
+	Ref5ProtocolVersion      = "1.6"
 	Ref5RuntimeSchemaVersion = 4
 	Ref5StartConfigVersion   = 3
-	// Ref5CarriedProtocolVersion is the protocol v1.5 continues in place
-	// (spec §24.3): its plans and frozen sessions stay readable.
+	// Ref5CarriedProtocolVersion and Ref5PriorProtocolVersion are the
+	// protocols v1.6 continues in place (spec §24.3): their plans and frozen
+	// sessions stay readable.
 	Ref5CarriedProtocolVersion = "1.4"
+	Ref5PriorProtocolVersion   = "1.5"
 )
 
+// Ref5CarriedProtocolVersions lists every carried protocol, oldest first.
+var Ref5CarriedProtocolVersions = []string{Ref5CarriedProtocolVersion, Ref5PriorProtocolVersion}
+
 // IsRef5ReadableProtocolVersion mirrors core's isRef5ReadableProtocolVersion:
-// the current protocol, or the carried one whose plans continue in place.
+// the current protocol, or a carried one whose plans continue in place.
 func IsRef5ReadableProtocolVersion(version string) bool {
 	version = strings.TrimSpace(version)
-	return strings.EqualFold(version, Ref5ProtocolVersion) ||
-		strings.EqualFold(version, Ref5CarriedProtocolVersion)
+	if strings.EqualFold(version, Ref5ProtocolVersion) {
+		return true
+	}
+	for _, carried := range Ref5CarriedProtocolVersions {
+		if strings.EqualFold(version, carried) {
+			return true
+		}
+	}
+	return false
 }
 
 // Plan is a user's training plan.

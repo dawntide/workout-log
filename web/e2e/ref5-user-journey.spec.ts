@@ -605,7 +605,8 @@ test("REF5 전체 판정창 증가·보조 상한·PULL 체중 잠금", async ({
     bpFocusKg: 85,
     pullFocusTotalKg: 90,
     deadliftKg: 75,
-    ohpKg: 32.5,
+    // v1.6 (§6.4): 35는 작업중량 상한 floor2.5(85 × 0.5) = 42.5 안이라 한 단계 오른다.
+    ohpKg: 35,
   });
   expect(status.pullLock).toMatchObject({
     focusTargetTotalKg: 90,

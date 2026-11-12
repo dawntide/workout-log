@@ -211,11 +211,11 @@ test("REF5 start validation reports the active auxiliary cap", () => {
     ref5StartConfigValidationMessage(
       {
         ...ref5Config,
-        startingValuesKg: { ...ref5Config.startingValuesKg, ohpKg: 35 },
+        startingValuesKg: { ...ref5Config.startingValuesKg, ohpKg: 42.5 },
       },
       "ko",
     ),
-    "OHP 시작 중량은 현재 BP 기준 상한 32.5kg 이하여야 합니다.",
+    "OHP 시작 중량은 현재 BP 기준 상한 40kg 이하여야 합니다.",
   );
 });
 
