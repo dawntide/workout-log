@@ -40,6 +40,8 @@ import {
   isRef5PlanParams,
 } from "./ref5-integration";
 import type { REF5_PROTOCOL_VERSION } from "./ref5";
+import { isCoachPlanParams } from "./coach-prescription";
+import { buildCoachPlanSession } from "./coach-session";
 import { tacticalBarbellCluster } from "@workout/core/program-store/tactical-barbell-blueprint";
 import {
   wendler531WeekSets,
@@ -1716,6 +1718,15 @@ async function buildSession(
   // start transition. It must not pass through cycle/week/TM/override logic.
   if (isRef5PlanParams(p.params)) {
     return buildRef5PlanSession(input, persist);
+  }
+
+  // 코치 플랜은 계산하지 않는다 — 그 날짜에 저장된 처방을 그대로 돌려준다. 아래 MANUAL
+  // 경로로 흘리면 프로그램 정의(세션 없음)에서 만든 빈 스냅샷이 처방을 덮어쓴다.
+  if (isCoachPlanParams(p.params)) {
+    return buildCoachPlanSession(
+      { plan: p, userId: input.userId, sessionDate: input.sessionDate, timezone: input.timezone },
+      persist,
+    );
   }
 
   const runtimeState = runtimeRows[0]?.state ?? null;

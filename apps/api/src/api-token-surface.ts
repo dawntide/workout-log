@@ -64,6 +64,9 @@ const READ_SURFACE: SurfaceRule[] = [
   { method: "GET", path: "/api/plans/:planId/progression-state" },
   { method: "GET", path: "/api/plans/:planId/generated-sessions/active" },
   { method: "GET", path: "/api/plans/:planId/generated-sessions/:sessionId" },
+  // 코치가 자기가 넣은 처방을 날짜로 되읽는다. 위 generated-sessions 조회는 REF5 전용이라
+  // 코치 플랜에는 404다.
+  { method: "GET", path: "/api/plans/:planId/coach-sessions/:date" },
   { method: "GET", path: "/api/exercises" },
   { method: "GET", path: "/api/exercises/categories" },
   { method: "GET", path: "/api/bodyweight" },
@@ -74,7 +77,7 @@ const READ_SURFACE: SurfaceRule[] = [
 /**
  * 쓰기 표면 — `read_write` 토큰만.
  *
- * 세션 기록이 목적이라 **생성·수정까지만** 연다. 삭제(`DELETE /api/logs/:logId`,
+ * 세션 기록과 코치 처방이 목적이라 **생성·수정까지만** 연다. 삭제(`DELETE /api/logs/:logId`,
  * `DELETE /api/bodyweight/:id`)는 넣지 않는다 — 프로그램 실수의 손실이 되돌릴 수 없고,
  * MCP 도구 목록에 삭제가 있으면 LLM이 부를 수 있다.
  */
@@ -82,6 +85,10 @@ const WRITE_SURFACE: SurfaceRule[] = [
   { method: "POST", path: "/api/logs" },
   { method: "PATCH", path: "/api/logs/:logId" },
   { method: "POST", path: "/api/bodyweight" },
+  // 코치 처방(2026-11-12). 아직 수행하지 않은 세션의 처방을 넣거나 고친다. 넓히는 범위를
+  // 좁게 잡았다: 코치 플랜에만 닿고(그 외 400), 수행 기록이 붙은 날짜는 409, 삭제는 없다.
+  // 서버는 범위만 검증하고 무게를 계산하지 않는다. 근거: docs/decisions.md.
+  { method: "PUT", path: "/api/plans/:planId/coach-sessions/:date" },
 ];
 
 function matches(rule: SurfaceRule, method: string, pathname: string): boolean {

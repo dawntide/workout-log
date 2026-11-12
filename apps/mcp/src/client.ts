@@ -53,12 +53,14 @@ function explain(status: number, path: string, body: string): string {
   if (status === 429) {
     return `429 — 요청이 너무 잦습니다(읽기 120/분, 쓰기 30/분). 잠시 뒤 다시 시도하세요.`;
   }
-  return `${status} — ${body.slice(0, 300)}`;
+  // 검증 오류(400)는 `details`에 고칠 항목이 전부 들어 있다. 잘라 내면 LLM이 일부만
+  // 고쳐 다시 보내고 또 거부당한다.
+  return `${status} — ${body.slice(0, 2000)}`;
 }
 
 export async function apiRequest<T>(
   config: WorkoutApiConfig,
-  method: "GET" | "POST" | "PATCH",
+  method: "GET" | "POST" | "PATCH" | "PUT",
   path: string,
   options: { query?: Record<string, string | number | undefined>; body?: unknown } = {},
 ): Promise<T> {

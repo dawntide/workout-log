@@ -40,6 +40,7 @@
     "db:verify:workout-log-idempotency": "tsx src/server/db/verifyWorkoutLogIdempotency.ts",
     "db:verify:account-lifecycle": "tsx src/server/db/verifyAccountLifecycle.ts",
     "db:verify:generated-session-immutability": "tsx src/server/db/verifyGeneratedSessionImmutability.ts",
+    "db:verify:coach-sessions": "tsx src/server/db/verifyCoachSessions.ts",
     "db:backfill:exercise": "tsx src/server/db/backfillExerciseIds.ts",
     "db:cleanup:ux-events": "tsx src/server/db/cleanupUxEventLog.ts",
     "db:cleanup:migration-log": "tsx src/server/db/cleanupMigrationRunLog.ts",

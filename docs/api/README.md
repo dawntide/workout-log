@@ -55,6 +55,32 @@ curl -H "Authorization: Bearer wlpat_…" https://workout-log-eight.vercel.app/a
 - 본문이 달라진 채 같은 id로 보내면 **새 요청**으로 취급된다 — 재시도가 아니라
   다른 요청이기 때문이다.
 
+## 코치 처방 — 수행 전 세션 넣기
+
+`PUT /api/plans/{planId}/coach-sessions/{date}`(`read_write`)는 **코치 플랜**의 한 날짜에
+세션 처방을 넣거나 고친다. 사용자가 그 날짜에 앱을 열면 이 처방이 오늘 세션으로 뜬다.
+
+```jsonc
+{
+  "rationale": "지난 세션 3×3 90이 RPE 8. 같은 무게로 한 세트 추가.",   // 필수, 2000자 이하
+  "exercises": [                                   // 1~12개, 같은 종목은 한 항목에
+    { "exerciseName": "Back Squat", "role": "MAIN",          // role 생략 시 MAIN
+      "sets": [{ "reps": 3, "targetWeightKg": 90, "rpe": 8, "note": "하이바" }] }  // 1~12세트
+  ]
+}
+```
+
+- **서버는 검증하고 저장할 뿐 무게를 계산하지 않는다.** 범위 밖 값(반복 1–50, 무게
+  0–500 kg, RPE 1–10의 0.5 단위)과 모르는 필드는 고치지 않고 **400**으로 거부한다.
+  `details`에 고칠 항목이 전부 온다.
+- 코치 플랜(`params.programFamily === "coach"`)이 아니면 400(`COACH_PLAN_REQUIRED`),
+  카탈로그에 없는 종목은 400(`COACH_UNKNOWN_EXERCISE`).
+- 그 날짜에 **수행 기록이 저장돼 있으면 409**(`COACH_SESSION_LOCKED`). 수행한 처방은
+  바뀌지 않는다.
+- 처음 넣으면 201, 고치면 200. 같은 본문을 다시 보내면 `unchanged: true`이고
+  `coach.revision`이 오르지 않는다 — 그래서 `clientMutationId`가 없다.
+- 삭제 경로는 없다. `GET` 같은 경로로 되읽는다(처방이 없으면 `session: null`).
+
 ## 요청 한도
 
 | 스코프 | 한도 |

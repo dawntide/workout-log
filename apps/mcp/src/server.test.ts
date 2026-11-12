@@ -98,6 +98,89 @@ test("세션 토큰을 넣으면 거부한다 — PAT가 아니면 전 경로가
   assert.match(config.baseUrl, /^https:\/\//);
 });
 
+test("prescribe_session은 처방을 고치지 않고 코치 경로로 PUT 한다", async () => {
+  // MCP가 값을 다듬으면 코치가 보낸 것과 서버가 검증한 것이 달라진다.
+  const calls: Array<{ url: string; method: string; body: unknown; auth: string }> = [];
+  const originalFetch = globalThis.fetch;
+  const previousToken = process.env.WORKOUT_LOG_TOKEN;
+  const previousBase = process.env.WORKOUT_LOG_BASE_URL;
+  process.env.WORKOUT_LOG_TOKEN = "wlpat_test";
+  process.env.WORKOUT_LOG_BASE_URL = "https://example.invalid";
+  globalThis.fetch = (async (url: URL | string, init?: RequestInit) => {
+    calls.push({
+      url: String(url),
+      method: String(init?.method),
+      body: init?.body ? JSON.parse(String(init.body)) : null,
+      auth: String((init?.headers as Record<string, string>)?.Authorization ?? ""),
+    });
+    return new Response(JSON.stringify({ created: true }), { status: 201 });
+  }) as typeof fetch;
+  const { client, close } = await connectedClient();
+  try {
+    const exercises = [
+      { exerciseName: "Back Squat", sets: [{ reps: 3, targetWeightKg: 90, rpe: 8 }] },
+    ];
+    const result = await client.callTool({
+      name: "prescribe_session",
+      arguments: { planId: "plan 1", date: "2026-11-20", rationale: "근거", exercises },
+    });
+    assert.notEqual(result.isError, true);
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0]!.method, "PUT");
+    assert.equal(
+      calls[0]!.url,
+      "https://example.invalid/api/plans/plan%201/coach-sessions/2026-11-20",
+    );
+    assert.deepEqual(calls[0]!.body, { exercises, rationale: "근거" });
+    assert.equal(calls[0]!.auth, "Bearer wlpat_test");
+
+    const read = await client.callTool({
+      name: "get_prescribed_session",
+      arguments: { planId: "plan 1", date: "2026-11-20" },
+    });
+    assert.notEqual(read.isError, true);
+    assert.equal(calls[1]!.method, "GET");
+  } finally {
+    await close();
+    globalThis.fetch = originalFetch;
+    if (previousToken === undefined) delete process.env.WORKOUT_LOG_TOKEN;
+    else process.env.WORKOUT_LOG_TOKEN = previousToken;
+    if (previousBase === undefined) delete process.env.WORKOUT_LOG_BASE_URL;
+    else process.env.WORKOUT_LOG_BASE_URL = previousBase;
+  }
+});
+
+test("서버의 검증 오류 details가 잘리지 않고 전달된다", async () => {
+  const originalFetch = globalThis.fetch;
+  const previousToken = process.env.WORKOUT_LOG_TOKEN;
+  process.env.WORKOUT_LOG_TOKEN = "wlpat_test";
+  const details = Array.from({ length: 12 }, (_, i) => `exercises[${i}].sets[0].reps는 1~50의 정수여야 합니다.`);
+  globalThis.fetch = (async () =>
+    new Response(JSON.stringify({ code: "COACH_PRESCRIPTION_INVALID", details }), {
+      status: 400,
+    })) as typeof fetch;
+  const { client, close } = await connectedClient();
+  try {
+    const result = await client.callTool({
+      name: "prescribe_session",
+      arguments: {
+        planId: "p",
+        date: "2026-11-20",
+        rationale: "r",
+        exercises: [{ exerciseName: "x", sets: [] }],
+      },
+    });
+    assert.equal(result.isError, true);
+    const text = (result.content as Array<{ text?: string }>)[0]?.text ?? "";
+    assert.match(text, /exercises\[11\]/, "마지막 오류 항목이 잘렸다");
+  } finally {
+    await close();
+    globalThis.fetch = originalFetch;
+    if (previousToken === undefined) delete process.env.WORKOUT_LOG_TOKEN;
+    else process.env.WORKOUT_LOG_TOKEN = previousToken;
+  }
+});
+
 test("알 수 없는 도구는 오류로 답한다", async () => {
   const { client, close } = await connectedClient();
   try {

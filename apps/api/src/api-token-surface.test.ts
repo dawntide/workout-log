@@ -67,13 +67,19 @@ test("공개 표면 스냅샷 — 바뀌면 의도적 결정을 강제한다", (
       "GET /api/plans/:planId/progression-state",
       "GET /api/plans/:planId/generated-sessions/active",
       "GET /api/plans/:planId/generated-sessions/:sessionId",
+      "GET /api/plans/:planId/coach-sessions/:date",
       "GET /api/exercises",
       "GET /api/exercises/categories",
       "GET /api/bodyweight",
       "GET /api/home",
       "GET /api/export",
     ],
-    write: ["POST /api/logs", "PATCH /api/logs/:logId", "POST /api/bodyweight"],
+    write: [
+      "POST /api/logs",
+      "PATCH /api/logs/:logId",
+      "POST /api/bodyweight",
+      "PUT /api/plans/:planId/coach-sessions/:date",
+    ],
   });
 });
 
@@ -102,6 +108,34 @@ test("read_write 토큰은 쓰기 표면까지", () => {
       `${entry}가 read_write에서 막힌다`,
     );
   }
+});
+
+test("코치 처방 — 쓰기는 read_write만, 삭제는 어느 스코프로도 없다", () => {
+  const pathname = "/api/plans/plan-1/coach-sessions/2026-11-20";
+  assert.deepEqual(decideApiTokenSurface({ method: "GET", pathname, scope: "read" }), {
+    allowed: true,
+  });
+  assert.deepEqual(decideApiTokenSurface({ method: "PUT", pathname, scope: "read" }), {
+    allowed: false,
+    reason: "scope",
+  });
+  assert.deepEqual(decideApiTokenSurface({ method: "PUT", pathname, scope: "read_write" }), {
+    allowed: true,
+  });
+  // 잘못 넣은 처방은 다시 PUT 한다. 지우는 길은 열지 않는다.
+  assert.deepEqual(decideApiTokenSurface({ method: "DELETE", pathname, scope: "read_write" }), {
+    allowed: false,
+    reason: "not_public",
+  });
+  // 처방을 여는 것(generate)은 앱의 일이다. PAT로는 세션을 생성하지 못한다.
+  assert.deepEqual(
+    decideApiTokenSurface({
+      method: "POST",
+      pathname: "/api/plans/plan-1/generate",
+      scope: "read_write",
+    }),
+    { allowed: false, reason: "not_public" },
+  );
 });
 
 test("공개 표면 밖은 스코프와 무관하게 401 — 기본은 거부다", () => {

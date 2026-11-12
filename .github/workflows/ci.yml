@@ -269,6 +269,14 @@ jobs:
           WORKOUT_SEED_ADMIN_FALLBACK: "1"
         run: pnpm db:seed
 
+      # 코치 처방 세션: 세션 열기가 처방을 덮어쓰지 않는지, 수행 기록이 붙은 처방이 잠기는지.
+      # 잠금(FOR UPDATE)·upsert·종목 조회가 전부 SQL이라 유닛으로는 검증되지 않는다.
+      # 시드된 템플릿(coach-prescribed)과 카탈로그가 필요해 seed 뒤에 둔다.
+      - name: Verify coach sessions
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/workout_log_ci
+        run: pnpm db:verify:coach-sessions
+
       - name: Verify account linking and portable progression choices against Postgres
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/workout_log_ci
