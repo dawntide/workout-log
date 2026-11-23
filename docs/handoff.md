@@ -1,5 +1,5 @@
 # 인계 문서 (덮어쓰기)
-- 갱신: 2026-11-23 10:14 / 브랜치: fix/nightly-program-inventory / HEAD: a7bc1d2d / 작성 도구: Codex
+- 갱신: 2026-11-23 10:32 / 브랜치: main / HEAD: 22192c14 / 작성 도구: Codex
 
 작업을 마치거나 중단할 때 이 문서를 **덮어써서** 갱신한다. 이력은 `docs/decisions.md`와 git에 있다. "현재 상태"는 2026-11-12에 운영 DB(Dev 계정, 읽기 전용)로 다시 확인했다(마지막 세션 11/08, rev 50, 이후 세션 없음). "다음 할 일 / 열린 항목"은 2026-11-03 메모리 이전분이라 검증하지 않은 항목이 섞여 있다.
 
@@ -12,9 +12,7 @@
 
 ## 진행 중
 
-- **Nightly E2E 스토어 목록 검사**: 11/13 KST부터 실패. #788이 공개 시드에 추가한 `Coach-Prescribed Sessions` 카드가 기대 목록에서 빠져 16개 기대·17개 수신. [최신 nightly](https://github.com/dawntide/workout-log/actions/runs/45080650271)는 이 검사만 실패했고 264개가 통과했다.
-  - `web/e2e/all-programs-user-journey.spec.ts`의 기대 목록을 갱신했다. 임시 PostgreSQL과 로컬 dev 서버·분리형 API에서 해당 Chromium 테스트가 수정 전 16/17로 실패하고 수정 후 통과했다. 빌드, lint, 디자인 lint, 타입 검사, web 유닛 255개, `db:verify:coach-sessions`도 통과했다.
-  - 다음 확인: 머지된 main에서 GitHub nightly 전체 실행.
+- **Nightly E2E 스토어 목록 검사 복구(2026-11-23, PR #793)**: #788이 공개 시드에 추가한 `Coach-Prescribed Sessions` 카드를 기대 목록에 반영했다. PR 체크 10개 통과 후 main `22192c14`에 머지했다. [머지 후 nightly](https://github.com/dawntide/workout-log/actions/runs/45094122339)는 Chromium 265개가 모두 통과했다. `db-migrate`·`db-seed`·`deploy`도 성공했다.
 - **보조 상한 v1.6 머지·배포 완료(2026-11-12, PR #786, main `f3947827`)**: DL·OHP 상한을 직접 작업중량으로 비교한다(`DL ≤ SQ H3`, `OHP ≤ floor2.5(BP 집중 × 0.5)`). 프로토콜 1.6 · 프로그램 6 · 엔진 516. 사용자가 수정안과 머지를 각각 승인했다. 머지 전 CI 9개 체크(E2E 포함) 통과, 머지 뒤 prod·dev 마이그레이션·시드와 프로덕션 배포 성공.
   - 소급 금지: 완료 리듀서가 세션 스냅샷의 프로토콜로 상한 규칙을 고른다(v1.4·v1.5는 종전 REF 상한). 고정 테스트는 `ref5-auto-progression.test.ts`.
   - 배포 직후 운영 DB(읽기 전용): `plan_runtime_state`는 rev 50 그대로이고 DL 77.5, OHP 32.5다. 저장된 프로토콜 표시는 아직 `1.5`이며 읽을 때 `1.6`으로 이어지고 다음 쓰기 때 바뀐다.
