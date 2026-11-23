@@ -387,9 +387,11 @@ test("스토어 공개 프로그램 목록과 테스트 매트릭스가 일치�
   await page.goto("/program-store");
 
   const cards = page.locator(".program-list-card");
-  const expectedInventoryNames = new Set(
-    PROGRAMS.map((program) => program.inventoryName),
-  );
+  const expectedInventoryNames = new Set([
+    ...PROGRAMS.map((program) => program.inventoryName),
+    // 날짜별 API 처방으로 세션을 채우는 경로는 db:verify:coach-sessions에서 검증한다.
+    "Coach-Prescribed Sessions",
+  ]);
   await expect(cards).toHaveCount(expectedInventoryNames.size, {
     timeout: 20_000,
   });
